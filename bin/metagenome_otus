@@ -80,26 +80,29 @@ def pipe(args):
     working_directory = args.working_directory
     output_otu_table = args.otu_table
 
-
     if os.path.exists(working_directory):
         raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
     os.mkdir(working_directory)
-
-    # run graftm across all the HMMs
-    logging.info("Using as input %i different forward read sets e.g. %s" % (len(args.forward),
-                                                                        args.forward[0]))
-    graftm_search_directory = os.path.join(working_directory, 'graftm_search')
-    cmd = "graftM graft --threads 44 --forward %s --search_hmm_files %s --search_and_align_only\
-     --output_directory %s --aln_hmm_file %s --verbosity 1" % (
-                                                 ' '.join(forward_read_files),
-                                                 ' '.join(hmms.hmm_paths()),
-                                                 graftm_search_directory,
-                                                 hmms.hmm_paths()[0]
-                                                )
-    logging.info("Running GraftM to find particular reads..")
-    logging.debug("Running cmd %s" % cmd)
-    subprocess.check_call(cmd, shell=True)
-    logging.info("Finished running GraftM search phase")
+    
+    if not args.previous_graftm_search_directory:
+        graftm_search_directory = os.path.join(working_directory, 'graftm_search')
+    
+        # run graftm across all the HMMs
+        logging.info("Using as input %i different forward read sets e.g. %s" % (len(args.forward),
+                                                                            args.forward[0]))
+        cmd = "graftM graft --threads 44 --forward %s --search_hmm_files %s --search_and_align_only\
+         --output_directory %s --aln_hmm_file %s --verbosity 1" % (
+                                                     ' '.join(forward_read_files),
+                                                     ' '.join(hmms.hmm_paths()),
+                                                     graftm_search_directory,
+                                                     hmms.hmm_paths()[0]
+                                                    )
+        logging.info("Running GraftM to find particular reads..")
+        logging.debug("Running cmd %s" % cmd)
+        subprocess.check_call(cmd, shell=True)
+        logging.info("Finished running GraftM search phase")
+    else:
+        logging.info("Using existing graftM directory %s" % args.previous_graftm_search_directory)
 
     # Get the names of the samples from the graftm directory
     sample_names = [f for f in os.listdir(graftm_search_directory) \
@@ -191,6 +194,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='sequences to be searched', required=True)
     pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
     pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory', required=True)
+    pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
 
     seqs_parser = subparsers.add_parser('seqs',
                                         description='From GraftM alignment to aligned nucleotide sequences',
