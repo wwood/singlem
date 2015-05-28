@@ -1,0 +1,228 @@
+#!/usr/bin/env python
+import subprocess
+import tempfile
+import re
+import IPython
+
+
+__author__ = "Ben Woodcroft"
+__copyright__ = "Copyright 2015"
+__credits__ = ["Ben Woodcroft"]
+__license__ = "GPL3"
+__maintainer__ = "Ben Woodcroft"
+__email__ = "b.woodcroft near uq.edu.au"
+__status__ = "Development"
+
+import argparse
+import logging
+import sys
+import os
+
+try:
+    import metagenome_otus.metagenome_otus
+except ImportError:
+    sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..'))
+from metagenome_otus.metagenome_otus import MetagenomeOtuFinder, Sequence, \
+    HmmDatabase, SeqReader
+
+
+
+
+def seqs(args):
+    # Read in the fasta Alignment
+    protein_alignment = protein_alignment_from_alignment_file(args.alignment)
+    logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
+                                                          protein_alignment[0].name,
+                                                          protein_alignment[0].seq
+                                                          ))
+
+    # Read in the original nucleotide sequences
+    nucleotide_sequences = read_nucleotide_sequences(args.reads)
+    eg_name = nucleotide_sequences.keys()[0]
+    logging.info("Read in %i nucleotide sequences e.g. %s %s" % (len(nucleotide_sequences),
+                                                          eg_name,
+                                                          nucleotide_sequences[eg_name]
+                                                          ))
+    if args.start_position:
+        best_position = args.start_position - 1
+    else:
+        best_position = None
+    aligned_sequences = MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
+                                                nucleotide_sequences,
+                                                args.window_size,
+                                                best_position)
+    logging.info("Printing %i aligned sequences" % len(aligned_sequences))
+    print '\n'.join(aligned_sequences)
+
+
+def protein_alignment_from_alignment_file(alignment_file):
+    protein_alignment = []
+    for name, seq, _ in SeqReader().readfq(open(alignment_file)):
+        protein_alignment.append(Sequence(name, seq))
+    logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
+                                                          protein_alignment[0].name,
+                                                          protein_alignment[0].seq
+                                                          ))
+    return protein_alignment
+
+def read_nucleotide_sequences(nucleotide_file):
+    nucleotide_sequences = {}
+    for name, seq, _ in SeqReader().readfq(open(nucleotide_file)):
+        nucleotide_sequences[name] = seq
+    return nucleotide_sequences
+
+
+
+
+def pipe(args):
+    hmms = HmmDatabase()
+    forward_read_files = args.forward
+    working_directory = args.working_directory
+    output_otu_table = args.otu_table
+
+
+    if os.path.exists(working_directory):
+        raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
+    os.mkdir(working_directory)
+
+    # run graftm across all the HMMs
+    logging.info("Using as input %i different forward read sets e.g. %s" % (len(args.forward),
+                                                                        args.forward[0]))
+    graftm_search_directory = os.path.join(working_directory, 'graftm_search')
+    cmd = "graftM graft --threads 44 --forward %s --search_hmm_files %s --search_and_align_only\
+     --output_directory %s --aln_hmm_file %s --verbosity 1" % (
+                                                 ' '.join(forward_read_files),
+                                                 ' '.join(hmms.hmm_paths()),
+                                                 graftm_search_directory,
+                                                 hmms.hmm_paths()[0]
+                                                )
+    logging.info("Running GraftM to find particular reads..")
+    logging.debug("Running cmd %s" % cmd)
+    subprocess.check_call(cmd, shell=True)
+    logging.info("Finished running GraftM search phase")
+
+    # Get the names of the samples from the graftm directory
+    sample_names = [f for f in os.listdir(graftm_search_directory) \
+                    if os.path.isdir(os.path.join(graftm_search_directory, f))]
+    logging.debug("Recovered %i samples from graftm search output e.g. %s" \
+                 % (len(sample_names), sample_names[0]))
+
+    # runs graftm for each of the HMMs doing the actual alignments, for each
+    # of the input sequences
+    graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
+    os.mkdir(graftm_align_directory_base)
+    with tempfile.NamedTemporaryFile() as hmms_file:
+        hmms_file.write("\n".join(hmms.hmm_basenames()))
+        hmms_file.flush()
+        with tempfile.NamedTemporaryFile() as samples_file:
+            samples_file.write("\n".join(sample_names))
+            samples_file.flush()
+
+            cmd = "parallel -t graftM graft --verbosity 1 --forward %s/{1}/{1}_hits.fa --search_and_align_only\
+             --search_hmm_files %s/{2}.hmm --output_directory %s/{1}_vs_{2}\
+              ::: `cat %s` ::: `cat %s`" % \
+              (
+               graftm_search_directory,
+               hmms.base_directory(),
+               graftm_align_directory_base,
+               samples_file.name,
+               hmms_file.name
+               )
+            logging.info("Running alignments in GraftM..")
+            logging.debug("Running cmd: %s" % cmd)
+            subprocess.check_call(cmd, shell=True)
+
+    # get the sequences out for each of them
+    with open(output_otu_table,'w') as output:
+        un_hitify_re = re.compile(r'(.*)_vs_(.*)')
+        for f in os.listdir(graftm_align_directory_base):
+            if not os.path.isdir(os.path.join(graftm_align_directory_base,f)): continue
+            unhitted = un_hitify_re.match(f)
+            if not unhitted:
+                raise Exception("Unexpected graftm sequence name %s" % f)
+            sample_name = unhitted.groups(0)[0]
+            hmm_basename = unhitted.groups(0)[1]
+
+            hits_name = "%s_hits" % sample_name
+            base_dir = os.path.join(graftm_align_directory_base,
+                                          f,
+                                          hits_name)
+
+            alignment_file = os.path.join(base_dir, "%s_hits.aln.fa" % hits_name)
+            protein_alignment = protein_alignment_from_alignment_file(alignment_file)
+            nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
+            nucleotide_sequences = read_nucleotide_sequences(nucleotide_file)
+
+            aligned_seqs = MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
+                                                    nucleotide_sequences,
+                                                    20,
+                                                    hmms.best_position(hmm_basename))
+            logging.debug("Found %i sequences for hmm %s, sample %s" % (len(aligned_seqs),
+                                                                        hmm_basename,
+                                                                        sample_name))
+            # convert to OTU table, output
+            for seq, count in seqs_to_counts(aligned_seqs).iteritems():
+                output.write("\t".join([hmm_basename,
+                                sample_name,
+                                seq,
+                                str(count)]) + "\n")
+
+
+def seqs_to_counts(seqs):
+    '''given an array of sequences, return the count of each sequence'''
+    counts = {}
+    for s in seqs:
+        try:
+            counts[s] += 1
+        except KeyError:
+            counts[s] = 1
+    return counts
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(add_help=False)
+
+    parser.add_argument('--debug', help='output debug information', action="store_true")
+    subparsers = parser.add_subparsers(help="--", dest='subparser_name')
+
+    pipe_parser = subparsers.add_parser('pipe',
+                                        description='From raw reads to OTU table',
+                                        epilog=__author__)
+    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='sequences to be searched', required=True)
+    pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
+    pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory', required=True)
+
+    seqs_parser = subparsers.add_parser('seqs',
+                                        description='From GraftM alignment to aligned nucleotide sequences',
+                                        epilog=__author__)
+    seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
+    seqs_parser.add_argument('--reads', metavar='raw_reads', help='Unaligned nucleotide sequences that were translated into the protein sequences', required=True)
+    seqs_parser.add_argument('--window_size', metavar='bp', help='Number of base pairs to use in continuous window', default=20, type=int)
+    seqs_parser.add_argument('--start_position', metavar='bp', help='Start the window at the position in the alignment (1-based index) [default: pick one automatically]', type=int)
+
+    args = parser.parse_args()
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    else:
+        logging.basicConfig(level=logging.INFO)
+
+    if args.subparser_name == 'seqs':
+        seqs(args)
+    elif args.subparser_name=='pipe':
+        pipe(args)
+    else:
+        raise Exception()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
