@@ -5,7 +5,7 @@ import itertools
 import logging
 import re
 import os
-            
+import csv
             
 class Sequence:
     def __init__(self, name, seq):
@@ -28,24 +28,40 @@ class Sequence:
             return(str(Seq(translated_seq).reverse_complement()))
         else:
             return(translated_seq)
+       
+class OrfMUtils:
+    def __init__(self):
+        self._re = re.compile('_\d+_\d+_\d+$')
         
+    def un_orfm_name(self, name):
+        return self._re.sub('', name)
+       
+class TaxonomyFile:
+    def __init__(self, taxonomy_file_path):
+        self.sequence_to_taxonomy = {}
+        utils = OrfMUtils()
+        with open(taxonomy_file_path) as f:
+            reader = csv.reader(f, delimiter='\t')
+            for row in reader:
+                self.sequence_to_taxonomy[\
+                      utils.un_orfm_name(row[0])] = row[1]
+                      
+    def __getitem__(self, item):
+        return self.sequence_to_taxonomy[item]
         
 class HmmDatabase:
     def __init__(self):  
         self.hmms_and_positions = {}
-        self.hmm_directory = os.path.join(
-                                     os.path.dirname(os.path.realpath(__file__)),
-                                     '..',
-                                     'hmms')
                                      
         for array in [
-         ['DNGNGWU00001', 20],
-         ['DNGNGWU00024', 15],
-         ['DNGNGWU00036', 51],
+         ['/srv/db/graftm/1/ribosomal_protein_S2_rpsB_gpkg','DNGNGWU00001', 20],
+         ['/srv/db/graftm/1/ribosomal_protein_L11_rplK_gpkg','DNGNGWU00024', 15],
+         ['/srv/db/graftm/1/ribosomal_protein_S17_gpkg','DNGNGWU00036', 51],
           ]:
-            self.hmms_and_positions[array[0]] = HmmAndPostion(
-                               os.path.join(self.hmm_directory, array[0])+".hmm",
-                               array[1]
+            self.hmms_and_positions[os.path.basename(array[0])] = HmmAndPostion(
+                               array[0],                               
+                               os.path.join(array[0], array[1])+".hmm",
+                               array[2]
                                )
             
             
@@ -53,18 +69,18 @@ class HmmDatabase:
         'return an array of absolute paths to the hmms in this database'
         return [hp.hmm_filename for hp in self.hmms_and_positions.values()]
     
-    def hmm_basenames(self):
+    def gpkg_basenames(self):
         return self.hmms_and_positions.keys()
     
-    def base_directory(self):
-        return self.hmm_directory
+    def best_position(self, gpkg_basename):
+        return self.hmms_and_positions[gpkg_basename].best_position
     
-    def best_position(self, hmm_basename):
-        return self.hmms_and_positions[hmm_basename].best_position
-            
+    def gpkg_paths(self):
+        return [h.gpkg_path for _, h in self.hmms_and_positions.iteritems()]
         
 class HmmAndPostion:
-    def __init__(self, hmm_filename, best_position):
+    def __init__(self, gpkg_path, hmm_filename, best_position):
+        self.gpkg_path = gpkg_path
         self.hmm_filename = hmm_filename
         self.best_position = best_position
         
@@ -131,10 +147,10 @@ class MetagenomeOtuFinder:
         windowed_sequences = []
         for s in aligned_sequences:
             if s.seq[chosen_positions[0]] != '-' and s.seq[chosen_positions[-1]] != '-':
-                nuc = nucleotide_sequences[s.un_orfm_name()]
-                windowed_sequences.append(
-                                          self._nucleotide_alignment(s, s.orfm_nucleotides(nuc), chosen_positions)
-                                          )
+                name = s.un_orfm_name()
+                nuc = nucleotide_sequences[name]
+                align = self._nucleotide_alignment(s, s.orfm_nucleotides(nuc), chosen_positions)
+                windowed_sequences.append(Sequence(name,align))
         return windowed_sequences
     
     def _find_lower_case_columns(self, protein_alignment):

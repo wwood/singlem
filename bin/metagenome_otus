@@ -23,7 +23,7 @@ try:
 except ImportError:
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..'))
 from metagenome_otus.metagenome_otus import MetagenomeOtuFinder, Sequence, \
-    HmmDatabase, SeqReader
+    HmmDatabase, SeqReader, TaxonomyFile
 
 
 
@@ -102,6 +102,7 @@ def pipe(args):
         subprocess.check_call(cmd, shell=True)
         logging.info("Finished running GraftM search phase")
     else:
+        graftm_search_directory = args.previous_graftm_search_directory
         logging.info("Using existing graftM directory %s" % args.previous_graftm_search_directory)
 
     # Get the names of the samples from the graftm directory
@@ -112,28 +113,30 @@ def pipe(args):
 
     # runs graftm for each of the HMMs doing the actual alignments, for each
     # of the input sequences
-    graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
-    os.mkdir(graftm_align_directory_base)
-    with tempfile.NamedTemporaryFile() as hmms_file:
-        hmms_file.write("\n".join(hmms.hmm_basenames()))
-        hmms_file.flush()
-        with tempfile.NamedTemporaryFile() as samples_file:
-            samples_file.write("\n".join(sample_names))
-            samples_file.flush()
-
-            cmd = "parallel -t graftM graft --verbosity 1 --forward %s/{1}/{1}_hits.fa --search_and_align_only\
-             --search_hmm_files %s/{2}.hmm --output_directory %s/{1}_vs_{2}\
-              ::: `cat %s` ::: `cat %s`" % \
-              (
-               graftm_search_directory,
-               hmms.base_directory(),
-               graftm_align_directory_base,
-               samples_file.name,
-               hmms_file.name
-               )
-            logging.info("Running alignments in GraftM..")
-            logging.debug("Running cmd: %s" % cmd)
-            subprocess.check_call(cmd, shell=True)
+    if args.previous_graftm_placement_directory:
+        graftm_align_directory_base = args.previous_graftm_placement_directory
+    else:
+        graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
+        os.mkdir(graftm_align_directory_base)
+        with tempfile.NamedTemporaryFile() as gpkgs_file:
+            gpkgs_file.write("\n".join(hmms.gpkg_paths()))
+            gpkgs_file.flush()
+            with tempfile.NamedTemporaryFile() as samples_file:
+                samples_file.write("\n".join(sample_names))
+                samples_file.flush()
+    
+                cmd = "parallel -j8 graftM graft --verbosity 1 --forward %s/{1}/{1}_hits.fa \
+                 --graftm_package {2} --output_directory %s/{1}_vs_{2/}\
+                  ::: `cat %s` ::: `cat %s`" % \
+                  (
+                   graftm_search_directory,
+                   graftm_align_directory_base,
+                   samples_file.name,
+                   gpkgs_file.name
+                   )
+                logging.info("Running alignments/placement in GraftM..")
+                logging.debug("Running cmd: %s" % cmd)
+                subprocess.check_call(cmd, shell=True)
 
     # get the sequences out for each of them
     with open(output_otu_table,'w') as output:
@@ -155,6 +158,7 @@ def pipe(args):
             protein_alignment = protein_alignment_from_alignment_file(alignment_file)
             nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
             nucleotide_sequences = read_nucleotide_sequences(nucleotide_file)
+            taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_hits_read_tax.tsv" % sample_name))
 
             aligned_seqs = MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
                                                     nucleotide_sequences,
@@ -163,24 +167,60 @@ def pipe(args):
             logging.debug("Found %i sequences for hmm %s, sample %s" % (len(aligned_seqs),
                                                                         hmm_basename,
                                                                         sample_name))
+            
             # convert to OTU table, output
-            for seq, count in seqs_to_counts(aligned_seqs).iteritems():
+            for seq, count, taxonomy in seqs_to_counts_and_taxonomy(aligned_seqs,
+                                                                    taxonomies
+                                                                    ):
                 output.write("\t".join([hmm_basename,
                                 sample_name,
                                 seq,
-                                str(count)]) + "\n")
+                                str(count),
+                                taxonomy]) + "\n")
 
 
-def seqs_to_counts(seqs):
-    '''given an array of sequences, return the count of each sequence'''
+def seqs_to_counts_and_taxonomy(sequences, taxonomies):
+    '''given an array of Sequence objects, and hash of taxonomy file'''
     counts = {}
-    for s in seqs:
+    taxonomy_aggregates = {}
+    for s in sequences:
+        tax = taxonomies[s.name]
         try:
-            counts[s] += 1
+            counts[s.seq] += 1
+            taxonomy_aggregates[s.seq].append(tax)
         except KeyError:
-            counts[s] = 1
-    return counts
+            counts[s.seq] = 1
+            taxonomy_aggregates[s.seq] = [tax]
+    for seq, aggregate in taxonomy_aggregates.iteritems():
+        yield seq, counts[seq], median_taxonomy(aggregate)
 
+def median_taxonomy(taxonomies):
+    levels_to_counts = []
+    for tax_string in taxonomies:
+        for i, tax in enumerate(tax_string.split('; ')):
+            if i >= len(levels_to_counts):
+                levels_to_counts.append({})
+            try:
+                levels_to_counts[i][tax] += 1
+            except KeyError:
+                levels_to_counts[i][tax] = 1
+                
+                
+    median_tax = []
+    for level_counts in levels_to_counts:
+        max_count = 0
+        max_tax = None
+        for tax, count in level_counts.iteritems():
+            if count > max_count:
+                max_count = count
+                max_tax = tax
+        if float(max_count) / len(taxonomies) >= 0.5:
+            median_tax.append(max_tax)
+        else:
+            break
+    return '; '.join(median_tax)
+    
+    
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
@@ -191,10 +231,11 @@ if __name__ == '__main__':
     pipe_parser = subparsers.add_parser('pipe',
                                         description='From raw reads to OTU table',
                                         epilog=__author__)
-    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='sequences to be searched', required=True)
+    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='sequences to be searched')
     pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
     pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory', required=True)
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
+    pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
 
     seqs_parser = subparsers.add_parser('seqs',
                                         description='From GraftM alignment to aligned nucleotide sequences',
