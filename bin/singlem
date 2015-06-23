@@ -2,7 +2,6 @@
 import subprocess
 import tempfile
 import re
-import IPython
 
 
 __author__ = "Ben Woodcroft"
@@ -126,7 +125,7 @@ def pipe(args):
                 samples_file.flush()
     
                 cmd = "parallel -j8 graftM graft --verbosity 1 --forward %s/{1}/{1}_hits.fa \
-                 --graftm_package {2} --output_directory %s/{1}_vs_{2/}\
+                 --graftm_package {2} --output_directory %s/{1}_vs_{2/} --merge_reads\
                   ::: `cat %s` ::: `cat %s`" % \
                   (
                    graftm_search_directory,
@@ -180,7 +179,10 @@ def pipe(args):
 
 
 def seqs_to_counts_and_taxonomy(sequences, taxonomies):
-    '''given an array of Sequence objects, and hash of taxonomy file'''
+    '''given an array of Sequence objects, and hash of taxonomy file,
+    yield over the counts of the aggregated sequences and corresponding
+    median taxonomies
+    '''
     counts = {}
     taxonomy_aggregates = {}
     for s in sequences:
