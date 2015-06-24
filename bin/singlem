@@ -18,10 +18,10 @@ import sys
 import os
 
 try:
-    import metagenome_otus.metagenome_otus
+    import singlem.singlem
 except ImportError:
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..'))
-from metagenome_otus.metagenome_otus import MetagenomeOtuFinder, Sequence, \
+from singlem.singlem import MetagenomeOtuFinder, Sequence, \
     HmmDatabase, SeqReader, TaxonomyFile
 
 
@@ -76,12 +76,19 @@ def read_nucleotide_sequences(nucleotide_file):
 def pipe(args):
     hmms = HmmDatabase()
     forward_read_files = args.forward
+    reverse_read_files = args.reverse
     working_directory = args.working_directory
     output_otu_table = args.otu_table
+    num_threads = args.threads
 
     if os.path.exists(working_directory):
         raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
     os.mkdir(working_directory)
+    
+    if len(forward_read_files) != len(reverse_read_files):
+        raise Exception(\
+            "Unexpectedly found a different number of forward and reverse\
+            sequence files")
     
     if not args.previous_graftm_search_directory:
         graftm_search_directory = os.path.join(working_directory, 'graftm_search')
@@ -89,13 +96,17 @@ def pipe(args):
         # run graftm across all the HMMs
         logging.info("Using as input %i different forward read sets e.g. %s" % (len(args.forward),
                                                                             args.forward[0]))
-        cmd = "graftM graft --threads 44 --forward %s --search_hmm_files %s --search_and_align_only\
-         --output_directory %s --aln_hmm_file %s --verbosity 1" % (
-                                                     ' '.join(forward_read_files),
-                                                     ' '.join(hmms.hmm_paths()),
-                                                     graftm_search_directory,
-                                                     hmms.hmm_paths()[0]
-                                                    )
+        cmd = "graftM graft --threads %s --forward %s --reverse %s \
+            --search_hmm_files %s --search_and_align_only\
+            --output_directory %s --aln_hmm_file %s --verbosity 1\
+            --merge_reads" % (
+                                str(num_threads),
+                                ' '.join(forward_read_files),
+                                ' '.join(reverse_read_files),
+                                ' '.join(hmms.hmm_paths()),
+                                graftm_search_directory,
+                                hmms.hmm_paths()[0]
+                                )
         logging.info("Running GraftM to find particular reads..")
         logging.debug("Running cmd %s" % cmd)
         subprocess.check_call(cmd, shell=True)
@@ -125,7 +136,7 @@ def pipe(args):
                 samples_file.flush()
     
                 cmd = "parallel -j8 graftM graft --verbosity 1 --forward %s/{1}/{1}_hits.fa \
-                 --graftm_package {2} --output_directory %s/{1}_vs_{2/} --merge_reads\
+                 --graftm_package {2} --output_directory %s/{1}_vs_{2/}\
                   ::: `cat %s` ::: `cat %s`" % \
                   (
                    graftm_search_directory,
@@ -233,7 +244,9 @@ if __name__ == '__main__':
     pipe_parser = subparsers.add_parser('pipe',
                                         description='From raw reads to OTU table',
                                         epilog=__author__)
-    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='sequences to be searched')
+    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='forward sequences to be searched')
+    pipe_parser.add_argument('--reverse', nargs='+', metavar='sequence_file', help='reverse sequences to be searched')
+    pipe_parser.add_argument('--threads', type=int, metavar='sequence_file', help='sequences to be searched')
     pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
     pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory', required=True)
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
