@@ -1,0 +1,29 @@
+{
+    "files": {
+        "phylo_model": "phylo_modelK90_b9.json", 
+        "taxonomy": "tax_info.csv", 
+        "tree": "rerooted2.tree", 
+        "aln_fasta": "aligned.fasta", 
+        "seq_info": "seq_info.csv", 
+        "tree_stats": "rerooted.log"
+    }, 
+    "rollback": null, 
+    "log": [
+        "Stripped refpkg (removed 0 files)", 
+        "Loaded initial files into empty refpkg"
+    ], 
+    "metadata": {
+        "create_date": "2015-02-05 19:15:59", 
+        "format_version": "1.1", 
+        "locus": "DNGNGWU00036"
+    }, 
+    "rollforward": null, 
+    "md5": {
+        "phylo_model": "333d649d3901832649e8451bd328266c", 
+        "taxonomy": "fdacd93a60622eee55307fad6d1c6c74", 
+        "tree": "5a3ec91dc6cb32b7ad793877567ef838", 
+        "aln_fasta": "cd126ccdd405fc99af3e84a4fd6b4d9a", 
+        "seq_info": "caace2b8a7d74a3e4407ed02c74b01ca", 
+        "tree_stats": "2f24254ed4fe33d738925f68a6955b0a"
+    }
+}
