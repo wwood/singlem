@@ -2,6 +2,7 @@
 import subprocess
 import tempfile
 import re
+import shutil
 
 
 __author__ = "Ben Woodcroft"
@@ -16,6 +17,7 @@ import argparse
 import logging
 import sys
 import os
+import tempdir
 
 try:
     import singlem.singlem
@@ -71,24 +73,37 @@ def read_nucleotide_sequences(nucleotide_file):
     return nucleotide_sequences
 
 
-
+def align_proteins_to_hmm(proteins_file, hmm_file):
+    '''hmmalign proteins to hmm, and return an alignment object'''
+    
+    with tempfile.NamedTemporaryFile(prefix="singlem", suffix=".fasta") as f:
+        cmd = "hmmalign %s %s |seqmagick convert --input-format stockholm - %s" % (hmm_file,
+                                                          proteins_file,
+                                                          f.name)
+        logging.debug("Running cmd: %s" % cmd)
+        subprocess.check_call(cmd, shell=True)
+        return protein_alignment_from_alignment_file(f.name)
 
 def pipe(args):
     hmms = HmmDatabase()
     forward_read_files = args.forward
-    reverse_read_files = args.reverse
-    working_directory = args.working_directory
     output_otu_table = args.otu_table
     num_threads = args.threads
-
-    if os.path.exists(working_directory):
-        raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
-    os.mkdir(working_directory)
     
-    if len(forward_read_files) != len(reverse_read_files):
-        raise Exception(\
-            "Unexpectedly found a different number of forward and reverse\
-            sequence files")
+    using_temporary_working_directory = args.working_directory is None
+    if using_temporary_working_directory:
+        tmp = tempdir.TempDir()
+        working_directory = tmp.name
+    else:
+        working_directory = args.working_directory
+        if os.path.exists(working_directory):
+            if args.force:
+                logging.info("Overwriting directory %s" % working_directory)
+                shutil.rmtree(working_directory)
+            else:
+                raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
+        os.mkdir(working_directory)
+    logging.debug("Using working directory %s" % working_directory)
     
     if not args.previous_graftm_search_directory:
         graftm_search_directory = os.path.join(working_directory, 'graftm_search')
@@ -96,13 +111,12 @@ def pipe(args):
         # run graftm across all the HMMs
         logging.info("Using as input %i different forward read sets e.g. %s" % (len(args.forward),
                                                                             args.forward[0]))
-        cmd = "graftM graft --threads %s --forward %s --reverse %s \
-            --search_hmm_files %s --search_and_align_only\
-            --output_directory %s --aln_hmm_file %s --verbosity 1\
-            --merge_reads" % (
-                                str(num_threads),
+        cmd = "graftM graft --threads %i --forward %s "\
+            "--search_hmm_files %s --search_and_align_only "\
+            "--output_directory %s --aln_hmm_file %s --verbosity 2"\
+            % (
+                                num_threads,
                                 ' '.join(forward_read_files),
-                                ' '.join(reverse_read_files),
                                 ' '.join(hmms.hmm_paths()),
                                 graftm_search_directory,
                                 hmms.hmm_paths()[0]
@@ -135,10 +149,12 @@ def pipe(args):
                 samples_file.write("\n".join(sample_names))
                 samples_file.flush()
     
-                cmd = "parallel -j8 graftM graft --verbosity 1 --forward %s/{1}/{1}_hits.fa \
-                 --graftm_package {2} --output_directory %s/{1}_vs_{2/}\
-                  ::: `cat %s` ::: `cat %s`" % \
+                cmd = "parallel -j1 graftM graft --threads %i --verbosity 2 "\
+                 "--forward %s/{1}/{1}_hits.fa "\
+                 "--graftm_package {2} --output_directory %s/{1}_vs_{2/} "\
+                 "::: `cat %s` ::: `cat %s`" % \
                   (
+                   args.threads,
                    graftm_search_directory,
                    graftm_align_directory_base,
                    samples_file.name,
@@ -163,9 +179,14 @@ def pipe(args):
             base_dir = os.path.join(graftm_align_directory_base,
                                           f,
                                           hits_name)
-
-            alignment_file = os.path.join(base_dir, "%s_hits.aln.fa" % hits_name)
-            protein_alignment = protein_alignment_from_alignment_file(alignment_file)
+            
+            # Need to re-align the sequences because GraftM removes columns
+            # from the alignment, and we need all of them to be able to align
+            # with nucleotide sequences
+            proteins_file = os.path.join(base_dir, "%s_hits_orf.fa" % sample_name)
+            protein_alignment = align_proteins_to_hmm(proteins_file,
+                                                      hmms.hmms_and_positions[hmm_basename].hmm_path()
+                                                      )
             nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
             nucleotide_sequences = read_nucleotide_sequences(nucleotide_file)
             taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_hits_read_tax.tsv" % sample_name))
@@ -173,20 +194,25 @@ def pipe(args):
             aligned_seqs = MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
                                                     nucleotide_sequences,
                                                     20,
-                                                    hmms.best_position(hmm_basename))
+                                                    hmms.hmms_and_positions[hmm_basename].best_position)
             logging.debug("Found %i sequences for hmm %s, sample %s" % (len(aligned_seqs),
                                                                         hmm_basename,
                                                                         sample_name))
             
             # convert to OTU table, output
-            for seq, count, taxonomy in seqs_to_counts_and_taxonomy(aligned_seqs,
+            for seq, count, taxonomy, names in seqs_to_counts_and_taxonomy(aligned_seqs,
                                                                     taxonomies
                                                                     ):
                 output.write("\t".join([hmm_basename,
                                 sample_name,
                                 seq,
                                 str(count),
-                                taxonomy]) + "\n")
+                                taxonomy,
+                                ' '.join(names)]) + "\n")
+                
+    # Be clean.
+    if using_temporary_working_directory:
+        tmp.dissolve()
 
 
 def seqs_to_counts_and_taxonomy(sequences, taxonomies):
@@ -196,16 +222,19 @@ def seqs_to_counts_and_taxonomy(sequences, taxonomies):
     '''
     counts = {}
     taxonomy_aggregates = {}
+    names = {}
     for s in sequences:
         tax = taxonomies[s.name]
         try:
             counts[s.seq] += 1
             taxonomy_aggregates[s.seq].append(tax)
+            names[s.seq].append(s.name)
         except KeyError:
             counts[s.seq] = 1
             taxonomy_aggregates[s.seq] = [tax]
+            names[s.seq] = [s.name]
     for seq, aggregate in taxonomy_aggregates.iteritems():
-        yield seq, counts[seq], median_taxonomy(aggregate)
+        yield seq, counts[seq], median_taxonomy(aggregate), names[seq]
 
 def median_taxonomy(taxonomies):
     levels_to_counts = []
@@ -239,16 +268,17 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(add_help=False)
 
     parser.add_argument('--debug', help='output debug information', action="store_true")
+    parser.add_argument('--quiet', help='only output errors', action="store_true")
     subparsers = parser.add_subparsers(help="--", dest='subparser_name')
 
     pipe_parser = subparsers.add_parser('pipe',
                                         description='From raw reads to OTU table',
                                         epilog=__author__)
-    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='forward sequences to be searched')
-    pipe_parser.add_argument('--reverse', nargs='+', metavar='sequence_file', help='reverse sequences to be searched')
-    pipe_parser.add_argument('--threads', type=int, metavar='sequence_file', help='sequences to be searched')
+    pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='forward nucleotide sequences to be searched')
+    pipe_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use')
     pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
-    pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory', required=True)
+    pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory (default: a temporary directory)')
+    pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
 
@@ -263,6 +293,8 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.debug:
         logging.basicConfig(level=logging.DEBUG)
+    elif args.quiet:
+        logging.basicConfig(level=logging.ERROR)
     else:
         logging.basicConfig(level=logging.INFO)
 

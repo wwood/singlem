@@ -50,20 +50,22 @@ class TaxonomyFile:
         return self.sequence_to_taxonomy[item]
         
 class HmmDatabase:
-    def __init__(self):  
+    def __init__(self):
+        # Array of gpkg names to HmmAndPostion
         self.hmms_and_positions = {}
                                      
         for array in [
-         ['/srv/db/graftm/1/ribosomal_protein_S2_rpsB_gpkg','DNGNGWU00001', 20],
-         ['/srv/db/graftm/1/ribosomal_protein_L11_rplK_gpkg','DNGNGWU00024', 15],
-         ['/srv/db/graftm/1/ribosomal_protein_S17_gpkg','DNGNGWU00036', 51],
+         ['ribosomal_protein_S2_rpsB_gpkg','DNGNGWU00001', 20],
+         ['ribosomal_protein_L11_rplK_gpkg','DNGNGWU00024', 15],
+         ['ribosomal_protein_S17_gpkg','DNGNGWU00036', 51],
           ]:
-            self.hmms_and_positions[os.path.basename(array[0])] = HmmAndPostion(
-                               array[0],                               
-                               os.path.join(array[0], array[1])+".hmm",
+            hmm_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                            '..', 'db', array[0])
+            self.hmms_and_positions[os.path.basename(hmm_path)] = \
+                HmmAndPostion(hmm_path,                                         
+                               os.path.join(hmm_path, array[1])+".hmm",
                                array[2]
                                )
-            
             
     def hmm_paths(self):
         'return an array of absolute paths to the hmms in this database'
@@ -71,9 +73,6 @@ class HmmDatabase:
     
     def gpkg_basenames(self):
         return self.hmms_and_positions.keys()
-    
-    def best_position(self, gpkg_basename):
-        return self.hmms_and_positions[gpkg_basename].best_position
     
     def gpkg_paths(self):
         return [h.gpkg_path for _, h in self.hmms_and_positions.iteritems()]
@@ -83,6 +82,9 @@ class HmmAndPostion:
         self.gpkg_path = gpkg_path
         self.hmm_filename = hmm_filename
         self.best_position = best_position
+        
+    def hmm_path(self):
+        return os.path.join(self.gpkg_path, self.hmm_filename)
         
 class SeqReader:
     # Stolen from https://github.com/lh3/readfq/blob/master/readfq.py
