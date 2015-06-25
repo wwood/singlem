@@ -203,12 +203,14 @@ def pipe(args):
             for seq, count, taxonomy, names in seqs_to_counts_and_taxonomy(aligned_seqs,
                                                                     taxonomies
                                                                     ):
-                output.write("\t".join([hmm_basename,
+                to_print = [hmm_basename,
                                 sample_name,
                                 seq,
                                 str(count),
-                                taxonomy,
-                                ' '.join(names)]) + "\n")
+                                taxonomy]
+                if args.output_read_names:
+                    to_print.append(' '.join(names))
+                output.write("\t".join(to_print) + "\n")
                 
     # Be clean.
     if using_temporary_working_directory:
@@ -281,6 +283,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
+    pipe_parser.add_argument('--output_read_names', action='store_true', help='give the names of the reads for each OTU in the table (mainly for debug purposes)', default=False)
 
     seqs_parser = subparsers.add_parser('seqs',
                                         description='From GraftM alignment to aligned nucleotide sequences',
