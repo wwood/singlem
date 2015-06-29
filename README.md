@@ -20,4 +20,4 @@ ribosomal_protein_S2_rpsB_gpkg  20111000_E2M    GCCGCGTGGAACCCGAAGATGCAGCCGTACAT
 Currently SingleM concentrates on 3 single copy marker genes, but will soon be extended to be able to include arbitrary [GraftM](https://github.com/geronimp/graftM) packages. For instance you may use McrA to determine OTUs of methanogens and archaeal methanotrophs in your sample. SingleM is reasonably fast and is quite scalable, although it could be sped up by at least 50%.
 
 ##License
-SingleM is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
+SingleM is written by Ben Woodcroft (@wwood) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
