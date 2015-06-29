@@ -34,11 +34,11 @@ class Tests(unittest.TestCase):
         expected = [['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
 ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
 ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-        exp = "\n".join(["\t".join(x) for x in expected])+"\n"
+        exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s --quiet pipe --forward %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
-        self.assertEqual(exp, subprocess.check_output(cmd, shell=True))
+        self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
                             
 if __name__ == "__main__":
     unittest.main()
