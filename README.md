@@ -6,7 +6,7 @@ Where [GraftM](https://github.com/geronimp/graftM) gives a taxonomic overview of
 
 * How many different kinds of TM6 do I have?
 * What is the Chao 1 diversity of my sample?
-* Is the Acidobacteria in sample 1 very closely related to the Acidobacteria in sample 2?
+* Are the Acidobacteria in sample 1 very closely related to the Acidobacteria in sample 2?
 * Do I have population genomes for the main community members?
 
 An overview of your community can be obtained like so:
