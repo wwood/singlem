@@ -279,7 +279,7 @@ if __name__ == '__main__':
                                         description='From raw reads to OTU table',
                                         epilog=__author__)
     pipe_parser.add_argument('--forward', nargs='+', metavar='sequence_file', help='forward nucleotide sequences to be searched')
-    pipe_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use')
+    pipe_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use', default=1)
     pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
     pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory (default: a temporary directory)')
     pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
