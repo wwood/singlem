@@ -2,9 +2,16 @@ Welcome to the SingleM.
 
 SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data. It is able to differentiate closely related species even in the absence of a well-resolved phylogeny.
 
-A phylogenetic overview of your community can be obtained like so:
+Where [GraftM](https://github.com/geronimp/graftM) gives a taxonomic overview of your community, SingleM gives you the ability to answer questions like:
+
+* How many different kinds of TM6 do I have?
+* What is the Chao 1 diversity of my sample?
+* Is the Acidobacteria in sample 1 very closely related to the Acidobacteria in sample 2?
+* Do I have population genomes for the main community members?
+
+An overview of your community can be obtained like so:
 ```
-singlem pipe --forward my_sequences.fastq.gz --otu_table output_otu_table.csv
+singlem pipe --forward my_sequences.fastq.gz --otu_table output_otu_table.csv --threads 24
 ```
 The output table consists of columns:
 ```
