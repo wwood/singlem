@@ -114,7 +114,8 @@ def pipe(args):
                                                                             args.forward[0]))
         cmd = "graftM graft --threads %i --forward %s "\
             "--search_hmm_files %s --search_and_align_only "\
-            "--output_directory %s --aln_hmm_file %s --verbosity 2"\
+            "--output_directory %s --aln_hmm_file %s --verbosity 2 "\
+            "--input_sequence_type nucleotide"\
             % (
                                 num_threads,
                                 ' '.join(forward_read_files),
@@ -153,6 +154,7 @@ def pipe(args):
                 cmd = "parallel -j1 graftM graft --threads %i --verbosity 2 "\
                  "--forward %s/{1}/{1}_hits.fa "\
                  "--graftm_package {2} --output_directory %s/{1}_vs_{2/} "\
+                 "--input_sequence_type nucleotide "\
                  "::: `cat %s` ::: `cat %s`" % \
                   (
                    args.threads,
