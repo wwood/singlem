@@ -26,6 +26,7 @@ except ImportError:
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..'))
 from singlem.singlem import MetagenomeOtuFinder, Sequence, \
     HmmDatabase, SeqReader, TaxonomyFile
+import singlem
 
 
 
