@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #=======================================================================
-# Authors: Ben Woodcroft, Joel Boyd
+# Authors: Ben Woodcroft
 #
 # Unit tests.
 #
@@ -24,6 +24,8 @@
 import unittest
 import subprocess
 import os.path
+import tempfile
+import tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -39,6 +41,32 @@ class Tests(unittest.TestCase):
         cmd = "%s --quiet pipe --forward %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        
+    def test_makedb_query(self):
+        otu_table = [['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+        
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(otu_table)
+            f.flush()
+            
+            with tempdir.TempDir() as d:
+                cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
+                                                                d,
+                                                                f.name)
+                subprocess.check_call(cmd, shell=True)
+                
+                cmd = "%s query --query_sequence %s --db %s/db" % (path_to_script,
+                                                                'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATCA', # second sequence with an extra A at the end
+                                                                d)
+                
+                expected = [['divergence','num_hits','sample','marker','sequence','taxonomy'],
+                            ['1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+                expected = ["\t".join(x) for x in expected]+['']
+                self.assertEqual(expected,
+                                 subprocess.check_output(cmd, shell=True).split("\n"))
                             
 if __name__ == "__main__":
     unittest.main()

@@ -28,6 +28,7 @@ except ImportError:
 from singlem.singlem import MetagenomeOtuFinder, Sequence, \
     HmmDatabase, SeqReader, TaxonomyFile
 import singlem
+import singlem.sequence_database
 
 
 
@@ -269,24 +270,8 @@ def median_taxonomy(taxonomies):
             break
     return '; '.join(median_tax)
     
-def makedb(args):
-    otu_file = args.otu_table
-    fasta_file = "%s.fasta" % otu_file
-    with open(fasta_file, 'w') as fasta:
-        for i, row in enumerate(csv.reader(open(otu_file), delimiter="\t")):
-            fasta.write('|'.join([">gnl",
-                                  str(i+1),
-                                  row[0],row[1],row[3]]))
-            fasta.write(' '+row[4])
-            if len(row)>5:
-                fasta.write(' '+'|'.join(row[5:]))
-            fasta.write("\n%s\n" % row[2])
-    cmd = "makeblastdb -in '%s' -dbtype nucl -parse_seqids" % fasta.name
-    logging.debug("Running cmd: %s" % cmd)
-    subprocess.check_call(cmd, shell=True)
-    
 def query(args):
-    db = args.db
+    db = singlem.sequence_database.SequenceDatabase.acquire(args.db)
     query_sequence = args.query_sequence
     max_target_seqs = args.max_hits
     max_divergence = args.max_divergence
@@ -300,25 +285,31 @@ def query(args):
         distances_and_names = []
         
         cmd = "blastn -task blastn -query '%s' -db '%s' -outfmt 6 -max_target_seqs %i" %\
-            (infile.name, db, max_target_seqs)
+            (infile.name, db.sequences_fasta_file, max_target_seqs)
         logging.debug("Running cmd %s" % cmd)
         proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
         for line in iter(proc.stdout.readline,''):
             _, sseqid, _, _, mismatch, gapopen, qstart, qend = line.strip().split("\t")[:8]
             query_length = len(query_sequence.replace('-',''))
-            num_hits = int(sseqid.split("|")[4])
+            subject = db.extract_sequence_by_sseqid(sseqid)
+            num_hits = subject.count
             divergence = int(mismatch) + int(gapopen) + (int(qstart)-1) + (query_length-int(qend))
             if divergence <= max_divergence:
-                distances_and_names.append([divergence, num_hits, sseqid])
+                distances_and_names.append([divergence, num_hits, subject])
         
         # sort the array according to increasing divergence, then increasing number of hits
         distances_and_names.sort(key=lambda x: [x[0],-x[1]])
         
         # print out array
-        print "\t".join(['divergence','num_hits','sample','marker'])
+        print "\t".join(['divergence','num_hits','sample','marker','sequence','taxonomy'])
         for hit in distances_and_names:
-            spl = hit[2].split('|')
-            print "\t".join([str(hit[0]),str(hit[1]),spl[3],spl[2]])
+            subject = hit[2]
+            print "\t".join([str(hit[0]),
+                             str(hit[1]), 
+                             subject.sample_name,
+                             subject.marker, 
+                             subject.sequence,
+                             subject.taxonomy])
     
 
 if __name__ == '__main__':
@@ -353,6 +344,7 @@ if __name__ == '__main__':
                                         description='From aligned nucleotide sequences to searchable database',
                                         epilog=__author__)
     makedb_parser.add_argument('--otu_table', help="Output from 'pipe' mode", required=True)
+    makedb_parser.add_argument('--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
     
     makedb_parser = subparsers.add_parser('query',
                                         description='Find closely related sequences in a singlem database',
@@ -376,7 +368,8 @@ if __name__ == '__main__':
     elif args.subparser_name=='pipe':
         pipe(args)
     elif args.subparser_name=='makedb':
-        makedb(args)
+        singlem.sequence_database.SequenceDatabase.create_from_otu_table\
+            (args.db_path, open(args.otu_table))
     elif args.subparser_name=='query':
         query(args)
     else:
