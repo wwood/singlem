@@ -4,7 +4,6 @@ import subprocess
 import tempfile
 import re
 import shutil
-import csv
 
 
 __author__ = "Ben Woodcroft"
@@ -29,6 +28,7 @@ from singlem.singlem import MetagenomeOtuFinder, Sequence, \
     HmmDatabase, SeqReader, TaxonomyFile
 import singlem
 import singlem.sequence_database
+import singlem.query_formatters
 
 
 
@@ -275,6 +275,7 @@ def query(args):
     query_sequence = args.query_sequence
     max_target_seqs = args.max_hits
     max_divergence = args.max_divergence
+    output_style = args.otu_table_type
     
     # blast the query against the database, output as csv
     with tempfile.NamedTemporaryFile(prefix='singlem_query') as infile:
@@ -292,25 +293,17 @@ def query(args):
             _, sseqid, _, _, mismatch, gapopen, qstart, qend = line.strip().split("\t")[:8]
             query_length = len(query_sequence.replace('-',''))
             subject = db.extract_sequence_by_sseqid(sseqid)
-            num_hits = subject.count
             divergence = int(mismatch) + int(gapopen) + (int(qstart)-1) + (query_length-int(qend))
             if divergence <= max_divergence:
-                distances_and_names.append([divergence, num_hits, subject])
+                distances_and_names.append([divergence, subject])
         
-        # sort the array according to increasing divergence, then increasing number of hits
-        distances_and_names.sort(key=lambda x: [x[0],-x[1]])
-        
-        # print out array
-        print "\t".join(['divergence','num_hits','sample','marker','sequence','taxonomy'])
-        for hit in distances_and_names:
-            subject = hit[2]
-            print "\t".join([str(hit[0]),
-                             str(hit[1]), 
-                             subject.sample_name,
-                             subject.marker, 
-                             subject.sequence,
-                             subject.taxonomy])
-    
+        if output_style == 'sparse':
+            formatter = singlem.query_formatters.SparseResultFormatter(distances_and_names)
+        elif output_style == 'dense':
+            formatter = singlem.query_formatters.DenseResultFormatter(distances_and_names)
+        else:
+            raise Exception()
+        formatter.write(sys.stdout)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -351,6 +344,7 @@ if __name__ == '__main__':
                                         epilog=__author__)
     makedb_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query", required=True)
     makedb_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
+    makedb_parser.add_argument('--otu_table_type', help="Style of output table", default='dense', choices=['dense','sparse'])
     makedb_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     makedb_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
     
