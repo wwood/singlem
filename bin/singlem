@@ -24,7 +24,7 @@ try:
     import singlem.singlem
 except ImportError:
     sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..'))
-from singlem.singlem import MetagenomeOtuFinder, Sequence, \
+from singlem.singlem import MetagenomeOtuFinder, AlignedProteinSequence, \
     HmmDatabase, SeqReader, TaxonomyFile
 import singlem
 import singlem.sequence_database
@@ -63,11 +63,14 @@ def seqs(args):
 def protein_alignment_from_alignment_file(alignment_file):
     protein_alignment = []
     for name, seq, _ in SeqReader().readfq(open(alignment_file)):
-        protein_alignment.append(Sequence(name, seq))
-    logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
+        protein_alignment.append(AlignedProteinSequence(name, seq))
+    if len(protein_alignment) > 0:
+        logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
                                                           protein_alignment[0].name,
                                                           protein_alignment[0].seq
                                                           ))
+    else:
+        logging.info("No aligned proteins found for this HMM")
     return protein_alignment
 
 def read_nucleotide_sequences(nucleotide_file):
@@ -193,6 +196,9 @@ def pipe(args):
             protein_alignment = align_proteins_to_hmm(proteins_file,
                                                       hmms.hmms_and_positions[hmm_basename].hmm_path()
                                                       )
+            if len(protein_alignment) == 0:
+                logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_basename)
+                continue
             nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
             nucleotide_sequences = read_nucleotide_sequences(nucleotide_file)
             taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_hits_read_tax.tsv" % sample_name))
@@ -201,48 +207,72 @@ def pipe(args):
                                                     nucleotide_sequences,
                                                     20,
                                                     hmms.hmms_and_positions[hmm_basename].best_position)
-            logging.debug("Found %i sequences for hmm %s, sample %s" % (len(aligned_seqs),
+            logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
                                                                         hmm_basename,
                                                                         sample_name))
             
             # convert to OTU table, output
-            for seq, count, taxonomy, names in seqs_to_counts_and_taxonomy(aligned_seqs,
-                                                                    taxonomies
-                                                                    ):
+            for info in seqs_to_counts_and_taxonomy(aligned_seqs,
+                                                    taxonomies):
                 to_print = [hmm_basename,
                                 sample_name,
-                                seq,
-                                str(count),
-                                taxonomy]
-                if args.output_read_names:
-                    to_print.append(' '.join(names))
+                                info.seq,
+                                str(info.count),
+                                "%.2f" % info.coverage,
+                                info.taxonomy]
+                if args.output_extras:
+                    to_print.append(' '.join(info.names))
+                    to_print.append(' '.join([str(l) for l in info.aligned_lengths]))
                 output.write("\t".join(to_print) + "\n")
                 
     # Be clean.
     if using_temporary_working_directory:
         tmp.dissolve()
 
-
 def seqs_to_counts_and_taxonomy(sequences, taxonomies):
     '''given an array of Sequence objects, and hash of taxonomy file,
-    yield over the counts of the aggregated sequences and corresponding
-    median taxonomies
+    yield over 'Info' objects that contain e.g. the counts of the aggregated
+    sequences and corresponding median taxonomies
     '''
-    counts = {}
-    taxonomy_aggregates = {}
-    names = {}
+    class CollectedInfo:
+        def __init__(self):
+            self.count = 0
+            self.taxonomies = []
+            self.names = []
+            self.coverage = 0.0
+            self.aligned_lengths = []
+    
+    seq_to_collected_info = {}
     for s in sequences:
         tax = taxonomies[s.name]
         try:
-            counts[s.seq] += 1
-            taxonomy_aggregates[s.seq].append(tax)
-            names[s.seq].append(s.name)
+            collected_info = seq_to_collected_info[s.aligned_sequence]
         except KeyError:
-            counts[s.seq] = 1
-            taxonomy_aggregates[s.seq] = [tax]
-            names[s.seq] = [s.name]
-    for seq, aggregate in taxonomy_aggregates.iteritems():
-        yield seq, counts[seq], median_taxonomy(aggregate), names[seq]
+            collected_info = CollectedInfo()
+            seq_to_collected_info[s.aligned_sequence] = collected_info
+            
+        collected_info.count += 1
+        collected_info.taxonomies.append(tax)
+        collected_info.names.append(s.name)
+        collected_info.coverage += s.coverage_increment()
+        collected_info.aligned_lengths.append(s.aligned_length)
+    
+    class Info:
+        def __init__(self, seq, count, taxonomy, names, coverage, aligned_lengths):
+            self.seq = seq
+            self.count = count
+            self.taxonomy = taxonomy
+            self.names = names
+            self.coverage = coverage
+            self.aligned_lengths = aligned_lengths
+        
+    for seq, collected_info in seq_to_collected_info.iteritems():
+        yield Info(seq,
+                   collected_info.count,
+                   median_taxonomy(collected_info.taxonomies),
+                   collected_info.names,
+                   collected_info.coverage,
+                   collected_info.aligned_lengths)
 
 def median_taxonomy(taxonomies):
     levels_to_counts = []
@@ -323,7 +353,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
-    pipe_parser.add_argument('--output_read_names', action='store_true', help='give the names of the reads for each OTU in the table (mainly for debug purposes)', default=False)
+    pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
 
     seqs_parser = subparsers.add_parser('seqs',
                                         description='From GraftM alignment to aligned nucleotide sequences',

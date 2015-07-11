@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 from Bio.Seq import Seq
 import itertools
 import logging
@@ -7,34 +5,68 @@ import re
 import os
 import csv
             
+            
 class Sequence:
+    '''Simple name+sequence object'''
     def __init__(self, name, seq):
         self.name = name
         self.seq = seq
         
-    def unaligned_length(self):
-        return len(re.sub('-','',self.seq))
-        
-    def un_orfm_name(self):
-        return re.sub('_\d+_\d+_\d+$', '', self.name)
+class AlignedProteinSequence:
+    def __init__(self, name, seq):
+        self.name = name
+        self.seq = seq
     
-    def orfm_nucleotides(self, original_nucleotide_sequence):
+    def un_orfm_name(self):
+        return OrfMUtils().un_orfm_name(self.name)
+    
+    def orfm_nucleotides(self, nucleotide_sequence):
         m = re.search('_(\d+)_(\d+)_\d+$', self.name)
         start = int(m.groups(0)[0])-1
-        translated_seq = original_nucleotide_sequence[start:(start+3*self.unaligned_length())]
+        translated_seq = nucleotide_sequence[start:(start+3*self.unaligned_length())]
         logging.debug("Returning orfm nucleotides %s" % translated_seq)
         if int(m.groups(0)[1]) > 3:
             # revcomp type frame
             return(str(Seq(translated_seq).reverse_complement()))
         else:
             return(translated_seq)
+        
+    def unaligned_length(self):
+        return len(re.sub('-','',self.seq))
+        
+class AlignedNucleotideSequence:
+    '''Represent a nucleotide sequence aligned in protein space, together with the 
+    nucleotide sequence that it came from'''
+    
+    def __init__(self, name, aligned_sequence, unaligned_sequence, aligned_length):
+        '''
+        Parameters
+        ---------
+        name: str
+            name of the sequence
+        aligned_sequence: str
+            aligned nucleotide sequence
+        unaligned_sequence: str
+            unaligned nucleotide sequence
+        aligned_length:
+            the number of nucleotides used in the alignment, including columns
+            that were removed as not aligned
+        '''
+        self.name = name
+        self.aligned_sequence = aligned_sequence
+        self.unaligned_sequence = unaligned_sequence
+        self.aligned_length = aligned_length
+        
+    def coverage_increment(self):
+        '''Given the alignment came from a read of length 
+        original_nucleotide_sequence_length, how much coverage does the 
+        observation of this aligned sequence indicate?'''
+        return float(len(self.unaligned_sequence))/\
+            (len(self.unaligned_sequence)-self.aligned_length+1)
        
 class OrfMUtils:
-    def __init__(self):
-        self._re = re.compile('_\d+_\d+_\d+$')
-        
     def un_orfm_name(self, name):
-        return self._re.sub('', name)
+        return re.sub('_\d+_\d+_\d+$', '', name)
        
 class TaxonomyFile:
     def __init__(self, taxonomy_file_path):
@@ -151,8 +183,10 @@ class MetagenomeOtuFinder:
             if s.seq[chosen_positions[0]] != '-' and s.seq[chosen_positions[-1]] != '-':
                 name = s.un_orfm_name()
                 nuc = nucleotide_sequences[name]
-                align = self._nucleotide_alignment(s, s.orfm_nucleotides(nuc), chosen_positions)
-                windowed_sequences.append(Sequence(name,align))
+                align, aligned_length = self._nucleotide_alignment(\
+                    s, s.orfm_nucleotides(nuc), chosen_positions)
+                
+                windowed_sequences.append(AlignedNucleotideSequence(name, align, nuc, aligned_length))
         return windowed_sequences
     
     def _find_lower_case_columns(self, protein_alignment):
@@ -224,7 +258,11 @@ class MetagenomeOtuFinder:
     
     def _nucleotide_alignment(self, protein_sequence, nucleotides, chosen_positions):
         '''Line up the nucleotides and the proteins, and return the alignment 
-        across start_position for stretch length amino acids'''
+        at the chosen_positions, and the length in nucleotides that the chosen
+        positions stretch across.
+        
+        Assumes the chosen positions are ascending monotonically and has length
+        >0'''
         
         codons = []
         # For each position in the amino acid sequence
@@ -240,5 +278,11 @@ class MetagenomeOtuFinder:
                 if len(nucleotides)>2: nucleotides = nucleotides[3:]
         if len(nucleotides) > 0: raise Exception("Insufficient protein length found")
         
-        return ''.join(itertools.chain(codons[i] for i in chosen_positions))
+        aligned_length = 0
+        for i in range(chosen_positions[0],chosen_positions[-1]+1):
+            if protein_sequence.seq[i] != '-':
+                aligned_length += 3
+                
+        return ''.join(itertools.chain(codons[i] for i in chosen_positions)), \
+            aligned_length
 
