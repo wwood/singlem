@@ -4,6 +4,7 @@ import subprocess
 import tempfile
 import re
 import shutil
+from string import split
 
 
 __author__ = "Ben Woodcroft"
@@ -175,6 +176,12 @@ def pipe(args):
 
     # get the sequences out for each of them
     with open(output_otu_table,'w') as output:
+        to_print = split('gene sample sequence num_hits coverage taxonomy')
+        if args.output_extras:
+            to_print.append('read_names')
+            to_print.append('nucleotides_aligned')
+        output.write("\t".join(to_print)+"\n")
+        
         un_hitify_re = re.compile(r'(.*)_vs_(.*)')
         for f in os.listdir(graftm_align_directory_base):
             if not os.path.isdir(os.path.join(graftm_align_directory_base,f)): continue

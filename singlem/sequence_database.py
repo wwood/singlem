@@ -55,7 +55,13 @@ class SequenceDatabase:
         sequences_fasta_file = os.path.join(db_path, "sequences.fasta")
         with open(sequences_fasta_file, 'w') as fasta:
             sequence_id = 1
+            maybe_header = True
             for row in csv.reader(otu_table_io, delimiter="\t"):
+                if row[0]=='gene' and maybe_header:
+                    maybe_header = False
+                    continue
+                maybe_header = False
+                
                 dbseq = DBSequence()
                 if len(row) < 5: raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
                 dbseq.marker = row[0]
