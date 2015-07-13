@@ -69,7 +69,7 @@ class Tests(unittest.TestCase):
                                                                 f.name)
                 subprocess.check_call(cmd, shell=True)
                 
-                cmd = "%s query --query_sequence %s --db %s/db --s sparse" % (path_to_script,
+                cmd = "%s query --query_sequence %s --db %s/db --otu_table_type sparse" % (path_to_script,
                                                                 'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATCA', # second sequence with an extra A at the end
                                                                 d)
                 

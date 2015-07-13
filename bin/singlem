@@ -346,7 +346,6 @@ def query(args):
         last_index = None
         last_differences_and_names = []
         for line in iter(proc.stdout.readline,''):
-            print line
             qseqid, sseqid, _, _, mismatch, gapopen, qstart, qend = line.strip().split("\t")[:8]
             index = int(qseqid)
             if last_index is None:
@@ -367,13 +366,12 @@ def query(args):
             if divergence <= max_divergence:
                 last_differences_and_names.append([divergence, subject])
                 
-        if last_index:
+        if last_index is not None:
             # finish off the last chunk
             found_query_names.append(query_names[last_index])
             found_query_sequences.append(query_sequences[last_index])
             found_distances_and_names.append(last_differences_and_names)
         
-    import IPython; IPython.embed()
     namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
     
     if output_style == 'sparse':
