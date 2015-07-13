@@ -30,7 +30,8 @@ from singlem.singlem import MetagenomeOtuFinder, AlignedProteinSequence, \
 import singlem
 import singlem.sequence_database
 import singlem.query_formatters
-from singlem.query_formatters import NameSequenceQueryDefinition
+from singlem.query_formatters import NameSequenceQueryDefinition,\
+    NamedQueryDefinition
 
 
 
@@ -314,8 +315,11 @@ def query(args):
     max_divergence = args.max_divergence
     output_style = args.otu_table_type
     query_otu_table = args.query_otu_table
-    if query_otu_table and query_sequence:
-        raise Exception("Only one of --query_otu_table and --query_sequence is allowable")
+    query_fasta = args.query_fasta
+    if (query_otu_table and query_sequence) or \
+        (query_otu_table and query_fasta) or \
+        (query_sequence and query_fasta):
+        raise Exception("Only one of --query_fasta, --query_otu_table and --query_sequence is allowable")
     
     if query_sequence:
         query_names = ['unnamed_sequence']
@@ -327,6 +331,14 @@ def query(args):
             gpkg, sample, sequence = line.split("\t")[:3]
             query_sequences.append(sequence)
             query_names.append(';'.join([sample,gpkg]))
+    elif query_fasta:
+        query_names = []
+        query_sequences = []
+        for name, seq, _ in SeqReader().readfq(open(query_fasta)):
+            query_names.append(name)
+            query_sequences.append(seq)
+    else:
+        raise Exception("No query option specified, cannot continue")
     
     # blast the query against the database, output as csv
     found_distances_and_names = []
@@ -372,7 +384,10 @@ def query(args):
             found_query_sequences.append(query_sequences[last_index])
             found_distances_and_names.append(last_differences_and_names)
         
-    namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
+    if query_fasta:
+        namedef = NamedQueryDefinition(found_query_names)
+    else:
+        namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
     
     if output_style == 'sparse':
         formatter = singlem.query_formatters.SparseResultFormatter(namedef, found_distances_and_names)
@@ -421,8 +436,9 @@ if __name__ == '__main__':
                                         epilog=__author__)
     makedb_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
     makedb_parser.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
+    makedb_parser.add_argument('--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
     makedb_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
-    makedb_parser.add_argument('--otu_table_type', help="Style of output table", default='dense', choices=['dense','sparse'])
+    makedb_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
     makedb_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     makedb_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
     
