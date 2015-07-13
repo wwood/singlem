@@ -2,38 +2,72 @@ import itertools
 
 
 class QueryResultFormatter:
-    def __init__(self, divergences_and_subjects):
+    def __init__(self, query_definitions, divergences_and_subjects):
+        self.query_definitions = query_definitions
         self.divergences_and_subjects = divergences_and_subjects
+        if len(self.query_definitions.data()) != len(self.divergences_and_subjects):
+            raise Exception("Found unexpected number of query names vs divergences_and_subjects")
+        
+class NamedQueryDefinition:
+    def __init__(self, query_names):
+        self.query_names = query_names
+    
+    def headers(self):
+        return ['query_name']
+    
+    def data(self):
+        return [[n] for n in self.query_names]
+    
+class NameSequenceQueryDefinition(NamedQueryDefinition):
+    def __init__(self, query_names, query_sequences):
+        self.query_names = query_names
+        self.query_sequences = query_sequences
+        if len(self.query_names) != len(self.query_sequences):
+            raise Exception("Found a different number of names and sequences in query definition")
+    
+    def headers(self):
+        return ['query_name','query_sequence']
+    
+    def data(self):
+        return [[name, self.query_sequences[i]] for i, name in enumerate(self.query_names)]
 
 class SparseResultFormatter(QueryResultFormatter):
     def write(self, output_io):
-        # sort the array according to increasing divergence, then increasing number of hits
-        sortable_list = [(x[0], x[1].count, x[1]) for x in self.divergences_and_subjects]
-        sortable_list.sort(key=lambda x: [x[0],-x[1]])
-        
         # print out array
-        output_io.write("\t".join(['divergence','num_hits','sample',
-                                   'marker','sequence','taxonomy'])+"\n")
-        for hit in sortable_list:
-            subject = hit[2]
-            output_io.write("\t".join([str(hit[0]),
-                             str(subject.count), 
-                             subject.sample_name,
-                             subject.marker, 
-                             subject.sequence,
-                             subject.taxonomy])+"\n")
+        output_io.write("\t".join(itertools.chain(self.query_definitions.headers(),
+                                    ['divergence','num_hits','sample',
+                                   'marker','hit_sequence','taxonomy']))+"\n")
+        
+        query_info = list(self.query_definitions.data())
+
+        # sort the array according to increasing divergence, then increasing number of hits
+        for i, divergences_and_subjects in enumerate(self.divergences_and_subjects):
+            sortable_list = [(x[0], x[1].count, x[1]) for x in divergences_and_subjects]
+            sortable_list.sort(key=lambda x: [x[0],-x[1]])
+            
+            for hit in sortable_list:
+                subject = hit[2]
+                output_io.write("\t".join(itertools.chain(query_info[i],
+                                [str(hit[0]),
+                                 str(subject.count), 
+                                 subject.sample_name,
+                                 subject.marker,
+                                 subject.sequence,
+                                 subject.taxonomy]))+"\n")
 
 class DenseResultFormatter(QueryResultFormatter):
     def write(self, output_io):
+        if len(self.query_definitions.data()) != 1: raise Exception("Dense output not (yet) available with multiple query sequences")
+        
         # make array of sequence arrays, where index in the First
         # array is divergence
-        max_divergence = max([x[0] for x in self.divergences_and_subjects])
+        max_divergence = max([x[0] for x in self.divergences_and_subjects[0]])
         seq_sets = []
         for _ in range(max_divergence+1):
             seq_sets.append(set())
         seq_to_subjects = {}
         samples = set()
-        for x in self.divergences_and_subjects:
+        for x in self.divergences_and_subjects[0]:
             i = x[0]
             subject = x[1]
             samples.add(subject.sample_name)
@@ -96,12 +130,14 @@ class DenseResultFormatter(QueryResultFormatter):
                 to_print.append(row)
                 
         # write headers
-        output_io.write("\t".join(itertools.chain(['sequence','divergence'],
+        output_io.write("\t".join(itertools.chain(self.query_definitions.headers(),
+                                                  ['hit_sequence','divergence'],
                                                   sample_name_order,
                                                   ['taxonomy'])))
         output_io.write("\n")
         for row in to_print:
-            output_io.write("\t".join(itertools.chain([row[0], str(row[1])],
+            output_io.write("\t".join(itertools.chain(self.query_definitions.data()[0],
+                                                      [row[0], str(row[1])],
                                                       row[3:],
                                                       ['0']*(len(sample_name_order)-len(row[3:])),
                                                       [row[2]]))+"\n")

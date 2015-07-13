@@ -30,7 +30,7 @@ from singlem.singlem import MetagenomeOtuFinder, AlignedProteinSequence, \
 import singlem
 import singlem.sequence_database
 import singlem.query_formatters
-
+from singlem.query_formatters import NameSequenceQueryDefinition
 
 
 
@@ -313,34 +313,76 @@ def query(args):
     max_target_seqs = args.max_hits
     max_divergence = args.max_divergence
     output_style = args.otu_table_type
+    query_otu_table = args.query_otu_table
+    if query_otu_table and query_sequence:
+        raise Exception("Only one of --query_otu_table and --query_sequence is allowable")
+    
+    if query_sequence:
+        query_names = ['unnamed_sequence']
+        query_sequences = [query_sequence]
+    elif query_otu_table:
+        query_names = []
+        query_sequences = []
+        for line in open(query_otu_table):
+            gpkg, sample, sequence = line.split("\t")[:3]
+            query_sequences.append(sequence)
+            query_names.append(';'.join([sample,gpkg]))
     
     # blast the query against the database, output as csv
+    found_distances_and_names = []
+    found_query_names = []
+    found_query_sequences = []
     with tempfile.NamedTemporaryFile(prefix='singlem_query') as infile:
-        infile.write(">query\n")
-        infile.write(query_sequence+"\n")
+        for i, sequence in enumerate(query_sequences):
+            infile.write(">%i\n" % i)
+            infile.write(sequence+"\n")
         infile.flush()
-        
-        distances_and_names = []
         
         cmd = "blastn -task blastn -query '%s' -db '%s' -outfmt 6 -max_target_seqs %i" %\
             (infile.name, db.sequences_fasta_file, max_target_seqs)
         logging.debug("Running cmd %s" % cmd)
         proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+        
+        last_index = None
+        last_differences_and_names = []
         for line in iter(proc.stdout.readline,''):
-            _, sseqid, _, _, mismatch, gapopen, qstart, qend = line.strip().split("\t")[:8]
-            query_length = len(query_sequence.replace('-',''))
+            print line
+            qseqid, sseqid, _, _, mismatch, gapopen, qstart, qend = line.strip().split("\t")[:8]
+            index = int(qseqid)
+            if last_index is None:
+                # first run through loop
+                last_index = index
+            elif index != last_index:
+                # changed query sequences, move to the next one
+                found_query_names.append(query_names[last_index])
+                found_query_sequences.append(query_sequences[last_index])
+                found_distances_and_names.append(last_differences_and_names)
+                last_index = index
+                last_differences_and_names = []
+            
+            #TODO: check we haven't come up against the max_target_seqs barrier
+            query_length = len(query_sequences[index].replace('-',''))
             subject = db.extract_sequence_by_sseqid(sseqid)
             divergence = int(mismatch) + int(gapopen) + (int(qstart)-1) + (query_length-int(qend))
             if divergence <= max_divergence:
-                distances_and_names.append([divergence, subject])
+                last_differences_and_names.append([divergence, subject])
+                
+        if last_index:
+            # finish off the last chunk
+            found_query_names.append(query_names[last_index])
+            found_query_sequences.append(query_sequences[last_index])
+            found_distances_and_names.append(last_differences_and_names)
         
-        if output_style == 'sparse':
-            formatter = singlem.query_formatters.SparseResultFormatter(distances_and_names)
-        elif output_style == 'dense':
-            formatter = singlem.query_formatters.DenseResultFormatter(distances_and_names)
-        else:
-            raise Exception()
-        formatter.write(sys.stdout)
+    import IPython; IPython.embed()
+    namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
+    
+    if output_style == 'sparse':
+        formatter = singlem.query_formatters.SparseResultFormatter(namedef, found_distances_and_names)
+    elif output_style == 'dense':
+        formatter = singlem.query_formatters.DenseResultFormatter(namedef, found_distances_and_names)
+    else:
+        raise Exception()
+    formatter.write(sys.stdout)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -379,7 +421,8 @@ if __name__ == '__main__':
     makedb_parser = subparsers.add_parser('query',
                                         description='Find closely related sequences in a singlem database',
                                         epilog=__author__)
-    makedb_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query", required=True)
+    makedb_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
+    makedb_parser.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
     makedb_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
     makedb_parser.add_argument('--otu_table_type', help="Style of output table", default='dense', choices=['dense','sparse'])
     makedb_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
