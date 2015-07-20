@@ -59,7 +59,7 @@ def seqs(args):
                                                 args.window_size,
                                                 best_position)
     logging.info("Printing %i aligned sequences" % len(aligned_sequences))
-    print '\n'.join(aligned_sequences)
+    print '\n'.join((s.aligned_sequence for s in aligned_sequences))
 
 
 def protein_alignment_from_alignment_file(alignment_file):
@@ -418,7 +418,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
 
     seqs_parser = subparsers.add_parser('seqs',
-                                        description='From GraftM alignment to aligned nucleotide sequences',
+                                        description='From protein alignment to aligned nucleotide sequences',
                                         epilog=__author__)
     seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
     seqs_parser.add_argument('--reads', metavar='raw_reads', help='Unaligned nucleotide sequences that were translated into the protein sequences', required=True)
