@@ -44,6 +44,19 @@ class Tests(unittest.TestCase):
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
+    def test_no_hits(self):
+        expected = []
+        exp = sorted(["\t".join(x) for x in expected]+[''])
+        
+        with tempfile.NamedTemporaryFile(prefix='singlem_test',suffix='.fasta') as f:
+            f.write(">seq\n")
+            f.write("ATG"+'A'*300+"\n")
+            f.flush()
+            
+            cmd = "%s --debug pipe --forward %s --otu_table /dev/stdout --threads 4 2>/dev/null" % (path_to_script,
+                                                                                                    f.name)
+            self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        
     def test_insert(self):
         expected = [self.headers,['ribosomal_protein_S17_gpkg','insert','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','2','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         exp = sorted(["\t".join(x) for x in expected]+[''])

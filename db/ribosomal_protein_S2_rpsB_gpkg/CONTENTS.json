@@ -1,1 +1,1 @@
-{"aln_hmm": "DNGNGWU00001.hmm", "search_hmm": ["DNGNGWU00001.hmm"], "rfpkg": "DNGNGWU00001.refpkg", "TC": false}
+{"rfpkg": "DNGNGWU00001.refpkg", "version": 2, "diamond_database": "none", "TC": false, "aln_hmm": "DNGNGWU00001.hmm", "taxtastic_taxonomy_file": "DNGNGWU00001.refpkg/tax_info.csv", "search_hmm": ["DNGNGWU00001.hmm"], "range":1000}
