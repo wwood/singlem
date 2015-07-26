@@ -117,6 +117,24 @@ def pipe(args):
     
     def return_cleanly():
         if using_temporary_working_directory: tmp.dissolve()
+        
+    if bootstrap_contigs:
+        # Create HMMs from each of the search HMMs based on the given contigs
+        bootstrap_hmms = {}
+        for hmm in hmms:
+            bootstrap_hmm_file = os.path.join(working_directory,
+                                              "bootstrap_%s" % hmm.hmm_filename)
+            bootstrap_hmms[hmm.hmm_filename] = bootstrap_hmm_file
+            logging.debug("Finding bootstrap hmm %s" % bootstrap_hmm_file)
+            cmd = "graftM bootstrap --contigs %s --search_hmm_files %s --output_hmm %s" %(\
+                  ' '.join(bootstrap_contigs),
+                  hmm.hmm_path(),
+                  bootstrap_hmm_file)
+            logging.debug("Running cmd: %s" % cmd)
+            subprocess.check_call()
+        raise
+        
+        
     
     if not args.previous_graftm_search_directory:
         graftm_search_directory = os.path.join(working_directory, 'graftm_search')
