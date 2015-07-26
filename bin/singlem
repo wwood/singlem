@@ -98,6 +98,7 @@ def pipe(args):
     forward_read_files = args.forward
     output_otu_table = args.otu_table
     num_threads = args.threads
+    bootstrap_contigs = args.bootstrap_contigs
     
     using_temporary_working_directory = args.working_directory is None
     if using_temporary_working_directory:
@@ -134,6 +135,10 @@ def pipe(args):
                                 graftm_search_directory,
                                 hmms.hmm_paths()[0]
                                 )
+        if bootstrap_contigs:
+            cmd += " --bootstrap_contigs"
+            for contigs in bootstrap_contigs:
+                cmd += ' '+contigs
         logging.info("Running GraftM to find particular reads..")
         logging.debug("Running cmd %s" % cmd)
         subprocess.check_call(cmd, shell=True)
@@ -192,6 +197,10 @@ def pipe(args):
                    samples_file.name,
                    gpkgs_file.name
                    )
+                if bootstrap_contigs:
+                    cmd += " --bootstrap_contigs"
+                    for contigs in bootstrap_contigs:
+                        cmd += ' '+contigs
                 logging.info("Running alignments/placement in GraftM..")
                 logging.debug("Running cmd: %s" % cmd)
                 subprocess.check_call(cmd, shell=True)
@@ -435,6 +444,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
+    pipe_parser.add_argument('--bootstrap_contigs', nargs='+', help='assembled contigs/scaffolds to help the HMM find hits in reads (default: do not use)')
 
     seqs_parser = subparsers.add_parser('seqs',
                                         description='From protein alignment to aligned nucleotide sequences',
