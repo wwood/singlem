@@ -108,6 +108,10 @@ class HmmDatabase:
     
     def gpkg_paths(self):
         return [h.gpkg_path for _, h in self.hmms_and_positions.iteritems()]
+    
+    def __iter__(self):
+        for hp in self.hmms_and_positions.values():
+            yield hp
         
 class HmmAndPostion:
     def __init__(self, gpkg_path, hmm_filename, best_position):

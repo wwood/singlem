@@ -150,7 +150,9 @@ class Tests(unittest.TestCase):
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
         
-        
+    @unittest.skip
+    def test_bootstrap(self):
+        self.assertEqual(True, False)
                             
 if __name__ == "__main__":
     unittest.main()

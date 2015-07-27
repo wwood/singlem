@@ -5,6 +5,7 @@ import tempfile
 import re
 import shutil
 from string import split
+import itertools
 
 
 __author__ = "Ben Woodcroft"
@@ -122,12 +123,13 @@ def pipe(args):
         # Create HMMs from each of the search HMMs based on the given contigs
         bootstrap_hmms = {}
         logging.info("Generating HMMs by bootstrap..")
-        for hmm in hmms.hmms_and_positions.values():
+        for hmm in hmms:
             bootstrap_hmm_file = os.path.join(working_directory,
-                                              "bootstrap_%s" % hmm.hmm_filename)
+                          "bootstrap_%s" % os.path.basename(hmm.hmm_filename))
             bootstrap_hmms[hmm.hmm_filename] = bootstrap_hmm_file
             logging.debug("Finding bootstrap hmm %s" % bootstrap_hmm_file)
-            cmd = "graftM bootstrap --contigs %s --search_hmm_files %s --output_hmm %s" %(\
+            cmd = "graftM bootstrap --contigs %s --search_hmm_files %s "\
+                " --verbosity 2 --output_hmm %s" %(\
                   ' '.join(bootstrap_contigs),
                   hmm.hmm_path(),
                   bootstrap_hmm_file)
@@ -144,18 +146,16 @@ def pipe(args):
             "--search_hmm_files %s --search_and_align_only "\
             "--output_directory %s --aln_hmm_file %s --verbosity 2 "\
             "--input_sequence_type nucleotide"\
-            % (
-                                num_threads,
+                             % (num_threads,
                                 ' '.join(forward_read_files),
                                 ' '.join(hmms.hmm_paths()),
                                 graftm_search_directory,
-                                hmms.hmm_paths()[0]
-                                )
+                                hmms.hmm_paths()[0])
         if bootstrap_contigs:
-            #TODO: this only uses the bootstrap HMMs, but do I want the non
-            # bootstrap ones too? Perhaps easier by properly interfacing with
-            # graftm rather than through the cmdline
-            cmd += " --search_hmm_files %s" % ' '.join(bootstrap_hmms.values())
+            cmd += " --search_hmm_files %s" % ' '.join(
+                itertools.chain(
+                    (f for f in bootstrap_hmms.values() if os.path.isfile(f)),
+                    hmms.hmm_paths()))
         logging.info("Running GraftM to find particular reads..")
         logging.debug("Running cmd %s" % cmd)
         subprocess.check_call(cmd, shell=True)
@@ -197,34 +197,31 @@ def pipe(args):
                               len(viable_sample_names))
             samples_file.write("\n".join(viable_sample_names))
             samples_file.flush()
-        
-            with tempfile.NamedTemporaryFile() as gpkgs_file:
-                gpkgs_file.write("\n".join(hmms.gpkg_paths()))
-                gpkgs_file.flush()
-    
-                cmd = "parallel -j1 graftM graft --threads %i --verbosity 2 "\
-                 "--forward %s/{1}/{1}_hits.fa "\
-                 "--graftm_package {2} --output_directory %s/{1}_vs_{2/} "\
-                 "--input_sequence_type nucleotide "\
-                 "::: `cat %s` ::: `cat %s`" % \
-                  (
-                   args.threads,
-                   graftm_search_directory,
-                   graftm_align_directory_base,
-                   samples_file.name,
-                   gpkgs_file.name
-                   )
-                # TODO: re-infering bootstrap_contigs is a bit lazy.
-                # I know the HMMs already, there is
-                # no need to re-find them. Instead I should probably be using
-                # python multiprocessing to iterate through. But eh for now.
-                if bootstrap_contigs:
-                    cmd += " --bootstrap_contigs"
-                    for contigs in bootstrap_contigs:
-                        cmd += ' '+contigs
-                logging.info("Running alignments/placement in GraftM..")
-                logging.debug("Running cmd: %s" % cmd)
-                subprocess.check_call(cmd, shell=True)
+            
+            logging.info("Running alignments/placement in GraftM..")
+            for sample_name in viable_sample_names:
+                for hmm in hmms:
+                    cmd = "graftM graft --threads %i --verbosity 2 "\
+                         "--forward %s/%s/%s_hits.fa "\
+                         "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                         "--input_sequence_type nucleotide" % (\
+                                args.threads,
+                                graftm_search_directory,
+                                sample_name,
+                                sample_name,
+                                hmm.gpkg_path,
+                                graftm_align_directory_base,
+                                sample_name,
+                                os.path.basename(hmm.gpkg_path))
+                    if bootstrap_contigs:
+                        bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
+                        if os.path.isfile(bootstrap_hmm):
+                            cmd += " --search_hmm_files %s %s" % (
+                                        bootstrap_hmm,
+                                        hmm.hmm_path())
+                    logging.debug("Running cmd: %s" % cmd)
+                    subprocess.check_call(cmd, shell=True)            
+
 
     # get the sequences out for each of them
     with open(output_otu_table,'w') as output:
