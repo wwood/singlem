@@ -121,7 +121,8 @@ def pipe(args):
     if bootstrap_contigs:
         # Create HMMs from each of the search HMMs based on the given contigs
         bootstrap_hmms = {}
-        for hmm in hmms:
+        logging.info("Generating HMMs by bootstrap..")
+        for hmm in hmms.hmms_and_positions.values():
             bootstrap_hmm_file = os.path.join(working_directory,
                                               "bootstrap_%s" % hmm.hmm_filename)
             bootstrap_hmms[hmm.hmm_filename] = bootstrap_hmm_file
@@ -131,10 +132,7 @@ def pipe(args):
                   hmm.hmm_path(),
                   bootstrap_hmm_file)
             logging.debug("Running cmd: %s" % cmd)
-            subprocess.check_call()
-        raise
-        
-        
+            subprocess.check_call(cmd, shell=True)
     
     if not args.previous_graftm_search_directory:
         graftm_search_directory = os.path.join(working_directory, 'graftm_search')
@@ -154,9 +152,10 @@ def pipe(args):
                                 hmms.hmm_paths()[0]
                                 )
         if bootstrap_contigs:
-            cmd += " --bootstrap_contigs"
-            for contigs in bootstrap_contigs:
-                cmd += ' '+contigs
+            #TODO: this only uses the bootstrap HMMs, but do I want the non
+            # bootstrap ones too? Perhaps easier by properly interfacing with
+            # graftm rather than through the cmdline
+            cmd += " --search_hmm_files %s" % ' '.join(bootstrap_hmms.values())
         logging.info("Running GraftM to find particular reads..")
         logging.debug("Running cmd %s" % cmd)
         subprocess.check_call(cmd, shell=True)
@@ -215,6 +214,10 @@ def pipe(args):
                    samples_file.name,
                    gpkgs_file.name
                    )
+                # TODO: re-infering bootstrap_contigs is a bit lazy.
+                # I know the HMMs already, there is
+                # no need to re-find them. Instead I should probably be using
+                # python multiprocessing to iterate through. But eh for now.
                 if bootstrap_contigs:
                     cmd += " --bootstrap_contigs"
                     for contigs in bootstrap_contigs:
