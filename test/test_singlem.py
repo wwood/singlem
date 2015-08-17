@@ -27,9 +27,13 @@ import os.path
 import tempfile
 import tempdir
 from string import split
+import extern
+import sys
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
+
+sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
 class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
@@ -40,7 +44,7 @@ class Tests(unittest.TestCase):
 ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','21.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --forward %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
@@ -53,7 +57,7 @@ class Tests(unittest.TestCase):
             f.write("ATG"+'A'*300+"\n")
             f.flush()
             
-            cmd = "%s --debug pipe --forward %s --otu_table /dev/stdout --threads 4 2>/dev/null" % (path_to_script,
+            cmd = "%s --debug pipe --sequences %s --otu_table /dev/stdout --threads 4 2>/dev/null" % (path_to_script,
                                                                                                     f.name)
             self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
@@ -61,7 +65,7 @@ class Tests(unittest.TestCase):
         expected = [self.headers,['ribosomal_protein_S17_gpkg','insert','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','2','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --forward %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4 2>/dev/null" % (path_to_script,
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
@@ -160,11 +164,26 @@ class Tests(unittest.TestCase):
             t.write('\n'.join(["\t".join(x) for x in expected[:3]]))
             t.flush() 
 
-            cmd = "%s --quiet pipe --forward %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --known_otu_tables %s"\
+            cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --known_otu_tables %s"\
                  % (path_to_script,
                     path_to_data,
                     t.name)
             self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+            
+    def test_diamond_assign_taxonomy(self):
+        with tempfile.NamedTemporaryFile(suffix='.fasta') as f:
+            query = "\n".join(['>HWI-ST1243:156:D1K83ACXX:7:1107:12369:22490 1:N:0:AAGAGGCAAAGGAGTA',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATCATGGGATTCTGTAAAGAGTTCAATGCACGTACTCAAGATC',''])
+            f.write(query)
+            f.flush()
+            
+            cmd = "%s --quiet pipe --sequences %s --otu_table /dev/stdout --assignment_method diamond" % (path_to_script,
+                                                            f.name)
+            
+            expected = [self.headers,['ribosomal_protein_L11_rplK_gpkg',os.path.basename(f.name)[:-6],'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','2.44','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__[Halobacillaceae]']]
+            expected = ["\t".join(x) for x in expected]+['']
+            observed = extern.run(cmd).split("\n")
+            self.assertEqual(expected, observed)
         
     #     @unittest.skip
     #     def test_bootstrap(self):
