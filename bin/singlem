@@ -100,6 +100,7 @@ def pipe(args):
     output_otu_table = args.otu_table
     num_threads = args.threads
     bootstrap_contigs = args.bootstrap_contigs
+    known_otu_tables = args.known_otu_tables
     
     using_temporary_working_directory = args.working_directory is None
     if using_temporary_working_directory:
@@ -463,6 +464,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
     pipe_parser.add_argument('--bootstrap_contigs', nargs='+', help='assembled contigs/scaffolds to help the HMM find hits in reads (default: do not use)')
+    pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
 
     seqs_parser = subparsers.add_parser('seqs',
                                         description='From protein alignment to aligned nucleotide sequences',
