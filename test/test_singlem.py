@@ -66,9 +66,9 @@ class Tests(unittest.TestCase):
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
     def test_makedb_query(self):
-        otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         otu_table = "\n".join(["\t".join(x) for x in otu_table])
         
         with tempfile.NamedTemporaryFile() as f:
@@ -96,7 +96,7 @@ class Tests(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as f:
             query = [self.headers,
                      # second sequence with an extra A at the end
-                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATCA','7','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATCA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
             query = "\n".join(["\t".join(x) for x in query])
             f.write(query)
             f.flush()
@@ -115,8 +115,8 @@ class Tests(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as f:
             query = [self.headers,
                      # second sequence with an extra A at the end
-                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATCA','7','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATCA','7','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']] # converted A to T in the middle
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATCA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATCA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']] # converted A to T in the middle
             query = "\n".join(["\t".join(x) for x in query])
             f.write(query)
             f.flush()
@@ -149,10 +149,26 @@ class Tests(unittest.TestCase):
             expected = ["\t".join(x) for x in expected]+['']
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
+            
+    def test_known_tax_table(self):
+        expected = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','some1'],
+['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','14.63','some3'],
+['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','21.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        exp = sorted(["\t".join(x) for x in expected]+[''])
         
-    @unittest.skip
-    def test_bootstrap(self):
-        self.assertEqual(True, False)
+        with tempfile.NamedTemporaryFile(prefix='singlem_test_known') as t:
+            t.write('\n'.join(["\t".join(x) for x in expected[:3]]))
+            t.flush() 
+
+            cmd = "%s --quiet pipe --forward %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --known_otu_tables %s"\
+                 % (path_to_script,
+                    path_to_data,
+                    t.name)
+            self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        
+    #     @unittest.skip
+    #     def test_bootstrap(self):
+    #         self.assertEqual(True, False)
                             
 if __name__ == "__main__":
     unittest.main()

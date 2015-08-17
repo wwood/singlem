@@ -5,7 +5,7 @@ import subprocess
 import StringIO
 from Bio import SeqIO
 
-from otu_table import OtuTable
+from otu_table import OtuTable, OtuTableEntry
 
 class DBSequence(OtuTableEntry):
     sequence_id = None

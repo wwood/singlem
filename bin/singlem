@@ -6,6 +6,9 @@ import shutil
 from string import split
 import itertools
 import subprocess
+from singlem.otu_table import OtuTable
+from singlem.known_otu_table import KnownOtuTable
+from singlem import known_otu_table
 
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015"
@@ -234,7 +237,14 @@ def pipe(args):
         if args.output_extras:
             to_print.append('read_names')
             to_print.append('nucleotides_aligned')
+            if known_otu_tables:
+                to_print.append("taxonomy_by_known?")
         output.write("\t".join(to_print)+"\n")
+        
+        if known_otu_tables:
+            logging.info("Parsing known taxonomy OTU tables")
+            known_taxes = KnownOtuTable()
+            known_taxes.parse_otu_tables(known_otu_tables)
         
         un_hitify_re = re.compile(r'(.*)_vs_(.*)')
         for f in os.listdir(graftm_align_directory_base):
@@ -275,15 +285,23 @@ def pipe(args):
             # convert to OTU table, output
             for info in seqs_to_counts_and_taxonomy(aligned_seqs,
                                                     taxonomies):
+                if known_otu_table:
+                    tax_assigned_through_known = False
                 to_print = [hmm_basename,
                                 sample_name,
                                 info.seq,
                                 str(info.count),
-                                "%.2f" % info.coverage,
-                                info.taxonomy]
+                                "%.2f" % info.coverage]
+                if known_otu_tables and info.seq in known_taxes:
+                    tax_assigned_through_known = True
+                    to_print.append(known_taxes[info.seq].taxonomy)
+                else:
+                    to_print.append(info.taxonomy)
                 if args.output_extras:
                     to_print.append(' '.join(info.names))
                     to_print.append(' '.join([str(l) for l in info.aligned_lengths]))
+                    if known_otu_tables:
+                        to_print.append(tax_assigned_through_known)
                 output.write("\t".join(to_print) + "\n")
                 
     return_cleanly()

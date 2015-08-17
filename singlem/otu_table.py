@@ -6,7 +6,7 @@ class OtuTableEntry:
     sequence = None
     count = None
     taxonomy = None
-    
+    coverage = None
 
 class OtuTable:
     @staticmethod
@@ -25,5 +25,6 @@ class OtuTable:
             e.sample_name = row[1]
             e.sequence = row[2]
             e.count = int(row[3])
-            e.taxonomy = row[4]
+            e.coverage = float(row[4])
+            e.taxonomy = row[5]
             yield e
