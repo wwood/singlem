@@ -5,13 +5,10 @@ import subprocess
 import StringIO
 from Bio import SeqIO
 
-class DBSequence:
+from otu_table import OtuTable, OtuTableEntry
+
+class DBSequence(OtuTableEntry):
     sequence_id = None
-    marker = None
-    sample_name = None
-    sequence = None
-    count = None
-    taxonomy = None
         
     def fasta_defline(self):
         '''return the name of the sequence with all the info encoded'''
@@ -55,20 +52,14 @@ class SequenceDatabase:
         sequences_fasta_file = os.path.join(db_path, "sequences.fasta")
         with open(sequences_fasta_file, 'w') as fasta:
             sequence_id = 1
-            maybe_header = True
-            for row in csv.reader(otu_table_io, delimiter="\t"):
-                if row[0]=='gene' and maybe_header:
-                    maybe_header = False
-                    continue
-                maybe_header = False
-                
+            for entry in OtuTable.each(otu_table_io):                
                 dbseq = DBSequence()
-                if len(row) < 5: raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
-                dbseq.marker = row[0]
-                dbseq.sample_name = row[1]
-                dbseq.sequence = row[2]
-                dbseq.count = int(row[3])
-                dbseq.taxonomy = row[4]
+                
+                dbseq.marker = entry.marker
+                dbseq.sample_name = entry.sample_name
+                dbseq.sequence = entry.sequence
+                dbseq.count = entry.count
+                dbseq.taxonomy = entry.taxonomy
                 dbseq.sequence_id = sequence_id
                 
                 fasta.write(">")

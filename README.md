@@ -11,7 +11,7 @@ Where [GraftM](https://github.com/geronimp/graftM) gives a taxonomic overview of
 
 An overview of your community can be obtained like so:
 ```
-singlem pipe --forward my_sequences.fastq.gz --otu_table output_otu_table.csv --threads 24
+singlem pipe --sequences my_sequences.fastq.gz --otu_table output_otu_table.csv --threads 24
 ```
 The output table consists of columns:
 ```
