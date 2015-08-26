@@ -519,11 +519,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
     if args.debug:
-        logging.basicConfig(level=logging.DEBUG)
+        loglevel = logging.DEBUG
     elif args.quiet:
-        logging.basicConfig(level=logging.ERROR)
+        loglevel = logging.ERROR
     else:
-        logging.basicConfig(level=logging.INFO)
+        loglevel = logging.INFO
+    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     if args.subparser_name == 'seqs':
         seqs(args)
