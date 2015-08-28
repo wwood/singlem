@@ -166,6 +166,26 @@ class SeqReader:
                 if last: # reach EOF before reading enough quality
                     yield name, seq, None # yield a fasta record instead
                     break
+                
+    def read_nucleotide_sequences(self, nucleotide_file):
+        nucleotide_sequences = {}
+        for name, seq, _ in self.readfq(open(nucleotide_file)):
+            nucleotide_sequences[name] = seq
+        return nucleotide_sequences
+    
+    def protein_alignment_from_alignment_file(self, alignment_file):
+        protein_alignment = []
+        for name, seq, _ in self.readfq(open(alignment_file)):
+            protein_alignment.append(AlignedProteinSequence(name, seq))
+        if len(protein_alignment) > 0:
+            logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
+                                                              protein_alignment[0].name,
+                                                              protein_alignment[0].seq
+                                                              ))
+        else:
+            logging.info("No aligned proteins found for this HMM")
+        return protein_alignment    
+
 
 class MetagenomeOtuFinder:
     def __init__(self):
