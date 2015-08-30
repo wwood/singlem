@@ -5,12 +5,14 @@ import shutil
 import extern
 
 from singlem import MetagenomeOtuFinder, \
-    HmmDatabase, TaxonomyFile, SeqReader, AlignedProteinSequence
+    HmmDatabase, TaxonomyFile, SeqReader
 import itertools
 import tempfile
 from known_otu_table import KnownOtuTable
 import re
 from string import split
+import subprocess
+import StringIO
     
 class SearchPipe:
     def run(self, **kwargs):
@@ -37,12 +39,14 @@ class SearchPipe:
         else:
             working_directory = working_directory
             if os.path.exists(working_directory):
-                if force:
+                if previous_graftm_search_directory:
+                    logging.debug("Using previously half-run singlem results")
+                elif force:
                     logging.info("Overwriting directory %s" % working_directory)
                     shutil.rmtree(working_directory)
+                    os.mkdir(working_directory)
                 else:
                     raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
-            os.mkdir(working_directory)
         logging.debug("Using working directory %s" % working_directory)
         
         def return_cleanly():
@@ -89,7 +93,6 @@ class SearchPipe:
                         (f for f in bootstrap_hmms.values() if os.path.isfile(f)),
                         hmms.hmm_paths()))
             logging.info("Running GraftM to find particular reads..")
-            logging.debug("Running cmd %s" % cmd)
             extern.run(cmd)
             logging.info("Finished running GraftM search phase")
         else:
@@ -153,6 +156,8 @@ class SearchPipe:
                                             hmm.hmm_path())
                         commands.append(cmd)
                 extern.run_many(commands, num_threads=num_threads)
+                
+        sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms)
     
         # runs graftm for each of the HMMs doing the actual alignments, for each
         # of the input sequences
@@ -161,55 +166,37 @@ class SearchPipe:
         else:
             graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
             os.mkdir(graftm_align_directory_base)
-    
-            with tempfile.NamedTemporaryFile() as samples_file:
-                # Don't look at samples that have no hits
-                viable_sample_names = []
-                for sample_name in sample_names:
-                    import IPython; IPython.embed()
-                    if os.stat("%s/%s/%s_hits.fa" % (graftm_separate_directory_base,
-                                                  sample_name,
-                                                  sample_name)).st_size > 0:
-                        viable_sample_names.append(sample_name)
-                    else:
-                        logging.warn("Sample '%s' does not appear to contain any hits" % sample_name)
-                if len(viable_sample_names) == 0:
-                    logging.info("No reads identified in any samples, stopping")
-                    return_cleanly()
-                    return
+            commands = []
+            for sample_name in sample_names:
+                if sample_name in sample_to_gpkg_to_input_sequences:
+                    for hmm_and_position in hmms:
+                        key = hmm_and_position.gpkg_basename()
+                        if key in sample_to_gpkg_to_input_sequences[sample_name]:
+                            tmp = sample_to_gpkg_to_input_sequences[sample_name][key]
+                            cmd = "graftM graft --threads %i --verbosity 2 "\
+                                 "--forward %s "\
+                                 "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                                 "--input_sequence_type nucleotide "\
+                                 "--assignment_method %s" % (\
+                                        1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
+                                        tmp.name,
+                                        hmm_and_position.gpkg_path,
+                                        graftm_align_directory_base,
+                                        sample_name,
+                                        hmm_and_position.gpkg_basename(),
+                                        graftm_assignment_method)
+                            if bootstrap_contigs:
+                                bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
+                                if os.path.isfile(bootstrap_hmm):
+                                    cmd += " --search_hmm_files %s %s" % (
+                                                bootstrap_hmm,
+                                                hmm.hmm_path())
+                            commands.append(cmd)
+                        else:
+                            logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (hmm_and_position.gpkg_basename(), sample_name)) 
                 else:
-                    logging.debug("Found %i samples with reads identified" % 
-                                  len(viable_sample_names))
-                samples_file.write("\n".join(viable_sample_names))
-                samples_file.flush()
-                
-                logging.info("Running alignments/placement in GraftM..")
-                commands = []
-                for sample_name in viable_sample_names:
-                    for hmm in hmms:
-                        cmd = "graftM graft --threads %i --verbosity 2 "\
-                             "--forward %s/%s/%s_hits.fa "\
-                             "--graftm_package %s --output_directory %s/%s_vs_%s "\
-                             "--input_sequence_type nucleotide "\
-                             "--assignment_method %s" % (\
-                                    1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
-                                    graftm_search_directory,
-                                    sample_name,
-                                    sample_name,
-                                    hmm.gpkg_path,
-                                    graftm_align_directory_base,
-                                    sample_name,
-                                    os.path.basename(hmm.gpkg_path),
-                                    graftm_assignment_method)
-                        if bootstrap_contigs:
-                            bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
-                            if os.path.isfile(bootstrap_hmm):
-                                cmd += " --search_hmm_files %s %s" % (
-                                            bootstrap_hmm,
-                                            hmm.hmm_path())
-                        commands.append(cmd)
-                extern.run_many(commands, num_threads=num_threads)
-    
+                    logging.debug("No sequences found aligning to sample %s at all, skipping" % sample_name)
+            extern.run_many(commands, num_threads=num_threads)
     
         # get the sequences out for each of them
         with open(output_otu_table,'w') as output:
@@ -244,23 +231,18 @@ class SearchPipe:
                 # from the alignment, and we need all of them to be able to align
                 # with nucleotide sequences
                 proteins_file = os.path.join(base_dir, "%s_hits_orf.fa" % sample_name)
-                protein_alignment = self._align_proteins_to_hmm(proteins_file,
-                                                          hmms.hmms_and_positions[hmm_basename].hmm_path()
-                                                          )
-                if len(protein_alignment) == 0:
+                nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
+    
+                aligned_seqs = self._get_windowed_sequences(proteins_file,
+                    nucleotide_file, hmms.hmms_and_positions[hmm_basename].hmm_path(),
+                    hmms.hmms_and_positions[hmm_basename].best_position)
+                if len(aligned_seqs) == 0:
                     logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_basename)
                     continue
-                nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
-                nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_file)
-                taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_hits_read_tax.tsv" % sample_name))
-    
-                aligned_seqs = MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
-                                                        nucleotide_sequences,
-                                                        20,
-                                                        hmms.hmms_and_positions[hmm_basename].best_position)
                 logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
                                                                             hmm_basename,
                                                                             sample_name))
+                taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_hits_read_tax.tsv" % sample_name))
                 
                 # convert to OTU table, output
                 for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
@@ -286,6 +268,54 @@ class SearchPipe:
                     
         return_cleanly()
         
+    def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position):
+        nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
+        protein_alignment = self._align_proteins_to_hmm(protein_sequences_file,
+                                                      hmm_path)
+        return MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
+                                                        nucleotide_sequences,
+                                                        20,
+                                                        position)
+        
+    def _placement_input_fasta_name(self, hmm_and_position, sample_name, graftm_separate_directory_base):
+        return '%s/%s_vs_%s/%s_hits/%s_hits_hits.fa' % (graftm_separate_directory_base,
+                                                  sample_name,
+                                                  os.path.basename(hmm_and_position.gpkg_path),
+                                                  sample_name,
+                                                  sample_name)
+        
+    def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names, hmms):
+        '''Given 'separates' directory, extract reads that will be used as
+        part of the singlem choppage process as tempfiles in a hash'''
+        sample_to_gpkg_to_input_sequences = {}
+        for sample_name in sample_names:
+            sample_to_gpkg_to_input_sequences[sample_name] = {}
+            for hmm_and_position in hmms:
+                base_dir = os.path.join(\
+                    graftm_separate_directory_base,
+                    "%s_vs_%s" % (sample_name,
+                                  os.path.basename(hmm_and_position.gpkg_path)),
+                    '%s_hits' % sample_name)
+                protein_sequences_file = os.path.join(
+                    base_dir, "%s_hits_orf.fa" % sample_name)
+                nucleotide_sequence_fasta_file = os.path.join(
+                    base_dir, "%s_hits_hits.fa" % sample_name)
+
+                # extract the names of the relevant reads
+                aligned_seqs = self._get_windowed_sequences(\
+                        protein_sequences_file,
+                        nucleotide_sequence_fasta_file,
+                        hmm_and_position.hmm_path(),
+                        hmm_and_position.best_position)
+                tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
+                cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (nucleotide_sequence_fasta_file, tmp.name)
+                process = subprocess.Popen(['bash','-c',cmd],
+                                           stdin=subprocess.PIPE)
+                process.communicate("\n".join([s.name for s in aligned_seqs]))
+                sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(hmm_and_position.gpkg_path)] = tmp
+        
+        return sample_to_gpkg_to_input_sequences
+        
     def _align_proteins_to_hmm(self, proteins_file, hmm_file):
         '''hmmalign proteins to hmm, and return an alignment object'''
         
@@ -300,7 +330,7 @@ class SearchPipe:
     def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies):
         '''given an array of Sequence objects, and hash of taxonomy file,
         yield over 'Info' objects that contain e.g. the counts of the aggregated
-        sequences and corresponding median taxonomies
+        sequences and corresponding median taxonomies.
         '''
         class CollectedInfo:
             def __init__(self):
@@ -320,7 +350,7 @@ class SearchPipe:
                 seq_to_collected_info[s.aligned_sequence] = collected_info
                 
             collected_info.count += 1
-            collected_info.taxonomies.append(tax)
+            if taxonomies: collected_info.taxonomies.append(tax)
             collected_info.names.append(s.name)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
@@ -335,9 +365,10 @@ class SearchPipe:
                 self.aligned_lengths = aligned_lengths
             
         for seq, collected_info in seq_to_collected_info.iteritems():
+            median_tax = self._median_taxonomy(collected_info.taxonomies)
             yield Info(seq,
                        collected_info.count,
-                       self._median_taxonomy(collected_info.taxonomies),
+                       median_tax,
                        collected_info.names,
                        collected_info.coverage,
                        collected_info.aligned_lengths)
