@@ -166,7 +166,6 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--assignment_method', choices=('pplacer','diamond'), help='method of assigning taxonomy to sequences', default='pplacer')
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_separate_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
-    pipe_parser.add_argument('--previous_graftm_placement_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
     pipe_parser.add_argument('--bootstrap_contigs', nargs='+', help='assembled contigs/scaffolds to help the HMM find hits in reads (default: do not use)')
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
@@ -220,8 +219,7 @@ if __name__ == '__main__':
             working_directory = args.working_directory,
             force = args.force,
             previous_graftm_search_directory = args.previous_graftm_search_directory,
-            previous_graftm_separate_directory = args.previous_graftm_separate_directory,
-            previous_graftm_placement_directory = args.previous_graftm_placement_directory)
+            previous_graftm_separate_directory = args.previous_graftm_separate_directory)
 
     elif args.subparser_name=='makedb':
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\

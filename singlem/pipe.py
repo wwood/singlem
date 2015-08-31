@@ -9,10 +9,8 @@ from singlem import MetagenomeOtuFinder, \
 import itertools
 import tempfile
 from known_otu_table import KnownOtuTable
-import re
 from string import split
 import subprocess
-import StringIO
     
 class SearchPipe:
     def run(self, **kwargs):
@@ -28,7 +26,6 @@ class SearchPipe:
         force = kwargs.pop('force')
         previous_graftm_search_directory = kwargs.pop('previous_graftm_search_directory')
         previous_graftm_separate_directory = kwargs.pop('previous_graftm_separate_directory')
-        previous_graftm_placement_directory = kwargs.pop('previous_graftm_placement_directory')
         
         hmms = HmmDatabase()
         
@@ -47,6 +44,8 @@ class SearchPipe:
                     os.mkdir(working_directory)
                 else:
                     raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
+            else:
+                os.mkdir(working_directory)
         logging.debug("Using working directory %s" % working_directory)
         
         def return_cleanly():
@@ -161,42 +160,41 @@ class SearchPipe:
     
         # runs graftm for each of the HMMs doing the actual alignments, for each
         # of the input sequences
-        if previous_graftm_placement_directory:
-            graftm_align_directory_base = previous_graftm_placement_directory
-        else:
-            graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
-            os.mkdir(graftm_align_directory_base)
-            commands = []
-            for sample_name in sample_names:
-                if sample_name in sample_to_gpkg_to_input_sequences:
-                    for hmm_and_position in hmms:
-                        key = hmm_and_position.gpkg_basename()
-                        if key in sample_to_gpkg_to_input_sequences[sample_name]:
-                            tmp = sample_to_gpkg_to_input_sequences[sample_name][key]
-                            cmd = "graftM graft --threads %i --verbosity 2 "\
-                                 "--forward %s "\
-                                 "--graftm_package %s --output_directory %s/%s_vs_%s "\
-                                 "--input_sequence_type nucleotide "\
-                                 "--assignment_method %s" % (\
-                                        1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
-                                        tmp.name,
-                                        hmm_and_position.gpkg_path,
-                                        graftm_align_directory_base,
-                                        sample_name,
-                                        hmm_and_position.gpkg_basename(),
-                                        graftm_assignment_method)
-                            if bootstrap_contigs:
-                                bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
-                                if os.path.isfile(bootstrap_hmm):
-                                    cmd += " --search_hmm_files %s %s" % (
-                                                bootstrap_hmm,
-                                                hmm.hmm_path())
-                            commands.append(cmd)
-                        else:
-                            logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (hmm_and_position.gpkg_basename(), sample_name)) 
-                else:
-                    logging.debug("No sequences found aligning to sample %s at all, skipping" % sample_name)
-            extern.run_many(commands, num_threads=num_threads)
+        logging.info("Running taxonomic assignment with graftm..")
+        graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
+        os.mkdir(graftm_align_directory_base)
+        commands = []
+        for sample_name in sample_names:
+            if sample_name in sample_to_gpkg_to_input_sequences:
+                for hmm_and_position in hmms:
+                    key = hmm_and_position.gpkg_basename()
+                    if key in sample_to_gpkg_to_input_sequences[sample_name]:
+                        tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
+                        cmd = "graftM graft --threads %i --verbosity 2 "\
+                             "--forward %s "\
+                             "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                             "--input_sequence_type nucleotide "\
+                             "--assignment_method %s" % (\
+                                    1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
+                                    tmp_graft.name,
+                                    hmm_and_position.gpkg_path,
+                                    graftm_align_directory_base,
+                                    sample_name,
+                                    hmm_and_position.gpkg_basename(),
+                                    graftm_assignment_method)
+                        if bootstrap_contigs:
+                            bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
+                            if os.path.isfile(bootstrap_hmm):
+                                cmd += " --search_hmm_files %s %s" % (
+                                            bootstrap_hmm,
+                                            hmm.hmm_path())
+                        commands.append(cmd)
+                    else:
+                        logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (hmm_and_position.gpkg_basename(), sample_name)) 
+            else:
+                logging.debug("No sequences found aligning to sample %s at all, skipping" % sample_name)
+        extern.run_many(commands, num_threads=num_threads)
+        logging.info("Finished running taxonomic assignment with graftm")
     
         # get the sequences out for each of them
         with open(output_otu_table,'w') as output:
@@ -212,63 +210,60 @@ class SearchPipe:
                 logging.info("Parsing known taxonomy OTU tables")
                 known_taxes = KnownOtuTable()
                 known_taxes.parse_otu_tables(known_otu_tables)
+                
+            for sample_name in sample_names:
+                if sample_name in sample_to_gpkg_to_input_sequences:
+                    for hmm_and_position in hmms:
+                        key = hmm_and_position.gpkg_basename()
+                        if key in sample_to_gpkg_to_input_sequences[sample_name]:
+                            tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
+                            
+                            tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
+                            base_dir = os.path.join(graftm_align_directory_base,
+                                '%s_vs_%s' % (sample_name, hmm_and_position.gpkg_basename()),
+                                tmpbase)
+                            
+                            proteins_file = os.path.join(base_dir, "%s_orf.fa" % tmpbase)
+                            nucleotide_file = os.path.join(base_dir, "%s_hits.fa" % tmpbase)
+                            aligned_seqs = self._get_windowed_sequences(
+                                proteins_file,
+                                nucleotide_file, hmm_and_position.hmm_path(),
+                                hmm_and_position.best_position)
+                            
+                            if len(aligned_seqs) == 0:
+                                logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_and_position.hmm_basename())
+                                continue
+                            logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
+                                                                                        hmm_and_position.hmm_basename(),
+                                                                                        sample_name))
+                            taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
             
-            un_hitify_re = re.compile(r'(.*)_vs_(.*)')
-            for f in os.listdir(graftm_align_directory_base):
-                if not os.path.isdir(os.path.join(graftm_align_directory_base,f)): continue
-                unhitted = un_hitify_re.match(f)
-                if not unhitted:
-                    raise Exception("Unexpected graftm sequence name %s" % f)
-                sample_name = unhitted.groups(0)[0]
-                hmm_basename = unhitted.groups(0)[1]
-    
-                hits_name = "%s_hits" % sample_name
-                base_dir = os.path.join(graftm_align_directory_base,
-                                              f,
-                                              hits_name)
-                
-                # Need to re-align the sequences because GraftM removes columns
-                # from the alignment, and we need all of them to be able to align
-                # with nucleotide sequences
-                proteins_file = os.path.join(base_dir, "%s_hits_orf.fa" % sample_name)
-                nucleotide_file = os.path.join(base_dir, "%s_hits_hits.fa" % sample_name)
-    
-                aligned_seqs = self._get_windowed_sequences(proteins_file,
-                    nucleotide_file, hmms.hmms_and_positions[hmm_basename].hmm_path(),
-                    hmms.hmms_and_positions[hmm_basename].best_position)
-                if len(aligned_seqs) == 0:
-                    logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_basename)
-                    continue
-                logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
-                                                                            hmm_basename,
-                                                                            sample_name))
-                taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_hits_read_tax.tsv" % sample_name))
-                
-                # convert to OTU table, output
-                for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
-                                                        taxonomies):
-                    if known_otu_tables:
-                        tax_assigned_through_known = False
-                    to_print = [hmm_basename,
-                                    sample_name,
-                                    info.seq,
-                                    str(info.count),
-                                    "%.2f" % info.coverage]
-                    if known_otu_tables and info.seq in known_taxes:
-                        tax_assigned_through_known = True
-                        to_print.append(known_taxes[info.seq].taxonomy)
-                    else:
-                        to_print.append(info.taxonomy)
-                    if output_extras:
-                        to_print.append(' '.join(info.names))
-                        to_print.append(' '.join([str(l) for l in info.aligned_lengths]))
-                        if known_otu_tables:
-                            to_print.append(tax_assigned_through_known)
-                    output.write("\t".join(to_print) + "\n")
+                            # convert to OTU table, output
+                            for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
+                                                                    taxonomies):
+                                if known_otu_tables:
+                                    tax_assigned_through_known = False
+                                to_print = [hmm_and_position.gpkg_basename(),
+                                                sample_name,
+                                                info.seq,
+                                                str(info.count),
+                                                "%.2f" % info.coverage]
+                                if known_otu_tables and info.seq in known_taxes:
+                                    tax_assigned_through_known = True
+                                    to_print.append(known_taxes[info.seq].taxonomy)
+                                else:
+                                    to_print.append(info.taxonomy)
+                                if output_extras:
+                                    to_print.append(' '.join(info.names))
+                                    to_print.append(' '.join([str(l) for l in info.aligned_lengths]))
+                                    if known_otu_tables:
+                                        to_print.append(tax_assigned_through_known)
+                                output.write("\t".join(to_print) + "\n")
                     
         return_cleanly()
         
     def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position):
+        if os.stat(nucleotide_sequence_file).st_size == 0: return []
         nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
         protein_alignment = self._align_proteins_to_hmm(protein_sequences_file,
                                                       hmm_path)
@@ -307,12 +302,13 @@ class SearchPipe:
                         nucleotide_sequence_fasta_file,
                         hmm_and_position.hmm_path(),
                         hmm_and_position.best_position)
-                tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
-                cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (nucleotide_sequence_fasta_file, tmp.name)
-                process = subprocess.Popen(['bash','-c',cmd],
-                                           stdin=subprocess.PIPE)
-                process.communicate("\n".join([s.name for s in aligned_seqs]))
-                sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(hmm_and_position.gpkg_path)] = tmp
+                if len(aligned_seqs) > 0:
+                    tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
+                    cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (nucleotide_sequence_fasta_file, tmp.name)
+                    process = subprocess.Popen(['bash','-c',cmd],
+                                               stdin=subprocess.PIPE)
+                    process.communicate("\n".join([s.name for s in aligned_seqs]))
+                    sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(hmm_and_position.gpkg_path)] = tmp
         
         return sample_to_gpkg_to_input_sequences
         

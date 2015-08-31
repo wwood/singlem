@@ -88,20 +88,20 @@ class HmmDatabase:
 
         for array in [
             ['2.07.ribosomal_protein_L2_rplB.gpkg','DNGNGWU00010_mingle_output_good_seqs.hmm',125],
-#             ['2.08.ribosomal_protein_L3_rplC.gpkg','DNGNGWU00012_mingle_output_good_seqs.hmm',207],
-#             ['2.09.ribosomal_protein_L5_rplE.gpkg','DNGNGWU00025_mingle_output_good_seqs.hmm',66],
-#             ['2.10.ribosomal_protein_L6_rplF.gpkg','DNGNGWU00023_mingle_output_good_seqs.hmm',138],
-#             ['2.11.ribosomal_protein_L10.gpkg','DNGNGWU00030_mingle_output_good_seqs.hmm',76],
-#             ['2.12.ribosomal_protein_L11_rplK.gpkg','DNGNGWU00024_mingle_output_good_seqs.hmm',15],
-#             ['2.13.ribosomal_protein_L14b_L23e_rplN.gpkg','DNGNGWU00014_mingle_output_good_seqs.hmm',73],
-#             ['2.14.ribosomal_protein_L16_L10E_rplP.gpkg','DNGNGWU00018_mingle_output_good_seqs.hmm',18],
-#             ['2.15.ribosomal_protein_S2_rpsB.gpkg','DNGNGWU00001_mingle_output_good_seqs.hmm',169],
-#             ['2.16.ribosomal_protein_S5.gpkg','DNGNGWU00015_mingle_output_good_seqs.hmm',90],
-#             ['2.17.ribosomal_protein_S7.gpkg','DNGNGWU00017_mingle_output_good_seqs.hmm',65],
-#             ['2.18.ribosomal_protein_S10_rpsJ.gpkg','DNGNGWU00002_mingle_output_good_seqs.hmm',72],
-#             ['2.19.ribosomal_protein_S12_S23.gpkg','DNGNGWU00026_mingle_output_good_seqs.hmm',69],
-#             ['2.20.ribosomal_protein_S15P_S13e.gpkg','DNGNGWU00034_mingle_output_good_seqs.hmm',23],
-#             ['2.21.ribosomal_protein_S19_rpsS.gpkg','DNGNGWU00016_mingle_output_good_seqs.hmm',11]
+            ['2.08.ribosomal_protein_L3_rplC.gpkg','DNGNGWU00012_mingle_output_good_seqs.hmm',207],
+            ['2.09.ribosomal_protein_L5_rplE.gpkg','DNGNGWU00025_mingle_output_good_seqs.hmm',66],
+            ['2.10.ribosomal_protein_L6_rplF.gpkg','DNGNGWU00023_mingle_output_good_seqs.hmm',138],
+            ['2.11.ribosomal_protein_L10.gpkg','DNGNGWU00030_mingle_output_good_seqs.hmm',76],
+            ['2.12.ribosomal_protein_L11_rplK.gpkg','DNGNGWU00024_mingle_output_good_seqs.hmm',15],
+            ['2.13.ribosomal_protein_L14b_L23e_rplN.gpkg','DNGNGWU00014_mingle_output_good_seqs.hmm',73],
+            ['2.14.ribosomal_protein_L16_L10E_rplP.gpkg','DNGNGWU00018_mingle_output_good_seqs.hmm',18],
+            ['2.15.ribosomal_protein_S2_rpsB.gpkg','DNGNGWU00001_mingle_output_good_seqs.hmm',169],
+            ['2.16.ribosomal_protein_S5.gpkg','DNGNGWU00015_mingle_output_good_seqs.hmm',90],
+            ['2.17.ribosomal_protein_S7.gpkg','DNGNGWU00017_mingle_output_good_seqs.hmm',65],
+            ['2.18.ribosomal_protein_S10_rpsJ.gpkg','DNGNGWU00002_mingle_output_good_seqs.hmm',72],
+            ['2.19.ribosomal_protein_S12_S23.gpkg','DNGNGWU00026_mingle_output_good_seqs.hmm',69],
+            ['2.20.ribosomal_protein_S15P_S13e.gpkg','DNGNGWU00034_mingle_output_good_seqs.hmm',23],
+            ['2.21.ribosomal_protein_S19_rpsS.gpkg','DNGNGWU00016_mingle_output_good_seqs.hmm',11]
           ]:
             hmm_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                             '..', 'db', array[0])
@@ -136,6 +136,9 @@ class HmmAndPostion:
     
     def gpkg_basename(self):
         return os.path.basename(self.gpkg_path)
+    
+    def hmm_basename(self):
+        return os.path.basename(self.hmm_filename)
 
 class SeqReader:
     # Stolen from https://github.com/lh3/readfq/blob/master/readfq.py
@@ -181,12 +184,12 @@ class SeqReader:
         for name, seq, _ in self.readfq(open(alignment_file)):
             protein_alignment.append(AlignedProteinSequence(name, seq))
         if len(protein_alignment) > 0:
-            logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
+            logging.debug("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
                                                               protein_alignment[0].name,
                                                               protein_alignment[0].seq
                                                               ))
         else:
-            logging.info("No aligned proteins found for this HMM")
+            logging.debug("No aligned proteins found for this HMM")
         return protein_alignment    
 
 
@@ -207,7 +210,7 @@ class MetagenomeOtuFinder:
         # excluding sequences that do not aligned to the first and last bases
         if best_position:
             start_position = self._upper_case_position_to_alignment_position(best_position, ignored_columns)
-            logging.info("Using pre-defined best section of the alignment starting from %i" % (start_position+1))
+            logging.debug("Using pre-defined best section of the alignment starting from %i" % (start_position+1))
         else:
             start_position = self._find_best_window(aligned_sequences, stretch_length, ignored_columns)
             logging.info("Found best section of the alignment starting from %i" % (start_position+1))
