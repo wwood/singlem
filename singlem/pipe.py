@@ -157,6 +157,7 @@ class SearchPipe:
                 extern.run_many(commands, num_threads=num_threads)
                 
         sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms)
+        logging.info("Finished extracting aligned sequences")
     
         # runs graftm for each of the HMMs doing the actual alignments, for each
         # of the input sequences
