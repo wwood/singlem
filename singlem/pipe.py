@@ -22,11 +22,14 @@ class SearchPipe:
         graftm_assignment_method = kwargs.pop('assignment_method')
         output_extras = kwargs.pop('output_extras')
         evalue = kwargs.pop('evalue')
+        restrict_read_length = kwargs.pop('restrict_read_length')
         
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
         previous_graftm_search_directory = kwargs.pop('previous_graftm_search_directory')
         previous_graftm_separate_directory = kwargs.pop('previous_graftm_separate_directory')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         hmms = HmmDatabase()
         
@@ -69,6 +72,7 @@ class SearchPipe:
                       ' '.join(bootstrap_contigs),
                       hmm.hmm_path(),
                       bootstrap_hmm_file)
+                if evalue: cmd += ' --evalue %s' % evalue
                 logging.debug("Running cmd: %s" % cmd)
                 extern.run(cmd)
         
@@ -88,6 +92,7 @@ class SearchPipe:
                                     graftm_search_directory,
                                     hmms.hmm_paths()[0])
             if evalue: cmd += ' --evalue %s' % evalue
+            if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
             if bootstrap_contigs:
                 cmd += " --search_hmm_files %s" % ' '.join(
                     itertools.chain(
@@ -150,6 +155,7 @@ class SearchPipe:
                                     sample_name,
                                     os.path.basename(hmm.gpkg_path))
                         if evalue: cmd += ' --evalue %s' % evalue
+                        if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
                         if bootstrap_contigs:
                             bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
                             if os.path.isfile(bootstrap_hmm):
@@ -187,6 +193,7 @@ class SearchPipe:
                                     hmm_and_position.gpkg_basename(),
                                     graftm_assignment_method)
                         if evalue: cmd += ' --evalue %s' % evalue
+                        if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
                         if bootstrap_contigs:
                             bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
                             if os.path.isfile(bootstrap_hmm):
