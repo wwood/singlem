@@ -1,5 +1,4 @@
 import os
-import csv
 import logging
 import subprocess
 import StringIO

@@ -7,6 +7,9 @@ class OtuTableEntry:
     count = None
     taxonomy = None
     coverage = None
+    
+    def taxonomy_array(self):
+        return self.taxonomy.split('; ')
 
 class OtuTable:
     @staticmethod

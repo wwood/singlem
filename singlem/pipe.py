@@ -27,6 +27,8 @@ class SearchPipe:
         force = kwargs.pop('force')
         previous_graftm_search_directory = kwargs.pop('previous_graftm_search_directory')
         previous_graftm_separate_directory = kwargs.pop('previous_graftm_separate_directory')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         hmms = HmmDatabase()
         
