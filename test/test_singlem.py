@@ -46,7 +46,6 @@ class Tests(unittest.TestCase):
 
         cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
-        print cmd
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
        
     def test_insert(self):
