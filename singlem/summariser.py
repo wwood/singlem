@@ -2,6 +2,7 @@ import tempfile
 import extern
 from otu_table import OtuTable
 from collections import OrderedDict
+import logging
 
 class Summariser:
     @staticmethod
@@ -28,7 +29,9 @@ class Summariser:
             # write the input krona files
             sample_name_to_tempfile = OrderedDict()
             for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.iteritems():
-                cmd = 'ktImportText -o %s.%s.krona.html' % (krona_output_prefix, gene)
+                krona_output_file = '%s.%s.krona.html' % (krona_output_prefix, gene)
+                logging.info("Writing krona %s" % krona_output_file)
+                cmd = 'ktImportText -o %s' % krona_output_file
                 for sample, taxonomy_to_count in sample_to_taxonomy_to_count.iteritems():
                     f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona')
                     sample_name_to_tempfile[sample] = f
