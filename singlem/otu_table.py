@@ -32,7 +32,17 @@ class OtuTable:
             e.taxonomy = row[5]
             yield e
 
-    def each_of_taxonomy(self, otu_table_io, taxonomy):
+class TaxonomyTargetedOtuTable(OtuTable):
+    def __init__(self, taxonomy):
+        '''
+        Parameters
+        ----------
+        taxonomy: list of str
+            taxonomy, one entry in the list for each level
+        '''
+        self.target_taxonomy = taxonomy
+        
+    def each(self, otu_table_io):
         '''Like each(), except only yield those entries that belong to the
         given lineage.
         
@@ -40,9 +50,7 @@ class OtuTable:
         ----------
         otu_table_io: IO
             IO object of the OTU table
-        taxonomy: list of str
-            taxonomy, one entry in the list for each level
         '''
-        for e in self.each(otu_table_io):
-            if e.taxonomy_array()[:len(taxonomy)] == taxonomy:
+        for e in OtuTable().each(otu_table_io):
+            if e.taxonomy_array()[:len(self.target_taxonomy)] == self.target_taxonomy:
                 yield e

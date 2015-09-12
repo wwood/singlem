@@ -1,4 +1,4 @@
-from otu_table import OtuTable, OtuTableEntry
+from otu_table import OtuTable, OtuTableEntry, TaxonomyTargetedOtuTable
 
 
 class DifferenceOTUEntry(OtuTableEntry):
@@ -20,6 +20,7 @@ class StrainSummariser:
     def summarise_strains(self, **kwargs):
         otu_table_io = kwargs.pop('otu_table_io')
         output_table_io = kwargs.pop('output_table_io')
+        target_taxonomy = kwargs.pop('taxonomy', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
@@ -28,14 +29,21 @@ class StrainSummariser:
                                          'sample',
                                          'difference_in_bp',
                                          'sequence',
-                                         'count',
+                                         'num_hits',
                                          'coverage',
                                          'taxonomy'
                                          ])+"\n")
         last_sample_name = None
         last_gene = None
         current_sample_entries = []
-        for e in OtuTable(otu_table_io).each():
+        
+        if target_taxonomy:
+            dummy_otu = OtuTableEntry()
+            dummy_otu.taxonomy = target_taxonomy
+            itera = TaxonomyTargetedOtuTable(dummy_otu.taxonomy_array()).each
+        else:
+            itera = OtuTable().each
+        for e in itera(otu_table_io):
             if last_sample_name is None:
                 last_sample_name = e.sample_name
                 last_gene = e.marker
@@ -57,20 +65,20 @@ class StrainSummariser:
                                          reference_entry.sample_name,
                                          '0',
                                          reference_entry.sequence,
-                                         reference_entry.count,
-                                         reference_entry.coverage,
+                                         str(reference_entry.count),
+                                         str(reference_entry.coverage),
                                          reference_entry.taxonomy
                                          ])+"\n")
-        for e in sorted(self.differences(reference_entry, output_table_io),
-                        key=lambda d: d.difference_in_bp):
+        for e in sorted(self._differences(reference_entry, entries),
+                        key=lambda d: -d.difference_in_bp):
             output_table_io.write("\t".join([
                                          'strain',
                                          e.marker,
                                          e.sample_name,
-                                         e.difference_in_bp,
+                                         str(e.difference_in_bp),
                                          e.sequence,
-                                         e.count,
-                                         e.coverage,
+                                         str(e.count),
+                                         str(e.coverage),
                                          e.taxonomy    
                                          ])+"\n")
         
