@@ -31,3 +31,18 @@ class OtuTable:
             e.coverage = float(row[4])
             e.taxonomy = row[5]
             yield e
+
+    def each_of_taxonomy(self, otu_table_io, taxonomy):
+        '''Like each(), except only yield those entries that belong to the
+        given lineage.
+        
+        Parameters
+        ----------
+        otu_table_io: IO
+            IO object of the OTU table
+        taxonomy: list of str
+            taxonomy, one entry in the list for each level
+        '''
+        for e in self.each(otu_table_io):
+            if e.taxonomy_array()[:len(taxonomy)] == taxonomy:
+                yield e
