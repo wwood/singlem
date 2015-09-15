@@ -53,6 +53,7 @@ class StrainSummariser:
             else:
                 self._process_sample(current_sample_entries, output_table_io)
                 last_sample_name = e.sample_name
+                last_gene = e.marker
                 current_sample_entries = [e]
         self._process_sample(current_sample_entries, output_table_io)
                  

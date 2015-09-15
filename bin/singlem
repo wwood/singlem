@@ -2,7 +2,6 @@
 
 import tempfile
 import subprocess
-from singlem.strain_summariser import StrainSummariser
 
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015"
@@ -29,7 +28,7 @@ import singlem.pipe
 from singlem.summariser import Summariser
 from singlem.query_formatters import NameSequenceQueryDefinition,\
     NamedQueryDefinition
-
+from singlem.strain_summariser import StrainSummariser
 
 
 def seqs(args):
@@ -72,7 +71,7 @@ def query(args):
         (query_otu_table and query_fasta) or \
         (query_sequence and query_fasta):
         raise Exception("Only one of --query_fasta, --query_otu_table and --query_sequence is allowable")
-    
+
     if query_sequence:
         query_names = ['unnamed_sequence']
         query_sequences = [query_sequence]
@@ -91,7 +90,7 @@ def query(args):
             query_sequences.append(seq)
     else:
         raise Exception("No query option specified, cannot continue")
-    
+
     # blast the query against the database, output as csv
     found_distances_and_names = []
     found_query_names = []
@@ -101,12 +100,12 @@ def query(args):
             infile.write(">%i\n" % i)
             infile.write(sequence+"\n")
         infile.flush()
-        
+
         cmd = "blastn -task blastn -query '%s' -db '%s' -outfmt 6 -max_target_seqs %i" %\
             (infile.name, db.sequences_fasta_file, max_target_seqs)
         logging.debug("Running cmd %s" % cmd)
         proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-        
+
         last_index = None
         last_differences_and_names = []
         for line in iter(proc.stdout.readline,''):
@@ -122,25 +121,25 @@ def query(args):
                 found_distances_and_names.append(last_differences_and_names)
                 last_index = index
                 last_differences_and_names = []
-            
+
             #TODO: check we haven't come up against the max_target_seqs barrier
             query_length = len(query_sequences[index].replace('-',''))
             subject = db.extract_sequence_by_sseqid(sseqid)
             divergence = int(mismatch) + int(gapopen) + (int(qstart)-1) + (query_length-int(qend))
             if divergence <= max_divergence:
                 last_differences_and_names.append([divergence, subject])
-                
+
         if last_index is not None:
             # finish off the last chunk
             found_query_names.append(query_names[last_index])
             found_query_sequences.append(query_sequences[last_index])
             found_distances_and_names.append(last_differences_and_names)
-        
+
     if query_fasta:
         namedef = NamedQueryDefinition(found_query_names)
     else:
         namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
-    
+
     if output_style == 'sparse':
         formatter = singlem.query_formatters.SparseResultFormatter(namedef, found_distances_and_names)
     elif output_style == 'dense':
@@ -185,7 +184,7 @@ if __name__ == '__main__':
     seqs_parser.add_argument('--reads', metavar='raw_reads', help='Unaligned nucleotide sequences that were translated into the protein sequences', required=True)
     seqs_parser.add_argument('--window_size', metavar='aa', help='Number of amino acids to use in continuous window', default=20, type=int)
     seqs_parser.add_argument('--start_position', metavar='bp', help='Start the window at the position in the alignment (1-based index) [default: pick one automatically]', type=int)
-    
+
     temp_description = 'From aligned nucleotide sequences to searchable database'
     makedb_parser = subparsers.add_parser('makedb',
                                         description=temp_description,
@@ -193,7 +192,7 @@ if __name__ == '__main__':
                                         epilog=__author__)
     makedb_parser.add_argument('--otu_table', help="Output from 'pipe' mode", required=True)
     makedb_parser.add_argument('--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
-    
+
     temp_description = 'Find closely related sequences in a singlem database'
     makedb_parser = subparsers.add_parser('query',
                                         description=temp_description,
@@ -206,7 +205,7 @@ if __name__ == '__main__':
     makedb_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
     makedb_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     makedb_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
-    
+
     temp_description = 'Summarise an OTU table'
     summarise_parser = subparsers.add_parser('summarise',
                                         description=temp_description,
@@ -216,7 +215,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
     summarise_parser.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
-    
+
     args = parser.parse_args()
     if args.debug:
         loglevel = logging.DEBUG
@@ -262,9 +261,9 @@ if __name__ == '__main__':
                 otu_table = args.otu_table,
                 krona_output_prefix = args.krona)
         else:
-            StrainSummariser.summarise_strains(
+            StrainSummariser().summarise_strains(
                 otu_table_io = open(args.otu_table),
-                output_table = open(args.strain_overview_table,'w'),
+                output_table_io = open(args.strain_overview_table,'w'),
                 taxonomy = args.taxonomy)
     else:
         raise Exception()

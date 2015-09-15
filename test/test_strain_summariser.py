@@ -77,6 +77,38 @@ class Tests(unittest.TestCase):
                         taxonomy = 'Root; d__Bacteria'
                         )
         self.assertEqual(exp, output.getvalue())
+        
+    def test_multiple_genes_and_samples(self):
+        a = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
+             ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             
+             ['2.13.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             ['2.13.ribosomal_protein_L11_rplK.gpkg','minimal','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria'],
+             ['2.13.ribosomal_protein_L11_rplK.gpkg','minimal','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             
+             ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
+             ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Aacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ]
+        table = "\n".join(["\t".join(x) for x in a]+[''])
+        
+        e = [self.output_headers,
+             ['reference','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','0','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
+             ['strain','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','3','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             ['reference','2.13.ribosomal_protein_L11_rplK.gpkg','minimal','0','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria'],
+             ['strain','2.13.ribosomal_protein_L11_rplK.gpkg','minimal','3','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+             ['reference','2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','0','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
+            ]
+        exp = "\n".join(["\t".join(x) for x in e]+[''])
+
+        output = StringIO()
+        StrainSummariser().summarise_strains(\
+                        otu_table_io = StringIO(table),
+                        output_table_io = output,
+                        taxonomy = 'Root; d__Bacteria'
+                        )
+        self.assertEqual(exp, output.getvalue())
                             
 if __name__ == "__main__":
     unittest.main()
