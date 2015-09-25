@@ -275,7 +275,8 @@ class SearchPipe:
         return_cleanly()
         
     def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position):
-        if os.stat(nucleotide_sequence_file).st_size == 0: return []
+        if not os.path.exists(nucleotide_sequence_file) or \
+            os.stat(nucleotide_sequence_file).st_size == 0: return []
         nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
         protein_alignment = self._align_proteins_to_hmm(protein_sequences_file,
                                                       hmm_path)
