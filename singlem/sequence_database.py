@@ -1,10 +1,10 @@
 import os
 import logging
-import subprocess
 import StringIO
 from Bio import SeqIO
 
 from otu_table import OtuTable, OtuTableEntry
+import extern
 
 class DBSequence(OtuTableEntry):
     sequence_id = None
@@ -69,14 +69,12 @@ class SequenceDatabase:
                 sequence_id += 1
         
         cmd = "makeblastdb -in '%s' -dbtype nucl -parse_seqids" % sequences_fasta_file
-        logging.debug("Running cmd: %s" % cmd)
-        subprocess.check_call(cmd, shell=True)
+        extern.run(cmd)
         
     def extract_sequence(self, sequence_id):
         cmd = "blastdbcmd -db '%s' -entry 'lcl|%s'" %\
             (self.sequences_fasta_file, sequence_id)
-        logging.debug("Running cmd: %s" % cmd)
-        stdout = subprocess.check_output(cmd, shell=True)
+        stdout = extern.run(cmd)
         dbseq = DBSequence()
         for s in SeqIO.parse(StringIO.StringIO(stdout), "fasta"):
             if dbseq.sequence: raise Exception("Extracted multiple hits from sequence database, for sequence id %s" % sequence_id)

@@ -44,17 +44,26 @@ class Tests(unittest.TestCase):
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
+        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
-        self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
        
     def test_insert(self):
-        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','insert','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','2','4.78','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae']]
+        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        
+    def test_print_insert(self):
+        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['2.12.ribosomal_protein_L11_rplK.gpkg','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG','1','2.51','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        exp = sorted(["\t".join(x) for x in expected]+[''])
+
+        cmd = "%s --debug pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4 --include_inserts" % (path_to_script,
+                                                                                                    path_to_data)
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
         
     def test_makedb_query(self):
         otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],

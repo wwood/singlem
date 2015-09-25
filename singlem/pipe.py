@@ -4,13 +4,15 @@ import os
 import shutil
 import extern
 
-from singlem import MetagenomeOtuFinder, \
-    HmmDatabase, TaxonomyFile, SeqReader
+from singlem import HmmDatabase, TaxonomyFile
 import itertools
 import tempfile
 from known_otu_table import KnownOtuTable
 from string import split
 import subprocess
+
+from metagenome_otu_finder import MetagenomeOtuFinder
+from sequence_classes import SeqReader
     
 class SearchPipe:
     def run(self, **kwargs):
@@ -23,6 +25,7 @@ class SearchPipe:
         output_extras = kwargs.pop('output_extras')
         evalue = kwargs.pop('evalue')
         restrict_read_length = kwargs.pop('restrict_read_length')
+        include_inserts = kwargs.pop('include_inserts')
         
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
@@ -35,7 +38,14 @@ class SearchPipe:
         
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
-            tmp = tempdir.TempDir()
+            shared_mem_directory = '/dev/shm'
+            if os.path.exists(shared_mem_directory):
+                logging.debug("Using shared memory as a base directory")
+                base = shared_mem_directory
+            else:
+                logging.debug("Shared memory directory not detected, using default temporary directory instead")
+                base = None
+            tmp = tempdir.TempDir(basedir=base)
             working_directory = tmp.name
         else:
             working_directory = working_directory
@@ -73,7 +83,6 @@ class SearchPipe:
                       hmm.hmm_path(),
                       bootstrap_hmm_file)
                 if evalue: cmd += ' --evalue %s' % evalue
-                logging.debug("Running cmd: %s" % cmd)
                 extern.run(cmd)
         
         if not previous_graftm_search_directory:
@@ -165,7 +174,7 @@ class SearchPipe:
                         commands.append(cmd)
                 extern.run_many(commands, num_threads=num_threads)
                 
-        sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms)
+        sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms, include_inserts)
         logging.info("Finished extracting aligned sequences")
     
         # runs graftm for each of the HMMs doing the actual alignments, for each
@@ -240,7 +249,8 @@ class SearchPipe:
                             aligned_seqs = self._get_windowed_sequences(
                                 proteins_file,
                                 nucleotide_file, hmm_and_position.hmm_path(),
-                                hmm_and_position.best_position)
+                                hmm_and_position.best_position,
+                                include_inserts)
                             
                             if len(aligned_seqs) == 0:
                                 logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_and_position.hmm_basename())
@@ -274,7 +284,7 @@ class SearchPipe:
                     
         return_cleanly()
         
-    def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position):
+    def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position, include_inserts):
         if not os.path.exists(nucleotide_sequence_file) or \
             os.stat(nucleotide_sequence_file).st_size == 0: return []
         nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
@@ -283,6 +293,7 @@ class SearchPipe:
         return MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
                                                         nucleotide_sequences,
                                                         20,
+                                                        include_inserts,
                                                         position)
         
     def _placement_input_fasta_name(self, hmm_and_position, sample_name, graftm_separate_directory_base):
@@ -292,7 +303,7 @@ class SearchPipe:
                                                   sample_name,
                                                   sample_name)
         
-    def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names, hmms):
+    def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names, hmms, include_inserts):
         '''Given 'separates' directory, extract reads that will be used as
         part of the singlem choppage process as tempfiles in a hash'''
         sample_to_gpkg_to_input_sequences = {}
@@ -314,7 +325,8 @@ class SearchPipe:
                         protein_sequences_file,
                         nucleotide_sequence_fasta_file,
                         hmm_and_position.hmm_path(),
-                        hmm_and_position.best_position)
+                        hmm_and_position.best_position,
+                        include_inserts)
                 if len(aligned_seqs) > 0:
                     tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
                     cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (nucleotide_sequence_fasta_file, tmp.name)
@@ -332,7 +344,6 @@ class SearchPipe:
             cmd = "hmmalign %s %s |seqmagick convert --input-format stockholm - %s" % (hmm_file,
                                                               proteins_file,
                                                               f.name)
-            logging.debug("Running cmd: %s" % cmd)
             extern.run(cmd)
             return SeqReader().protein_alignment_from_alignment_file(f.name)
     

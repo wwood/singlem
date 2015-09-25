@@ -1,8 +1,5 @@
 #!/usr/bin/env python
 
-import tempfile
-import subprocess
-
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015"
 __credits__ = ["Ben Woodcroft"]
@@ -15,13 +12,11 @@ import argparse
 import logging
 import sys
 import os
+import tempfile
+import subprocess
 
-try:
-    import singlem.singlem
-except ImportError:
-    sys.path.append(os.path.join(os.path.dirname(os.path.realpath(__file__)),'..'))
-from singlem.singlem import MetagenomeOtuFinder, \
-    SeqReader
+sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
+
 import singlem.sequence_database
 import singlem.query_formatters
 import singlem.pipe
@@ -29,7 +24,8 @@ from singlem.summariser import Summariser
 from singlem.query_formatters import NameSequenceQueryDefinition,\
     NamedQueryDefinition
 from singlem.strain_summariser import StrainSummariser
-
+from singlem.sequence_classes import SeqReader
+from singlem.metagenome_otu_finder import MetagenomeOtuFinder
 
 def seqs(args):
     # Read in the fasta Alignment
@@ -172,6 +168,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_separate_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
+    pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
     pipe_parser.add_argument('--bootstrap_contigs', nargs='+', help='assembled contigs/scaffolds to help the HMM find hits in reads (default: do not use)')
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
 
@@ -238,6 +235,7 @@ if __name__ == '__main__':
             evalue = args.evalue,
             restrict_read_length = args.restrict_read_length,
             output_extras = args.output_extras,
+            include_inserts = args.include_inserts,
             working_directory = args.working_directory,
             force = args.force,
             previous_graftm_search_directory = args.previous_graftm_search_directory,
