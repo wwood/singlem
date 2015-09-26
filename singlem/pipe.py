@@ -13,7 +13,7 @@ import subprocess
 
 from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
-    
+
 class SearchPipe:
     def run(self, **kwargs):
         forward_read_files = kwargs.pop('sequences')
@@ -26,26 +26,28 @@ class SearchPipe:
         evalue = kwargs.pop('evalue')
         restrict_read_length = kwargs.pop('restrict_read_length')
         include_inserts = kwargs.pop('include_inserts')
-        
+
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
         previous_graftm_search_directory = kwargs.pop('previous_graftm_search_directory')
         previous_graftm_separate_directory = kwargs.pop('previous_graftm_separate_directory')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-        
+
         hmms = HmmDatabase()
-        
+
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
             shared_mem_directory = '/dev/shm'
             if os.path.exists(shared_mem_directory):
                 logging.debug("Using shared memory as a base directory")
-                base = shared_mem_directory
+                tmp = tempdir.TempDir(basedir=shared_mem_directory)
+                tempfiles_path = os.path.join(tmp.name, 'tempfiles')
+                os.mkdir(tempfiles_path)
+                os.environ['TEMP'] = tempfiles_path
             else:
                 logging.debug("Shared memory directory not detected, using default temporary directory instead")
-                base = None
-            tmp = tempdir.TempDir(basedir=base)
+                tmp = tempdir.TempDir()
             working_directory = tmp.name
         else:
             working_directory = working_directory
@@ -61,10 +63,11 @@ class SearchPipe:
             else:
                 os.mkdir(working_directory)
         logging.debug("Using working directory %s" % working_directory)
-        
+
         def return_cleanly():
             if using_temporary_working_directory: tmp.dissolve()
-            
+            logging.info("Finished")
+
         if bootstrap_contigs:
             # Create HMMs from each of the search HMMs based on the given contigs
             bootstrap_hmms = {}
@@ -84,10 +87,10 @@ class SearchPipe:
                       bootstrap_hmm_file)
                 if evalue: cmd += ' --evalue %s' % evalue
                 extern.run(cmd)
-        
+
         if not previous_graftm_search_directory:
             graftm_search_directory = os.path.join(working_directory, 'graftm_search')
-        
+
             # run graftm across all the HMMs
             logging.info("Using as input %i different forward read sets e.g. %s" % (len(forward_read_files),
                                                                                 forward_read_files[0]))
@@ -113,19 +116,19 @@ class SearchPipe:
         else:
             graftm_search_directory = previous_graftm_search_directory
             logging.info("Using existing graftM directory %s" % previous_graftm_search_directory)
-    
+
         # Get the names of the samples from the graftm directory
         sample_names = [f for f in os.listdir(graftm_search_directory) \
                         if os.path.isdir(os.path.join(graftm_search_directory, f))]
         logging.debug("Recovered %i samples from graftm search output e.g. %s" \
                      % (len(sample_names), sample_names[0]))
-        
+
         if previous_graftm_separate_directory:
             graftm_separate_directory_base = previous_graftm_separate_directory
         else:
             graftm_separate_directory_base = os.path.join(working_directory, 'graftm_separates')
             os.mkdir(graftm_separate_directory_base)
-            
+
             with tempfile.NamedTemporaryFile() as samples_file:
                 # Don't look at samples that have no hits
                 viable_sample_names = []
@@ -141,11 +144,11 @@ class SearchPipe:
                     return_cleanly()
                     return
                 else:
-                    logging.debug("Found %i samples with reads identified" % 
+                    logging.debug("Found %i samples with reads identified" %
                                   len(viable_sample_names))
                 samples_file.write("\n".join(viable_sample_names))
                 samples_file.flush()
-                
+
                 logging.info("Running separate alignments in GraftM..")
                 commands = []
                 for sample_name in viable_sample_names:
@@ -173,10 +176,10 @@ class SearchPipe:
                                             hmm.hmm_path())
                         commands.append(cmd)
                 extern.run_many(commands, num_threads=num_threads)
-                
+
         sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms, include_inserts)
         logging.info("Finished extracting aligned sequences")
-    
+
         # runs graftm for each of the HMMs doing the actual alignments, for each
         # of the input sequences
         logging.info("Running taxonomic assignment with graftm..")
@@ -211,12 +214,12 @@ class SearchPipe:
                                             hmm.hmm_path())
                         commands.append(cmd)
                     else:
-                        logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (hmm_and_position.gpkg_basename(), sample_name)) 
+                        logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (hmm_and_position.gpkg_basename(), sample_name))
             else:
                 logging.debug("No sequences found aligning to sample %s at all, skipping" % sample_name)
         extern.run_many(commands, num_threads=num_threads)
         logging.info("Finished running taxonomic assignment with graftm")
-    
+
         # get the sequences out for each of them
         with open(output_otu_table,'w') as output:
             to_print = split('gene sample sequence num_hits coverage taxonomy')
@@ -226,24 +229,24 @@ class SearchPipe:
                 if known_otu_tables:
                     to_print.append("taxonomy_by_known?")
             output.write("\t".join(to_print)+"\n")
-            
+
             if known_otu_tables:
                 logging.info("Parsing known taxonomy OTU tables")
                 known_taxes = KnownOtuTable()
                 known_taxes.parse_otu_tables(known_otu_tables)
-                
+
             for sample_name in sample_names:
                 if sample_name in sample_to_gpkg_to_input_sequences:
                     for hmm_and_position in hmms:
                         key = hmm_and_position.gpkg_basename()
                         if key in sample_to_gpkg_to_input_sequences[sample_name]:
                             tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
-                            
+
                             tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
                             base_dir = os.path.join(graftm_align_directory_base,
                                 '%s_vs_%s' % (sample_name, hmm_and_position.gpkg_basename()),
                                 tmpbase)
-                            
+
                             proteins_file = os.path.join(base_dir, "%s_orf.fa" % tmpbase)
                             nucleotide_file = os.path.join(base_dir, "%s_hits.fa" % tmpbase)
                             aligned_seqs = self._get_windowed_sequences(
@@ -251,7 +254,7 @@ class SearchPipe:
                                 nucleotide_file, hmm_and_position.hmm_path(),
                                 hmm_and_position.best_position,
                                 include_inserts)
-                            
+
                             if len(aligned_seqs) == 0:
                                 logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_and_position.hmm_basename())
                                 continue
@@ -259,7 +262,7 @@ class SearchPipe:
                                                                                         hmm_and_position.hmm_basename(),
                                                                                         sample_name))
                             taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
-            
+
                             # convert to OTU table, output
                             for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
                                                                     taxonomies):
@@ -279,11 +282,11 @@ class SearchPipe:
                                     to_print.append(' '.join(info.names))
                                     to_print.append(' '.join([str(l) for l in info.aligned_lengths]))
                                     if known_otu_tables:
-                                        to_print.append(tax_assigned_through_known)
+                                        to_print.append(str(tax_assigned_through_known))
                                 output.write("\t".join(to_print) + "\n")
-                    
+
         return_cleanly()
-        
+
     def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position, include_inserts):
         if not os.path.exists(nucleotide_sequence_file) or \
             os.stat(nucleotide_sequence_file).st_size == 0: return []
@@ -295,14 +298,14 @@ class SearchPipe:
                                                         20,
                                                         include_inserts,
                                                         position)
-        
+
     def _placement_input_fasta_name(self, hmm_and_position, sample_name, graftm_separate_directory_base):
         return '%s/%s_vs_%s/%s_hits/%s_hits_hits.fa' % (graftm_separate_directory_base,
                                                   sample_name,
                                                   os.path.basename(hmm_and_position.gpkg_path),
                                                   sample_name,
                                                   sample_name)
-        
+
     def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names, hmms, include_inserts):
         '''Given 'separates' directory, extract reads that will be used as
         part of the singlem choppage process as tempfiles in a hash'''
@@ -334,19 +337,19 @@ class SearchPipe:
                                                stdin=subprocess.PIPE)
                     process.communicate("\n".join([s.name for s in aligned_seqs]))
                     sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(hmm_and_position.gpkg_path)] = tmp
-        
+
         return sample_to_gpkg_to_input_sequences
-        
+
     def _align_proteins_to_hmm(self, proteins_file, hmm_file):
         '''hmmalign proteins to hmm, and return an alignment object'''
-        
+
         with tempfile.NamedTemporaryFile(prefix="singlem", suffix=".fasta") as f:
             cmd = "hmmalign %s %s |seqmagick convert --input-format stockholm - %s" % (hmm_file,
                                                               proteins_file,
                                                               f.name)
             extern.run(cmd)
             return SeqReader().protein_alignment_from_alignment_file(f.name)
-    
+
     def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies):
         '''given an array of Sequence objects, and hash of taxonomy file,
         yield over 'Info' objects that contain e.g. the counts of the aggregated
@@ -359,7 +362,7 @@ class SearchPipe:
                 self.names = []
                 self.coverage = 0.0
                 self.aligned_lengths = []
-        
+
         seq_to_collected_info = {}
         for s in sequences:
             tax = taxonomies[s.name]
@@ -368,13 +371,13 @@ class SearchPipe:
             except KeyError:
                 collected_info = CollectedInfo()
                 seq_to_collected_info[s.aligned_sequence] = collected_info
-                
+
             collected_info.count += 1
             if taxonomies: collected_info.taxonomies.append(tax)
             collected_info.names.append(s.name)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
-        
+
         class Info:
             def __init__(self, seq, count, taxonomy, names, coverage, aligned_lengths):
                 self.seq = seq
@@ -383,7 +386,7 @@ class SearchPipe:
                 self.names = names
                 self.coverage = coverage
                 self.aligned_lengths = aligned_lengths
-            
+
         for seq, collected_info in seq_to_collected_info.iteritems():
             median_tax = self._median_taxonomy(collected_info.taxonomies)
             yield Info(seq,
@@ -392,9 +395,9 @@ class SearchPipe:
                        collected_info.names,
                        collected_info.coverage,
                        collected_info.aligned_lengths)
-    
-    
-    
+
+
+
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
         for tax_string in taxonomies:
@@ -405,8 +408,8 @@ class SearchPipe:
                     levels_to_counts[i][tax] += 1
                 except KeyError:
                     levels_to_counts[i][tax] = 1
-                    
-                    
+
+
         median_tax = []
         for level_counts in levels_to_counts:
             max_count = 0
@@ -420,4 +423,3 @@ class SearchPipe:
             else:
                 break
         return '; '.join(median_tax)
-                    
