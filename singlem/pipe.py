@@ -64,7 +64,13 @@ class SearchPipe:
                 os.mkdir(working_directory)
         logging.debug("Using working directory %s" % working_directory)
 
+        sample_to_gpkg_to_input_sequences = {}
         def return_cleanly():
+            # remove these tempfiles because otherwise errors are spewed
+            # when they are cleaned up after the tempdir is gone
+            for gpkg_to_input_sequences in sample_to_gpkg_to_input_sequences.values():
+                for seqs_tempfile in gpkg_to_input_sequences.values():
+                    seqs_tempfile.close()
             if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
 
