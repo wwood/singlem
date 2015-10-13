@@ -189,6 +189,18 @@ class Tests(unittest.TestCase):
             expected = ["\t".join(x) for x in expected]+['']
             observed = extern.run(cmd).split("\n")
             self.assertEqual(expected, observed)
+            
+    def test_diamond_example_assign_taxonomy(self):
+        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2506520047'],
+                    ['2.11.ribosomal_protein_L10.gpkg','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','2541047520']
+                    ]
+        exp = sorted(["\t".join(x) for x in expected]+[''])
+
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
+                                                                                                    path_to_data)
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
+
+
                             
 if __name__ == "__main__":
     unittest.main()

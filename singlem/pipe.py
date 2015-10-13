@@ -3,16 +3,20 @@ import logging
 import os
 import shutil
 import extern
-
-from singlem import HmmDatabase, TaxonomyFile
 import itertools
 import tempfile
-from known_otu_table import KnownOtuTable
-from string import split
 import subprocess
+from string import split
 
+from singlem import HmmDatabase, TaxonomyFile
+from known_otu_table import KnownOtuTable
 from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
+from diamond_parser import DiamondResultParser
+
+PPLACER_ASSIGNMENT_METHOD = 'pplacer'
+DIAMOND_ASSIGNMENT_METHOD = 'diamond'
+DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
 
 class SearchPipe:
     def run(self, **kwargs):
@@ -21,7 +25,7 @@ class SearchPipe:
         num_threads = kwargs.pop('threads')
         bootstrap_contigs = kwargs.pop('bootstrap_contigs')
         known_otu_tables = kwargs.pop('known_otu_tables')
-        graftm_assignment_method = kwargs.pop('assignment_method')
+        singlem_assignment_method = kwargs.pop('assignment_method')
         output_extras = kwargs.pop('output_extras')
         evalue = kwargs.pop('evalue')
         restrict_read_length = kwargs.pop('restrict_read_length')
@@ -35,6 +39,10 @@ class SearchPipe:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         hmms = HmmDatabase()
+        if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+            graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
+        else:
+            graftm_assignment_method = singlem_assignment_method
 
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
@@ -267,11 +275,16 @@ class SearchPipe:
                             logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
                                                                                         hmm_and_position.hmm_basename(),
                                                                                         sample_name))
-                            taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
+                            if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                                taxonomies = DiamondResultParser(os.path.join(base_dir, '%s_diamond_assignment.daa' % tmpbase))
+                                use_first = True
+                            else:  
+                                taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
+                                use_first = False
 
                             # convert to OTU table, output
                             for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
-                                                                    taxonomies):
+                                                                    taxonomies, use_first):
                                 if known_otu_tables:
                                     tax_assigned_through_known = False
                                 to_print = [hmm_and_position.gpkg_basename(),
@@ -356,10 +369,15 @@ class SearchPipe:
             extern.run(cmd)
             return SeqReader().protein_alignment_from_alignment_file(f.name)
 
-    def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies):
+    def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies, use_first_taxonomy=False):
         '''given an array of Sequence objects, and hash of taxonomy file,
         yield over 'Info' objects that contain e.g. the counts of the aggregated
         sequences and corresponding median taxonomies.
+        
+        Parameters
+        ----------
+        use_first_taxonomy: boolean
+            False: get a median taxonomy. True: use the taxonomy of the first encountered sequence 
         '''
         class CollectedInfo:
             def __init__(self):
@@ -394,10 +412,13 @@ class SearchPipe:
                 self.aligned_lengths = aligned_lengths
 
         for seq, collected_info in seq_to_collected_info.iteritems():
-            median_tax = self._median_taxonomy(collected_info.taxonomies)
+            if use_first_taxonomy:
+                tax = collected_info.taxonomies[0]
+            else:
+                tax = self._median_taxonomy(collected_info.taxonomies)
             yield Info(seq,
                        collected_info.count,
-                       median_tax,
+                       tax,
                        collected_info.names,
                        collected_info.coverage,
                        collected_info.aligned_lengths)

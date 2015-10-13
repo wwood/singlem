@@ -1,6 +1,3 @@
-from Bio.Seq import Seq
-import itertools
-import logging
 import re
 import os
 import csv
