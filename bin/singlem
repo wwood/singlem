@@ -19,7 +19,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 
 import singlem.sequence_database
 import singlem.query_formatters
-import singlem.pipe
+import singlem.pipe as pipe
 from singlem.summariser import Summariser
 from singlem.query_formatters import NameSequenceQueryDefinition,\
     NamedQueryDefinition
@@ -162,7 +162,11 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
     pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory (default: a temporary directory)')
     pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
-    pipe_parser.add_argument('--assignment_method', choices=('pplacer','diamond'), help='method of assigning taxonomy to sequences', default='pplacer')
+    pipe_parser.add_argument('--assignment_method', choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
+                                                             pipe.DIAMOND_ASSIGNMENT_METHOD,
+                                                             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
+                             help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification' % pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                             default=pipe.PPLACER_ASSIGNMENT_METHOD)
     pipe_parser.add_argument('--evalue', help='GraftM e-value cutoff')
     pipe_parser.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
