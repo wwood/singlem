@@ -17,5 +17,8 @@ class DiamondResultParser:
         logging.debug("Finished reading diamond file, read in %i assignments" % len(self.sequence_to_hit_id))
 
     def __getitem__(self, item):
-        return self.sequence_to_hit_id[item]
+        try:
+            return self.sequence_to_hit_id[item]
+        except:
+            return None #sometimes there is a HMM hit but no DIAMOND hit
 

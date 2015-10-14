@@ -414,6 +414,7 @@ class SearchPipe:
         for seq, collected_info in seq_to_collected_info.iteritems():
             if use_first_taxonomy:
                 tax = collected_info.taxonomies[0]
+                if tax is None: tax = ''
             else:
                 tax = self._median_taxonomy(collected_info.taxonomies)
             yield Info(seq,
