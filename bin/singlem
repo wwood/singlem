@@ -215,6 +215,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--otu_table', help="Output from 'pipe' mode", required=True)
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
+    summarise_parser.add_argument('--unifrac', help="Output UniFrac format file")
     summarise_parser.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
 
     args = parser.parse_args()
@@ -251,17 +252,24 @@ if __name__ == '__main__':
     elif args.subparser_name=='query':
         query(args)
     elif args.subparser_name == 'summarise':
-        if args.strain_overview_table:
-            if args.krona:
-                raise Exception("Only one of --krona and --strain_overview_table can be generated")
-        if args.krona is None and args.strain_overview_table is None:
-            raise Exception("One of --krona and --strain_overview_table must be generated")
+        num_output_types = 0
+        if args.strain_overview_table: num_output_types += 1
+        if args.krona: num_output_types += 1
+        if args.unifrac: num_output_types += 1
+        if num_output_types != 1:
+            raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if args.krona:
             if args.taxonomy:
                 raise Exception("--taxonomy cannot be used with --krona sorry")
             Summariser.summarise(
                 otu_table = args.otu_table,
                 krona_output_prefix = args.krona)
+        if args.unifrac:
+            if args.taxonomy:
+                raise Exception("--taxonomy cannot be used with --unifrac sorry")
+            Summariser.write_unifrac_format_file(
+                otu_table = args.otu_table,
+                unifrac_output_prefix = args.unifrac)
         else:
             StrainSummariser().summarise_strains(
                 otu_table_io = open(args.otu_table),

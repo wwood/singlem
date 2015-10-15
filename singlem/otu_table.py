@@ -22,7 +22,8 @@ class OtuTable:
                 continue
             maybe_header = False
             
-            if len(row) < 5: raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
+            if len(row) < 5:
+                raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
             e = OtuTableEntry()
             e.marker = row[0]
             e.sample_name = row[1]
