@@ -26,6 +26,7 @@ from singlem.query_formatters import NameSequenceQueryDefinition,\
 from singlem.strain_summariser import StrainSummariser
 from singlem.sequence_classes import SeqReader
 from singlem.metagenome_otu_finder import MetagenomeOtuFinder
+from singlem.package_creator import PackageCreator
 
 def seqs(args):
     # Read in the fasta Alignment
@@ -217,6 +218,15 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
     summarise_parser.add_argument('--unifrac', help="Output UniFrac format file")
     summarise_parser.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
+    
+
+    temp_description = 'Create a SingleM-compatible GraftM package'
+    create_parser = subparsers.add_parser('create',
+                                        description=temp_description,
+                                        help=temp_description,
+                                        epilog=__author__)
+    create_parser.add_argument('--input_graftm_package', metavar="PATH", help="input package", required=True)
+    create_parser.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
 
     args = parser.parse_args()
     if args.debug:
@@ -275,6 +285,9 @@ if __name__ == '__main__':
                 otu_table_io = open(args.otu_table),
                 output_table_io = open(args.strain_overview_table,'w'),
                 taxonomy = args.taxonomy)
+    elif args.subparser_name == 'create':
+        PackageCreator().create(input_graftm_package = args.input_graftm_package,
+                                output_singlem_package = args.output_singlem_package)
     else:
         raise Exception()
 
