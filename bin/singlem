@@ -274,7 +274,7 @@ if __name__ == '__main__':
             Summariser.summarise(
                 otu_table = args.otu_table,
                 krona_output_prefix = args.krona)
-        if args.unifrac:
+        elif args.unifrac:
             if args.taxonomy:
                 raise Exception("--taxonomy cannot be used with --unifrac sorry")
             Summariser.write_unifrac_format_file(

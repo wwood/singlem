@@ -27,7 +27,9 @@ class Summariser:
                 sample_name_to_tempfile[sample] = f
                 
                 for taxonomy, coverage in taxonomy_to_count.iteritems():
-                    f.write('\t'.join([str(coverage)]+taxonomy.split('; ')))
+                    tax_split = taxonomy.split('; ')
+                    if tax_split[0] == 'Root' and len(tax_split) > 1: tax_split = tax_split[1:]
+                    f.write('\t'.join([str(coverage)]+tax_split))
                     f.write('\n')
                 f.flush()
                 cmd += ' %s,%s' % (f.name, sample)
