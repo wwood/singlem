@@ -26,21 +26,21 @@ class HmmDatabase:
         self.hmms_and_positions = {}
 
         for array in [
-            ['2.07.ribosomal_protein_L2_rplB.gpkg','DNGNGWU00010_mingle_output_good_seqs.hmm',143],
-            ['2.08.ribosomal_protein_L3_rplC.gpkg','DNGNGWU00012_mingle_output_good_seqs.hmm',145],
-            ['2.09.ribosomal_protein_L5_rplE.gpkg','DNGNGWU00025_mingle_output_good_seqs.hmm',100],
-            ['2.10.ribosomal_protein_L6_rplF.gpkg','DNGNGWU00023_mingle_output_good_seqs.hmm',138],
-            ['2.11.ribosomal_protein_L10.gpkg','DNGNGWU00030_mingle_output_good_seqs.hmm',76],
-            ['2.12.ribosomal_protein_L11_rplK.gpkg','DNGNGWU00024_mingle_output_good_seqs.hmm',13],
-            ['2.13.ribosomal_protein_L14b_L23e_rplN.gpkg','DNGNGWU00014_mingle_output_good_seqs.hmm',82],
-            ['2.14.ribosomal_protein_L16_L10E_rplP.gpkg','DNGNGWU00018_mingle_output_good_seqs.hmm',66],
-            ['2.15.ribosomal_protein_S2_rpsB.gpkg','DNGNGWU00001_mingle_output_good_seqs.hmm',240],
-            ['2.16.ribosomal_protein_S5.gpkg','DNGNGWU00015_mingle_output_good_seqs.hmm',144],
-            ['2.17.ribosomal_protein_S7.gpkg','DNGNGWU00017_mingle_output_good_seqs.hmm',84],
-            ['2.18.ribosomal_protein_S10_rpsJ.gpkg','DNGNGWU00002_mingle_output_good_seqs.hmm',40],
-            ['2.19.ribosomal_protein_S12_S23.gpkg','DNGNGWU00026_mingle_output_good_seqs.hmm',68],
-            ['2.20.ribosomal_protein_S15P_S13e.gpkg','DNGNGWU00034_mingle_output_good_seqs.hmm',57],
-            ['2.21.ribosomal_protein_S19_rpsS.gpkg','DNGNGWU00016_mingle_output_good_seqs.hmm',33]
+            ['4.07.ribosomal_protein_L2_rplB.spkg','DNGNGWU00010_mingle_output_good_seqs.hmm',143],
+            ['4.08.ribosomal_protein_L3_rplC.spkg','DNGNGWU00012_mingle_output_good_seqs.hmm',145],
+            ['4.09.ribosomal_protein_L5_rplE.spkg','DNGNGWU00025_mingle_output_good_seqs.hmm',100],
+            ['4.10.ribosomal_protein_L6_rplF.spkg','DNGNGWU00023_mingle_output_good_seqs.hmm',138],
+            ['4.11.ribosomal_protein_L10.spkg','DNGNGWU00030_mingle_output_good_seqs.hmm',76],
+            ['4.12.ribosomal_protein_L11_rplK.spkg','DNGNGWU00024_mingle_output_good_seqs.hmm',13],
+            ['4.13.ribosomal_protein_L14b_L23e_rplN.spkg','DNGNGWU00014_mingle_output_good_seqs.hmm',82],
+            ['4.14.ribosomal_protein_L16_L10E_rplP.spkg','DNGNGWU00018_mingle_output_good_seqs.hmm',66],
+            ['4.15.ribosomal_protein_S2_rpsB.spkg','DNGNGWU00001_mingle_output_good_seqs.hmm',240],
+            ['4.16.ribosomal_protein_S5.spkg','DNGNGWU00015_mingle_output_good_seqs.hmm',144],
+            ['4.17.ribosomal_protein_S7.spkg','DNGNGWU00017_mingle_output_good_seqs.hmm',84],
+            ['4.18.ribosomal_protein_S10_rpsJ.spkg','DNGNGWU00002_mingle_output_good_seqs.hmm',40],
+            ['4.19.ribosomal_protein_S12_S23.spkg','DNGNGWU00026_mingle_output_good_seqs.hmm',68],
+            ['4.20.ribosomal_protein_S15P_S13e.spkg','DNGNGWU00034_mingle_output_good_seqs.hmm',57],
+            ['4.21.ribosomal_protein_S19_rpsS.spkg','DNGNGWU00016_mingle_output_good_seqs.hmm',33]
           ]:
             hmm_path = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                             '..', 'db', array[0])
