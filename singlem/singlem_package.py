@@ -65,7 +65,7 @@ class SingleMPackage:
         if v == 1:
             pkg = SingleMPackageVersion1()
         else:
-            raise InsufficientSingleMPackageException("Bad version: %s" % v)
+            raise InsufficientSingleMPackageException("Bad SingleM package version: %s" % str(v))
         
         pkg._contents_hash = contents_hash
         pkg._base_directory = singlem_package_path
@@ -140,6 +140,7 @@ class SingleMPackageVersion1(SingleMPackage):
         # of the reference package contents file so that randomly
         # generated files don't interfere, but eh for now.
         h.update(str(self.graftm_package()._refpkg_contents()))
+        h.update(str(self.version))
         h.update(str(self.singlem_position()))
         for f in [self.graftm_package().alignment_hmm_path(),
                   self.graftm_package().diamond_database_path(),
