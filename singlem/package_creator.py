@@ -4,13 +4,21 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
+from singlem_package import SingleMPackageVersion1
+import shutil
+import os
 
 class PackageCreator:
     def create(self, **kwargs):
         input_graftm_package_path = kwargs.pop('input_graftm_package')
         output_singlem_package_path = kwargs.pop('output_singlem_package')
+        hmm_position = kwargs.pop('hmm_position')
+        force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+        
+        if force and os.path.exists(output_singlem_package_path):
+            shutil.rmtree(output_singlem_package_path)
         
         # Remove sequences from diamond database that are not in the tree
         gpkg = GraftMPackage.acquire(input_graftm_package_path)
@@ -53,13 +61,22 @@ class PackageCreator:
                     search_hmms = None
                 else:
                     search_hmms = gpkg.search_hmm_paths()
-                GraftMPackageVersion3.compile(output_singlem_package_path,
-                                              gpkg.reference_package_path(),
-                                              gpkg.alignment_hmm_path(),
-                                              dmnd.name,
-                                              gpkg.maximum_range(),
-                                              t.name,
-                                              gpkg.use_hmm_trusted_cutoff(),
-                                              search_hmms)
-                logging.info("SingleM-compatible package creation finished")
+                    
+                with tempfile.NamedTemporaryFile(prefix='singlem_package_creator',suffix='.gpkg') as gpkg_tempfile:
+                    gpkg_name = gpkg_tempfile.name + ".gpkg2"
+                    GraftMPackageVersion3.compile(gpkg_name,
+                                                  gpkg.reference_package_path(),
+                                                  gpkg.alignment_hmm_path(),
+                                                  dmnd.name,
+                                                  gpkg.maximum_range(),
+                                                  t.name,
+                                                  gpkg.use_hmm_trusted_cutoff(),
+                                                  search_hmms)
+                    logging.debug("Finished creating GraftM package for conversion to SingleM package")
+                
+                    SingleMPackageVersion1.compile(output_singlem_package_path, gpkg_name, hmm_position)
+                    
+                    shutil.rmtree(gpkg_name)
+                    
+                    logging.info("SingleM-compatible package creation finished")
                 
