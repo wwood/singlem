@@ -1,4 +1,6 @@
 import csv
+import string
+from archive_otu_table import ArchiveOtuTable
 
 class OtuTableEntry:
     marker = None
@@ -12,6 +14,10 @@ class OtuTableEntry:
         return self.taxonomy.split('; ')
 
 class OtuTable:
+    def __init__(self):
+        self.fields = string.split('gene sample sequence num_hits coverage taxonomy')
+        self.data = []
+        
     @staticmethod
     def each(otu_table_io):
         '''yield an OtuTableEntry object for each entry in the OTU table'''
@@ -32,6 +38,41 @@ class OtuTable:
             e.coverage = float(row[4])
             e.taxonomy = row[5]
             yield e
+            
+    def write_to(self, output_io, fields_to_print):
+        '''Output as a CSV file to the (open) I/O object'''
+        if fields_to_print:
+            field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
+        output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")            
+        
+        # When an element is actually multiple elements, join with a space,
+        # and in any case convert everything to a string
+        def to_printable(e):
+            if hasattr(e, '__iter__'):
+                return ' '.join([str(sub_e) for sub_e in e])
+            elif isinstance(e, float):
+                return "%.2f" % e
+            else:
+                return str(e)
+        
+        for d in self.data:
+            output_io.write("\t".join([to_printable(d[i]) for i in field_indices_to_print])+"\n")
+            
+    def archive(self, singlem_packages):
+        '''Return an archive object with the same data as this OTU table
+        
+        Parameters
+        ----------
+        singlem_packages: array of SingleMPackage objects
+        
+        Returns
+        -------
+        ArchiveOtuTable object
+        '''
+        archive = ArchiveOtuTable(singlem_packages)
+        archive.fields = self.fields
+        archive.data = self.data
+        return archive
 
 class TaxonomyTargetedOtuTable(OtuTable):
     def __init__(self, taxonomy):

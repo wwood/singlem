@@ -99,7 +99,7 @@ class SingleMPackage:
         return os.path.join(self._base_directory, SingleMPackage._CONTENTS_FILE_NAME)
 
 class SingleMPackageVersion1(SingleMPackage):
-    version = 1
+    version = 1 # don't change me bro
     
     def __init__(self):
         self.graftm_package_cache = None
@@ -126,7 +126,7 @@ class SingleMPackageVersion1(SingleMPackage):
         return self._contents_hash[SingleMPackage.SINGLEM_PACKAGE_SHA256_KEY]
         
     def hmm_path(self):
-        self.graftm_package().alignment_hmm_path()
+        return self.graftm_package().alignment_hmm_path()
         
     def hmm_basename(self):
         return os.path.basename(self.hmm_path())
@@ -182,7 +182,8 @@ class SingleMPackageVersion1(SingleMPackage):
         shutil.copytree(graftm_package_path, os.path.join(output_package_path, graftm_package_basename))
         
         singlem_package = SingleMPackageVersion1()
-        singlem_package._contents_hash = {SingleMPackage.GRAFTM_PACKAGE_KEY: graftm_package_basename,
+        singlem_package._contents_hash = {SingleMPackage.VERSION_KEY: singlem_package.version,
+                                          SingleMPackage.GRAFTM_PACKAGE_KEY: graftm_package_basename,
                                           SingleMPackage.SINGLEM_POSITION_KEY: singlem_position
                                           }
         singlem_package._base_directory = output_package_path

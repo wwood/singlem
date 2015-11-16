@@ -160,7 +160,8 @@ if __name__ == '__main__':
                                         epilog=__author__)
     pipe_parser.add_argument('--sequences', nargs='+', metavar='sequence_file', help='forward nucleotide sequences to be searched')
     pipe_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use', default=1)
-    pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table', required=True)
+    pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table')
+    pipe_parser.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc.')
     pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory (default: a temporary directory)')
     pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
     pipe_parser.add_argument('--assignment_method', choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
@@ -242,9 +243,12 @@ if __name__ == '__main__':
     if args.subparser_name == 'seqs':
         seqs(args)
     elif args.subparser_name=='pipe':
+        if not args.otu_table and not args.archive_otu_table:
+            raise Exception("At least one of --otu_table or --archive_otu_table must be specified")
         singlem.pipe.SearchPipe().run(
             sequences = args.sequences,
             otu_table = args.otu_table,
+            archive_otu_table = args.archive_otu_table,
             threads = args.threads,
             bootstrap_contigs = args.bootstrap_contigs,
             known_otu_tables = args.known_otu_tables,
