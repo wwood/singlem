@@ -40,7 +40,15 @@ class OtuTable:
             yield e
             
     def write_to(self, output_io, fields_to_print):
-        '''Output as a CSV file to the (open) I/O object'''
+        '''Output as a CSV file to the (open) I/O object
+        
+        Parameters
+        ----------
+        output_io: open io object
+            this method neither opens nor closes this
+        fields_to_print: list of str
+            a list of names of fields to be printed
+        '''
         if fields_to_print:
             field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
         output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")            
