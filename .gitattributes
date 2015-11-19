@@ -1,0 +1,15 @@
+db/4.07.ribosomal_protein_L2_rplB.gpkg.spkg/4.07.ribosomal_protein_L2_rplB/singlem_package_creatorDMgneQ.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.08.ribosomal_protein_L3_rplC.gpkg.spkg/4.08.ribosomal_protein_L3_rplC/singlem_package_creatorzY212C.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.09.ribosomal_protein_L5_rplE.gpkg.spkg/4.09.ribosomal_protein_L5_rplE/singlem_package_creatorIO_9V7.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.10.ribosomal_protein_L6_rplF.gpkg.spkg/4.10.ribosomal_protein_L6_rplF/singlem_package_creatoraYgaFe.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.11.ribosomal_protein_L10.gpkg.spkg/4.11.ribosomal_protein_L10/singlem_package_creatorbKHG6Z.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.12.ribosomal_protein_L11_rplK.gpkg.spkg/4.12.ribosomal_protein_L11_rplK/singlem_package_creatornLOQNK.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.13.ribosomal_protein_L14b_L23e_rplN.gpkg.spkg/4.13.ribosomal_protein_L14b_L23e_rplN/singlem_package_creatorvcVSZr.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.14.ribosomal_protein_L16_L10E_rplP.gpkg.spkg/4.14.ribosomal_protein_L16_L10E_rplP/singlem_package_creatorFBCD7u.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.15.ribosomal_protein_S2_rpsB.gpkg.spkg/4.15.ribosomal_protein_S2_rpsB/singlem_package_creatorK2almT.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.16.ribosomal_protein_S5.gpkg.spkg/4.16.ribosomal_protein_S5/singlem_package_creatorVrfWE1.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.17.ribosomal_protein_S7.gpkg.spkg/4.17.ribosomal_protein_S7/singlem_package_creatorm0oqmF.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.18.ribosomal_protein_S10_rpsJ.gpkg.spkg/4.18.ribosomal_protein_S10_rpsJ/singlem_package_creatorrSEuCX.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.19.ribosomal_protein_S12_S23.gpkg.spkg/4.19.ribosomal_protein_S12_S23/singlem_package_creatorTAU52H.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.20.ribosomal_protein_S15P_S13e.gpkg.spkg/4.20.ribosomal_protein_S15P_S13e/singlem_package_creatord8MMo3.dmnd filter=lfs diff=lfs merge=lfs -text
+db/4.21.ribosomal_protein_S19_rpsS.gpkg.spkg/4.21.ribosomal_protein_S19_rpsS/singlem_package_creatorEa_akI.dmnd filter=lfs diff=lfs merge=lfs -text
