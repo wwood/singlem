@@ -402,7 +402,7 @@ class SearchPipe:
             except KeyError:
                 # happens sometimes when HMMER picks up something where
                 # diamond does not
-                tax = []
+                tax = ''
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
             except KeyError:
@@ -442,7 +442,8 @@ class SearchPipe:
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
         for tax_string in taxonomies:
-            for i, tax in enumerate(tax_string.split('; ')):
+            for i, tax in enumerate(tax_string.split(';')):
+                tax = tax.strip()
                 if i >= len(levels_to_counts):
                     levels_to_counts.append({})
                 try:
