@@ -397,7 +397,12 @@ class SearchPipe:
 
         seq_to_collected_info = {}
         for s in sequences:
-            tax = taxonomies[s.name]
+            try:
+                tax = taxonomies[s.name]
+            except KeyError:
+                # happens sometimes when HMMER picks up something where
+                # diamond does not
+                tax = []
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
             except KeyError:
