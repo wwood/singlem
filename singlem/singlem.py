@@ -28,7 +28,7 @@ class HmmDatabase:
         db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                        '..','db')
         pkg_paths = [d for d in os.listdir(db_directory) if d[-5:]=='.spkg']
-        logging.debug("Found %i SingleM packages: %s", (len(pkg_paths),
+        logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
                                                     ', '.join(pkg_paths)))
         if len(pkg_paths) == 0:
             raise Exception("Unable to find any SingleM packages in %s" % db_directory)

@@ -27,7 +27,7 @@ class SingleMPackage:
     VERSION_KEY = 'singlem_package_version'
     SINGLEM_POSITION_KEY = 'singlem_hmm_position'
     ALIGNMENT_HMM_SHA256_KEY = 'alignment_hmm_sha256'
-    SINGLEM_PACKAGE_SHA256_KEY = 'singlem_package_sh256'
+    SINGLEM_PACKAGE_SHA256_KEY = 'singlem_package_sha256'
 
     _CURRENT_FORMAT_VERSION = 1
 
