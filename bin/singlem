@@ -3,7 +3,7 @@
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015"
 __credits__ = ["Ben Woodcroft"]
-__license__ = "GPL3"
+__license__ = "GPL3+"
 __maintainer__ = "Ben Woodcroft"
 __email__ = "b.woodcroft near uq.edu.au"
 __status__ = "Development"
@@ -194,7 +194,8 @@ if __name__ == '__main__':
                                         description=temp_description,
                                         help=temp_description,
                                         epilog=__author__)
-    makedb_parser.add_argument('--otu_table', help="Output from 'pipe' mode", required=True)
+    makedb_parser.add_argument('--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
+    makedb_parser.add_argument('--otu_tables', nargs='+', help="Make a db from these OTU tables")
     makedb_parser.add_argument('--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
 
     temp_description = 'Find closely related sequences in a singlem database'
@@ -266,8 +267,17 @@ if __name__ == '__main__':
             previous_graftm_separate_directory = args.previous_graftm_separate_directory)
 
     elif args.subparser_name=='makedb':
+        if not args.otu_tables and not args.archive_otu_tables:
+            raise Exception("Making a database requires input OTU tables or archive tables")
+        otus = OtuTableCollection()
+        if args.otu_tables:
+            for o in args.otu_tables:
+                otus.add_otu_table(open(o))
+        if args.archive_otu_tables:
+            for o in args.archive_otu_tables:
+                otus.add_archive_otu_table(open(o))
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-            (args.db_path, open(args.otu_table))
+            (args.db_path, otus)
     elif args.subparser_name=='query':
         query(args)
     elif args.subparser_name == 'summarise':
@@ -278,6 +288,8 @@ if __name__ == '__main__':
         if args.output_otu_table: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
+        if not args.input_otu_tables and not args.input_archive_otu_tables:
+            raise Exception("Summary requires input OTU tables or archive tables")
         
         otus = OtuTableCollection()
         otus.set_target_taxonomy_by_string(args.taxonomy)
@@ -287,7 +299,7 @@ if __name__ == '__main__':
         if args.input_archive_otu_tables:
             for o in args.input_archive_otu_tables:
                 otus.add_archive_otu_table(open(o))
-                
+
         if args.krona:
             Summariser.summarise(
                 table_collection = otus,

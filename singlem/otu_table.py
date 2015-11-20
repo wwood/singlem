@@ -32,13 +32,13 @@ class OtuTable:
     def read(input_otu_table_io):
         otus = OtuTable()
         for i, row in enumerate(csv.reader(input_otu_table_io, delimiter="\t")):
+            if len(row) < 5:
+                raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
             if i==0:
                 otus.fields = row
             else:
                 if len(row) != len(otus.fields):
                     raise Exception("Malformed OTU table detected, number of fields unexpected, on this line: %s" % str(row))
-                if len(row) < 5:
-                    raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
                 row[3] = int(row[3])
                 row[4] = float(row[4])
                 otus.data.append(row)

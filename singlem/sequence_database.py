@@ -1,9 +1,8 @@
 import os
-import logging
 import StringIO
 from Bio import SeqIO
 
-from otu_table import OtuTable, OtuTableEntry
+from otu_table import OtuTableEntry
 import extern
 
 class DBSequence(OtuTableEntry):
@@ -42,7 +41,7 @@ class SequenceDatabase:
         return db
     
     @staticmethod
-    def create_from_otu_table(db_path, otu_table_io):
+    def create_from_otu_table(db_path, otu_table_collection):
         # ensure db does not already exist
         if os.path.exists(db_path):
             raise Exception("Cowardly refusing to overwrite already-existing database file '%s'" % db_path)
@@ -51,7 +50,7 @@ class SequenceDatabase:
         sequences_fasta_file = os.path.join(db_path, "sequences.fasta")
         with open(sequences_fasta_file, 'w') as fasta:
             sequence_id = 1
-            for entry in OtuTable.each(otu_table_io):                
+            for entry in otu_table_collection:                
                 dbseq = DBSequence()
                 
                 dbseq.marker = entry.marker
