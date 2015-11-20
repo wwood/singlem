@@ -199,7 +199,18 @@ class Tests(unittest.TestCase):
         cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
-
+        
+    def test_one_read_two_orfs_two_diamond_hits(self):
+        # what a pain the real world is
+        seq = '''@HWI-ST1240:128:C1DG3ACXX:7:2204:6599:65352 1:N:0:GTAGAGGATAGATCGC
+ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACGCGGATCCAGACCTTGCCTCCGCGCTTGACGTGCCGGGTCATCGCGATACGGGCCGCCTCGATCTGACGTGC
+'''
+        with tempfile.NamedTemporaryFile(prefix='singlem_test',suffix='.fa') as t:
+            t.write(seq)
+            t.flush()
+            cmd = "%s --quiet pipe --sequences %s --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
+                                                                                                    t.name)
+            self.assertEqual('', sorted(extern.run(cmd).split("\n")))
 
                             
 if __name__ == "__main__":

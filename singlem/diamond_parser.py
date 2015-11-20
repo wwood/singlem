@@ -11,8 +11,9 @@ class DiamondResultParser:
                [SequenceSearchResult.QUERY_ID_FIELD, SequenceSearchResult.HIT_ID_FIELD]):
             query_id = utils.un_orfm_name(arr[0])
             if query_id in self.sequence_to_hit_id:
-                raise Exception("Unexpectedly found duplicate hit in diamond file %s: %s" % (diamond_daa_path, query_id))
-            self.sequence_to_hit_id[query_id] = arr[1]
+                logging.warn("Found a hopefully rare case: multiple ORFs from the same read hit the same HMM. Ignoring the duplicate. The read name was %s" % (query_id))
+            else:
+                self.sequence_to_hit_id[query_id] = arr[1]
             
         logging.debug("Finished reading diamond file, read in %i assignments" % len(self.sequence_to_hit_id))
 
