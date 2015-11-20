@@ -1,4 +1,4 @@
-from otu_table import OtuTable, OtuTableEntry, TaxonomyTargetedOtuTable
+from otu_table import OtuTableEntry
 
 
 class DifferenceOTUEntry(OtuTableEntry):
@@ -18,9 +18,8 @@ class DifferenceOTUEntry(OtuTableEntry):
 
 class StrainSummariser:
     def summarise_strains(self, **kwargs):
-        otu_table_io = kwargs.pop('otu_table_io')
+        table_collection = kwargs.pop('table_collection')
         output_table_io = kwargs.pop('output_table_io')
-        target_taxonomy = kwargs.pop('taxonomy', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
@@ -37,13 +36,7 @@ class StrainSummariser:
         last_gene = None
         current_sample_entries = []
         
-        if target_taxonomy:
-            dummy_otu = OtuTableEntry()
-            dummy_otu.taxonomy = target_taxonomy
-            itera = TaxonomyTargetedOtuTable(dummy_otu.taxonomy_array()).each
-        else:
-            itera = OtuTable().each
-        for e in itera(otu_table_io):
+        for e in table_collection:
             if last_sample_name is None:
                 last_sample_name = e.sample_name
                 last_gene = e.marker

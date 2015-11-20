@@ -1,32 +1,13 @@
 import csv
 import string
 from archive_otu_table import ArchiveOtuTable
-
-class OtuTableEntry:
-    marker = None
-    sample_name = None
-    sequence = None
-    count = None
-    taxonomy = None
-    coverage = None
-    
-    def taxonomy_array(self):
-        return self.taxonomy.split('; ')
-    
-    def within_taxonomy(self, target_taxonomy):
-        '''Return true iff the OTU has been assigned within this taxonomy,
-        else false
-        
-        Parameters
-        ----------
-        taxonomy: list of str
-            each taxonomy level
-        '''
-        return (self.taxonomy_array()[:len(target_taxonomy)] == target_taxonomy)
+from otu_table_entry import OtuTableEntry
 
 class OtuTable:
+    DEFAULT_OUTPUT_FIELDS = string.split('gene sample sequence num_hits coverage taxonomy')
+    
     def __init__(self):
-        self.fields = string.split('gene sample sequence num_hits coverage taxonomy')
+        self.fields = self.DEFAULT_OUTPUT_FIELDS
         self.data = []
         
     @staticmethod
@@ -75,20 +56,42 @@ class OtuTable:
         '''
         if fields_to_print:
             field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
-        output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")            
-        
-        # When an element is actually multiple elements, join with a space,
-        # and in any case convert everything to a string
-        def to_printable(e):
-            if hasattr(e, '__iter__'):
-                return ' '.join([str(sub_e) for sub_e in e])
-            elif isinstance(e, float):
-                return "%.2f" % e
-            else:
-                return str(e)
+        output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
         
         for d in self.data:
-            output_io.write("\t".join([to_printable(d[i]) for i in field_indices_to_print])+"\n")
+            output_io.write("\t".join([self._to_printable(d[i]) for i in field_indices_to_print])+"\n")
+            
+    @staticmethod
+    def write_otus_to(otu_table_entries, output_io):
+        '''Output as a CSV file to the (open) I/O object
+        
+        Parameters
+        ----------
+        output_io: open io object
+            this method neither opens nor closes this
+        '''
+        output_io.write("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS)+"\n")
+        
+        for d in otu_table_entries:
+            output_io.write("\t".join([OtuTable._to_printable(cell) for cell in [\
+                d.marker,
+                d.sample_name,
+                d.sequence,
+                d.count,
+                d.coverage,
+                d.taxonomy]])+"\n")
+         
+    @staticmethod
+    def _to_printable(e):
+        '''For printing OtuTableEntry parts
+        When an element is actually multiple elements, join with a space,
+        and in any case convert everything to a string'''
+        if hasattr(e, '__iter__'):
+            return ' '.join([str(sub_e) for sub_e in e])
+        elif isinstance(e, float):
+            return "%.2f" % e
+        else:
+            return str(e)
             
     def archive(self, singlem_packages):
         '''Return an archive object with the same data as this OTU table

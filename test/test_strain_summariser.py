@@ -32,6 +32,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.strain_summariser import StrainSummariser
+from singlem.otu_table_collection import OtuTableCollection
 
 class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
@@ -52,8 +53,10 @@ class Tests(unittest.TestCase):
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
         output = StringIO()
+        table_collection = OtuTableCollection()
+        table_collection.add_otu_table(StringIO(table))
         StrainSummariser().summarise_strains(\
-                        otu_table_io = StringIO(table),
+                        table_collection = table_collection,
                         output_table_io = output)
         self.assertEqual(exp, output.getvalue())
         
@@ -71,12 +74,14 @@ class Tests(unittest.TestCase):
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
         output = StringIO()
+        table_collection = OtuTableCollection()
+        table_collection.set_target_taxonomy_by_string('Root; d__Bacteria')
+        table_collection.add_otu_table(StringIO(table))
         StrainSummariser().summarise_strains(\
-                        otu_table_io = StringIO(table),
-                        output_table_io = output,
-                        taxonomy = 'Root; d__Bacteria'
-                        )
+                        table_collection = table_collection,
+                        output_table_io = output)
         self.assertEqual(exp, output.getvalue())
+
         
     def test_multiple_genes_and_samples(self):
         a = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -103,11 +108,12 @@ class Tests(unittest.TestCase):
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
         output = StringIO()
+        table_collection = OtuTableCollection()
+        table_collection.set_target_taxonomy_by_string('Root; d__Bacteria')
+        table_collection.add_otu_table(StringIO(table))
         StrainSummariser().summarise_strains(\
-                        otu_table_io = StringIO(table),
-                        output_table_io = output,
-                        taxonomy = 'Root; d__Bacteria'
-                        )
+                        table_collection = table_collection,
+                        output_table_io = output)
         self.assertEqual(exp, output.getvalue())
                             
 if __name__ == "__main__":

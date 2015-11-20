@@ -1,20 +1,20 @@
 import tempfile
 import extern
-from otu_table import OtuTable
 from collections import OrderedDict
 import logging
+from otu_table import OtuTable
 
 class Summariser:
     @staticmethod
     def summarise(**kwargs):
         '''Summarise an OTU table'''
         krona_output_prefix = kwargs.pop('krona_output_prefix')
-        otu_table = kwargs.pop('otu_table')        
+        table_collection = kwargs.pop('table_collection')        
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         # prep the array
-        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(otu_table)
+        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection)
             
         # write the input krona files
         sample_name_to_tempfile = OrderedDict()
@@ -38,11 +38,11 @@ class Summariser:
                 f.close()
                 
     @staticmethod
-    def _collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(otu_table,
+    def _collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection,
                                                                      add_sequence_to_taxonomy=True,
                                                                      use_coverage=True):
         gene_to_sample_to_taxonomy_to_count = {}
-        for otu in OtuTable.each(open(otu_table)):
+        for otu in table_collection:
             if otu.marker not in gene_to_sample_to_taxonomy_to_count:
                 gene_to_sample_to_taxonomy_to_count[otu.marker] = OrderedDict()
             if otu.sample_name not in gene_to_sample_to_taxonomy_to_count[otu.marker]:
@@ -69,12 +69,12 @@ class Summariser:
         adding their coverages
         '''
         unifrac_output_prefix = kwargs.pop('unifrac_output_prefix')
-        otu_table = kwargs.pop('otu_table')
+        table_collection = kwargs.pop('table_collection')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         # prep the array
-        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(otu_table, add_sequence_to_taxonomy=False, use_coverage=False)
+        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection, add_sequence_to_taxonomy=False, use_coverage=False)
         
         for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.items():
             unifrac_output = '%s.%s.unifrac' % (unifrac_output_prefix, gene)
@@ -85,6 +85,17 @@ class Summariser:
                         if taxonomy == '': continue #ignore unclassified
                         f.write("\t".join([taxonomy, sample, str(count)])+"\n")
         logging.info("Finished")
+        
+    @staticmethod
+    def write_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+        
+        OtuTable.write_otus_to(table_collection, output_table_io)
+            
+        
                         
         
         

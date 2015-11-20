@@ -1,9 +1,10 @@
 from string import split
 import json
+from otu_table_entry import OtuTableEntry
 
 class ArchiveOtuTable:
     version = 1
-    FIELDS = split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned')
+    FIELDS = split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -21,7 +22,7 @@ class ArchiveOtuTable:
     @staticmethod
     def read(input_io):
         otus = ArchiveOtuTable()
-        j = json.loads(input_io)
+        j = json.loads(input_io.read())
         if j['version'] != ArchiveOtuTable.version:
             raise Exception("Wrong OTU table version detected")
         
@@ -29,7 +30,8 @@ class ArchiveOtuTable:
         if otus.fields != ArchiveOtuTable.FIELDS:
             raise Exception("Unexpected archive OTU table format detected")
         
-        otus.data = j['data']
+        otus.data = j['otus']
+        return otus
         
     def __iter__(self):
         for d in self.data:

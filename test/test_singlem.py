@@ -211,7 +211,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
             t.flush()
             cmd = "%s --quiet pipe --sequences %s --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
                                                                                                     t.name)
-            self.assertEqual('', sorted(extern.run(cmd).split("\n")))
+            self.assertEqual('never passed this test before, fill me!', sorted(extern.run(cmd).split("\n")))
 
                             
 if __name__ == "__main__":

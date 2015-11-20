@@ -27,6 +27,7 @@ from singlem.strain_summariser import StrainSummariser
 from singlem.sequence_classes import SeqReader
 from singlem.metagenome_otu_finder import MetagenomeOtuFinder
 from singlem.package_creator import PackageCreator
+from singlem.otu_table_collection import OtuTableCollection
 
 def seqs(args):
     # Read in the fasta Alignment
@@ -279,34 +280,31 @@ if __name__ == '__main__':
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         
         otus = OtuTableCollection()
+        otus.set_target_taxonomy_by_string(args.taxonomy)
         if args.input_otu_tables:
             for o in args.input_otu_tables:
                 otus.add_otu_table(open(o))
         if args.input_archive_otu_tables:
             for o in args.input_archive_otu_tables:
-                otus.add_otu_table(open(o))
+                otus.add_archive_otu_table(open(o))
                 
         if args.krona:
-            if args.taxonomy:
-                raise Exception("--taxonomy cannot be used with --krona sorry")
             Summariser.summarise(
-                otus = otus,
+                table_collection = otus,
                 krona_output_prefix = args.krona)
         elif args.unifrac:
-            if args.taxonomy:
-                raise Exception("--taxonomy cannot be used with --unifrac sorry")
             Summariser.write_unifrac_format_file(
-                otus = otus,
+                table_collection = otus,
                 unifrac_output_prefix = args.unifrac)
         elif args.output_otu_table:
             Summariser.write_otu_table(
-                otus = otus,
-                taxonomy = args.taxonomy)
+                table_collection = otus,
+                output_table_io = open(args.output_otu_table,'w'))
         else:
             StrainSummariser().summarise_strains(
-                otu_table_io = open(args.otu_table),
-                output_table_io = open(args.strain_overview_table,'w'),
-                taxonomy = args.taxonomy)
+                table_collection = otus,
+                output_table_io = open(args.strain_overview_table,'w'))
+            
     elif args.subparser_name == 'create':
         PackageCreator().create(input_graftm_package = args.input_graftm_package,
                                 output_singlem_package = args.output_singlem_package,
