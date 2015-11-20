@@ -209,12 +209,14 @@ if __name__ == '__main__':
     makedb_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     makedb_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
 
-    temp_description = 'Summarise an OTU table'
+    temp_description = 'Summarise OTU tables'
     summarise_parser = subparsers.add_parser('summarise',
                                         description=temp_description,
                                         help=temp_description,
                                         epilog=__author__)
-    summarise_parser.add_argument('--otu_table', help="Output from 'pipe' mode", required=True)
+    summarise_parser.add_argument('--input_archive_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_parser.add_argument('--input_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_parser.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
     summarise_parser.add_argument('--unifrac', help="Output UniFrac format file")
@@ -272,20 +274,34 @@ if __name__ == '__main__':
         if args.strain_overview_table: num_output_types += 1
         if args.krona: num_output_types += 1
         if args.unifrac: num_output_types += 1
+        if args.output_otu_table: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
+        
+        otus = OtuTableCollection()
+        if args.input_otu_tables:
+            for o in args.input_otu_tables:
+                otus.add_otu_table(open(o))
+        if args.input_archive_otu_tables:
+            for o in args.input_archive_otu_tables:
+                otus.add_otu_table(open(o))
+                
         if args.krona:
             if args.taxonomy:
                 raise Exception("--taxonomy cannot be used with --krona sorry")
             Summariser.summarise(
-                otu_table = args.otu_table,
+                otus = otus,
                 krona_output_prefix = args.krona)
         elif args.unifrac:
             if args.taxonomy:
                 raise Exception("--taxonomy cannot be used with --unifrac sorry")
             Summariser.write_unifrac_format_file(
-                otu_table = args.otu_table,
+                otus = otus,
                 unifrac_output_prefix = args.unifrac)
+        elif args.output_otu_table:
+            Summariser.write_otu_table(
+                otus = otus,
+                taxonomy = args.taxonomy)
         else:
             StrainSummariser().summarise_strains(
                 otu_table_io = open(args.otu_table),
