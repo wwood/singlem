@@ -9,6 +9,7 @@ import subprocess
 from string import split
 
 from singlem import HmmDatabase, TaxonomyFile
+from otu_table import OtuTable
 from known_otu_table import KnownOtuTable
 from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
@@ -21,7 +22,8 @@ DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
 class SearchPipe:
     def run(self, **kwargs):
         forward_read_files = kwargs.pop('sequences')
-        output_otu_table = kwargs.pop('otu_table')
+        output_otu_table = kwargs.pop('otu_table', None)
+        archive_otu_table = kwargs.pop('archive_otu_table', None)
         num_threads = kwargs.pop('threads')
         bootstrap_contigs = kwargs.pop('bootstrap_contigs')
         known_otu_tables = kwargs.pop('known_otu_tables')
@@ -235,75 +237,81 @@ class SearchPipe:
         logging.info("Finished running taxonomic assignment with graftm")
 
         # get the sequences out for each of them
-        with open(output_otu_table,'w') as output:
-            to_print = split('gene sample sequence num_hits coverage taxonomy')
-            if output_extras:
-                to_print.append('read_names')
-                to_print.append('nucleotides_aligned')
-                if known_otu_tables:
-                    to_print.append("taxonomy_by_known?")
-            output.write("\t".join(to_print)+"\n")
+        otu_table_object = OtuTable()
+        regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
+        otu_table_object.fields = regular_output_fields + split('read_names nucleotides_aligned taxonomy_by_known?')
 
-            if known_otu_tables:
-                logging.info("Parsing known taxonomy OTU tables")
-                known_taxes = KnownOtuTable()
-                known_taxes.parse_otu_tables(known_otu_tables)
+        if known_otu_tables:
+            logging.info("Parsing known taxonomy OTU tables")
+            known_taxes = KnownOtuTable()
+            known_taxes.parse_otu_tables(known_otu_tables)
 
-            for sample_name in sample_names:
-                if sample_name in sample_to_gpkg_to_input_sequences:
-                    for hmm_and_position in hmms:
-                        key = hmm_and_position.gpkg_basename()
-                        if key in sample_to_gpkg_to_input_sequences[sample_name]:
-                            tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
+        for sample_name in sample_names:
+            if sample_name in sample_to_gpkg_to_input_sequences:
+                for hmm_and_position in hmms:
+                    key = hmm_and_position.gpkg_basename()
+                    if key in sample_to_gpkg_to_input_sequences[sample_name]:
+                        tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
 
-                            tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
-                            base_dir = os.path.join(graftm_align_directory_base,
-                                '%s_vs_%s' % (sample_name, hmm_and_position.gpkg_basename()),
-                                tmpbase)
+                        tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
+                        base_dir = os.path.join(graftm_align_directory_base,
+                            '%s_vs_%s' % (sample_name, hmm_and_position.gpkg_basename()),
+                            tmpbase)
 
-                            proteins_file = os.path.join(base_dir, "%s_orf.fa" % tmpbase)
-                            nucleotide_file = os.path.join(base_dir, "%s_hits.fa" % tmpbase)
-                            aligned_seqs = self._get_windowed_sequences(
-                                proteins_file,
-                                nucleotide_file, hmm_and_position.hmm_path(),
-                                hmm_and_position.best_position,
-                                include_inserts)
+                        proteins_file = os.path.join(base_dir, "%s_orf.fa" % tmpbase)
+                        nucleotide_file = os.path.join(base_dir, "%s_hits.fa" % tmpbase)
+                        aligned_seqs = self._get_windowed_sequences(
+                            proteins_file,
+                            nucleotide_file, hmm_and_position.hmm_path(),
+                            hmm_and_position.best_position,
+                            include_inserts)
 
-                            if len(aligned_seqs) == 0:
-                                logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_and_position.hmm_basename())
-                                continue
-                            logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
-                                                                                        hmm_and_position.hmm_basename(),
-                                                                                        sample_name))
-                            if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                                taxonomies = DiamondResultParser(os.path.join(base_dir, '%s_diamond_assignment.daa' % tmpbase))
-                                use_first = True
-                            else:  
-                                taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
-                                use_first = False
+                        if len(aligned_seqs) == 0:
+                            logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_and_position.hmm_basename())
+                            continue
+                        logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
+                                                                                    hmm_and_position.hmm_basename(),
+                                                                                    sample_name))
+                        if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                            taxonomies = DiamondResultParser(os.path.join(base_dir, '%s_diamond_assignment.daa' % tmpbase))
+                            use_first = True
+                        else:  
+                            taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
+                            use_first = False
 
-                            # convert to OTU table, output
-                            for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
-                                                                    taxonomies, use_first):
-                                if known_otu_tables:
-                                    tax_assigned_through_known = False
-                                to_print = [hmm_and_position.gpkg_basename(),
-                                                sample_name,
-                                                info.seq,
-                                                str(info.count),
-                                                "%.2f" % info.coverage]
-                                if known_otu_tables and info.seq in known_taxes:
-                                    tax_assigned_through_known = True
-                                    to_print.append(known_taxes[info.seq].taxonomy)
-                                else:
-                                    to_print.append(info.taxonomy)
-                                if output_extras:
-                                    to_print.append(' '.join(info.names))
-                                    to_print.append(' '.join([str(l) for l in info.aligned_lengths]))
-                                    if known_otu_tables:
-                                        to_print.append(str(tax_assigned_through_known))
-                                output.write("\t".join(to_print) + "\n")
+                        # convert to OTU table, output
+                        for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
+                                                                taxonomies, use_first):
+                            if known_otu_tables:
+                                tax_assigned_through_known = False
+                            to_print = [hmm_and_position.gpkg_basename(),
+                                            sample_name,
+                                            info.seq,
+                                            info.count,
+                                            info.coverage]
+                            if known_otu_tables and info.seq in known_taxes:
+                                tax_assigned_through_known = True
+                                to_print.append(known_taxes[info.seq].taxonomy)
+                            else:
+                                to_print.append(info.taxonomy)
 
+                            to_print.append(info.names)
+                            to_print.append(info.aligned_lengths)
+                            if known_otu_tables:
+                                to_print.append(tax_assigned_through_known)
+                            else:
+                                to_print.append(False)
+                            otu_table_object.data.append(to_print)
+                            
+        if output_otu_table:
+            with open(output_otu_table, 'w') as f:
+                if output_extras:
+                    otu_table_object.write_to(f, otu_table_object.fields)
+                else:
+                    otu_table_object.write_to(f, regular_output_fields)
+        if archive_otu_table:
+            with open(archive_otu_table, 'w') as f:
+                otu_table_object.archive(hmms.singlem_packages).write_to(f)
         return_cleanly()
 
     def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position, include_inserts):
@@ -389,7 +397,12 @@ class SearchPipe:
 
         seq_to_collected_info = {}
         for s in sequences:
-            tax = taxonomies[s.name]
+            try:
+                tax = taxonomies[s.name]
+            except KeyError:
+                # happens sometimes when HMMER picks up something where
+                # diamond does not
+                tax = ''
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
             except KeyError:
@@ -429,7 +442,8 @@ class SearchPipe:
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
         for tax_string in taxonomies:
-            for i, tax in enumerate(tax_string.split('; ')):
+            for i, tax in enumerate(tax_string.split(';')):
+                tax = tax.strip()
                 if i >= len(levels_to_counts):
                     levels_to_counts.append({})
                 try:

@@ -4,21 +4,32 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
+from singlem_package import SingleMPackageVersion1
+import shutil
+import os
+import tempdir
 
 class PackageCreator:
     def create(self, **kwargs):
         input_graftm_package_path = kwargs.pop('input_graftm_package')
         output_singlem_package_path = kwargs.pop('output_singlem_package')
+        hmm_position = kwargs.pop('hmm_position')
+        force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+        
+        if force and os.path.exists(output_singlem_package_path):
+            shutil.rmtree(output_singlem_package_path)
         
         # Remove sequences from diamond database that are not in the tree
         gpkg = GraftMPackage.acquire(input_graftm_package_path)
         tree_leaves = set()
         for node in TreeNode.read(gpkg.reference_package_tree_path()).tips():
-            if node.name in tree_leaves:
+            # need to replace here because otherwise they don't line up with the diamond database IDs
+            node_name = node.name.replace(' ','_')
+            if node_name in tree_leaves:
                 raise Exception("Found duplicate tree leaf name in graftm package tree. Currently this case is not handled, sorry")
-            tree_leaves.add(node.name)
+            tree_leaves.add(node_name)
         for name in tree_leaves: #I don't think there is a 'peek' ?
             eg_name = name
             break
@@ -39,7 +50,10 @@ class PackageCreator:
             t.flush()
                     
             if len(tree_leaves) != len(found_sequence_names):
-                raise Exception("Found some sequences that were in the tree but not the unaligned sequences database. Something is likely amiss with the input GraftM package")
+                for t in tree_leaves:
+                    if t not in found_sequence_names:
+                        raise Exception("Found some sequences that were in the tree but not the unaligned sequences database e.g. %s. Something is likely amiss with the input GraftM package" % t)
+                raise Exception("Programming error, shouldn't get here")
             logging.info("All %i sequences found in tree extracted successfully from unaligned sequences fasta file, which originally had %i sequences" % (\
                 len(found_sequence_names), num_seqs_unaligned))
             
@@ -53,13 +67,22 @@ class PackageCreator:
                     search_hmms = None
                 else:
                     search_hmms = gpkg.search_hmm_paths()
-                GraftMPackageVersion3.compile(output_singlem_package_path,
-                                              gpkg.reference_package_path(),
-                                              gpkg.alignment_hmm_path(),
-                                              dmnd.name,
-                                              gpkg.maximum_range(),
-                                              t.name,
-                                              gpkg.use_hmm_trusted_cutoff(),
-                                              search_hmms)
-                logging.info("SingleM-compatible package creation finished")
+                    
+                with tempdir.TempDir() as tmpdir:
+                    gpkg_name = os.path.join(tmpdir, os.path.basename(input_graftm_package_path).replace('.gpkg',''))
+                    GraftMPackageVersion3.compile(gpkg_name,
+                                                  gpkg.reference_package_path(),
+                                                  gpkg.alignment_hmm_path(),
+                                                  dmnd.name,
+                                                  gpkg.maximum_range(),
+                                                  t.name,
+                                                  gpkg.use_hmm_trusted_cutoff(),
+                                                  search_hmms)
+                    logging.debug("Finished creating GraftM package for conversion to SingleM package")
+                
+                    SingleMPackageVersion1.compile(output_singlem_package_path, gpkg_name, hmm_position)
+                    
+                    shutil.rmtree(gpkg_name)
+                    
+                    logging.info("SingleM-compatible package creation finished")
                 
