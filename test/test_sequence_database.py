@@ -26,6 +26,7 @@ import sys
 import os
 import tempdir
 import StringIO
+from singlem.otu_table_collection import OtuTableCollection
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.sequence_database import SequenceDatabase
@@ -42,7 +43,9 @@ class Tests(unittest.TestCase):
         with tempdir.TempDir() as tmp:
             db_path = os.path.join(tmp, 'my.sdb')
             
-            SequenceDatabase.create_from_otu_table(db_path, StringIO.StringIO(otu_table))
+            collection = OtuTableCollection()
+            collection.add_otu_table(StringIO.StringIO(otu_table))
+            SequenceDatabase.create_from_otu_table(db_path, collection)
             
             db2 = SequenceDatabase.acquire(db_path)
             s1 = db2.extract_sequence(1)

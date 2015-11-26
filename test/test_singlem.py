@@ -174,19 +174,19 @@ class Tests(unittest.TestCase):
                  % (path_to_script,
                     path_to_data,
                     t.name)
-            self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+            self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
             
     def test_diamond_assign_taxonomy(self):
         with tempfile.NamedTemporaryFile(suffix='.fasta') as f:
-            query = "\n".join(['>HWI-ST1243:156:D1K83ACXX:7:1107:12369:22490 1:N:0:AAGAGGCAAAGGAGTA',
-                               'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATCATGGGATTCTGTAAAGAGTTCAATGCACGTACTCAAGATC',''])
+            query = "\n".join(['>HWI-ST1243:156:D1K83ACXX:7:1109:18214:9910 1:N:0:TCCTGAGCCTAAGCCT',
+                'GTTAAATTACAAATTCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATCATGGGATTCTGTAAAGAGT',''])
             f.write(query)
             f.flush()
             
-            cmd = "%s --quiet pipe --sequences %s --otu_table /dev/stdout --assignment_method diamond --threads 4" % (path_to_script,
+            cmd = "%s --debug pipe --sequences %s --otu_table /dev/stdout --assignment_method diamond --threads 4" % (path_to_script,
                                                             f.name)
             
-            expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg',os.path.basename(f.name)[:-6],'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus; s__Staphylococcus_simiae']]
+            expected = [self.headers,['4.12.ribosomal_protein_L11_rplK',os.path.basename(f.name)[:-6],'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Bacillus; s__Bacillus_sp._1NLA3E']]
             expected = ["\t".join(x) for x in expected]+['']
             observed = extern.run(cmd).split("\n")
             self.assertEqual(expected, observed)
@@ -197,7 +197,7 @@ class Tests(unittest.TestCase):
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
+        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
         

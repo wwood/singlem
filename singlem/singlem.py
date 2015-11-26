@@ -3,6 +3,7 @@ import os
 import csv
 import logging
 from singlem_package import SingleMPackage
+import itertools
 
 class OrfMUtils:
     def un_orfm_name(self, name):
@@ -23,8 +24,8 @@ class TaxonomyFile:
 
 class HmmDatabase:
     def __init__(self):
-        # Array of gpkg names to HmmAndPostion
-        self.hmms_and_positions = {}
+        # Array of gpkg names to SingleMPackage objects
+        self._hmms_and_positions = {}
         db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                        '..','db')
         pkg_paths = [d for d in os.listdir(db_directory) if d[-5:]=='.spkg']
@@ -35,39 +36,14 @@ class HmmDatabase:
         self.singlem_packages = [SingleMPackage.acquire(os.path.join(db_directory, path)) for path in pkg_paths]
 
         for pkg in self.singlem_packages:
-            self.hmms_and_positions[pkg.hmm_basename()] = \
-                HmmAndPostion(pkg.graftm_package_path(),
-                               pkg.hmm_path(),
-                               pkg.singlem_position())
+            self._hmms_and_positions[pkg.hmm_basename()] = pkg
 
-    def hmm_paths(self):
+    def search_hmm_paths(self):
         'return an array of absolute paths to the hmms in this database'
-        return [hp.hmm_filename for hp in self.hmms_and_positions.values()]
-
-    def gpkg_basenames(self):
-        return self.hmms_and_positions.keys()
-
-    def gpkg_paths(self):
-        return [h.gpkg_path for _, h in self.hmms_and_positions.iteritems()]
+        return list(itertools.chain(\
+            *[pkg.graftm_package().search_hmm_paths() for pkg in self._hmms_and_positions.values()]))
 
     def __iter__(self):
-        for hp in self.hmms_and_positions.values():
-            yield hp
-
-class HmmAndPostion:
-    def __init__(self, gpkg_path, hmm_filename, best_position):
-        self.gpkg_path = gpkg_path
-        self.hmm_filename = hmm_filename
-        self.best_position = best_position
-
-    def hmm_path(self):
-        return os.path.join(self.gpkg_path, self.hmm_filename)
+        for hp in self._hmms_and_positions.values():
+            yield hp    
     
-    def gpkg_basename(self):
-        return os.path.basename(self.gpkg_path)
-    
-    def hmm_basename(self):
-        return os.path.basename(self.hmm_filename)
-
-
-
