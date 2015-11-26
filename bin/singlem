@@ -76,10 +76,11 @@ def query(args):
     elif query_otu_table:
         query_names = []
         query_sequences = []
-        for line in open(query_otu_table):
-            gpkg, sample, sequence = line.split("\t")[:3]
-            query_sequences.append(sequence)
-            query_names.append(';'.join([sample,gpkg]))
+        otus = OtuTableCollection()
+        otus.add_otu_table(open(query_otu_table))
+        for e in otus:
+            query_sequences.append(e.sequence)
+            query_names.append(';'.join([e.sample_name,e.marker]))
     elif query_fasta:
         query_names = []
         query_sequences = []
