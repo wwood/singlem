@@ -117,7 +117,7 @@ seqname,tax_id
 2600255080,s__Tatumella_morbirosei
 2600255081,s__Haematobacter_massiliensis
 2512047030,s__Burkholderia_tuberum
-RK3_PAUCH,Rhizaria;
+RK3_PAUCH,Rhizaria
 2512047034,s__Polymorphum_gilvum
 2512047035,s__Oceanimonas_sp._GK1
 2524023091,s__Enterorhabdus_mucosicola
@@ -167,7 +167,7 @@ RK3_PAUCH,Rhizaria;
 641522638,s__Methylobacterium_radiotolerans
 2503754019,s__Stanieria_cyanosphaera
 2585427724,s__Nitrospirillum_amazonense
-RL3_ORYSJ,Viridiplantae;
+RL3_ORYSJ,Viridiplantae
 637000319,s__Thermobifida_fusca
 2534681913,s__Xanthomonas_fragariae
 2506210028,s__Microcoleus_vaginatus
@@ -235,7 +235,7 @@ RL3_ORYSJ,Viridiplantae;
 2503113005,s__SAR116_cluster_alpha_proteobacterium_HIMB100
 647000258,s__Grimontia_hollisae
 2574180395,s__Lactobacillus_shenzhenensis
-RL3_ASHGO,Fungi;
+RL3_ASHGO,Fungi
 2518285522,s__Photorhabdus_temperata
 649633049,s__Geobacter_sp._M18
 2515154189,s__Burkholderia_nodosa
@@ -298,7 +298,7 @@ RL3_ASHGO,Fungi;
 2529292933,s__Slackia_piriformis
 2529292932,s__Barnesiella_intestinihominis
 651053079,s__Yersinia_enterocolitica
-RL3_YEAST,Fungi;
+RL3_YEAST,Fungi
 2599185202,o__Alteromonadales
 2563366745,s__Actinoalloteichus_spitiensis
 2170459028,s__Bankia_setacea_gill_symbiont
@@ -706,7 +706,7 @@ RL3_YEAST,Fungi;
 2515154143,s__Sciscionella_marina
 641736169,s__[Clostridium]_spiroforme
 650377925,s__Coprococcus_catus
-RK3_BIGNA,Rhizaria;
+RK3_BIGNA,Rhizaria
 650716017,s__Candidatus_Pelagibacter_sp._IMCC9063
 650716011,s__Blattabacterium_sp._(Blattella_germanica)
 2523533587,s__Acholeplasma_axanthum
@@ -810,7 +810,7 @@ RK3_BIGNA,Rhizaria;
 646311938,s__Kribbella_flavida
 646564559,s__Planctomyces_limnophilus
 637000030,s__Bdellovibrio_bacteriovorus
-RK3_EMIHU,Haptophyceae;
+RK3_EMIHU,Haptophyceae
 637000033,s__Bordetella_parapertussis
 2503283023,s__Cyanobacterium_stanieri
 646564553,s__Mycoplasma_agalactiae
@@ -905,7 +905,7 @@ RK3_EMIHU,Haptophyceae;
 2545555857,s__Eubacterium_xylanophilum
 2545555854,s__Hallella_seregens
 2571042755,s__Marinobacter_lipolyticus
-RL3_HUMAN,Metazoa;
+RL3_HUMAN,Metazoa
 2600254975,s__Bifidobacterium_reuteri
 2600254971,s__Bifidobacterium_actinocoloniiforme
 2600254970,s__Pseudomonas_sp._1-7
@@ -983,9 +983,9 @@ RL3_HUMAN,Metazoa;
 2576861825,s__Flavobacterium_sp._83
 2516493005,s__Bacillus_sp._37MA
 2516493006,s__Streptomyces_purpureus
-RL3B_SCHPO,Fungi;
+RL3B_SCHPO,Fungi
 2576861823,s__Roseovarius_sp._MCTG156(2b)
-RK3_SPIOL,Viridiplantae;
+RK3_SPIOL,Viridiplantae
 2519899685,s__Hahella_ganghwensis
 2519899684,s__[Eubacterium]_siraeum
 2519899683,s__Elioraea_tepidiphila
@@ -1003,7 +1003,7 @@ RK3_SPIOL,Viridiplantae;
 2574179782,s__Carnobacterium_funditum
 2588253903,s__Lachnospiraceae_bacterium_A2
 2537561891,s__Photobacterium_sp._AK15
-RK3_CYAPA,Glaucocystophyceae;
+RK3_CYAPA,Glaucocystophyceae
 2558309012,s__Ruminococcus_sp._FC2018
 2585427723,s__Streptomyces_exfoliatus
 2585428060,s__Chryseobacterium_sp._OV715
@@ -1064,7 +1064,7 @@ RK3_CYAPA,Glaucocystophyceae;
 2582581277,s__Methylococcaceae_bacterium_73a
 648276750,s__Streptomyces_violaceusniger
 2568526601,s__Microbispora_sp._ATCC_PTA-5024
-RK3B_ARATH,Viridiplantae;
+RK3B_ARATH,Viridiplantae
 2576861689,s__Listeria_weihenstephanensis
 2526164745,s__Burkholderia_dolosa
 2576861310,s__Leucobacter_sp._PH1c
@@ -1383,7 +1383,7 @@ RK3B_ARATH,Viridiplantae;
 2590828654,s__Skermanella_stibiiresistens
 2508501098,s__Owenweeksia_hongkongensis
 2534681666,s__Imtechella_halotolerans
-RM03_RAT,Metazoa;
+RM03_RAT,Metazoa
 2590828658,s__Streptococcus_equi
 651053061,s__Pseudonocardia_dioxanivorans
 2531839284,s__Mycoplasma_alkalescens
@@ -1462,7 +1462,7 @@ RM03_RAT,Metazoa;
 646564502,s__Allochromatium_vinosum
 2585428095,s__Chryseobacterium_sp._YR005
 2585428094,s__Herbiconiux_sp._YR403
-RK3_CYAME,Rhodophyta;
+RK3_CYAME,Rhodophyta
 2512564067,s__Rickettsia_montanensis
 2512564064,s__Rickettsia_rhipicephali
 642555172,p__Elusimicrobia
@@ -1494,7 +1494,7 @@ RK3_CYAME,Rhodophyta;
 2576861791,s__Brachybacterium_phenoliresistens
 2576861790,s__Psychrobacter_sp._JCM_18903
 2585427943,s__Streptomyces_olindensis
-RL3_MACFA,Metazoa;
+RL3_MACFA,Metazoa
 643886183,s__Dethiobacter_alkaliphilus
 646564582,s__Thermocrinis_albus
 2602041643,s__Prevotella_sp._S7_MS_2
@@ -1519,7 +1519,7 @@ RL3_MACFA,Metazoa;
 2513237297,s__Ornithinibacillus_scapharcae
 2513237290,s__Rhodococcus_imtechensis
 2554235232,s__Exiguobacterium_sp._8-11-1
-RL3_RAT,Metazoa;
+RL3_RAT,Metazoa
 2513237293,s__gamma_proteobacterium_HIMB55
 650716001,s__Acidianus_hospitalis
 2602041653,s__Lachnospiraceae_bacterium_VE202-12
@@ -1802,7 +1802,7 @@ RL3_RAT,Metazoa;
 2524614869,s__Aquaspirillum_serpens
 2585427825,s__Pedobacter_sp._R20-19
 2502790011,s__Beggiatoa_sp._'Orange_Guaymas'
-RL3_NEUCR,Fungi;
+RL3_NEUCR,Fungi
 2531839526,s__Grimontia_sp._AK16
 2576861014,s__Pseudomonas_sp._PH1b
 2502790015,s__Aminomonas_paucivorans
@@ -1866,7 +1866,7 @@ RL3_NEUCR,Fungi;
 2600255122,s__Coxiella_burnetii
 640753037,s__Nitratiruptor_sp._SB155-2
 640753036,s__Methanococcus_vannielii
-RK3_PORPU,Rhodophyta;
+RK3_PORPU,Rhodophyta
 640753034,s__Methanococcus_aeolicus
 640753033,s__Marinomonas_sp._MWYL1
 2531839543,s__Haemophilus_sputorum
@@ -1934,12 +1934,12 @@ RK3_PORPU,Rhodophyta;
 637000174,s__Mycoplasma_capricolum
 637000179,s__Mycoplasma_hyopneumoniae
 2507262031,s__Desulfitobacterium_dehalogenans
-RM03_MOUSE,Metazoa;
+RM03_MOUSE,Metazoa
 2522125136,s__Streptomyces_sp._WMMB_714
 2523231079,s__Janthinobacterium_sp._HH01
 2518645542,p__Euryarchaeota
 2522125135,s__Streptomyces_sp._WMMB_322
-RK3_THAPS,Stramenopiles;
+RK3_THAPS,Stramenopiles
 2517572098,s__Thioalkalivibrio_sp._ALE25
 2521172612,s__Curtobacterium_sp._314Chir4.1
 2522125134,s__Frankia_sp._Iso899
@@ -1982,7 +1982,7 @@ RK3_THAPS,Stramenopiles;
 2579778523,s__Carnobacterium_sp._WN1374
 637000082,s__Corynebacterium_diphtheriae
 2511231086,s__Kitasatospora_setae
-RK3_ODOSI,Stramenopiles;
+RK3_ODOSI,Stramenopiles
 637000088,s__Dechloromonas_aromatica
 2558860241,s__Corynebacterium_casei
 2521172628,s__Streptomyces_sp._351MFTsu5.1
@@ -1998,7 +1998,7 @@ RK3_ODOSI,Stramenopiles;
 637000313,s__Synechococcus_sp._JA-3-3Ab
 2562617167,s__Neisseria_subflava
 2515154132,s__Streptococcus_mutans
-RL3_ENCCU,Fungi;
+RL3_ENCCU,Fungi
 637000229,s__Cupriavidus_pinatubonensis
 2551306161,s__Nocardia_testacea
 2563366719,s__Curtobacterium_sp._UNCCL17
@@ -2189,7 +2189,7 @@ RL3_ENCCU,Fungi;
 2600255113,s__Prochloron_didemni
 2513237386,s__Actinomyces_sp._oral_taxon_849
 2600255116,s__Leptospirillum_sp._Group_II_'C75'
-RK3_TOBAC,Viridiplantae;
+RK3_TOBAC,Viridiplantae
 641228508,s__Shewanella_pealeana
 640753026,s__Fervidobacterium_nodosum
 2517572122,s__Arthrobacter_sp._131MFCol6.1
@@ -2393,7 +2393,7 @@ RK3_TOBAC,Viridiplantae;
 651324102,s__Streptococcus_parauberis
 2513237341,s__Dolosigranulum_pigrum
 650377969,s__Ruminococcus_champanellensis
-RM03_BOVIN,Metazoa;
+RM03_BOVIN,Metazoa
 2509276058,s__Belliella_baltica
 2509276059,s__Flexibacter_litoralis
 2558860984,s__Streptomyces_sp._CNB632
@@ -2435,7 +2435,7 @@ RM03_BOVIN,Metazoa;
 2556921624,s__Campylobacter_upsaliensis
 2556921625,s__Acidocella_facilis
 2556921622,s__Terasakiella_pusilla
-RL31_ARATH,Viridiplantae;
+RL31_ARATH,Viridiplantae
 2547132200,s__Wolbachia_endosymbiont_of_Diaphorina_citri
 2582580769,s__Staphylococcus_chromogenes
 2545824666,s__Enterococcus_dispar
@@ -2491,7 +2491,7 @@ RL31_ARATH,Viridiplantae;
 644736396,s__Paenibacillus_sp._JDR-2
 2597489983,s__Arenimonas_donghaensis
 2503128008,s__Sphaerotilus_natans
-RK3_PHATC,Stramenopiles;
+RK3_PHATC,Stramenopiles
 2521172760,s__Pseudoclavibacter_faecalis
 2511231001,s__Acidovorax_sp._CF316
 647533236,s__Synechococcus_sp._PCC_7335
@@ -3008,7 +3008,7 @@ RK3_PHATC,Stramenopiles;
 2599185219,s__Corynebacterium_spheniscorum
 2582580771,s__Hyphomonas_sp._CY54-11-8
 2599185187,s__Geodermatophilus_sp._DSM_44511
-RK3_RHDSA,Cryptophyta;
+RK3_RHDSA,Cryptophyta
 2562617050,s__Enterococcus_gallinarum
 2599185180,s__Geodermatophilus_soli
 2524614715,s__Butyrivibrio_sp._XPD2006
@@ -3167,7 +3167,7 @@ RK3_RHDSA,Cryptophyta;
 2551306672,s__Nocardiopsis_baichengensis
 2541047971,s__Streptomyces_rimosus
 2522572191,s__Streptococcus_plurextorum
-RL3_BOVIN,Metazoa;
+RL3_BOVIN,Metazoa
 2565956823,s__Mitsuokella_sp._oral_taxon_131
 2602042089,s__Streptomyces_noursei
 2541047476,s__Bacteriovorax_sp._Seq25_V
@@ -3216,7 +3216,7 @@ RL3_BOVIN,Metazoa;
 648028062,s__Vulcanisaeta_distributa
 2524614535,s__Arsenicicoccus_bolidensis
 2524614536,s__Glaciibacter_superstes
-RM09_SCHPO,Fungi;
+RM09_SCHPO,Fungi
 648028061,s__Thermosediminibacter_oceani
 2551306083,s__Microbacterium_yannicii
 2547132151,s__Brevibacillus_massiliensis
@@ -3251,7 +3251,7 @@ RM09_SCHPO,Fungi;
 643886009,s__Campylobacter_rectus
 2524023202,s__Clostridium_celatum
 2524023203,s__Bifidobacterium_magnum
-RL3_KLULA,Fungi;
+RL3_KLULA,Fungi
 2561511226,s__Butyrivibrio_sp._NC2002
 2524023206,s__Geobacter_bremensis
 2524023204,s__Mesoflavibacter_zeaxanthinifaciens
@@ -3334,7 +3334,7 @@ RL3_KLULA,Fungi;
 2524023198,s__Corynebacterium_halotolerans
 2524023199,s__Rhizobium_tropici
 2565956657,s__Acinetobacter_sp._CIP_101934
-RM03_CAEEL,Metazoa;
+RM03_CAEEL,Metazoa
 2565956655,s__Acinetobacter_sp._NIPH_2171
 2556921037,f__Pseudonocardiaceae
 2517572148,s__Bacillus_fordii
@@ -3412,7 +3412,7 @@ RM03_CAEEL,Metazoa;
 2558860124,s__Treponema_sp._C6A8
 2511231169,s__Pediococcus_claussenii
 646564551,s__Methylotenera_versatilis
-RL3_CANGA,Fungi;
+RL3_CANGA,Fungi
 2574180182,s__Sulfitobacter_sp._NB-77
 640963038,s__Vibrio_shilonii
 640963039,s__Caminibacter_mediatlanticus
@@ -3430,7 +3430,7 @@ RL3_CANGA,Fungi;
 648276688,s__Methylobacter_tundripaludum
 648276689,s__Mobiluncus_curtisii
 2502171186,s__Solemya_velum_gill_symbiont
-RM03_HUMAN,Metazoa;
+RM03_HUMAN,Metazoa
 2593339221,s__Eubacterium_oxidoreducens
 2571042744,s__Corynebacterium_falsenii
 644736405,s__Slackia_heliotrinireducens
@@ -3493,7 +3493,7 @@ RM03_HUMAN,Metazoa;
 646564515,s__Burkholderia_sp._CCGE1002
 649633036,s__Desulfobulbus_propionicus
 2585427806,s__Clostridiales_bacterium_VE202-01
-RL3_DEBHA,Fungi;
+RL3_DEBHA,Fungi
 2523533621,s__Pseudoduganella_violaceinigra
 2523533620,s__Aquimarina_latercula
 2523533623,s__Prevotella_corporis
@@ -3514,7 +3514,7 @@ RL3_DEBHA,Fungi;
 650716091,s__Streptococcus_pasteurianus
 2515154174,s__Desulfobacter_curvatus
 640427130,s__Chlorobium_phaeovibrioides
-RL3L_BOVIN,Metazoa;
+RL3L_BOVIN,Metazoa
 2563367223,s__Nitrincola_sp._AK23
 2563367220,s__Lactobacillus_murinus
 2582580979,s__Sulfitobacter_sp._MM-124
@@ -3543,8 +3543,8 @@ RL3L_BOVIN,Metazoa;
 2537561777,s__Actinomyces_sp._ICM47
 2561511097,s__Alicyclobacillus_macrosporangiidus
 2548877068,s__Staphylococcus_lentus
-RK3_CYACA,Rhodophyta;
-RL3_TETTH,Alveolata;
+RK3_CYACA,Rhodophyta
+RL3_TETTH,Alveolata
 2537562247,s__Thiomicrospira_chilensis
 2515075008,s__Methanolobus_tindarius
 648028003,s__Acidilobus_saccharovorans
@@ -3689,7 +3689,7 @@ RL3_TETTH,Alveolata;
 2517572150,s__Paenibacillus_sanguinis
 2561511218,s__Desulfovibrio_gigas
 2597490087,s__Lysinibacillus_sp._BF-4
-RL3_TOXCA,Metazoa;
+RL3_TOXCA,Metazoa
 2526164512,s__Azovibrio_restrictus
 2561511185,s__Corynebacterium_maris
 2510065046,s__Methylocapsa_acidiphila
@@ -3732,7 +3732,7 @@ RL3_TOXCA,Metazoa;
 644736340,s__Chitinophaga_pinensis
 2509276019,s__Ensifer_sp._TW10
 2534682225,s__Pediococcus_lolii
-RL3_CAEEL,Metazoa;
+RL3_CAEEL,Metazoa
 2516653073,s__Halomicrobium_katesii
 2579778792,s__Tannerella_sp._oral_taxon_BU063
 2516653074,s__Burkholderia_sp._WSM4176
@@ -4055,7 +4055,7 @@ RL3_CAEEL,Metazoa;
 2515154089,s__Nocardiopsis_sp._CNT312
 638341135,s__Nitrococcus_mobilis
 2561511197,s__Fibrella_aestuarina
-RL32_ARATH,Viridiplantae;
+RL32_ARATH,Viridiplantae
 639633060,s__Candidatus_Solibacter_usitatus
 2561511192,s__Spiroplasma_taiwanense
 2515154081,s__Meiothermus_timidus
@@ -4115,7 +4115,7 @@ RL32_ARATH,Viridiplantae;
 639857006,s__Synechococcus_sp._BL107
 2585427702,s__Thioclava_sp._DT23-4
 639857004,s__Mariprofundus_ferrooxydans
-RK3A_ARATH,Viridiplantae;
+RK3A_ARATH,Viridiplantae
 639857001,s__Fulvimarina_pelagi
 2585427707,s__Candidatus_Rickettsia_gravesii
 2576861794,s__Deinococcus_phoenicis
@@ -4144,7 +4144,7 @@ RK3A_ARATH,Viridiplantae;
 2565956509,s__Salinicoccus_luteus
 2576861653,s__Flavobacterium_saliperosum
 641736271,s__Anaerotruncus_colihominis
-RL3L_HUMAN,Metazoa;
+RL3L_HUMAN,Metazoa
 637000248,s__Rubrobacter_xylanophilus
 2593339139,s__Maribacter_sp._MAR_2009_72
 2571042919,s__Leeuwenhoekiella_sp._Hel_I_48
@@ -4173,11 +4173,11 @@ RL3L_HUMAN,Metazoa;
 2537561795,s__Streptomyces_ipomoeae
 2505119037,s__Francisella_philomiragia
 647000302,s__Pyramidobacter_piscolens
-RL3_DICDI,Amoebozoa;
+RL3_DICDI,Amoebozoa
 2518645589,s__Spirochaeta_bajacaliforniensis
 2519899576,s__Galbibacter_marinus
 2508501113,s__Paracoccus_pantotrophus
-RM09_YEAST,Fungi;
+RM09_YEAST,Fungi
 2519899571,s__Caenispirillum_salinarum
 2506520044,s__Natronococcus_occultus
 2547132400,s__Serinicoccus_profundi
@@ -4274,7 +4274,7 @@ RM09_YEAST,Fungi;
 648028001,s__Trichormus_azollae
 2599185121,s__Rickettsiales_bacterium_Ac37b
 2554235039,s__Lactobacillus_pobuzihii
-RK3_GUITH,Cryptophyta;
+RK3_GUITH,Cryptophyta
 639633046,s__Nocardioides_sp._JS614
 2554235749,s__Leifsonia_xyli
 2522572149,s__Cellulomonas_sp._URHD0024
@@ -4338,7 +4338,7 @@ RK3_GUITH,Cryptophyta;
 2513237216,s__Bacillus_sp._JS
 2545824649,s__Enterococcus_moraviensis
 2565957137,s__Sphingomonas_astaxanthinifaciens
-RL3A_SCHPO,Fungi;
+RL3A_SCHPO,Fungi
 2565957139,s__Thiomicrospira_pelophila
 2545824645,s__Sphingopyxis_sp._MC1
 2513237218,s__Ignavibacterium_album
@@ -4358,7 +4358,7 @@ RL3A_SCHPO,Fungi;
 2565956519,s__Desulfotomaculum_alkaliphilum
 637000076,s__Clostridium_acetobutylicum
 637000077,s__Clostridium_perfringens
-RL3_ASPFU,Fungi;
+RL3_ASPFU,Fungi
 651324100,s__Streptococcus_anginosus
 2599185146,s__Anaerobaculum_thermoterrenum
 2599185147,s__Marinospirillum_alkaliphilum
@@ -4499,11 +4499,11 @@ RL3_ASPFU,Fungi;
 2556921088,s__Candidatus_Accumulibacter_sp._BA-92
 2556921089,s__Candidatus_Accumulibacter_sp._BA-93
 2579778577,s__Bordetella_hinzii
-RL3_PIG,Metazoa;
+RL3_PIG,Metazoa
 648276709,s__Pelagibaca_bermudensis
 643886057,s__Corynebacterium_striatum
 2568526208,s__Candidatus_Halobonum_tyrrellensis
-RK3_GRATL,Rhodophyta;
+RK3_GRATL,Rhodophyta
 644736388,s__Methylotenera_mobilis
 2593339128,s__Desulfonatronum_thioautotrophicum
 2551306424,s__Mycoplasma_mycoides
@@ -4738,7 +4738,7 @@ RK3_GRATL,Rhodophyta;
 2576861694,s__Helicobacter_fennelliae
 2558860926,s__Fusobacterium_sp._CM22
 2509601013,s__Pleurocapsa_sp.
-RL3_DROME,Metazoa;
+RL3_DROME,Metazoa
 2509601011,s__Anaerobaculum_mobile
 638154509,s__Methanosarcina_mazei
 2540341086,s__Leptospirillum_ferrooxidans
@@ -4753,7 +4753,7 @@ RL3_DROME,Metazoa;
 2521172644,s__Pseudomonas_sp._LAMO17WK12:I6
 2582580500,s__Thioalkalivibrio_sp._ALJ1
 2562617179,s__Sphingobacterium_spiritivorum
-RK3_PYRYE,Rhodophyta;
+RK3_PYRYE,Rhodophyta
 2597489948,s__Desulfovibrio_sp._X2
 2597489947,s__Bifidobacterium_stellenboschense
 2517093041,s__Rhodocyclaceae_bacterium_RZ94
@@ -4762,7 +4762,7 @@ RK3_PYRYE,Rhodophyta;
 2562617177,s__Abiotrophia_defectiva
 2516653075,s__Methylomicrobium_buryatense
 2534682106,s__Bacillus_stratosphericus
-RL3_MOUSE,Metazoa;
+RL3_MOUSE,Metazoa
 2582580856,s__Enterobacter_sp._BIDMC_28
 2582580855,s__Actibacterium_atlanticum
 2563366504,s__Ruminococcus_sp._NK3A76
@@ -4856,7 +4856,7 @@ RL3_MOUSE,Metazoa;
 2541047012,s__Acidaminococcus_sp._HPA0509
 650377905,s__Arthrobacter_phenanthrenivorans
 643692051,s__Thauera_sp._MZ1T
-RL3_CAEBR,Metazoa;
+RL3_CAEBR,Metazoa
 2519899589,s__Oceaniovalibus_guishaninsula
 638341169,s__Reinekea_blandensis
 2534681734,s__Bacillus_methanolicus

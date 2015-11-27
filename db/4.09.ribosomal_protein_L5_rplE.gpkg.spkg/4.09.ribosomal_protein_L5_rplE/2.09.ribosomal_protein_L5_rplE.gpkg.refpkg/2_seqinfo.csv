@@ -42,7 +42,7 @@ seqname,tax_id
 2504756004,s__Haliscomenobacter_hydrossis
 2508501047,s__Beggiatoa_alba
 2508501046,s__Azospira_oryzae
-RK5_BIGNA,Rhizaria;
+RK5_BIGNA,Rhizaria
 643886213,s__Helicobacter_canadensis
 651324031,s__Fructobacillus_fructosus
 2597489894,s__Clostridium_senegalense
@@ -99,7 +99,7 @@ RK5_BIGNA,Rhizaria;
 2579779157,s__Rhizobiales_bacterium_YIM_77505
 2510461066,s__Candidatus_Chlorothrix_halophila
 2599185193,s__Blastococcus_sp._DSM_44205
-RK5_NEPOL,Viridiplantae;
+RK5_NEPOL,Viridiplantae
 2600255156,s__Lachnospiraceae_bacterium_28-4
 2523533541,s__Nocardioides_halotolerans
 2522572096,s__Limnohabitans_sp._Rim47
@@ -163,7 +163,7 @@ RK5_NEPOL,Viridiplantae;
 637000010,s__Aquifex_aeolicus
 637000011,s__Aster_yellows_witches'-broom_phytoplasma
 641522638,s__Methylobacterium_radiotolerans
-RL11_DROME,Metazoa;
+RL11_DROME,Metazoa
 2503754019,s__Stanieria_cyanosphaera
 2585427724,s__Nitrospirillum_amazonense
 641522632,s__Heliobacterium_modesticaldum
@@ -266,7 +266,7 @@ RL11_DROME,Metazoa;
 638341074,s__Crocosphaera_watsonii
 646206275,s__Fusobacterium_varium
 2579778715,s__Tatumella_sp._UCD-D_suzukii
-RK5_CHAVU,Viridiplantae;
+RK5_CHAVU,Viridiplantae
 2537561938,s__Eggerthia_catenaformis
 2565956790,s__Mycobacterium_ulcerans
 2502422321,s__Hymenobacter_roseosalivarius
@@ -296,7 +296,7 @@ RK5_CHAVU,Viridiplantae;
 2534682345,s__Helicobacter_bizzozeronii
 642555109,s__Borrelia_turicatae
 2563366741,s__Pseudomonas_gingeri
-RM05_RECAM,Jakobida;
+RM05_RECAM,Jakobida
 2599185202,o__Alteromonadales
 2545824766,s__Bacteriovorax_sp._BSW11_IV
 2170459028,s__Bankia_setacea_gill_symbiont
@@ -368,7 +368,7 @@ RM05_RECAM,Jakobida;
 2558860416,s__Corynebacterium_sp._KPL1996
 2531839206,s__Thauera_sp._63
 645951810,s__Enhydrobacter_aerosaccus
-RL11_MEDSA,Viridiplantae;
+RL11_MEDSA,Viridiplantae
 2562617111,s__Mycobacterium_colombiense
 2534681693,s__Bacillus_xiamenensis
 641228503,s__Rickettsia_massiliae
@@ -431,7 +431,7 @@ RL11_MEDSA,Viridiplantae;
 2558860225,s__Dickeya_sp._CSL_RW240
 2512875027,s__Fischerella_sp._PCC_9431
 2528311094,s__Leptotrichia_trevisanii
-RK5_EMIHU,Haptophyceae;
+RK5_EMIHU,Haptophyceae
 2528311098,s__Hyphomicrobium_nitrativorans
 2599185207,s__Halomonas_cupida
 2505679056,s__Mesorhizobium_sp._J18
@@ -540,7 +540,7 @@ RK5_EMIHU,Haptophyceae;
 2562617114,s__Rhizobium_sp._CF080
 649989945,s__Erysipelotrichaceae_bacterium_3_1_53
 649989943,s__Enterococcus_italicus
-RK5_PAUCH,Rhizaria;
+RK5_PAUCH,Rhizaria
 2540341177,s__Sulfolobus_islandicus
 2565956550,s__Novosphingobium_pentaromativorans
 2540341172,s__Wolbachia_endosymbiont_of_Drosophila_simulans
@@ -649,8 +649,8 @@ RK5_PAUCH,Rhizaria;
 2558309002,s__Legionella_sainthelensi
 2558309003,s__Alkaliphilus_transvaalensis
 2524614571,s__Idiomarina_sediminum
-RK5_GRATL,Rhodophyta;
-RK5_HELSJ,Viridiplantae;
+RK5_GRATL,Rhodophyta
+RK5_HELSJ,Viridiplantae
 2585428059,s__Paenibacillus_chondroitinus
 2585428058,s__Methylibium_sp._CF468
 2541046977,s__Actinomyces_europaeus
@@ -685,7 +685,7 @@ RK5_HELSJ,Viridiplantae;
 2524614763,s__Microbacterium_gubbeenense
 2524614762,s__Desulfobulbus_japonicus
 649633084,s__Propionibacterium_freudenreichii
-RL112_ARATH,Viridiplantae;
+RL112_ARATH,Viridiplantae
 2515154143,s__Sciscionella_marina
 641736169,s__[Clostridium]_spiroforme
 650377925,s__Coprococcus_catus
@@ -740,7 +740,7 @@ RL112_ARATH,Viridiplantae;
 2528311045,s__Streptomyces_sp._CNQ329
 2545824734,s__Phaeospirillum_fulvum
 2524023229,s__Bacillus_kribbensis
-RM05_PROWI,Viridiplantae;
+RM05_PROWI,Viridiplantae
 651324060,s__Lactobacillus_farciminis
 645951842,s__Corynebacterium_efficiens
 639633037,s__Marinobacter_hydrocarbonoclasticus
@@ -761,7 +761,7 @@ RM05_PROWI,Viridiplantae;
 2518645616,s__Megasphaera_cerevisiae
 2040502012,s__Succinivibrionaceae_bacterium_WG-1
 646564524,s__Coraliomargarita_akajimensis
-RM05_ARATH,Viridiplantae;
+RM05_ARATH,Viridiplantae
 643692014,s__Campylobacter_lari
 651324083,s__Paraprevotella_xylaniphila
 2554235473,s__Halorubrum_coriense
@@ -776,7 +776,7 @@ RM05_ARATH,Viridiplantae;
 2558860387,s__Coriobacteriaceae_bacterium_BV3Ac1
 2558860386,s__Atopobium_sp._BV3Ac4
 2558860132,s__Clostridium_lundense
-RK5_THAPS,Stramenopiles;
+RK5_THAPS,Stramenopiles
 2513237258,s__Mobilicoccus_pelagius
 2522125173,s__Cryocola_sp._340MFSha3.1
 2522125172,s__Thioalkalivibrio_sp._AL21
@@ -790,7 +790,7 @@ RK5_THAPS,Stramenopiles;
 2522572188,s__Salinarimonas_rosea
 2596583625,s__Flavobacteriaceae_bacterium_MAR_2010_118
 2596583622,s__Nonlabens_sp._Hel_I_38
-RL11_TOXCA,Metazoa;
+RL11_TOXCA,Metazoa
 2551306382,s__Bartonella_queenslandensis
 2511231058,s__Mycoplasma_putrefaciens
 646311938,s__Kribbella_flavida
@@ -1057,9 +1057,9 @@ RL11_TOXCA,Metazoa;
 2510917030,s__Rhizobium_sp._CF142
 2588253913,s__Salinisphaera_hydrothermalis
 2558309063,s__Gloeobacter_kilaueensis
-RK5_CYAPA,Glaucocystophyceae;
+RK5_CYAPA,Glaucocystophyceae
 2547132178,s__Brachybacterium_muris
-RK5_CHLVU,Viridiplantae;
+RK5_CHLVU,Viridiplantae
 2506520024,s__Dechloromonas_sp._JJ
 2558309060,s__Staphylococcus_pasteuri
 2558860250,s__Alicyclobacillus_acidoterrestris
@@ -1124,7 +1124,7 @@ RK5_CHLVU,Viridiplantae;
 2576861785,s__Psychrobacter_sp._JCM_18902
 2576861787,s__Cytophaga_fermentans
 2582581277,s__Methylococcaceae_bacterium_73a
-RL11_CANGA,Fungi;
+RL11_CANGA,Fungi
 2512564091,s__Desulfurella_acetivorans
 2513237285,s__Wolbachia_pipientis
 2554235449,s__Dehalococcoides_mccartyi
@@ -1282,7 +1282,7 @@ RL11_CANGA,Fungi;
 642555137,s__Leptospira_biflexa
 642555138,s__Methylacidiphilum_infernorum
 642555139,s__Methylobacterium_populi
-RK5_CYACA,Rhodophyta;
+RK5_CYACA,Rhodophyta
 2508501011,s__Cyanobium_gracile
 647000312,s__Serratia_odorifera
 2558309151,s__Intrasporangiaceae_bacterium_URHB0013
@@ -1302,7 +1302,7 @@ RK5_CYACA,Rhodophyta;
 2516493019,s__Cohnella_panacarvi
 2516493018,s__Mycobacterium_sp._155
 2556921007,s__Microvirgula_aerodenitrificans
-RL11_DICDI,Amoebozoa;
+RL11_DICDI,Amoebozoa
 2576861810,s__Defluviimonas_sp._20V17
 2576861811,s__Thermoanaerobacter_kivui
 2516493017,s__Desulfitobacterium_sp._LBE
@@ -1341,7 +1341,7 @@ RL11_DICDI,Amoebozoa;
 2541046957,s__Aminiphilus_circumscriptus
 2551306563,s__Oscillibacter_ruminantium
 2565956664,s__Acinetobacter_sp._NIPH_713
-RK5_ORYSJ,Viridiplantae;
+RK5_ORYSJ,Viridiplantae
 2558860918,s__Pseudomonas_sp._HPB0071
 2551306123,s__Vibrio_breoganii
 2551306122,s__Lactobacillus_ingluviei
@@ -1349,7 +1349,7 @@ RK5_ORYSJ,Viridiplantae;
 2551306120,s__Shewanella_sp._POL2
 644736403,s__Rickettsia_peacockii
 2558860913,s__Enterococcus_haemoperoxidus
-RK5_PSEAK,Viridiplantae;
+RK5_PSEAK,Viridiplantae
 2558860916,s__Enterococcus_gilvus
 2558860917,s__Enterococcus_caccae
 2558860914,s__Enterococcus_pallens
@@ -1410,7 +1410,7 @@ RK5_PSEAK,Viridiplantae;
 2524614816,s__Desulfovibrio_acrylicus
 2524614815,s__Stappia_stellulata
 646564504,s__Anabaena_variabilis
-RK5_HETA2,Stramenopiles;
+RK5_HETA2,Stramenopiles
 2556921666,s__Crocinitomix_catalasitica
 650716105,s__Weissella_koreensis
 650716104,s__Vibrio_anguillarum
@@ -1473,7 +1473,7 @@ RK5_HETA2,Stramenopiles;
 2596583605,s__alpha_proteobacterium_JLT2015
 640753004,s__Arcobacter_butzleri
 2537561840,s__Rhodanobacter_fulvus
-RL11_CHLRE,Viridiplantae;
+RL11_CHLRE,Viridiplantae
 643692011,s__Brevibacillus_brevis
 649633006,s__Arthrobacter_arilaitensis
 2558309115,s__Bacteroides_sp._3_2_5
@@ -1665,7 +1665,7 @@ RL11_CHLRE,Viridiplantae;
 2585427555,s__Geodermatophilus_sp._DSM_44513
 2585427554,s__Geodermatophilus_normandii
 2585427557,s__Micromonospora_echinospora
-RL11_ORYSI,Viridiplantae;
+RL11_ORYSI,Viridiplantae
 2515154008,s__Flavobacteriaceae_bacterium_JJC
 2597490171,s__Sphingobium_sp._ba1
 2597490173,s__Wolbachia_endosymbiont_of_Onchocerca_volvulus
@@ -1712,14 +1712,14 @@ RL11_ORYSI,Viridiplantae;
 2537561795,s__Streptomyces_ipomoeae
 651324076,s__Candidatus_Nitrosoarchaeum_koreensis
 2519899539,s__Dehalobacter_sp._CF
-RM07_SCHPO,Fungi;
+RM07_SCHPO,Fungi
 2523533569,s__Desulfurobacterium_sp._TC5-1
 650377991,s__Marinobacter_adhaerens
 2551306067,s__Vibrio_rumoiensis
 2523533560,s__Pseudomonas_azotifigens
 2523533561,s__Pseudomonas_taiwanensis
 2519899535,s__Acidovorax_sp._KKS102
-RK5_SPIOL,Viridiplantae;
+RK5_SPIOL,Viridiplantae
 2503508007,s__Pseudothermotoga_thermarum
 651324108,s__Weissella_cibaria
 2524614648,s__Oenococcus_kitaharae
@@ -1787,7 +1787,7 @@ RK5_SPIOL,Viridiplantae;
 2554235424,s__Candidatus_Methanomassiliicoccus_intestinalis
 2551306681,s__Nocardiopsis_xinjiangensis
 2551306686,s__Comamonas_sp._B-9
-RK5_CHLAT,Viridiplantae;
+RK5_CHLAT,Viridiplantae
 2548877001,s__Schlesneria_paludicola
 2548877000,s__Zavarzinella_formosa
 2585427959,s__Erythrobacter_sp._JL475
@@ -1813,7 +1813,7 @@ RK5_CHLAT,Viridiplantae;
 2600255126,s__Rhodococcus_sp._AW25M09
 2600255121,s__Thermotoga_neapolitana
 2600255122,s__Coxiella_burnetii
-RK5_ARATH,Viridiplantae;
+RK5_ARATH,Viridiplantae
 640753036,s__Methanococcus_vannielii
 640753034,s__Methanococcus_aeolicus
 640753033,s__Marinomonas_sp._MWYL1
@@ -2087,7 +2087,7 @@ RK5_ARATH,Viridiplantae;
 2585427813,s__Clostridiales_bacterium_VE202-14
 2524614879,s__Paenibacillus_alginolyticus
 2585427816,s__Clostridiales_bacterium_VE202-18
-RK5_GUITH,Cryptophyta;
+RK5_GUITH,Cryptophyta
 640427134,s__Psychrobacter_sp._PRwf-1
 2545824774,s__Megasphaera_sp._BL7
 2547132200,s__Wolbachia_endosymbiont_of_Diaphorina_citri
@@ -2117,8 +2117,8 @@ RK5_GUITH,Cryptophyta;
 644736327,s__Atopobium_parvulum
 2565956660,s__Acinetobacter_sp._CIP_64.2
 2551306541,s__Peptoniphilus_rhinitidis
-RL11_SPOFR,Metazoa;
-RK5_MESVI,Viridiplantae;
+RL11_SPOFR,Metazoa
+RK5_MESVI,Viridiplantae
 2531839487,s__Halosimplex_carlsbadense
 648276619,s__Arthrospira_sp._PCC_8005
 643692055,s__Wolbachia_sp._wRi
@@ -2139,7 +2139,7 @@ RK5_MESVI,Viridiplantae;
 2602041572,s__Streptomyces_niveus
 640753026,s__Fervidobacterium_nodosum
 2531839707,s__Brevundimonas_diminuta
-RL11_ASHGO,Fungi;
+RL11_ASHGO,Fungi
 2582581007,s__Achromobacter_sp._DH1f
 2585428009,s__Rhizobium_sp._R1-200B2
 2582581003,s__Campylobacter_sp._CIT045
@@ -2219,7 +2219,7 @@ RL11_ASHGO,Fungi;
 647000231,s__Corynebacterium_jeikeium
 647000230,s__Corynebacterium_ammoniagenes
 2541047105,s__Erwinia_tracheiphila
-RM05_SOLTU,Viridiplantae;
+RM05_SOLTU,Viridiplantae
 2517572240,s__Campylobacter_ureolyticus
 2517572243,s__Acinetobacter_tjernbergiae
 2517572242,s__Amycolatopsis_methanolica
@@ -2254,7 +2254,7 @@ RM05_SOLTU,Viridiplantae;
 637000097,s__Ehrlichia_canis
 2582580998,s__Stenotrophomonas_sp._RIT309
 2596583597,s__Ruminococcaceae_bacterium_FB2012
-RK5_ODOSI,Stramenopiles;
+RK5_ODOSI,Stramenopiles
 2571042709,s__Desulfuromonas_sp._TF
 2582580993,s__Moorella_thermoacetica
 2562617078,s__Subdoligranulum_variabile
@@ -2319,8 +2319,8 @@ RK5_ODOSI,Stramenopiles;
 641380439,s__Flavobacteriales_bacterium_ALC-1
 2519899649,s__Actinomadura_atramentaria
 2519899648,s__Nocardioides_sp._Iso805N
-RK5_PORPU,Rhodophyta;
-RM07_YEAST,Fungi;
+RK5_PORPU,Rhodophyta
+RM07_YEAST,Fungi
 2579778517,s__Thermus_sp._YIM_77409
 2579778516,s__Porphyrobacter_sp._HL-46
 2579778519,s__Mycobacterium_sp._UNC280MFTsu5.1
@@ -2349,7 +2349,7 @@ RM07_YEAST,Fungi;
 2503982035,s__Oscillatoria_nigro-viridis
 2548876792,s__Xanthomonas_sp._NCPPB1132
 2561511143,s__Bacillus_sp._MB2021
-RL11_ICTPU,Metazoa;
+RL11_ICTPU,Metazoa
 2511231177,s__Arcobacter_sp._L
 2597490195,s__Massilia_consociata
 2545824507,s__Enterobacter_sp._CC120223-11
@@ -2386,8 +2386,8 @@ RL11_ICTPU,Metazoa;
 649633008,s__Bacillus_amyloliquefaciens
 644736398,s__Pedobacter_heparinus
 2579778685,s__Saccharopolyspora_rectivirgula
-RL11_PONAB,Metazoa;
-RL11_CAEEL,Metazoa;
+RL11_PONAB,Metazoa
+RL11_CAEEL,Metazoa
 648231715,s__Mycoplasma_pneumoniae
 2509276064,s__Deinococcus_hopiensis
 2579779156,f__Alteromonadaceae
@@ -2437,7 +2437,7 @@ RL11_CAEEL,Metazoa;
 2511231003,s__Herbaspirillum_sp._CF444
 2511231002,f__Comamonadaceae
 2599185232,s__Caloramator_fervidus
-RK5_CHLRE,Viridiplantae;
+RK5_CHLRE,Viridiplantae
 2588253792,s__Porphyromonas_sp._KLE_1280
 647000263,s__Lactobacillus_amylolyticus
 2599185233,s__Sporolituus_thermophilus
@@ -2459,7 +2459,7 @@ RK5_CHLRE,Viridiplantae;
 2545824761,s__Winogradskyella_psychrotolerans
 2541047092,s__Actinobaculum_sp._oral_taxon_183
 2593339164,s__Lachnospiraceae_bacterium_RM5
-RL11_NEUCR,Fungi;
+RL11_NEUCR,Fungi
 647533238,s__Thalassobium_sp._R2A62
 2517487021,s__Wohlfahrtiimonas_chitiniclastica
 2554235476,s__Natrialba_chahannaoensis
@@ -2732,7 +2732,7 @@ RL11_NEUCR,Fungi;
 2531839247,s__Mycobacterium_sp._H4Y
 2597489875,s__Mesorhizobium_ciceri
 2526164564,s__Plesiomonas_sp._ZOR0011
-RK5_RHDSA,Cryptophyta;
+RK5_RHDSA,Cryptophyta
 2556921631,s__Mycoplasma_felifaucium
 2556921630,s__Acholeplasma_equifetale
 2556921633,s__Mycoplasma_testudinis
@@ -2801,7 +2801,7 @@ RK5_RHDSA,Cryptophyta;
 2521172591,s__Hydrocarboniphaga_effusa
 2558860223,s__Dickeya_sp._DW_0440
 2537562196,s__Actinomyces_sp._ICM39
-RK5_OLTVI,Viridiplantae;
+RK5_OLTVI,Viridiplantae
 640427115,s__Geobacter_uraniireducens
 2585427797,s__Dyadobacter_tibetensis
 651324025,s__Dialister_micraerophilus
@@ -2824,7 +2824,7 @@ RK5_OLTVI,Viridiplantae;
 2585427909,s__Prevotella_shahii
 2547132311,s__Candidatus_Odyssella_thessalonicensis
 2504756065,s__Streptomyces_sp.
-RL11_PIG,Metazoa;
+RL11_PIG,Metazoa
 640753047,s__Roseiflexus_castenholzii
 640753045,s__Rickettsia_canadensis
 640753043,s__Rickettsia_akari
@@ -2892,11 +2892,11 @@ RL11_PIG,Metazoa;
 2512047056,s__Citromicrobium_sp._JLT1363
 2596583651,s__Altererythrobacter_ishigakiensis
 2554235367,s__Streptomyces_collinus
-RK5_ACUOB,Viridiplantae;
+RK5_ACUOB,Viridiplantae
 2523231022,f__Porphyromonadaceae
 2523231023,s__Arenibacter_certesii
 2523231024,s__Lactobacillus_ceti
-RK5_OSTTA,Viridiplantae;
+RK5_OSTTA,Viridiplantae
 2523231026,s__Desulfovibrio_cuneatus
 651324002,s__Acetonema_longum
 2523231029,s__Lysobacter_sp._URHA0019
@@ -3020,9 +3020,9 @@ RK5_OSTTA,Viridiplantae;
 640963027,s__Marinobacter_algicola
 640963026,s__Limnobacter_sp._MED105
 641736198,s__Erysipelatoclostridium_ramosum
-RK5_STIHE,Viridiplantae;
+RK5_STIHE,Viridiplantae
 2547132143,s__Streptomyces_acidiscabies
-RK5_ZYGCR,Viridiplantae;
+RK5_ZYGCR,Viridiplantae
 2556921601,s__Desulfobulbus_elongatus
 2556921602,s__Conchiformibius_steedae
 641736193,s__Anaerofustis_stercorihominis
@@ -3141,7 +3141,7 @@ RK5_ZYGCR,Viridiplantae;
 2541047041,s__Leptospira_sp._serovar_Kenya
 2541047042,s__Leptospira_sp._B5-022
 647000283,s__Neisseria_elongata
-RM05_MARPO,Viridiplantae;
+RM05_MARPO,Viridiplantae
 2526164511,s__Butyrivibrio_sp._AE3009
 2579779088,s__Sphingobacterium_paucimobilis
 2513237153,s__Bradyrhizobium_sp._WSM2254
@@ -3289,7 +3289,7 @@ RM05_MARPO,Viridiplantae;
 2509276023,s__Alkaliflexus_imshenetskii
 2509276022,s__Mesorhizobium_australicum
 644736356,s__Dyadobacter_fermentans
-RK5_OEDCA,Viridiplantae;
+RK5_OEDCA,Viridiplantae
 644736353,s__Desulfovibrio_salexigens
 644736352,s__Desulfovibrio_magneticus
 644736351,s__Desulfotomaculum_acetoxidans
@@ -3513,7 +3513,7 @@ RK5_OEDCA,Viridiplantae;
 2537561629,s__Veillonella_sp._ACP1
 2561511040,s__Dyadobacter_crusticola
 2517572206,s__Bacillus_sp._105MF
-RK5_CYAME,Rhodophyta;
+RK5_CYAME,Rhodophyta
 2547132513,s__Candidatus_Pelagibacter_sp._HIMB1321
 643886109,s__Leuconostoc_mesenteroides
 643886108,s__Mobiluncus_mulieris
@@ -3588,7 +3588,7 @@ RK5_CYAME,Rhodophyta;
 2551306156,s__Nocardia_asiatica
 2510065049,s__Opitutaceae_bacterium_TAV5
 2515154091,s__Spirochaeta_alkalica
-RL11_TETTH,Alveolata;
+RL11_TETTH,Alveolata
 2521172728,s__Streptococcus_pseudoporcinus
 2561511188,s__Streptomyces_davawensis
 2562617143,s__Bifidobacterium_angulatum
@@ -3666,7 +3666,7 @@ RL11_TETTH,Alveolata;
 2511231221,s__Azospirillum_lipoferum
 2516653087,s__Thermacetogenium_phaeum
 2600255042,s__Clostridium_sp._KLE_1755
-RL11_LEICH,Euglenozoa;
+RL11_LEICH,Euglenozoa
 2579778550,s__Thermoanaerobaculum_aquaticum
 2579778552,s__Mesorhizobium_sp._NBIMC_P2-C4
 2508501005,s__Acidovorax_temperans
@@ -3715,7 +3715,7 @@ RL11_LEICH,Euglenozoa;
 2523533619,s__Pleomorphomonas_koreensis
 2523533614,s__Ferrimonas_senticii
 2523533615,s__Flavobacterium_daejeonense
-RL11_LEIMA,Euglenozoa;
+RL11_LEIMA,Euglenozoa
 2523533610,s__Megamonas_hypermegale
 2579778724,s__Acetobacter_persici
 2523533612,s__Sediminimonas_qiaohouensis
@@ -3902,7 +3902,7 @@ RL11_LEIMA,Euglenozoa;
 2519103187,s__Gilvimarinus_chinensis
 2519103188,s__Paenibacillus_daejeonensis
 2519103189,s__Gracilibacillus_lacisalsi
-RL11_ENCCU,Fungi;
+RL11_ENCCU,Fungi
 648028047,s__Olsenella_uli
 2565956639,s__Acinetobacter_ursingii
 2563367048,s__Bacillus_marmarensis
@@ -3960,7 +3960,7 @@ RL11_ENCCU,Fungi;
 2506783053,s__Gillisia_limnaea
 2506783054,s__Pseudanabaena_sp._PCC_6802
 2509276007,s__[Eubacterium]_cellulosolvens
-RK5_EUGGR,Euglenozoa;
+RK5_EUGGR,Euglenozoa
 644736339,s__Catenulispora_acidiphila
 2579778767,s__Sphingobium_baderi
 2509276001,o__Planctomycetales
@@ -4151,7 +4151,7 @@ RK5_EUGGR,Euglenozoa;
 2513237104,s__Bradyrhizobium_sp._Ec3.3
 2507149014,s__Fervidobacterium_pennivorans
 2507149019,s__Desulfitobacterium_dichloroeliminans
-RK5_CHAGL,Viridiplantae;
+RK5_CHAGL,Viridiplantae
 2551306565,s__Pseudacidovorax_intermedius
 646311917,s__Conexibacter_woesei
 2526164574,f__Fusobacteriaceae
@@ -4178,7 +4178,7 @@ RK5_CHAGL,Viridiplantae;
 2501651207,s__Shewanella_benthica
 2501651205,s__Colwellia_sp._MT41
 2556921652,s__Halotalea_alkalilenta
-RL11A_SCHPO,Fungi;
+RL11A_SCHPO,Fungi
 2582580774,s__Hyphomonas_sp._BH-BN04-4
 648028002,s__Acetohalobium_arabaticum
 651324047,s__Lachnospiraceae_bacterium_1_4_56FAA
@@ -4267,7 +4267,7 @@ RL11A_SCHPO,Fungi;
 2534682115,s__Halorubrum_lipolyticum
 2562617161,s__Erysipelotrichaceae_bacterium_5_2_54FAA
 2540341149,s__Micavibrio_aeruginosavorus
-RL11B_YEAST,Fungi;
+RL11B_YEAST,Fungi
 2562617168,s__Neisseria_lactamica
 2562617169,s__Neisseria_cinerea
 2563366537,s__Halomonas_sp._HL-48
@@ -4449,7 +4449,7 @@ RL11B_YEAST,Fungi;
 2504756013,p__Geoarchaeota
 2504756015,s__Roseobacter_sp._LE17
 2504756018,s__Porphyromonas_asaccharolytica
-RK5_PYRYE,Rhodophyta;
+RK5_PYRYE,Rhodophyta
 2524614578,s__Streptomyces_sp._Amel2xB2
 2541048001,s__Actinomyces_graevenitzii
 2541048003,s__Actinomyces_sp._oral_taxon_172
@@ -4546,7 +4546,7 @@ RK5_PYRYE,Rhodophyta;
 2600255261,s__Corynebacterium_deserti
 637000001,s__Candidatus_Koribacter_versatilis
 2565956804,s__Ilumatobacter_nonamiensis
-RK5_LEPTE,Viridiplantae;
+RK5_LEPTE,Viridiplantae
 2599185150,s__Saccharopolyspora_flava
 2562617003,s__Succinivibrio_dextrinosolvens
 2562617002,s__Selenomonas_sp._ND2010
@@ -4704,11 +4704,11 @@ RK5_LEPTE,Viridiplantae;
 2519899589,s__Oceaniovalibus_guishaninsula
 638341169,s__Reinekea_blandensis
 2534681734,s__Bacillus_methanolicus
-RK5_PHATC,Stramenopiles;
+RK5_PHATC,Stramenopiles
 2524023220,s__Desulfobacula_toluolica
 2546825535,s__Thermoanaerobacter_thermocopriae
 2551306143,s__Streptomyces_sp._SS
-RK5_EUGLO,Euglenozoa;
+RK5_EUGLO,Euglenozoa
 2511231093,s__Thermoproteus_tenax
 644736404,s__Saccharomonospora_viridis
 2537561646,s__Mycoplasma_bovigenitalium
