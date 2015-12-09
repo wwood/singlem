@@ -88,7 +88,7 @@ class SearchPipe:
             # Create HMMs from each of the search HMMs based on the given contigs
             bootstrap_hmms = {}
             logging.info("Generating HMMs by bootstrap..")
-            # TOOD: this can be combined into a single run over the data with
+            # TODO: this can be combined into a single run over the data with
             # orfm, this is a bit wasteful going over it 3 times. Instead
             # best to interface with graftm directly, I guess.
             for hmm in hmms:
@@ -116,16 +116,16 @@ class SearchPipe:
                 "--input_sequence_type nucleotide"\
                                  % (num_threads,
                                     ' '.join(forward_read_files),
-                                    ' '.join(hmms.hmm_paths()),
+                                    ' '.join(hmms.search_hmm_paths()),
                                     graftm_search_directory,
-                                    hmms.hmm_paths()[0])
+                                    hmms.search_hmm_paths()[0])
             if evalue: cmd += ' --evalue %s' % evalue
             if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
             if bootstrap_contigs:
                 cmd += " --search_hmm_files %s" % ' '.join(
                     itertools.chain(
                         (f for f in bootstrap_hmms.values() if os.path.isfile(f)),
-                        hmms.hmm_paths()))
+                        hmms.search_hmm_paths()))
             logging.info("Running GraftM to find particular reads..")
             extern.run(cmd)
             logging.info("Finished running GraftM search phase")
@@ -178,10 +178,10 @@ class SearchPipe:
                                     graftm_search_directory,
                                     sample_name,
                                     sample_name,
-                                    hmm.gpkg_path,
+                                    hmm.graftm_package_path(),
                                     graftm_separate_directory_base,
                                     sample_name,
-                                    os.path.basename(hmm.gpkg_path))
+                                    os.path.basename(hmm.graftm_package_path()))
                         if evalue: cmd += ' --evalue %s' % evalue
                         if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
                         if bootstrap_contigs:
@@ -204,8 +204,8 @@ class SearchPipe:
         commands = []
         for sample_name in sample_names:
             if sample_name in sample_to_gpkg_to_input_sequences:
-                for hmm_and_position in hmms:
-                    key = hmm_and_position.gpkg_basename()
+                for singlem_package in hmms:
+                    key = singlem_package.graftm_package_basename()
                     if key in sample_to_gpkg_to_input_sequences[sample_name]:
                         tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
                         cmd = "graftM graft --threads %i --verbosity 2 "\
@@ -215,10 +215,10 @@ class SearchPipe:
                              "--assignment_method %s" % (\
                                     1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
                                     tmp_graft.name,
-                                    hmm_and_position.gpkg_path,
+                                    singlem_package.graftm_package_path(),
                                     graftm_align_directory_base,
                                     sample_name,
-                                    hmm_and_position.gpkg_basename(),
+                                    singlem_package.graftm_package_basename(),
                                     graftm_assignment_method)
                         if evalue: cmd += ' --evalue %s' % evalue
                         if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
@@ -230,7 +230,7 @@ class SearchPipe:
                                             hmm.hmm_path())
                         commands.append(cmd)
                     else:
-                        logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (hmm_and_position.gpkg_basename(), sample_name))
+                        logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (singlem_package.graftm_package_basename(), sample_name))
             else:
                 logging.debug("No sequences found aligning to sample %s at all, skipping" % sample_name)
         extern.run_many(commands, num_threads=num_threads)
@@ -248,29 +248,29 @@ class SearchPipe:
 
         for sample_name in sample_names:
             if sample_name in sample_to_gpkg_to_input_sequences:
-                for hmm_and_position in hmms:
-                    key = hmm_and_position.gpkg_basename()
+                for singlem_package in hmms:
+                    key = singlem_package.graftm_package_basename()
                     if key in sample_to_gpkg_to_input_sequences[sample_name]:
                         tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
 
                         tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
                         base_dir = os.path.join(graftm_align_directory_base,
-                            '%s_vs_%s' % (sample_name, hmm_and_position.gpkg_basename()),
+                            '%s_vs_%s' % (sample_name, singlem_package.graftm_package_basename()),
                             tmpbase)
 
                         proteins_file = os.path.join(base_dir, "%s_orf.fa" % tmpbase)
                         nucleotide_file = os.path.join(base_dir, "%s_hits.fa" % tmpbase)
                         aligned_seqs = self._get_windowed_sequences(
                             proteins_file,
-                            nucleotide_file, hmm_and_position.hmm_path(),
-                            hmm_and_position.best_position,
+                            nucleotide_file, singlem_package.graftm_package().alignment_hmm_path(),
+                            singlem_package.singlem_position(),
                             include_inserts)
 
                         if len(aligned_seqs) == 0:
-                            logging.debug("Found no alignments for %s, skipping to next sample/hmm" % hmm_and_position.hmm_basename())
+                            logging.debug("Found no alignments for %s, skipping to next sample/hmm" % os.path.basename(singlem_package.graftm_package().alignment_hmm_path()))
                             continue
                         logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
-                                                                                    hmm_and_position.hmm_basename(),
+                                                                                    os.path.basename(singlem_package.graftm_package().alignment_hmm_path()),
                                                                                     sample_name))
                         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                             taxonomies = DiamondResultParser(os.path.join(base_dir, '%s_diamond_assignment.daa' % tmpbase))
@@ -284,7 +284,7 @@ class SearchPipe:
                                                                 taxonomies, use_first):
                             if known_otu_tables:
                                 tax_assigned_through_known = False
-                            to_print = [hmm_and_position.gpkg_basename(),
+                            to_print = [singlem_package.graftm_package_basename(),
                                             sample_name,
                                             info.seq,
                                             info.count,
@@ -339,11 +339,11 @@ class SearchPipe:
         sample_to_gpkg_to_input_sequences = {}
         for sample_name in sample_names:
             sample_to_gpkg_to_input_sequences[sample_name] = {}
-            for hmm_and_position in hmms:
+            for singlem_package in hmms:
                 base_dir = os.path.join(\
                     graftm_separate_directory_base,
                     "%s_vs_%s" % (sample_name,
-                                  os.path.basename(hmm_and_position.gpkg_path)),
+                                  os.path.basename(singlem_package.graftm_package_path())),
                     '%s_hits' % sample_name)
                 protein_sequences_file = os.path.join(
                     base_dir, "%s_hits_orf.fa" % sample_name)
@@ -354,8 +354,8 @@ class SearchPipe:
                 aligned_seqs = self._get_windowed_sequences(\
                         protein_sequences_file,
                         nucleotide_sequence_fasta_file,
-                        hmm_and_position.hmm_path(),
-                        hmm_and_position.best_position,
+                        singlem_package.graftm_package().alignment_hmm_path(),
+                        singlem_package.singlem_position(),
                         include_inserts)
                 if len(aligned_seqs) > 0:
                     tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
@@ -363,7 +363,7 @@ class SearchPipe:
                     process = subprocess.Popen(['bash','-c',cmd],
                                                stdin=subprocess.PIPE)
                     process.communicate("\n".join([s.name for s in aligned_seqs]))
-                    sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(hmm_and_position.gpkg_path)] = tmp
+                    sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(singlem_package.graftm_package_path())] = tmp
 
         return sample_to_gpkg_to_input_sequences
 

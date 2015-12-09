@@ -1,15 +1,15 @@
 {
     "files": {
-        "phylo_model": "phylo_modelF0voxU.json", 
+        "phylo_model": "phylo_modelI6z1Rx.json", 
         "taxonomy": "2_taxonomy.csv", 
-        "tree": "treeK818oU.tre", 
+        "tree": "treesuJzzR.tre", 
         "aln_fasta": "2_deduplicated_aligned.fasta", 
         "seq_info": "2_seqinfo.csv", 
         "tree_stats": "2.tre.log"
     }, 
     "rollback": {
         "files": {
-            "phylo_model": "phylo_modelF0voxU.json", 
+            "phylo_model": "phylo_modelI6z1Rx.json", 
             "taxonomy": "2_taxonomy.csv", 
             "tree": "2.tre", 
             "aln_fasta": "2_deduplicated_aligned.fasta", 
@@ -18,17 +18,17 @@
         }, 
         "rollback": null, 
         "metadata": {
-            "create_date": "2015-11-17 22:24:34", 
+            "create_date": "2015-11-27 12:37:59", 
             "format_version": "1.1", 
-            "locus": "/tmp/tmpxdyh_i/2"
+            "locus": "/tmp/tmpVgcox_/2"
         }, 
         "md5": {
-            "phylo_model": "803716732b1e4fe0765912c0126f8fde", 
-            "taxonomy": "c2a0b116668b53b3ec3400e6d0d0d661", 
-            "tree": "ff1fabc69fae5331fc0e62087f244eea", 
+            "phylo_model": "59a0213051359ee3aecd42bdbb5482b4", 
+            "taxonomy": "c5734a120c2b108d1a95ac8090d2cb39", 
+            "tree": "c44376e130388247f6fb85bc467cd7a5", 
             "aln_fasta": "4eaade10208f5418eb093b61d4025dd0", 
-            "seq_info": "371e761304b70a56d35c403cf4e654fa", 
-            "tree_stats": "92a4e4525a40825666ec4fceb4dfcebc"
+            "seq_info": "e4257e3eecedc3c3af549f4470bc2286", 
+            "tree_stats": "29ce482bc4e177cf3ceec6a1d849fcaa"
         }
     }, 
     "log": [
@@ -37,17 +37,17 @@
         "Loaded initial files into empty refpkg"
     ], 
     "metadata": {
-        "create_date": "2015-11-17 22:24:34", 
+        "create_date": "2015-11-27 12:37:59", 
         "format_version": "1.1", 
-        "locus": "/tmp/tmpxdyh_i/2"
+        "locus": "/tmp/tmpVgcox_/2"
     }, 
     "rollforward": null, 
     "md5": {
-        "phylo_model": "803716732b1e4fe0765912c0126f8fde", 
-        "taxonomy": "c2a0b116668b53b3ec3400e6d0d0d661", 
-        "tree": "ffaf3586779a34a9b32aae41bd0a2ce6", 
+        "phylo_model": "59a0213051359ee3aecd42bdbb5482b4", 
+        "taxonomy": "c5734a120c2b108d1a95ac8090d2cb39", 
+        "tree": "9790b2ebafae1de55c11db25139e020b", 
         "aln_fasta": "4eaade10208f5418eb093b61d4025dd0", 
-        "seq_info": "371e761304b70a56d35c403cf4e654fa", 
-        "tree_stats": "92a4e4525a40825666ec4fceb4dfcebc"
+        "seq_info": "e4257e3eecedc3c3af549f4470bc2286", 
+        "tree_stats": "29ce482bc4e177cf3ceec6a1d849fcaa"
     }
 }
