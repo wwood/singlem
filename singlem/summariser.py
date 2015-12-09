@@ -48,7 +48,10 @@ class Summariser:
             if otu.sample_name not in gene_to_sample_to_taxonomy_to_count[otu.marker]:
                 gene_to_sample_to_taxonomy_to_count[otu.marker][otu.sample_name] = OrderedDict()
             if add_sequence_to_taxonomy:
-                tax = '; '.join(otu.taxonomy_array() + [otu.sequence])
+                if otu.taxonomy_array():
+                    tax = '; '.join(otu.taxonomy_array() + [otu.sequence])
+                else:
+                    tax = '; '.join([otu.sequence])
             else:
                 tax = otu.taxonomy
             if add_sequence_to_taxonomy and tax in gene_to_sample_to_taxonomy_to_count[otu.marker][otu.sample_name]:
