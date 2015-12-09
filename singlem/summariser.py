@@ -84,7 +84,6 @@ class Summariser:
                     for taxonomy, count in taxonomy_to_count.items():
                         if taxonomy == '': continue #ignore unclassified
                         f.write("\t".join([taxonomy, sample, str(count)])+"\n")
-        logging.info("Finished")
         
     @staticmethod
     def write_otu_table(**kwargs):
@@ -93,8 +92,8 @@ class Summariser:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
-        OtuTable.write_otus_to(table_collection, output_table_io)
-            
+        logging.info("Writing %s" % output_table_io.name)
+        OtuTable.write_otus_to(table_collection, output_table_io)    
         
                         
         

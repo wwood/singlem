@@ -316,6 +316,7 @@ if __name__ == '__main__':
             StrainSummariser().summarise_strains(
                 table_collection = otus,
                 output_table_io = open(args.strain_overview_table,'w'))
+        logging.info("Finished")
             
     elif args.subparser_name == 'create':
         PackageCreator().create(input_graftm_package = args.input_graftm_package,
