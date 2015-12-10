@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015"
@@ -28,6 +29,7 @@ from singlem.sequence_classes import SeqReader
 from singlem.metagenome_otu_finder import MetagenomeOtuFinder
 from singlem.package_creator import PackageCreator
 from singlem.otu_table_collection import OtuTableCollection
+from singlem.clusterer import Clusterer
 
 def seqs(args):
     # Read in the fasta Alignment
@@ -219,10 +221,13 @@ if __name__ == '__main__':
                                         epilog=__author__)
     summarise_parser.add_argument('--input_archive_otu_tables', nargs='+', help="Summarise these tables")
     summarise_parser.add_argument('--input_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_parser.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
+    summarise_parser.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=round(math.floor(0.97*60)/60, 3))
     summarise_parser.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
     summarise_parser.add_argument('--unifrac', help="Output UniFrac format file")
+    summarise_parser.add_argument('--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
     summarise_parser.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
     
 
@@ -287,6 +292,7 @@ if __name__ == '__main__':
         if args.krona: num_output_types += 1
         if args.unifrac: num_output_types += 1
         if args.output_otu_table: num_output_types += 1
+        if args.clustered_output_otu_table: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_archive_otu_tables:
@@ -300,6 +306,13 @@ if __name__ == '__main__':
         if args.input_archive_otu_tables:
             for o in args.input_archive_otu_tables:
                 otus.add_archive_otu_table(open(o))
+                
+        if args.cluster:
+            logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
+            otus = o2
+            logging.info("Finished clustering")
 
         if args.krona:
             Summariser.summarise(
@@ -313,10 +326,17 @@ if __name__ == '__main__':
             Summariser.write_otu_table(
                 table_collection = otus,
                 output_table_io = open(args.output_otu_table,'w'))
-        else:
+        elif args.strain_overview_table:
             StrainSummariser().summarise_strains(
                 table_collection = otus,
                 output_table_io = open(args.strain_overview_table,'w'))
+        elif args.clustered_output_otu_table:
+            if not args.cluster:
+                raise Exception("If --clustered_output_otu_table is set, then clustering (--cluster) must be applied")
+            Summariser.write_clustered_otu_table(
+                table_collection = otus,
+                output_table_io = open(args.clustered_output_otu_table,'w'))
+        else: raise Exception("Programming error")
         logging.info("Finished")
             
     elif args.subparser_name == 'create':

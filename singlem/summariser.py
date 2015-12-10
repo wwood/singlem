@@ -96,7 +96,29 @@ class Summariser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         logging.info("Writing %s" % output_table_io.name)
-        OtuTable.write_otus_to(table_collection, output_table_io)    
+        OtuTable.write_otus_to(table_collection, output_table_io)
+    
+    @staticmethod
+    def write_clustered_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Writing clustered OTU table")
+        output_table_io.write("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS+['num_sub_otus'])+"\n")
+        
+        for d in table_collection:
+            output_table_io.write("\t".join([OtuTable._to_printable(cell) for cell in [\
+                d.marker,
+                d.sample_name,
+                d.sequence,
+                d.count,
+                d.coverage,
+                d.taxonomy,
+                len(d.otus)]])+"\n") 
+        
+        
         
                         
         
