@@ -27,6 +27,18 @@ class OtuTable:
             e.coverage = d[4]
             e.taxonomy = d[5]
             yield e
+
+    def add(self, otu_table_entries):
+        '''Add OtuTableEntry objects to this OTU table. Only the default
+        data is saved'''
+        for e in otu_table_entries:
+            self.data.append([
+                e.marker,
+                e.sample_name,
+                e.sequence,
+                e.count,
+                e.coverage,
+                e.taxonomy])
             
     @staticmethod
     def read(input_otu_table_io):

@@ -3,6 +3,7 @@ import extern
 from collections import OrderedDict
 import logging
 from otu_table import OtuTable
+from rarefier import Rarefier
 
 class Summariser:
     @staticmethod
@@ -106,7 +107,7 @@ class Summariser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         logging.info("Writing clustered OTU table")
-        output_table_io.write("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS+['num_sub_otus'])+"\n")
+        output_table_io.write("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS+['num_sub_otus','max_sub_otu_abundance'])+"\n")
         
         for d in table_collection:
             output_table_io.write("\t".join([OtuTable._to_printable(cell) for cell in [\
@@ -116,8 +117,34 @@ class Summariser:
                 d.count,
                 d.coverage,
                 d.taxonomy,
-                len(d.otus)]])+"\n") 
-        
+                len(d.otus),
+                max([otu.count for otu in d.otus])
+                ]])+"\n") 
+
+    @staticmethod
+    def write_rarefied_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
+        table_collection = kwargs.pop('table_collection')
+        number_to_choose = kwargs.pop('number_to_choose', None)
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if number_to_choose is None:
+            counts = {}
+            for otu in table_collection:
+                key = "%s_singlem_RAND8_%s" % (otu.sample_name, otu.marker)
+                try:
+                    counts[key] += otu.count
+                except KeyError:
+                    counts[key] = otu.count
+            number_to_choose = min(counts.values())
+            logging.info("Minimum number of sequences detected is %i, rarefying all sample/gene combinations to this level" % number_to_choose)
+
+        logging.info("Rarefying OTU table to max %i sequences per sample/gene combination and writing to %s" % (number_to_choose, output_table_io.name))
+        OtuTable.write_otus_to(Rarefier().rarefy(table_collection, number_to_choose),
+                               output_table_io)
+                                 
+
         
         
                         
