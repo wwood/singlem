@@ -32,6 +32,7 @@ class SearchPipe:
         evalue = kwargs.pop('evalue')
         restrict_read_length = kwargs.pop('restrict_read_length')
         include_inserts = kwargs.pop('include_inserts')
+        singlem_packages = kwargs.pop('singlem_packages')
 
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
@@ -40,7 +41,7 @@ class SearchPipe:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        hmms = HmmDatabase()
+        hmms = HmmDatabase(singlem_packages)
         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:

@@ -181,6 +181,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
     pipe_parser.add_argument('--bootstrap_contigs', nargs='+', help='assembled contigs/scaffolds to help the HMM find hits in reads (default: do not use)')
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
+    pipe_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
 
     temp_description = 'From protein alignment to aligned nucleotide sequences'
     seqs_parser = subparsers.add_parser('seqs',
@@ -272,7 +273,8 @@ if __name__ == '__main__':
             working_directory = args.working_directory,
             force = args.force,
             previous_graftm_search_directory = args.previous_graftm_search_directory,
-            previous_graftm_separate_directory = args.previous_graftm_separate_directory)
+            previous_graftm_separate_directory = args.previous_graftm_separate_directory,
+            singlem_packages = args.singlem_packages)
 
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:

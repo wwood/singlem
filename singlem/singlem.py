@@ -23,17 +23,22 @@ class TaxonomyFile:
         return self.sequence_to_taxonomy[item]
 
 class HmmDatabase:
-    def __init__(self):
+    def __init__(self, package_paths=None):
         # Array of gpkg names to SingleMPackage objects
         self._hmms_and_positions = {}
-        db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                                       '..','db')
-        pkg_paths = [d for d in os.listdir(db_directory) if d[-5:]=='.spkg']
-        logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
-                                                    ', '.join(pkg_paths)))
-        if len(pkg_paths) == 0:
-            raise Exception("Unable to find any SingleM packages in %s" % db_directory)
-        self.singlem_packages = [SingleMPackage.acquire(os.path.join(db_directory, path)) for path in pkg_paths]
+        
+        if package_paths:
+            self.singlem_packages = [SingleMPackage.acquire(path) for path in package_paths]
+            logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
+        else:
+            db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                                           '..','db')
+            pkg_paths = [d for d in os.listdir(db_directory) if d[-5:]=='.spkg']
+            logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
+                                                        ', '.join(pkg_paths)))
+            if len(pkg_paths) == 0:
+                raise Exception("Unable to find any SingleM packages in %s" % db_directory)
+            self.singlem_packages = [SingleMPackage.acquire(os.path.join(db_directory, path)) for path in pkg_paths]
 
         for pkg in self.singlem_packages:
             self._hmms_and_positions[pkg.hmm_basename()] = pkg
@@ -45,5 +50,5 @@ class HmmDatabase:
 
     def __iter__(self):
         for hp in self._hmms_and_positions.values():
-            yield hp    
+            yield hp
     
