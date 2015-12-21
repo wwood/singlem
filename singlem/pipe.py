@@ -109,7 +109,7 @@ class SearchPipe:
             graftm_search_directory = os.path.join(working_directory, 'graftm_search')
 
             # run graftm across all the HMMs
-            logging.info("Using as input %i different forward read sets e.g. %s" % (len(forward_read_files),
+            logging.info("Using as input %i different sequence files e.g. %s" % (len(forward_read_files),
                                                                                 forward_read_files[0]))
             cmd = "graftM graft --threads %i --forward %s "\
                 "--search_hmm_files %s --search_and_align_only "\
