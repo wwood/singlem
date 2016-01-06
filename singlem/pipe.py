@@ -1,6 +1,7 @@
 import tempdir
 import logging
 import os
+import os.path
 import shutil
 import extern
 import itertools
@@ -274,10 +275,20 @@ class SearchPipe:
                                                                                     os.path.basename(singlem_package.graftm_package().alignment_hmm_path()),
                                                                                     sample_name))
                         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                            taxonomies = DiamondResultParser(os.path.join(base_dir, '%s_diamond_assignment.daa' % tmpbase))
+                            tax_file = os.path.join(base_dir, '%s_diamond_assignment.daa' % tmpbase)
+                        else:
+                            tax_file = os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase)
+                        logging.debug("Reading taxonomy from %s" % tax_file)
+                        
+                        if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                            taxonomies = DiamondResultParser(tax_file)
                             use_first = True
-                        else:  
-                            taxonomies = TaxonomyFile(os.path.join(base_dir, "%s_read_tax.tsv" % tmpbase))
+                        else:
+                            if not os.path.isfile(tax_file):
+                                logging.warn("Unable to find tax file for gene %s from sample %s (likely do to min length filtering), skipping" %\
+                                         (key, sample_name))
+                                continue
+                            taxonomies = TaxonomyFile(tax_file)
                             use_first = False
 
                         # convert to OTU table, output
