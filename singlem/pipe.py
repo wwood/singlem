@@ -1,6 +1,5 @@
 import tempdir
 import logging
-import os
 import os.path
 import shutil
 import extern
