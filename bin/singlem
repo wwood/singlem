@@ -174,6 +174,7 @@ if __name__ == '__main__':
                              help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification' % pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                              default=pipe.PPLACER_ASSIGNMENT_METHOD)
     pipe_parser.add_argument('--evalue', help='GraftM e-value cutoff')
+    pipe_parser.add_argument('--min_orf_length', metavar='length', help='When predicting ORFs require this many base pairs uninterrupted by a stop codon (default: 96)', type=int, default=96)
     pipe_parser.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_separate_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
@@ -267,6 +268,7 @@ if __name__ == '__main__':
             known_otu_tables = args.known_otu_tables,
             assignment_method = args.assignment_method,
             evalue = args.evalue,
+            min_orf_length = args.min_orf_length,
             restrict_read_length = args.restrict_read_length,
             output_extras = args.output_extras,
             include_inserts = args.include_inserts,

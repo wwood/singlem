@@ -30,6 +30,7 @@ class SearchPipe:
         singlem_assignment_method = kwargs.pop('assignment_method')
         output_extras = kwargs.pop('output_extras')
         evalue = kwargs.pop('evalue')
+        min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
         include_inserts = kwargs.pop('include_inserts')
         singlem_packages = kwargs.pop('singlem_packages')
@@ -46,6 +47,11 @@ class SearchPipe:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
             graftm_assignment_method = singlem_assignment_method
+            
+        if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
+            graftm_verbosity = '5'
+        else:
+            graftm_verbosity = '2'
 
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
@@ -97,10 +103,12 @@ class SearchPipe:
                               "bootstrap_%s" % os.path.basename(hmm.hmm_filename))
                 bootstrap_hmms[hmm.hmm_filename] = bootstrap_hmm_file
                 logging.debug("Finding bootstrap hmm %s" % bootstrap_hmm_file)
-                cmd = "graftM bootstrap --contigs %s --search_hmm_files %s "\
-                    " --verbosity 2 --output_hmm %s" %(\
+                cmd = "graftM bootstrap --min_orf_length %s --contigs %s --search_hmm_files %s "\
+                    " --verbosity %s --output_hmm %s" %(\
+                      min_orf_length,
                       ' '.join(bootstrap_contigs),
                       hmm.hmm_path(),
+                      graftm_verbosity,
                       bootstrap_hmm_file)
                 if evalue: cmd += ' --evalue %s' % evalue
                 extern.run(cmd)
@@ -112,14 +120,17 @@ class SearchPipe:
             logging.info("Using as input %i different sequence files e.g. %s" % (len(forward_read_files),
                                                                                 forward_read_files[0]))
             cmd = "graftM graft --threads %i --forward %s "\
+                "--min_orf_length %s "\
                 "--search_hmm_files %s --search_and_align_only "\
-                "--output_directory %s --aln_hmm_file %s --verbosity 2 "\
+                "--output_directory %s --aln_hmm_file %s --verbosity %s "\
                 "--input_sequence_type nucleotide"\
                                  % (num_threads,
                                     ' '.join(forward_read_files),
+                                    min_orf_length,
                                     ' '.join(hmms.search_hmm_paths()),
                                     graftm_search_directory,
-                                    hmms.search_hmm_paths()[0])
+                                    hmms.search_hmm_paths()[0],
+                                    graftm_verbosity)
             if evalue: cmd += ' --evalue %s' % evalue
             if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
             if bootstrap_contigs:
@@ -170,12 +181,15 @@ class SearchPipe:
                 commands = []
                 for sample_name in viable_sample_names:
                     for hmm in hmms:
-                        cmd = "graftM graft --threads %i --verbosity 2 "\
+                        cmd = "graftM graft --threads %i --verbosity %s "\
+                             "--min_orf_length %s "\
                              "--forward %s/%s/%s_hits.fa "\
                              "--graftm_package %s --output_directory %s/%s_vs_%s "\
                              "--input_sequence_type nucleotide "\
                              "--search_and_align_only" % (\
                                     1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
+                                    graftm_verbosity,
+                                    min_orf_length,
                                     graftm_search_directory,
                                     sample_name,
                                     sample_name,
@@ -209,12 +223,15 @@ class SearchPipe:
                     key = singlem_package.graftm_package_basename()
                     if key in sample_to_gpkg_to_input_sequences[sample_name]:
                         tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
-                        cmd = "graftM graft --threads %i --verbosity 2 "\
+                        cmd = "graftM graft --threads %i --verbosity %s "\
+                             "--min_orf_length %s "\
                              "--forward %s "\
                              "--graftm_package %s --output_directory %s/%s_vs_%s "\
                              "--input_sequence_type nucleotide "\
                              "--assignment_method %s" % (\
                                     1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
+                                    graftm_verbosity,
+                                    min_orf_length,
                                     tmp_graft.name,
                                     singlem_package.graftm_package_path(),
                                     graftm_align_directory_base,
