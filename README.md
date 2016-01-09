@@ -11,6 +11,7 @@ Where [GraftM](https://github.com/geronimp/graftM) can give a taxonomic overview
 * How diverse are the Pelagibacteria relative to the Flavobacteria?
 * Has my genome been observed in any samples submitted to the [SRA](http://www.ncbi.nlm.nih.gov/sra)?
 
+##Generating an OTU table
 An overview of your community can be obtained like so:
 ```
 singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.csv --threads 24
