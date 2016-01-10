@@ -173,9 +173,11 @@ if __name__ == '__main__':
                                                              pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
                              help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification' % pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                              default=pipe.PPLACER_ASSIGNMENT_METHOD)
+    pipe_parser.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method' % pipe.PPLACER_ASSIGNMENT_METHOD)
     pipe_parser.add_argument('--evalue', help='GraftM e-value cutoff')
     pipe_parser.add_argument('--min_orf_length', metavar='length', help='When predicting ORFs require this many base pairs uninterrupted by a stop codon (default: 96)', type=int, default=96)
     pipe_parser.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
+    pipe_parser.add_argument('--filter_minimum', metavar='length', help='Ignore reads aligning in less than this many positions to the HMM (default: as per "graftM graft")', type=int)
     pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--previous_graftm_separate_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
@@ -259,6 +261,8 @@ if __name__ == '__main__':
     elif args.subparser_name=='pipe':
         if not args.otu_table and not args.archive_otu_table:
             raise Exception("At least one of --otu_table or --archive_otu_table must be specified")
+        if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
+            raise Exception("If --output_jplace is specified, then --assignment_method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
         singlem.pipe.SearchPipe().run(
             sequences = args.sequences,
             otu_table = args.otu_table,
@@ -267,9 +271,11 @@ if __name__ == '__main__':
             bootstrap_contigs = args.bootstrap_contigs,
             known_otu_tables = args.known_otu_tables,
             assignment_method = args.assignment_method,
+            output_jplace = args.output_jplace,
             evalue = args.evalue,
             min_orf_length = args.min_orf_length,
             restrict_read_length = args.restrict_read_length,
+            filter_minimum = args.filter_minimum,
             output_extras = args.output_extras,
             include_inserts = args.include_inserts,
             working_directory = args.working_directory,

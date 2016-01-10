@@ -6,6 +6,7 @@ import extern
 import itertools
 import tempfile
 import subprocess
+import json
 from string import split
 
 from singlem import HmmDatabase, TaxonomyFile
@@ -28,10 +29,12 @@ class SearchPipe:
         bootstrap_contigs = kwargs.pop('bootstrap_contigs')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
+        output_jplace = kwargs.pop('output_jplace')
         output_extras = kwargs.pop('output_extras')
         evalue = kwargs.pop('evalue')
         min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
+        filter_minimum = kwargs.pop('filter_minimum')
         include_inserts = kwargs.pop('include_inserts')
         singlem_packages = kwargs.pop('singlem_packages')
 
@@ -110,6 +113,7 @@ class SearchPipe:
                       hmm.hmm_path(),
                       graftm_verbosity,
                       bootstrap_hmm_file)
+                    # TODO: Add --filter_minimum ?
                 if evalue: cmd += ' --evalue %s' % evalue
                 extern.run(cmd)
 
@@ -133,6 +137,7 @@ class SearchPipe:
                                     graftm_verbosity)
             if evalue: cmd += ' --evalue %s' % evalue
             if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
+            if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
             if bootstrap_contigs:
                 cmd += " --search_hmm_files %s" % ' '.join(
                     itertools.chain(
@@ -199,6 +204,7 @@ class SearchPipe:
                                     os.path.basename(hmm.graftm_package_path()))
                         if evalue: cmd += ' --evalue %s' % evalue
                         if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
+                        if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
                         if bootstrap_contigs:
                             bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
                             if os.path.isfile(bootstrap_hmm):
@@ -240,6 +246,7 @@ class SearchPipe:
                                     graftm_assignment_method)
                         if evalue: cmd += ' --evalue %s' % evalue
                         if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
+                        if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
                         if bootstrap_contigs:
                             bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
                             if os.path.isfile(bootstrap_hmm):
@@ -308,8 +315,8 @@ class SearchPipe:
                             use_first = False
 
                         # convert to OTU table, output
-                        for info in self._seqs_to_counts_and_taxonomy(aligned_seqs,
-                                                                taxonomies, use_first):
+                        infos = list(self._seqs_to_counts_and_taxonomy(aligned_seqs, taxonomies, use_first))
+                        for info in infos:
                             if known_otu_tables:
                                 tax_assigned_through_known = False
                             to_print = [singlem_package.graftm_package_basename(),
@@ -330,6 +337,11 @@ class SearchPipe:
                             else:
                                 to_print.append(False)
                             otu_table_object.data.append(to_print)
+                            
+                        if output_jplace:
+                            jplace_file = os.path.join(base_dir, "placements.jplace")
+                            logging.debug("Reading jplace file")
+                            self._write_jplace_from_infos(open(jplace_file), infos)
                             
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
@@ -493,3 +505,7 @@ class SearchPipe:
             else:
                 break
         return '; '.join(median_tax)
+    
+    def _write_jplace_from_infos(self, jplace_io, infos):
+        raise
+        
