@@ -7,9 +7,10 @@ import itertools
 import tempfile
 import subprocess
 import json
+import re
 from string import split
 
-from singlem import HmmDatabase, TaxonomyFile
+from singlem import HmmDatabase, TaxonomyFile, OrfMUtils
 from otu_table import OtuTable
 from known_otu_table import KnownOtuTable
 from metagenome_otu_finder import MetagenomeOtuFinder
@@ -339,9 +340,12 @@ class SearchPipe:
                             otu_table_object.data.append(to_print)
                             
                         if output_jplace:
-                            jplace_file = os.path.join(base_dir, "placements.jplace")
-                            logging.debug("Reading jplace file")
-                            self._write_jplace_from_infos(open(jplace_file), infos)
+                            input_jplace_file = os.path.join(base_dir, "placements.jplace")
+                            output_jplace_file = os.path.join(base_dir, "%s_%s_%s.jplace" % (output_jplace, sample_name, singlem_package.graftm_package_basename()))
+                            logging.debug("Converting jplace file %s to singlem jplace file %s" % (input_jplace_file, output_jplace_file))
+                            with open(output_jplace_file, 'w') as output_jplace_io:
+                                self._write_jplace_from_infos(open(input_jplace_file), infos, output_jplace_io)
+                                
                             
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
@@ -506,6 +510,47 @@ class SearchPipe:
                 break
         return '; '.join(median_tax)
     
-    def _write_jplace_from_infos(self, jplace_io, infos):
-        raise
+    def _write_jplace_from_infos(self, input_jplace_io, infos, output_jplace_io):
+        
+        jplace = json.load(input_jplace_io)
+        if jplace['version'] != 3:
+            raise Exception("SingleM currently only works with jplace version 3 files, sorry")
+        
+        name_to_info = {}
+        for info in infos:
+            for name in info.names:
+                name_to_info[name] = info
+                
+        # rewrite placements to be OTU-wise instead of sequence-wise
+        orfm_utils = OrfMUtils()
+        another_regex = re.compile(u'_\d+$')
+        sequence_to_count = {}
+        sequence_to_example_p = {}
+        for placement in jplace['placements']:
+            if 'nm' not in placement:
+                raise Exception("Unexpected jplace format detected in placement %s" % placement)
+            for name_and_count in placement['nm']:
+                if len(name_and_count) != 2:
+                    raise Exception("Unexpected jplace format detected in nm %s" % name_and_count)
+                name, count = name_and_count
+                real_name = another_regex.sub('', orfm_utils.un_orfm_name(name))
+                info = name_to_info[real_name]
+                sequence = info.seq
+                
+                try:
+                    sequence_to_count[sequence] += count
+                except KeyError:
+                    sequence_to_count[sequence] = count
+                    
+                if real_name == info.names[0]:
+                    sequence_to_example_p[sequence] = placement['p']
+            
+        new_placements = {}
+        for sequence, example_p in sequence_to_example_p.items():
+            new_placements[sequence] = {}
+            new_placements[sequence]['nm'] = [[sequence, sequence_to_count[sequence]]]
+            new_placements[sequence]['p'] = example_p
+            
+        jplace['placements'] = new_placements
+        json.dump(jplace, output_jplace_io)
         

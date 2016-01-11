@@ -29,6 +29,7 @@ import tempdir
 from string import split
 import extern
 import sys
+import json
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -213,6 +214,70 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                                                                                                     t.name)
             self.assertEqual('never passed this test before, fill me!', sorted(extern.run(cmd).split("\n")))
 
-                            
+    def test_jplace_output(self):
+        expected_jpace = {u'fields': [u'classification',
+  u'distal_length',
+  u'edge_num',
+  u'like_weight_ratio',
+  u'likelihood',
+  u'pendant_length'],
+ u'metadata': 'the_metadata',
+ u'placements': {u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG': {u'nm': [[u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+     2]],
+   u'p': [[u'g__Bacillus',
+     8.59375e-06,
+     178,
+     0.142857142864,
+     -19892.7622511,
+     0.322551664432],
+    [u'g__Bacillus',
+     8.59375e-06,
+     179,
+     0.142857142864,
+     -19892.7622511,
+     0.322551664432],
+    [u'g__Bacillus',
+     8.59375e-06,
+     254,
+     0.142857142864,
+     -19892.7622511,
+     0.322551674793],
+    [u'g__Virgibacillus',
+     8.59375e-06,
+     304,
+     0.142857142864,
+     -19892.7622511,
+     0.322551394722],
+    [u'g__Virgibacillus',
+     8.59375e-06,
+     305,
+     0.142857142864,
+     -19892.7622511,
+     0.322551394722],
+    [u'g__Exiguobacterium',
+     8.59375e-06,
+     376,
+     0.142857142864,
+     -19892.7622511,
+     0.322551677204],
+    [u'g__Brevibacillus',
+     0.0005315625,
+     324,
+     0.142857142818,
+     -19892.7622511,
+     0.32255147376]]}},
+ u'tree': 'tree_thanks',
+ u'version': 3}
+        
+        with tempdir.TempDir() as d:
+            cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s" % (path_to_script,
+                                                            os.path.join(path_to_data,'1_pipe','jplace_test.fna'),
+                                                            os.path.join(d, "my_jplace"))
+            extern.run(cmd)
+            j = json.load(open(os.path.join(d, 'my_jplace_jplace_test_4.12.ribosomal_protein_L11_rplK.jplace')))
+            j['tree'] = 'tree_thanks'
+            j['metadata'] = 'the_metadata'
+            self.assertEqual(expected_jpace, j)
+
 if __name__ == "__main__":
     unittest.main()
