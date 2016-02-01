@@ -55,12 +55,15 @@ class Appraiser:
                 percent = 0.0
             else:
                 percent = float(num_found)/(num_found+num_not_found) * 100
-            print "\t".join([sample, num_found, num_not_found, percent])
+            print "\t".join([sample, str(num_found), str(num_not_found), "%2.1f" % percent])
             
-        for sample, appraisal in sample_name_to_appraisal.items():
-            print_sample(appraisal.num_found, appraisal.num_not_found, sample)
-            total_found += appraisal.num_found
-            total_not_found += appraisal.num_not_found
+        for appraisal_result in appraisal.appraisal_results:
+            print_sample(appraisal_result.num_found,
+                         appraisal_result.num_not_found,
+                         appraisal_result.metagenome_sample_name)
+            total_found += appraisal_result.num_found
+            total_not_found += appraisal_result.num_not_found
+
         print_sample(total_found, total_not_found, 'total')
         
         

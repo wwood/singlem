@@ -30,6 +30,7 @@ from singlem.metagenome_otu_finder import MetagenomeOtuFinder
 from singlem.package_creator import PackageCreator
 from singlem.otu_table_collection import OtuTableCollection
 from singlem.clusterer import Clusterer
+from singlem.appraiser import Appraiser
 
 def seqs(args):
     # Read in the fasta Alignment
@@ -246,6 +247,14 @@ if __name__ == '__main__':
     create_parser.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
     create_parser.add_argument('--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
+    
+    temp_description = 'How much of the metagenome do the genomes account for?'
+    create_parser = subparsers.add_parser('appraise',
+                                        description=temp_description,
+                                        help=temp_description,
+                                        epilog=__author__)
+    create_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    create_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
 
     args = parser.parse_args()
     if args.debug:
@@ -363,6 +372,17 @@ if __name__ == '__main__':
                                 output_singlem_package = args.output_singlem_package,
                                 hmm_position = args.hmm_position,
                                 force = args.force)
+    elif args.subparser_name == 'appraise':
+        appraiser = Appraiser()
+        genomes = OtuTableCollection()
+        for table in args.genome_otu_tables:
+            genomes.add_otu_table(open(table))
+        metagenomes = OtuTableCollection()
+        for table in args.metagenome_otu_tables:
+            metagenomes.add_otu_table(open(table))
+        app = appraiser.appraise(genome_otu_table_collection=genomes,
+                                 metagenome_otu_table_collection=metagenomes)
+        appraiser.print_appraisal(app)
     else:
         raise Exception("Programming error")
 
