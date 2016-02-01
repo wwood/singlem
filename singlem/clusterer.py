@@ -3,6 +3,7 @@ import extern
 import string
 from uc_file import UCFile
 from otu_table_entry import OtuTableEntry
+from itertools import chain
 
 class Clusterer:
     def each_cluster(self, otu_table_collection, cluster_identity):
@@ -65,7 +66,7 @@ class Clusterer:
                     ratio = centre.coverage / centre.count
                     
                     for sample, sample_otus in sample_to_otus.items():
-                        c2 = ClusteredOtu()
+                        c2 = SampleWiseClusteredOtu()
                         c2.marker = centre.marker
                         c2.sample_name = sample
                         c2.sequence = centre.sequence
@@ -76,10 +77,54 @@ class Clusterer:
                         c2.otus = sample_otus
                         c2.representative_otu = centre
                         yield c2
-                
-class ClusteredOtu(OtuTableEntry):
+                        
+    def cluster(self, otu_table_collection, cluster_identity):
+        '''As per each_cluster(), except that clusters are returned
+        as a list of lists of ClusteredOtu objects, so that each cluster is
+        together'''
+        rep_sequence_to_otus = {}
+        for clustered_otu in self.each_cluster(otu_table_collection, cluster_identity):
+            repseq = clustered_otu.representative_otu.sequence
+            if repseq not in rep_sequence_to_otus:
+                rep_sequence_to_otus[repseq] = []
+            rep_sequence_to_otus[repseq].append(clustered_otu)
+            
+        clusters = []
+        for otu_set in rep_sequence_to_otus.values():
+            eg = otu_set[0]
+            eg.__class__ = Cluster
+            eg.otus = list(chain.from_iterable([sample_wise_cluster.otus for sample_wise_cluster in otu_set]))
+            clusters.append(eg)
+            
+        return Clusters(clusters)
+    
+class Cluster(OtuTableEntry):
+    '''Basically the same thing as a SampleWiseClusteredOtu except that the 
+    otus are from all samples, not just a single sample. A semantic 
+    difference.'''
+    pass
+                       
+class SampleWiseClusteredOtu(Cluster):
+    '''A cluster where all of the OTUs are from a single sample, but the
+    representative OTU may not be from that sample.'''
     # all otus here are from the sample
     otus = None
     
     # may or may not be from the sample that self is from
     representative_otu = None
+    
+class Clusters:
+    def __init__(self, clusters):
+        self.clusters = clusters
+        
+    def each_otu(self):
+        '''Iterate over all OTUs from each clustered_otus'''
+        for clustered_otu in self.clustered_otus:
+            for otu in clustered_otu.otus:
+                yield otu
+                
+    def __iter__(self):
+        '''Iterate over clusters'''
+        for cluster in self.clusters:
+            yield cluster
+        

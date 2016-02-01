@@ -32,6 +32,8 @@ from singlem.otu_table_collection import OtuTableCollection
 from singlem.clusterer import Clusterer
 from singlem.appraiser import Appraiser
 
+ALMOST_90_PERCENT_ON_60BP = round(math.floor(0.97*60)/60, 3)
+
 def seqs(args):
     # Read in the fasta Alignment
     protein_alignment = SeqReader().protein_alignment_from_alignment_file(args.alignment)
@@ -227,7 +229,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--input_archive_otu_tables', nargs='+', help="Summarise these tables")
     summarise_parser.add_argument('--input_otu_tables', nargs='+', help="Summarise these tables")
     summarise_parser.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
-    summarise_parser.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=round(math.floor(0.97*60)/60, 3))
+    summarise_parser.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=ALMOST_90_PERCENT_ON_60BP)
     summarise_parser.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
@@ -249,12 +251,14 @@ if __name__ == '__main__':
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
     
     temp_description = 'How much of the metagenome do the genomes account for?'
-    create_parser = subparsers.add_parser('appraise',
+    appraise_parser = subparsers.add_parser('appraise',
                                         description=temp_description,
                                         help=temp_description,
                                         epilog=__author__)
-    create_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
-    create_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
+    appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
+    appraise_parser.add_argument('--cluster', action='store_true', help="use sequence clustering identity to account for genomes that are similar to those found in the metagenome", default=False)
+    appraise_parser.add_argument('--cluster_id', type=float, help="sequence identity cutoff to use if --cluster is specified", default=ALMOST_90_PERCENT_ON_60BP)
 
     args = parser.parse_args()
     if args.debug:
@@ -381,7 +385,8 @@ if __name__ == '__main__':
         for table in args.metagenome_otu_tables:
             metagenomes.add_otu_table(open(table))
         app = appraiser.appraise(genome_otu_table_collection=genomes,
-                                 metagenome_otu_table_collection=metagenomes)
+                                 metagenome_otu_table_collection=metagenomes,
+                                 cluster_identity=(args.cluster_id if args.cluster else None))
         appraiser.print_appraisal(app)
     else:
         raise Exception("Programming error")

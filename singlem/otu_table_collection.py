@@ -27,6 +27,14 @@ class OtuTableCollection:
     def add_archive_otu_table(self, input_archive_table_io):
         self.archive_table_objects.append(ArchiveOtuTable.read(input_archive_table_io))
         
+    def add_otu_table_collection(self, otu_table_collection):
+        '''Append an OtuTableCollection to this collection.
+        Only the tables are added, the target_taxonomy is ignored'''
+        for otu_table in otu_table_collection.otu_table_objects:
+            self.otu_table_objects.append(otu_table)
+        for archive in otu_table_collection.archive_table_objects:
+            self.archive_table_objects.append(archive)
+        
     def set_target_taxonomy_by_string(self, taxonomy_string):
         '''Set the target_taxonomy instance variable by a string, which
         gets parsed into the requisite array form and stored in the instance
