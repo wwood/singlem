@@ -171,6 +171,37 @@ class Tests(unittest.TestCase):
         self.assertEqual(0, a.num_found)
         self.assertEqual(4, a.num_not_found)
 
+    def test_print_appraisal(self):
+        metagenome_otu_table = [self.headers,
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+                    ]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+        
+        genomes_otu_table = [self.headers,['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+                    ]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+        
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection)
+        self.assertEqual(2, len(app.appraisal_results))
+        a = app.appraisal_results[1]
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual(7, a.num_found)
+        self.assertEqual(0, a.num_not_found)
+        a = app.appraisal_results[0]
+        self.assertEqual('another', a.metagenome_sample_name)
+        self.assertEqual(0, a.num_found)
+        self.assertEqual(4, a.num_not_found)
+        
+        to_print = StringIO()
+        appraiser.print_appraisal(app, to_print)
+        self.assertEqual("sample\tnum_found\tnum_not_found\tpercent_found\nanother\t0\t4\t0.0\nminimal\t7\t0\t100.0\ntotal\t7\t4\t63.6\naverage\t3.5\t2.0\t0.5\n", to_print.getvalue())
         
     
        

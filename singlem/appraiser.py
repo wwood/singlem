@@ -1,4 +1,6 @@
 import logging
+import sys
+
 from clusterer import Clusterer
 from otu_table_collection import OtuTableCollection
 
@@ -52,10 +54,10 @@ class Appraiser:
             # twice, so slurp.
             metagenome_otu_table = OtuTableCollection()
             metagenome_otu_table.otu_table_objects.append(list(metagenome_otu_table_collection))
-            logging.info("Read in %i OTUs from metagenomes" % len(list(metagenome_otu_table)))
+            logging.info("Read in %i OTU sequences from metagenomes" % len(list(metagenome_otu_table)))
             genomes_otu_table = OtuTableCollection()
             genomes_otu_table.otu_table_objects.append(list(genome_otu_table_collection))
-            logging.info("Read in %i sequences from reference genomes" % len(list(genomes_otu_table)))
+            logging.info("Read in %i OTU sequences from reference genomes" % len(list(genomes_otu_table)))
 
             # read metagenome OTU samples and counts
             metagenome_sequence_to_sample_and_count = {}
@@ -104,28 +106,40 @@ class Appraiser:
 
             
         
-    def print_appraisal(self, appraisal):
+    def print_appraisal(self, appraisal, output_io=sys.stdout):
         '''print the Appraisal object overview to STDOUT'''
         
-        print "\t".join(['sample','num_found','num_not_found','percent_found'])
-        total_found = 0
-        total_not_found = 0
+        output_io.write("\t".join(['sample','num_found','num_not_found','percent_found'])+"\n")
+        founds = []
+        not_founds = []
         
-        def print_sample(num_found, num_not_found, sample):
-            if num_found + num_not_found == 0:
+        def print_sample(num_found, num_not_found, sample, mypercent=None):
+            if mypercent:
+                percent = mypercent
+            elif num_found + num_not_found == 0:
                 percent = 0.0
             else:
                 percent = float(num_found)/(num_found+num_not_found) * 100
-            print "\t".join([sample, str(num_found), str(num_not_found), "%2.1f" % percent])
+            output_io.write("\t".join([sample, str(num_found), str(num_not_found), "%2.1f" % percent])+"\n")
+            
+        def mean(l):
+            return float(sum(l))/len(l) if len(l) > 0 else float('nan')
             
         for appraisal_result in appraisal.appraisal_results:
             print_sample(appraisal_result.num_found,
                          appraisal_result.num_not_found,
                          appraisal_result.metagenome_sample_name)
-            total_found += appraisal_result.num_found
-            total_not_found += appraisal_result.num_not_found
+            founds.append(appraisal_result.num_found)
+            not_founds.append(appraisal_result.num_not_found)
 
-        print_sample(total_found, total_not_found, 'total')
+        print_sample(sum(founds), sum(not_founds), 'total')
+        
+        means = []
+        for i, num_found in enumerate(founds):
+            num_not_found = not_founds[i]
+            means.append(float(num_found)/(num_found+num_not_found))
+        print_sample("%2.1f" % mean(founds), "%2.1f" % mean(not_founds), 'average',
+                     mypercent=mean(means)*100)
         
 class SampleAndCount:
     def __init__(self, sample_name, count):
