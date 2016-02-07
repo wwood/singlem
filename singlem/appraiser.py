@@ -106,7 +106,10 @@ class Appraiser:
 
             
         
-    def print_appraisal(self, appraisal, output_io=sys.stdout):
+    def print_appraisal(self, appraisal,
+                        output_io=sys.stdout,
+                        accounted_for_otu_table=None,
+                        unaccounted_for_otu_table=None):
         '''print the Appraisal object overview to STDOUT'''
         
         output_io.write("\t".join(['sample','num_found','num_not_found','percent_found'])+"\n")
