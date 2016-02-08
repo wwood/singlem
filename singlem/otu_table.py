@@ -56,7 +56,7 @@ class OtuTable:
                 otus.data.append(row)
         return otus
             
-    def write_to(self, output_io, fields_to_print):
+    def write_to(self, output_io, fields_to_print=DEFAULT_OUTPUT_FIELDS):
         '''Output as a CSV file to the (open) I/O object
         
         Parameters

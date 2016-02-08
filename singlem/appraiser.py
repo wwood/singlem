@@ -3,6 +3,7 @@ import sys
 
 from clusterer import Clusterer
 from otu_table_collection import OtuTableCollection
+from otu_table import OtuTable
 
 class Appraiser:
     def appraise(self, **kwargs):
@@ -66,8 +67,7 @@ class Appraiser:
             for otu in metagenome_otu_table:
                 if otu.sequence not in metagenome_sequence_to_sample_and_count:
                     metagenome_sequence_to_sample_and_count[otu.sequence] = []
-                metagenome_sequence_to_sample_and_count[otu.sequence].append(
-                    SampleAndCount(otu.sample_name, otu.count))
+                metagenome_sequence_to_sample_and_count[otu.sequence].append(otu)
                 
             genome_otu_sequences = set([otu.sequence for otu in genomes_otu_table])
                     
@@ -86,21 +86,23 @@ class Appraiser:
                     if otu.sequence in genome_otu_sequences:
                         cluster_represented = True
                         break
-                
+
                 # Iterate through sequences, adding to num_found or num_not_found
                 for otu in cluster.otus:
                     if otu.sequence in metagenome_sequence_to_sample_and_count: # possible that a genome was recovered but there is no OTU from the metagenome
-                        for sample_and_count in metagenome_sequence_to_sample_and_count[otu.sequence]:
-                            if sample_and_count.sample_name not in sample_name_to_appraisal:
+                        for sub_otu in metagenome_sequence_to_sample_and_count[otu.sequence]:
+                            if sub_otu.sample_name not in sample_name_to_appraisal:
                                 res = AppraisalResult()
-                                res.metagenome_sample_name = sample_and_count.sample_name
-                                sample_name_to_appraisal[sample_and_count.sample_name] = res
+                                res.metagenome_sample_name = sub_otu.sample_name
+                                sample_name_to_appraisal[sub_otu.sample_name] = res
                                 
-                            appraisal = sample_name_to_appraisal[sample_and_count.sample_name]
+                            appraisal = sample_name_to_appraisal[sub_otu.sample_name]
                             if cluster_represented:
-                                appraisal.num_found += sample_and_count.count
+                                appraisal.num_found += sub_otu.count
+                                appraisal.found_otus.append(sub_otu)
                             else:
-                                appraisal.num_not_found += sample_and_count.count
+                                appraisal.num_not_found += sub_otu.count
+                                appraisal.not_found_otus.append(sub_otu)
                                 
             app = Appraisal()
             app.appraisal_results = sample_name_to_appraisal.values()
@@ -110,8 +112,8 @@ class Appraiser:
         
     def print_appraisal(self, appraisal,
                         output_io=sys.stdout,
-                        accounted_for_otu_table=None,
-                        unaccounted_for_otu_table=None):
+                        accounted_for_otu_table_io=None,
+                        unaccounted_for_otu_table_io=None):
         '''print the Appraisal object overview to STDOUT'''
         
         output_io.write("\t".join(['sample','num_found','num_not_found','percent_found'])+"\n")
@@ -129,6 +131,11 @@ class Appraiser:
             
         def mean(l):
             return float(sum(l))/len(l) if len(l) > 0 else float('nan')
+        
+        if accounted_for_otu_table_io:
+            accounted_for_table = OtuTable()
+        if unaccounted_for_otu_table_io:
+            unaccounted_for_table = OtuTable()
             
         for appraisal_result in appraisal.appraisal_results:
             print_sample(appraisal_result.num_found,
@@ -136,7 +143,11 @@ class Appraiser:
                          appraisal_result.metagenome_sample_name)
             founds.append(appraisal_result.num_found)
             not_founds.append(appraisal_result.num_not_found)
-
+            if accounted_for_otu_table_io:
+                accounted_for_table.add(appraisal_result.found_otus)
+            if accounted_for_otu_table_io:
+                unaccounted_for_table.add(appraisal_result.not_found_otus)
+            
         print_sample(sum(founds), sum(not_founds), 'total')
         
         means = []
@@ -146,17 +157,20 @@ class Appraiser:
         print_sample("%2.1f" % mean(founds), "%2.1f" % mean(not_founds), 'average',
                      mypercent=mean(means)*100)
         
-class SampleAndCount:
-    def __init__(self, sample_name, count):
-        self.sample_name = sample_name
-        self.count = count
+        if accounted_for_otu_table_io:
+            accounted_for_table.write_to(accounted_for_otu_table_io)
+        if unaccounted_for_otu_table_io:
+            unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
+
         
 class AppraisalResult:
     num_found = 0
     num_not_found = 0
     metagenome_sample_name = None
-    found_otus = []
-    not_found_otus = []
+    
+    def __init__(self):
+        self.found_otus = []
+        self.not_found_otus = []
     
 class Appraisal:
     appraisal_results = None

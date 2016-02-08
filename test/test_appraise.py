@@ -65,7 +65,7 @@ class Tests(unittest.TestCase):
                          a.found_otus[0].sequence)
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
-                         a.found_otus[0].sequence)
+                         a.not_found_otus[0].sequence)
         
     def test_multiple_samples(self):
         metagenome_otu_table = [self.headers,
@@ -172,10 +172,18 @@ class Tests(unittest.TestCase):
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(7, a.num_found)
         self.assertEqual(0, a.num_not_found)
+        self.assertEqual(1, len(a.found_otus))
+        self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                         a.found_otus[0].sequence)
+        self.assertEqual(0, len(a.not_found_otus))
         a = app.appraisal_results[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
         self.assertEqual(0, a.num_found)
         self.assertEqual(4, a.num_not_found)
+        self.assertEqual(1, len(a.not_found_otus))
+        self.assertEqual('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+                         a.not_found_otus[0].sequence)
+        self.assertEqual(0, len(a.found_otus))
 
     def test_print_appraisal(self):
         metagenome_otu_table = [self.headers,
@@ -207,7 +215,23 @@ class Tests(unittest.TestCase):
         
         to_print = StringIO()
         appraiser.print_appraisal(app, to_print)
-        self.assertEqual("sample\tnum_found\tnum_not_found\tpercent_found\nanother\t0\t4\t0.0\nminimal\t7\t0\t100.0\ntotal\t7\t4\t63.6\naverage\t3.5\t2.0\t0.5\n", to_print.getvalue())
+        self.assertEqual("sample\tnum_found\tnum_not_found\tpercent_found\nanother\t0\t4\t0.0\nminimal\t7\t0\t100.0\ntotal\t7\t4\t63.6\naverage\t3.5\t2.0\t50.0\n", to_print.getvalue())
+        
+        to_print = StringIO()
+        found_otu_table_io = StringIO()
+        not_found_otu_table_io = StringIO()
+        appraiser.print_appraisal(app, to_print,
+                                  accounted_for_otu_table_io=found_otu_table_io,
+                                  unaccounted_for_otu_table_io=not_found_otu_table_io)
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'])
+                          ])+"\n",
+                         found_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'])])+"\n",
+                         not_found_otu_table_io.getvalue())
         
     
        

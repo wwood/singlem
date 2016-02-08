@@ -399,8 +399,8 @@ if __name__ == '__main__':
             unaccounted_for_otu_table_io = None
             
         appraiser.print_appraisal(app,
-                                  accounted_for_otu_table=accounted_for_otu_table_io,
-                                  unaccounted_for_otu_table=unaccounted_for_otu_table_io)
+                                  accounted_for_otu_table_io=accounted_for_otu_table_io,
+                                  unaccounted_for_otu_table_io=unaccounted_for_otu_table_io)
         if args.accounted_for_otu_table: accounted_for_otu_table_io.close()
         if args.unaccounted_for_otu_table: unaccounted_for_otu_table_io.close()
     else:
