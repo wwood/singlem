@@ -60,6 +60,12 @@ class Tests(unittest.TestCase):
         self.assertEqual(7, a.num_found)
         self.assertEqual(4, a.num_not_found)
         self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual(1, len(a.found_otus))
+        self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                         a.found_otus[0].sequence)
+        self.assertEqual(1, len(a.not_found_otus))
+        self.assertEqual('CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                         a.found_otus[0].sequence)
         
     def test_multiple_samples(self):
         metagenome_otu_table = [self.headers,

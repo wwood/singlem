@@ -388,9 +388,21 @@ if __name__ == '__main__':
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                  metagenome_otu_table_collection=metagenomes,
                                  cluster_identity=(args.cluster_id if args.cluster else None))
+        
+        if args.accounted_for_otu_table:
+            accounted_for_otu_table_io = open(args.accounted_for_otu_table,'w')
+        else:
+            accounted_for_otu_table_io = None
+        if args.unaccounted_for_otu_table:
+            unaccounted_for_otu_table_io = open(args.unaccounted_for_otu_table,'w')
+        else:
+            unaccounted_for_otu_table_io = None
+            
         appraiser.print_appraisal(app,
-                                  accounted_for_otu_table=args.accounted_for_otu_table,
-                                  unaccounted_for_otu_table=args.unaccounted_for_otu_table)
+                                  accounted_for_otu_table=accounted_for_otu_table_io,
+                                  unaccounted_for_otu_table=unaccounted_for_otu_table_io)
+        if args.accounted_for_otu_table: accounted_for_otu_table_io.close()
+        if args.unaccounted_for_otu_table: unaccounted_for_otu_table_io.close()
     else:
         raise Exception("Programming error")
 

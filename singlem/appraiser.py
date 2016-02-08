@@ -42,8 +42,10 @@ class Appraiser:
                 count = otu.count
                 if otu.sequence in genome_otu_sequences:
                     appraisal.num_found += count
+                    appraisal.found_otus.append(otu)
                 else:
                     appraisal.num_not_found += count
+                    appraisal.not_found_otus.append(otu)
                     
             app = Appraisal()
             app.appraisal_results = sample_name_to_appraisal.values()
@@ -153,6 +155,8 @@ class AppraisalResult:
     num_found = 0
     num_not_found = 0
     metagenome_sample_name = None
+    found_otus = []
+    not_found_otus = []
     
 class Appraisal:
     appraisal_results = None
