@@ -78,6 +78,12 @@ class Appraiser:
             # cluster and count as we go
             sample_name_to_appraisal = {}
             
+            # it is possible (somehow) that identical sequences can get
+            # clustered into different clusters. So keep a list of those already
+            # visited and ignore those already visited.
+            visited_sequences = set()
+            
+            logging.info("Clustering OTU sequences")
             for cluster in Clusterer().cluster(total_collection, cluster_identity):
                 # Determine if this cluster contains a genome representative
                 cluster_represented = False
@@ -88,21 +94,25 @@ class Appraiser:
                         break
 
                 # Iterate through sequences, adding to num_found or num_not_found
-                for otu in cluster.otus:
-                    if otu.sequence in metagenome_sequence_to_sample_and_count: # possible that a genome was recovered but there is no OTU from the metagenome
-                        for sub_otu in metagenome_sequence_to_sample_and_count[otu.sequence]:
-                            if sub_otu.sample_name not in sample_name_to_appraisal:
-                                res = AppraisalResult()
-                                res.metagenome_sample_name = sub_otu.sample_name
-                                sample_name_to_appraisal[sub_otu.sample_name] = res
-                                
-                            appraisal = sample_name_to_appraisal[sub_otu.sample_name]
-                            if cluster_represented:
-                                appraisal.num_found += sub_otu.count
-                                appraisal.found_otus.append(sub_otu)
-                            else:
-                                appraisal.num_not_found += sub_otu.count
-                                appraisal.not_found_otus.append(sub_otu)
+                for seq in set([otu.sequence for otu in cluster.otus]):
+                    if seq in visited_sequences:
+                        logging.debug("Hit a wierd situation where 2 OTUs with the same sequence are in different clusters")
+                    else:
+                        visited_sequences.add(seq)
+                        if seq in metagenome_sequence_to_sample_and_count: # possible that a genome was recovered but there is no OTU from the metagenome
+                            for sub_otu in metagenome_sequence_to_sample_and_count[seq]:
+                                if sub_otu.sample_name not in sample_name_to_appraisal:
+                                    res = AppraisalResult()
+                                    res.metagenome_sample_name = sub_otu.sample_name
+                                    sample_name_to_appraisal[sub_otu.sample_name] = res
+                                    
+                                appraisal = sample_name_to_appraisal[sub_otu.sample_name]
+                                if cluster_represented:
+                                    appraisal.num_found += sub_otu.count
+                                    appraisal.found_otus.append(sub_otu)
+                                else:
+                                    appraisal.num_not_found += sub_otu.count
+                                    appraisal.not_found_otus.append(sub_otu)
                                 
             app = Appraisal()
             app.appraisal_results = sample_name_to_appraisal.values()
