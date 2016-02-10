@@ -257,8 +257,8 @@ if __name__ == '__main__':
                                         epilog=__author__)
     appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
     appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
-    appraise_parser.add_argument('--cluster', action='store_true', help="use sequence clustering identity to account for genomes that are similar to those found in the metagenome", default=False)
-    appraise_parser.add_argument('--cluster_id', type=float, help="sequence identity cutoff to use if --cluster is specified", default=ALMOST_90_PERCENT_ON_60BP)
+    appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
+    appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=ALMOST_90_PERCENT_ON_60BP)
     appraise_parser.add_argument('--accounted_for_otu_table', help="output OTU table of accounted-for populations", default=None)
     appraise_parser.add_argument('--unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
 
@@ -390,7 +390,7 @@ if __name__ == '__main__':
             
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                  metagenome_otu_table_collection=metagenomes,
-                                 cluster_identity=(args.cluster_id if args.cluster else None))
+                                 sequence_identity=(args.sequence_identity if args.imperfect else None))
         
         if args.accounted_for_otu_table:
             accounted_for_otu_table_io = open(args.accounted_for_otu_table,'w')
