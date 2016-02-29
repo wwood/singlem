@@ -43,22 +43,33 @@ if __name__ == '__main__':
     # Read in taxonomy
     logging.info("Reading taxonomy..")
     gg = GreenGenesTaxonomy.read(open(args.greengenes_taxonomy)).taxonomy
-    logging.info("Read in %i taxonomies" % len(gg)) 
+    logging.info("Read in %i taxonomies" % len(gg))
     
     # Read in sequence
     logging.info("Reading sequences..")
+    duplicates = set()
     sequences = {}
     for name, seq, _  in SequenceIO()._readfq(open(args.sequences)):
         if name in sequences:
             logging.error("Duplicate sequence name %s" % name)
-            sys.exit(1)
-        sequences[name] = seq
+            duplicates.add(name)
+        else:
+            sequences[name] = seq
+    logging.warn("Found %i duplicated IDs" % len(duplicates))
+    for dup in duplicates:
+        del sequences[dup]
     logging.info("Read in %i sequences" % len(sequences))
     
-    # Ensure that each sequence in the taxonomy has an associated taxonomy
+    # Ensure that each sequence in the taxonomy has an associated sequence,
+    # otherwise delete it
+    tax_no_seq = set()
     for name, taxonomy in gg.items():
         if name not in sequences:
-            raise Exception("Sequence %s does not have an associated taxonomy, croaking" % name)
+            tax_no_seq.add(name)
+    logging.warn("Found %i taxonomies that had no sequences, deleting" % len(tax_no_seq))
+    for name in tax_no_seq:
+        del gg[name]
+    logging.info("After deleting no-seq taxonomies now have %i taxes" % len(gg))
     
     # Create recursive hash of taxonomy ending in sequences
     taxonomic_prefixes = string.split('k p c o f g s')
@@ -104,7 +115,6 @@ if __name__ == '__main__':
                     current = LineageOrLeaf(last, s, i)
                     last.children[s] = current
                     last = current
-            print "current now %s" % last
             count += 1
         if len(splits) == count and count == len(taxonomic_prefixes):
             last.children[s] = sequences[name]
