@@ -107,19 +107,28 @@ class Summariser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         logging.info("Writing clustered OTU table")
-        output_table_io.write("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS+['num_sub_otus','max_sub_otu_abundance'])+"\n")
+        output_table_io.write(
+            "\t".join(
+                OtuTable.DEFAULT_OUTPUT_FIELDS+
+                ['representative',
+                 'num_sub_otus',
+                 'max_sub_otu_abundance'])
+            +"\n")
         
         for d in table_collection:
-            output_table_io.write("\t".join([OtuTable._to_printable(cell) for cell in [\
-                d.marker,
-                d.sample_name,
-                d.sequence,
-                d.count,
-                d.coverage,
-                d.taxonomy,
-                len(d.otus),
-                max([otu.count for otu in d.otus])
-                ]])+"\n") 
+            for otu in d.otus:
+                output_table_io.write("\t".join(
+                    [OtuTable._to_printable(cell) for cell in [
+                        otu.marker,
+                        otu.sample_name,
+                        otu.sequence,
+                        otu.count,
+                        otu.coverage,
+                        otu.taxonomy,
+                        d.sequence,
+                        len(d.otus),
+                        max([otu.count for otu in d.otus])
+                    ]])+"\n")
 
     @staticmethod
     def write_rarefied_otu_table(**kwargs):
