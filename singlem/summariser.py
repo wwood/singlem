@@ -111,6 +111,8 @@ class Summariser:
             "\t".join(
                 OtuTable.DEFAULT_OUTPUT_FIELDS+
                 ['representative',
+                 'total_num_reads',
+                 'total_coverage',
                  'num_sub_otus',
                  'max_sub_otu_abundance'])
             +"\n")
@@ -126,6 +128,8 @@ class Summariser:
                         otu.coverage,
                         otu.taxonomy,
                         d.sequence,
+                        d.count,
+                        d.coverage,
                         len(d.otus),
                         max([otu.count for otu in d.otus])
                     ]])+"\n")
