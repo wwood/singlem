@@ -51,7 +51,7 @@ singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv -
 ```
 
 ###Calculating beta diversity between samples
-As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, convert your OTU table to unifrac format using the EBD script `convertToEBD.py`, and then use `ExpressBetaDiversity` to convert the unifrac format into ebd format, and calculate the beta diversity metric:
+As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, convert your OTU table to unifrac format using `singlem summarise`, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
 ```
 singlem summarise --input_otu_table otu_table.csv --unifrac otu_table.unifrac
 convertToEBD.py otu_table.unifrac otu_table.ebd
@@ -79,9 +79,10 @@ singlem query --query_sequence TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGG
 
 
 ###Installation
-SingleM is not currently available on pip, though we anticipate this in future. To install, clone from the GitHub repository:
+SingleM is not currently available on pip, though we anticipate this in future. To install, clone from the GitHub repository and run from the checked out respository:
 ```
 git clone https://github.com/wwood/singlem
+./singlem/bin/singlem -h
 ```
 SingleM has the following dependencies:
 * [GraftM](https://github.com/geronimp/graftM), which in itself has several dependencies :(
@@ -90,10 +91,6 @@ SingleM has the following dependencies:
 
 If you are running SingleM on large datasets, you may wish to speed processing up by using the bleeding edge version of BioPython, which includes an [optimisation](https://github.com/biopython/biopython/pull/673) not released in version 1.66.
 
-To run `singlem` then, run
-```
-singlem/bin/singlem -h
-```
 
 ##License
 SingleM is written by Ben Woodcroft (@wwood) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
