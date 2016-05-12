@@ -1,4 +1,4 @@
-Welcome to the SingleM.
+Welcome to SingleM.
 
 SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data, without heavy reliance of reference sequence databases. It is able to differentiate closely related species even if those species are from lineages new to science.
 
