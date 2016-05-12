@@ -12,8 +12,17 @@ class MetagenomeOtuFinder:
                                 nucleotide_sequences,
                                 stretch_length,
                                 include_inserts,
+                                is_protein_alignment,
                                 best_position=None,
                                 ):
+        '''Return an array of AlignedNucleotideSequence objects containing sequences
+        aligned at the given best_position, finding that best position if None
+        is given.
+
+        Parameters
+        ----------
+
+        '''
         ignored_columns = self._find_lower_case_columns(aligned_sequences)
         logging.debug("Ignoring columns %s", str(ignored_columns))
 
@@ -36,8 +45,8 @@ class MetagenomeOtuFinder:
             if s.seq[chosen_positions[0]] != '-' and s.seq[chosen_positions[-1]] != '-':
                 name = s.un_orfm_name()
                 nuc = nucleotide_sequences[name]
-                align, aligned_length = self._nucleotide_alignment(\
-                    s, s.orfm_nucleotides(nuc), chosen_positions, include_inserts=include_inserts)
+                align, aligned_length = self._nucleotide_alignment(
+                    s, s.orfm_nucleotides(nuc), chosen_positions, True, include_inserts=include_inserts)
 
                 windowed_sequences.append(AlignedNucleotideSequence(name, align, nuc, aligned_length))
         return windowed_sequences
@@ -109,8 +118,12 @@ class MetagenomeOtuFinder:
                 return target
         return target
 
-    def _nucleotide_alignment(self, protein_sequence, nucleotides,
-                              chosen_positions, include_inserts=False):
+    def _nucleotide_alignment(self,
+                              protein_sequence,
+                              nucleotides,
+                              chosen_positions,
+                              is_protein_alignment,
+                              include_inserts=False):
         '''Line up the nucleotides and the proteins, and return the alignment
         at the chosen_positions, and the length in nucleotides that the chosen
         positions stretch across.
@@ -126,6 +139,8 @@ class MetagenomeOtuFinder:
             nucleotide sequence of the unaligned ORF
         chosen_positions: list of int
             positions to return, in ascending order
+        is_protein_alignment: boolean
+            True for proteins, False for nucleotide alignments
         include_inserts: boolean
             if False, remove inserts in nucleotide sequence relative to the 
             alignment. If True, include them
@@ -135,7 +150,13 @@ class MetagenomeOtuFinder:
         list of 2: the nucleotides string, and the length of nucleotide sequence
             used to cover the alignment
         '''
-
+        if is_protein_alignment:
+            length_ratio = 3
+            empty_codon = '---'
+        else:
+            length_ratio = 1
+            empty_codon = '-'
+            
         codons = []
         # For each position in the amino acid sequence
         # If non-dash character, take 3 nucleotides off the nucleotide sequence and
@@ -143,25 +164,25 @@ class MetagenomeOtuFinder:
         # else add None
         for aa in protein_sequence.seq:
             if aa=='-':
-                codons.append('---')
+                codons.append(empty_codon)
             else:
-                if len(nucleotides) < 3: raise Exception("Insufficient nucleotide length found")
-                codons.append(nucleotides[:3])
-                if len(nucleotides)>2: nucleotides = nucleotides[3:]
-                if nucleotides[:3] == '---': raise Exception("Input nucleotide sequence had gap characters, didn't expect this")
+                if len(nucleotides) < length_ratio: raise Exception("Insufficient nucleotide length found")
+                codons.append(nucleotides[:length_ratio])
+                if len(nucleotides)>=length_ratio: nucleotides = nucleotides[length_ratio:]
+                if nucleotides[:length_ratio] == empty_codon: raise Exception("Input nucleotide sequence had gap characters, didn't expect this")
         if len(nucleotides) > 0: raise Exception("Insufficient protein length found")
 
         aligned_length = 0
         for i in range(chosen_positions[0],chosen_positions[-1]+1):
             if protein_sequence.seq[i] != '-':
-                aligned_length += 3
+                aligned_length += length_ratio
 
         if include_inserts:
             to_return = []
             for i in range(chosen_positions[0], chosen_positions[-1]+1):
                 if i in chosen_positions:
                     to_return += codons[i]
-                elif codons[i] == '---':
+                elif codons[i] == empty_codon:
                     pass
                 else:
                     to_return += codons[i].lower()
@@ -169,5 +190,3 @@ class MetagenomeOtuFinder:
         else:
             return ''.join(itertools.chain(codons[i] for i in chosen_positions)), \
                 aligned_length
-             
-        

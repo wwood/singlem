@@ -32,17 +32,23 @@ class Tests(unittest.TestCase):
     def test__nucleotide_alignment(self):
         m = MetagenomeOtuFinder()
         self.assertEqual(('AAATTT---GGG',9),\
-            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,1,2,3]))
+            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,1,2,3], True))
         
         
     def test__nucleotide_alignment_include_inserts(self):
         m = MetagenomeOtuFinder()
         self.assertEqual(('AAA---GGG',9),\
-            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,2,3]))
+            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,2,3], True))
         self.assertEqual(('AAAttt---GGG',9),\
-            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,2,3], include_inserts=True))
+            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,2,3], True, include_inserts=True))
         self.assertEqual(('AAAtttGGG',9),\
-            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,3], include_inserts=True))
+            m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,3], True, include_inserts=True))
+
+    def test__nucleotide_alignment_aligned_nucleotides(self):
+        m = MetagenomeOtuFinder()
+        self.assertEqual(('AAA-TG',6),\
+            m._nucleotide_alignment(AlignedProteinSequence('name','AAA-TTGGG'), 'AAATTGGG', [0,1,2,3,5,6], False))
+        
                             
 if __name__ == "__main__":
     unittest.main()
