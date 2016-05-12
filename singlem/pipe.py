@@ -27,7 +27,6 @@ class SearchPipe:
         output_otu_table = kwargs.pop('otu_table', None)
         archive_otu_table = kwargs.pop('archive_otu_table', None)
         num_threads = kwargs.pop('threads')
-        bootstrap_contigs = kwargs.pop('bootstrap_contigs')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
         output_jplace = kwargs.pop('output_jplace')
@@ -95,29 +94,6 @@ class SearchPipe:
             if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
 
-        if bootstrap_contigs:
-            # Create HMMs from each of the search HMMs based on the given contigs
-            bootstrap_hmms = {}
-            logging.info("Generating HMMs by bootstrap..")
-            # TODO: this can be combined into a single run over the data with
-            # orfm, this is a bit wasteful going over it 3 times. Instead
-            # best to interface with graftm directly, I guess.
-            for hmm in hmms:
-                bootstrap_hmm_file = os.path.join(working_directory,
-                              "bootstrap_%s" % os.path.basename(hmm.hmm_filename))
-                bootstrap_hmms[hmm.hmm_filename] = bootstrap_hmm_file
-                logging.debug("Finding bootstrap hmm %s" % bootstrap_hmm_file)
-                cmd = "graftM bootstrap --min_orf_length %s --contigs %s --search_hmm_files %s "\
-                    " --verbosity %s --output_hmm %s" %(\
-                      min_orf_length,
-                      ' '.join(bootstrap_contigs),
-                      hmm.hmm_path(),
-                      graftm_verbosity,
-                      bootstrap_hmm_file)
-                    # TODO: Add --filter_minimum ?
-                if evalue: cmd += ' --evalue %s' % evalue
-                extern.run(cmd)
-
         if not previous_graftm_search_directory:
             graftm_search_directory = os.path.join(working_directory, 'graftm_search')
 
@@ -139,11 +115,6 @@ class SearchPipe:
             if evalue: cmd += ' --evalue %s' % evalue
             if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
             if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
-            if bootstrap_contigs:
-                cmd += " --search_hmm_files %s" % ' '.join(
-                    itertools.chain(
-                        (f for f in bootstrap_hmms.values() if os.path.isfile(f)),
-                        hmms.search_hmm_paths()))
             logging.info("Running GraftM to find particular reads..")
             extern.run(cmd)
             logging.info("Finished running GraftM search phase")
@@ -206,12 +177,6 @@ class SearchPipe:
                         if evalue: cmd += ' --evalue %s' % evalue
                         if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
                         if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
-                        if bootstrap_contigs:
-                            bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
-                            if os.path.isfile(bootstrap_hmm):
-                                cmd += " --search_hmm_files %s %s" % (
-                                            bootstrap_hmm,
-                                            hmm.hmm_path())
                         commands.append(cmd)
                 extern.run_many(commands, num_threads=num_threads)
 
@@ -248,12 +213,6 @@ class SearchPipe:
                         if evalue: cmd += ' --evalue %s' % evalue
                         if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
                         if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
-                        if bootstrap_contigs:
-                            bootstrap_hmm = bootstrap_hmms[hmm.hmm_filename]
-                            if os.path.isfile(bootstrap_hmm):
-                                cmd += " --search_hmm_files %s %s" % (
-                                            bootstrap_hmm,
-                                            hmm.hmm_path())
                         commands.append(cmd)
                     else:
                         logging.debug("No sequences found aligning from gpkg %s to sample %s, skipping" % (singlem_package.graftm_package_basename(), sample_name))

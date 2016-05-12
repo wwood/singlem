@@ -185,7 +185,6 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--previous_graftm_separate_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
     pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
-    pipe_parser.add_argument('--bootstrap_contigs', nargs='+', help='assembled contigs/scaffolds to help the HMM find hits in reads (default: do not use)')
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
     pipe_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
 
@@ -283,7 +282,6 @@ if __name__ == '__main__':
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             threads = args.threads,
-            bootstrap_contigs = args.bootstrap_contigs,
             known_otu_tables = args.known_otu_tables,
             assignment_method = args.assignment_method,
             output_jplace = args.output_jplace,
