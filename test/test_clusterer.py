@@ -30,7 +30,7 @@ path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
-from singlem.clusterer import Clusterer, ClusteredOtu
+from singlem.clusterer import Clusterer, SampleWiseClusteredOtu
 from singlem.otu_table_collection import OtuTableCollection
 
 class Tests(unittest.TestCase):
@@ -46,7 +46,7 @@ class Tests(unittest.TestCase):
         
         clusters = list(Clusterer().each_cluster(table_collection, 0.5))
         self.assertEqual(1, len(clusters))
-        self.assertIsInstance(clusters[0], ClusteredOtu)
+        self.assertIsInstance(clusters[0], SampleWiseClusteredOtu)
         c = clusters[0]
         self.assertEqual(6, c.count)
         self.assertEqual(9.76/4*6, c.coverage)
@@ -63,7 +63,7 @@ class Tests(unittest.TestCase):
         
         clusters = list(Clusterer().each_cluster(table_collection, 1.0))
         self.assertEqual(2, len(clusters))
-        self.assertIsInstance(clusters[0], ClusteredOtu)
+        self.assertIsInstance(clusters[0], SampleWiseClusteredOtu)
         c = clusters[0]
         self.assertEqual(4, c.count)
         self.assertEqual(9.76, c.coverage)
@@ -80,7 +80,7 @@ class Tests(unittest.TestCase):
         
         clusters = list(Clusterer().each_cluster(table_collection, 58.5/60))
         self.assertEqual(2, len(clusters))
-        self.assertIsInstance(clusters[0], ClusteredOtu)
+        self.assertIsInstance(clusters[0], SampleWiseClusteredOtu)
         self.assertEqual(clusters[0].representative_otu, clusters[1].representative_otu)
         self.assertEqual('ma', clusters[0].representative_otu.sample_name)
         

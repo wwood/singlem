@@ -113,7 +113,7 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 cluster_identity=0.5)
+                                 sequence_identity=0.5)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
         self.assertEqual('minimal', a.metagenome_sample_name)
@@ -139,7 +139,7 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 cluster_identity=0.7)
+                                 sequence_identity=0.7)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
         self.assertEqual('minimal', a.metagenome_sample_name)
@@ -165,7 +165,7 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 cluster_identity=0.7)
+                                 sequence_identity=0.7)
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
@@ -206,7 +206,7 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 cluster_identity=0.7)
+                                 sequence_identity=0.7)
         self.assertEqual(2, len(app.appraisal_results))
         
         a = app.appraisal_results[1]

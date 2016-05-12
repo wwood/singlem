@@ -41,9 +41,10 @@ class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_minimal(self):
-        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                    ['4.11.ribosomal_protein_L10','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
-                    ]
+        expected = [
+            self.headers,
+            ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
@@ -51,7 +52,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
        
     def test_insert(self):
-        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
@@ -59,8 +60,8 @@ class Tests(unittest.TestCase):
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
     def test_print_insert(self):
-        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                    ['2.12.ribosomal_protein_L11_rplK.gpkg','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG','1','2.51','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['4.12.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG','1','2.51','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s --debug pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4 --include_inserts" % (path_to_script,
@@ -153,8 +154,8 @@ class Tests(unittest.TestCase):
             self.assertEqual(expected, observed)
             
     def test_known_tax_table(self):
-        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                    ['2.11.ribosomal_protein_L10.gpkg','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
@@ -162,8 +163,8 @@ class Tests(unittest.TestCase):
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
         
-        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','some1'],
-                    ['2.11.ribosomal_protein_L10.gpkg','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','some1'],
+                    ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
         
@@ -193,8 +194,8 @@ class Tests(unittest.TestCase):
             self.assertEqual(expected, observed)
             
     def test_diamond_example_assign_taxonomy(self):
-        expected = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2506520047'],
-                    ['2.11.ribosomal_protein_L10.gpkg','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','2541047520']
+        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2506520047'],
+                    ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','2541047520']
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
@@ -204,15 +205,24 @@ class Tests(unittest.TestCase):
         
     def test_one_read_two_orfs_two_diamond_hits(self):
         # what a pain the real world is
-        seq = '''@HWI-ST1240:128:C1DG3ACXX:7:2204:6599:65352 1:N:0:GTAGAGGATAGATCGC
+        seq = '''>HWI-ST1240:128:C1DG3ACXX:7:2204:6599:65352 1:N:0:GTAGAGGATAGATCGC
 ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACGCGGATCCAGACCTTGCCTCCGCGCTTGACGTGCCGGGTCATCGCGATACGGGCCGCCTCGATCTGACGTGC
 '''
+        expected = [
+            self.headers,
+            ['4.14.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	2509601019']]
+        exp = sorted(["\t".join(x) for x in expected]+[''])
         with tempfile.NamedTemporaryFile(prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
             t.flush()
             cmd = "%s --quiet pipe --sequences %s --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
                                                                                                     t.name)
-            self.assertEqual('never passed this test before, fill me!', sorted(extern.run(cmd).split("\n")))
+            self.assertEqual(exp,
+                             sorted(extern.run(cmd).
+                                    replace(
+                                        os.path.basename(t.name).replace('.fa',''),
+                                        '').
+                                    split("\n")))
 
     def test_jplace_output(self):
         expected_jpace = {u'fields': [u'classification',
