@@ -98,6 +98,7 @@ class SearchPipe:
             logging.info("Finished")
 
         #### Search
+        self._singlem_package_database = hmms
         search_result = self._search(hmms, forward_read_files)
         sample_to_protein_hit_files = search_result.protein_hit_paths()
         sample_names = sample_to_protein_hit_files.keys()
@@ -111,33 +112,11 @@ class SearchPipe:
             logging.debug("Found %i samples with reads identified" % len(sample_names))
 
         #### Alignment
-        graftm_separate_directory_base = os.path.join(working_directory, 'graftm_separates')
-        os.mkdir(graftm_separate_directory_base)
-        logging.info("Running separate alignments in GraftM..")
-        commands = []
-        for sample_name, protein_hit_file in sample_to_protein_hit_files.items():
-            for hmm in hmms:
-                cmd = "graftM graft --threads %i --verbosity %s "\
-                     "--min_orf_length %s "\
-                     "--forward %s "\
-                     "--graftm_package %s --output_directory %s/%s_vs_%s "\
-                     "--input_sequence_type nucleotide "\
-                     "--search_and_align_only" % (\
-                            1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
-                            self._graftm_verbosity,
-                            min_orf_length,
-                            protein_hit_file,
-                            hmm.graftm_package_path(),
-                            graftm_separate_directory_base,
-                            sample_name,
-                            os.path.basename(hmm.graftm_package_path()))
-                if evalue: cmd += ' --evalue %s' % evalue
-                if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
-                if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
-                commands.append(cmd)
-        extern.run_many(commands, num_threads=num_threads)
+        align_result = self._align(search_result)
 
-        sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms, include_inserts)
+        ### Extract reads
+        sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(
+            align_result._graftm_separate_directory_base, sample_names, hmms, include_inserts)
         logging.info("Finished extracting aligned sequences")
 
         #### Taxonomic assignment
@@ -177,6 +156,7 @@ class SearchPipe:
         extern.run_many(commands, num_threads=num_threads)
         logging.info("Finished running taxonomic assignment with graftm")
 
+        #### Process taxonomically assigned reads
         # get the sequences out for each of them
         otu_table_object = OtuTable()
         regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
@@ -509,6 +489,37 @@ class SearchPipe:
 
         return SingleMPipeSearchResult(graftm_search_directory)
 
+    def _align(self, search_result):
+        graftm_separate_directory_base = os.path.join(self._working_directory, 'graftm_separates')
+        os.mkdir(graftm_separate_directory_base)
+        logging.info("Running separate alignments in GraftM..")
+        commands = []
+        search_dict = search_result.protein_hit_paths()
+        for sample_name, protein_hit_file in search_dict.items():
+            for hmm in self._singlem_package_database:
+                cmd = "graftM graft --threads %i --verbosity %s "\
+                     "--min_orf_length %s "\
+                     "--forward %s "\
+                     "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                     "--input_sequence_type nucleotide "\
+                     "--search_and_align_only" % (\
+                            1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
+                            self._graftm_verbosity,
+                            self._min_orf_length,
+                            protein_hit_file,
+                            hmm.graftm_package_path(),
+                            graftm_separate_directory_base,
+                            sample_name,
+                            os.path.basename(hmm.graftm_package_path()))
+                if self._evalue: cmd += ' --evalue %s' % self._evalue
+                if self._restrict_read_length:
+                    cmd += ' --restrict_read_length %i' % self._restrict_read_length
+                if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
+                commands.append(cmd)
+        extern.run_many(commands, num_threads=self._num_threads)
+        return SingleMPipeAlignSearchResult(
+            graftm_separate_directory_base, search_dict.keys())
+
 
 class SingleMPipeSearchResult:
     def __init__(self, graftm_output_directory):
@@ -529,3 +540,7 @@ class SingleMPipeSearchResult:
                 paths[sample] = path
         return paths
 
+class SingleMPipeAlignSearchResult:
+    def __init__(self, graftm_separate_directory_base, sample_names):
+        self._graftm_separate_directory_base = graftm_separate_directory_base
+        self._sample_names = sample_names
