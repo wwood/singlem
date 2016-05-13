@@ -35,8 +35,15 @@ from singlem.appraiser import Appraiser
 ALMOST_90_PERCENT_ON_60BP = round(math.floor(0.97*60)/60, 3)
 
 def seqs(args):
+    if args.alignment_type == 'aa':
+        is_protein_alignment = True
+    elif args.alignment_type == 'dna':
+        is_protein_alignment = False
+    else:
+        raise Exception("Unexpected alignment type '%s'" % args.alignment_type)
+    
     # Read in the fasta Alignment
-    protein_alignment = SeqReader().protein_alignment_from_alignment_file(args.alignment)
+    protein_alignment = SeqReader().alignment_from_alignment_file(args.alignment)
     logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
                                                           protein_alignment[0].name,
                                                           protein_alignment[0].seq
@@ -58,7 +65,7 @@ def seqs(args):
         nucleotide_sequences,
         args.window_size,
         False, #do not include inserts
-        True, #protein alignment
+        is_protein_alignment,
         best_position=best_position)
     logging.info("Printing %i aligned sequences" % len(aligned_sequences))
     print '\n'.join((s.aligned_sequence for s in aligned_sequences))
@@ -196,6 +203,7 @@ if __name__ == '__main__':
                                         epilog=__author__)
     seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
     seqs_parser.add_argument('--reads', metavar='raw_reads', help='Unaligned nucleotide sequences that were translated into the protein sequences', required=True)
+    seqs_parser.add_argument('--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
     seqs_parser.add_argument('--window_size', metavar='aa', help='Number of amino acids to use in continuous window', default=20, type=int)
     seqs_parser.add_argument('--start_position', metavar='bp', help='Start the window at the position in the alignment (1-based index) [default: pick one automatically]', type=int)
 

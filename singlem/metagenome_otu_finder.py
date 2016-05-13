@@ -23,8 +23,9 @@ class MetagenomeOtuFinder:
         ignored_columns = self._find_lower_case_columns(aligned_sequences)
         logging.debug("Ignoring columns %s", str(ignored_columns))
 
-        # Find the stretch of the protein that has the most number of aligned bases in a 20 position stretch,
-        # excluding sequences that do not aligned to the first and last bases
+        # Find the stretch of the protein that has the most number of aligned
+        # bases in a 20 position stretch, excluding sequences that do not
+        # aligned to the first and last bases
         if best_position:
             start_position = self._upper_case_position_to_alignment_position(
                 best_position, ignored_columns)

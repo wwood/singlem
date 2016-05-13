@@ -99,16 +99,17 @@ class SeqReader:
             nucleotide_sequences[name] = seq
         return nucleotide_sequences
     
-    def protein_alignment_from_alignment_file(self, alignment_file):
+    def alignment_from_alignment_file(self, alignment_file):
         protein_alignment = []
         for name, seq, _ in self.readfq(open(alignment_file)):
             protein_alignment.append(AlignedProteinSequence(name, seq))
         if len(protein_alignment) > 0:
-            logging.debug("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
-                                                              protein_alignment[0].name,
-                                                              protein_alignment[0].seq
-                                                              ))
+            logging.debug("Read in %i aligned sequences e.g. %s %s" % (
+                len(protein_alignment),
+                protein_alignment[0].name,
+                protein_alignment[0].seq))
         else:
-            logging.debug("No aligned proteins found for this HMM")
+            logging.debug("No aligned sequences found for this HMM")
         return protein_alignment
+        
         

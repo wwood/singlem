@@ -287,7 +287,7 @@ class SearchPipe:
                                                               proteins_file,
                                                               f.name)
             extern.run(cmd)
-            return SeqReader().protein_alignment_from_alignment_file(f.name)
+            return SeqReader().alignment_from_alignment_file(f.name)
 
     def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies, use_first_taxonomy=False):
         '''given an array of Sequence objects, and hash of taxonomy file,
