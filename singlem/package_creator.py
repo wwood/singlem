@@ -69,7 +69,10 @@ class PackageCreator:
                     search_hmms = gpkg.search_hmm_paths()
                     
                 with tempdir.TempDir() as tmpdir:
-                    gpkg_name = os.path.join(tmpdir, os.path.basename(input_graftm_package_path).replace('.gpkg',''))
+                    gpkg_name = os.path.join(
+                        tmpdir,
+                        os.path.basename(
+                            os.path.abspath(input_graftm_package_path)).replace('.gpkg',''))
                     GraftMPackageVersion3.compile(gpkg_name,
                                                   gpkg.reference_package_path(),
                                                   gpkg.alignment_hmm_path(),
