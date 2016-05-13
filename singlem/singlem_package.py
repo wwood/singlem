@@ -149,8 +149,19 @@ class SingleMPackageVersion1(SingleMPackage):
             h.update(open(f).read())
         return h.hexdigest()
 
+    def is_protein_package(self):
+        '''Return true if this package is an Amino Acid alignment package, otherwise
+        False i.e. it is a nucleotide package. For the moment just figure it out
+        by the presence of the diamond DB.
+
+        '''
+        if not hasattr(self, '_is_protein_package'):
+            self._is_protein_package = (self.graftm_package().diamond_database_path != None)
+        return self._is_protein_package
+
     @staticmethod
     def compile(output_package_path, graftm_package_path, singlem_position):
+
         '''Create a new SingleM package with the given inputs. Any files
         specified as parameters are copied into the final package so can
         be removed after calling this function.

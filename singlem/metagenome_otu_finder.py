@@ -1,12 +1,9 @@
 import logging
 import re
-from sequence_classes import AlignedNucleotideSequence
+from sequence_classes import UnalignedAlignedNucleotideSequence
 import itertools
 
 class MetagenomeOtuFinder:
-    def __init__(self):
-        pass
-
     def find_windowed_sequences(self,
                                 aligned_sequences,
                                 nucleotide_sequences,
@@ -15,9 +12,9 @@ class MetagenomeOtuFinder:
                                 is_protein_alignment,
                                 best_position=None,
                                 ):
-        '''Return an array of AlignedNucleotideSequence objects containing sequences
-        aligned at the given best_position, finding that best position if None
-        is given.
+        '''Return an array of UnalignedAlignedNucleotideSequence objects containing
+        sequences aligned at the given best_position, finding that best position
+        if None is given.
 
         Parameters
         ----------
@@ -29,26 +26,36 @@ class MetagenomeOtuFinder:
         # Find the stretch of the protein that has the most number of aligned bases in a 20 position stretch,
         # excluding sequences that do not aligned to the first and last bases
         if best_position:
-            start_position = self._upper_case_position_to_alignment_position(best_position, ignored_columns)
+            start_position = self._upper_case_position_to_alignment_position(
+                best_position, ignored_columns)
             logging.debug("Using pre-defined best section of the alignment starting from %i" % (start_position+1))
         else:
             start_position = self._find_best_window(aligned_sequences, stretch_length, ignored_columns)
             logging.info("Found best section of the alignment starting from %i" % (start_position+1))
 
-        chosen_positions = self._best_position_to_chosen_positions(start_position, stretch_length, ignored_columns)
+        chosen_positions = self._best_position_to_chosen_positions(
+            start_position, stretch_length, ignored_columns)
         logging.debug("Found chosen positions %s", chosen_positions)
 
-        # For each read aligned to that region i.e. has the first and last bases,
-        # print out the corresponding nucleotide sequence
+        # For each read aligned to that region (e.g. that has the first and last bases),
+        # record the corresponding nucleotide sequence.
         windowed_sequences = []
         for s in aligned_sequences:
             if s.seq[chosen_positions[0]] != '-' and s.seq[chosen_positions[-1]] != '-':
-                name = s.un_orfm_name()
-                nuc = nucleotide_sequences[name]
+                if is_protein_alignment:
+                    name = s.un_orfm_name()
+                    nuc = nucleotide_sequences[name]
+                    aligned_nucleotides = s.orfm_nucleotides(nuc)
+                else:
+                    name = s.name
+                    nuc = nucleotide_sequences[name]
+                    aligned_nucleotides = nuc.replace('-','')
                 align, aligned_length = self._nucleotide_alignment(
-                    s, s.orfm_nucleotides(nuc), chosen_positions, True, include_inserts=include_inserts)
+                    s, aligned_nucleotides, chosen_positions, is_protein_alignment,
+                    include_inserts=include_inserts)
 
-                windowed_sequences.append(AlignedNucleotideSequence(name, align, nuc, aligned_length))
+                windowed_sequences.append(
+                    UnalignedAlignedNucleotideSequence(name, align, nuc, aligned_length))
         return windowed_sequences
 
     def _find_lower_case_columns(self, protein_alignment):
@@ -88,14 +95,14 @@ class MetagenomeOtuFinder:
             if end_index >= len(binary_alignment[0]): continue #if ignored char is within stretch length of end of aln
             for s in binary_alignment:
                 if not s[i] or not s[end_index]: continue #ignore reads that don't cover the entirety
-                num_bases_covered_here += sum(s[i:end_index])
+                for pos in positions:
+                    if s[pos]: num_bases_covered_here += 1
             logging.debug("Found %i aligned bases at position %i" % (num_bases_covered_here, i))
             if num_bases_covered_here > current_max_num_aligned_bases:
                 current_best_position = i
                 current_max_num_aligned_bases = num_bases_covered_here
-        logging.info("Found a window starting at position %i with %i bases aligned" % (current_best_position,
-                                                                                       current_max_num_aligned_bases
-                                                                                       ))
+        logging.info("Found a window starting at position %i with %i bases aligned" % (
+            current_best_position, current_max_num_aligned_bases))
         return current_best_position
 
     def _best_position_to_chosen_positions(self, best_position, stretch_length, ignored_columns):
@@ -170,7 +177,7 @@ class MetagenomeOtuFinder:
                 codons.append(nucleotides[:length_ratio])
                 if len(nucleotides)>=length_ratio: nucleotides = nucleotides[length_ratio:]
                 if nucleotides[:length_ratio] == empty_codon: raise Exception("Input nucleotide sequence had gap characters, didn't expect this")
-        if len(nucleotides) > 0: raise Exception("Insufficient protein length found")
+        if len(nucleotides) > 0: raise Exception("Insufficient unaligned length found")
 
         aligned_length = 0
         for i in range(chosen_positions[0],chosen_positions[-1]+1):

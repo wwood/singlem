@@ -9,11 +9,7 @@ class Sequence:
         self.name = name
         self.seq = seq
 
-class AlignedProteinSequence:
-    def __init__(self, name, seq):
-        self.name = name
-        self.seq = seq
-
+class AlignedProteinSequence(Sequence):
     def un_orfm_name(self):
         return OrfMUtils().un_orfm_name(self.name)
 
@@ -31,9 +27,11 @@ class AlignedProteinSequence:
     def unaligned_length(self):
         return len(re.sub('-','',self.seq))
 
-class AlignedNucleotideSequence:
-    '''Represent a nucleotide sequence aligned in protein space, together with the
-    nucleotide sequence that it came from'''
+class UnalignedAlignedNucleotideSequence:
+    '''Represent a nucleotide sequence (aligned in protein space or nucleotide
+    space), together with the nucleotide sequence that it came from.
+
+    '''
 
     def __init__(self, name, aligned_sequence, unaligned_sequence, aligned_length):
         '''

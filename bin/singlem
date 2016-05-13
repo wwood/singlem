@@ -53,10 +53,13 @@ def seqs(args):
         best_position = args.start_position - 1
     else:
         best_position = None
-    aligned_sequences = MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
-                                                nucleotide_sequences,
-                                                args.window_size,
-                                                best_position)
+    aligned_sequences = MetagenomeOtuFinder().find_windowed_sequences(
+        protein_alignment,
+        nucleotide_sequences,
+        args.window_size,
+        False, #do not include inserts
+        True, #protein alignment
+        best_position=best_position)
     logging.info("Printing %i aligned sequences" % len(aligned_sequences))
     print '\n'.join((s.aligned_sequence for s in aligned_sequences))
 

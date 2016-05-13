@@ -26,7 +26,7 @@ import sys, os, unittest
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
 from singlem.metagenome_otu_finder import MetagenomeOtuFinder
-from singlem.sequence_classes import AlignedProteinSequence
+from singlem.sequence_classes import *
 
 class Tests(unittest.TestCase):
     def test__nucleotide_alignment(self):
@@ -48,7 +48,44 @@ class Tests(unittest.TestCase):
         m = MetagenomeOtuFinder()
         self.assertEqual(('AAA-TG',6),\
             m._nucleotide_alignment(AlignedProteinSequence('name','AAA-TTGGG'), 'AAATTGGG', [0,1,2,3,5,6], False))
+
+    def test_find_best_window_with_nucleotides(self):
+        m = MetagenomeOtuFinder()
+        seqs = [
+            'gaAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+            'ga-------------TATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGtaACTGACGCTGATGTG',
+            'ca---------GAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGtaACTGACGCTGA----',
+            'ga-------------TATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGtaACTGGGCTGATGTG-',
+            '-g----------AGATATGGA---------------------------------------------------']
+        s2 = [Sequence('seq%i' % i, seq) for i, seq in enumerate(seqs)]
+        unaligned = {}
+        for i, seq in enumerate(seqs):
+            name = 'seq%i' % i
+            unaligned[name] = seq.replace('-','')
+            
+        obs = m.find_windowed_sequences(
+            s2,
+            unaligned,
+            5,
+            False,
+            False,
+            14)
+        self.assertEqual(['AAAAA','ATGGA','ATGGA','ATGGA','ATGGA'],
+                         [o.aligned_sequence for o in obs])
+
+        # now without a known window
+        obs = m.find_windowed_sequences(
+            s2,
+            unaligned,
+            5,
+            False,
+            False,
+            None)
+        self.assertEqual(['AAAAA','TATGG','TATGG','TATGG','TATGG'],
+                         [o.aligned_sequence for o in obs])
+
         
                             
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.ERROR)
     unittest.main()
