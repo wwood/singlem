@@ -35,6 +35,7 @@ path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
+from singlem.pipe import SearchPipe
 
 class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
@@ -205,6 +206,25 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
             j['tree'] = 'tree_thanks'
             j['metadata'] = 'the_metadata'
             self.assertEqual(expected_jpace, j)
+
+    def test_nucleotide_package(self):
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGC
+>HWI-ST1243:156:D1K83ACXX:7:1109:8070:99586 1:N:0:CGTACTAGCTAAGCCT
+CAGAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGAT
+>HWI-ST1243:156:D1K83ACXX:7:1106:7275:39452 1:N:0:GTAGAGGAAAGGAGTA
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGGCGCTGATGTGC
+>HWI-ST1243:156:D1K83ACXX:7:1106:4406:71922 1:N:0:TCCTGAGCCTAAGCCT
+GAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGT
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
+            extern.run(cmd)
+
 
 if __name__ == "__main__":
     unittest.main()

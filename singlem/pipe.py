@@ -145,12 +145,11 @@ class SearchPipe:
 
                         tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
                         aligned_seqs = self._get_windowed_sequences(
-                            assignment_result.protein_orf_file(
+                            assignment_result.prealigned_sequence_file(
                                 sample_name, singlem_package, tmpbase),
                             assignment_result.nucleotide_hits_file(
                                 sample_name, singlem_package, tmpbase),
-                            singlem_package.graftm_package().alignment_hmm_path(),
-                            singlem_package.singlem_position(),
+                            singlem_package,
                             include_inserts)
 
                         if len(aligned_seqs) == 0:
@@ -226,17 +225,21 @@ class SearchPipe:
                 otu_table_object.archive(hmms.singlem_packages).write_to(f)
         return_cleanly()
 
-    def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file, hmm_path, position, include_inserts):
+    def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file,
+                                singlem_package, include_inserts):
         if not os.path.exists(nucleotide_sequence_file) or \
             os.stat(nucleotide_sequence_file).st_size == 0: return []
         nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
-        protein_alignment = self._align_proteins_to_hmm(protein_sequences_file,
-                                                      hmm_path)
-        return MetagenomeOtuFinder().find_windowed_sequences(protein_alignment,
-                                                        nucleotide_sequences,
-                                                        20,
-                                                        include_inserts,
-                                                        position)
+        protein_alignment = self._align_proteins_to_hmm(
+            protein_sequences_file,
+            singlem_package.graftm_package().alignment_hmm_path())
+        return MetagenomeOtuFinder().find_windowed_sequences(
+            protein_alignment,
+            nucleotide_sequences,
+            60,
+            include_inserts,
+            singlem_package.is_protein_package(),
+            best_position=singlem_package.singlem_position())
 
     def _placement_input_fasta_name(self, hmm_and_position, sample_name, graftm_separate_directory_base):
         return '%s/%s_vs_%s/%s_hits/%s_hits_hits.fa' % (graftm_separate_directory_base,
@@ -245,7 +248,8 @@ class SearchPipe:
                                                   sample_name,
                                                   sample_name)
 
-    def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names, hmms, include_inserts):
+    def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names,
+                                hmms, include_inserts):
         '''Given 'separates' directory, extract reads that will be used as
         part of the singlem choppage process as tempfiles in a hash'''
         sample_to_gpkg_to_input_sequences = {}
@@ -257,17 +261,20 @@ class SearchPipe:
                     "%s_vs_%s" % (sample_name,
                                   os.path.basename(singlem_package.graftm_package_path())),
                     '%s_hits' % sample_name)
-                protein_sequences_file = os.path.join(
-                    base_dir, "%s_hits_orf.fa" % sample_name)
                 nucleotide_sequence_fasta_file = os.path.join(
                     base_dir, "%s_hits_hits.fa" % sample_name)
 
                 # extract the names of the relevant reads
+                if singlem_package.is_protein_package():
+                    unaligned_seq_file = os.path.join(
+                        base_dir, "%s_hits_orf.fa" % sample_name)
+                else:
+                    unaligned_seq_file = nucleotide_sequence_fasta_file
+                logging.debug("Aligning %s to the HMM" % unaligned_seq_file)
                 aligned_seqs = self._get_windowed_sequences(\
-                        protein_sequences_file,
+                        unaligned_seq_file,
                         nucleotide_sequence_fasta_file,
-                        singlem_package.graftm_package().alignment_hmm_path(),
-                        singlem_package.singlem_position(),
+                        singlem_package,
                         include_inserts)
                 if len(aligned_seqs) > 0:
                     tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
@@ -567,6 +574,16 @@ class SingleMPipeTaxonomicAssignmentResult:
     def protein_orf_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             "%s_orf.fa" % tmpbase)
+    
+    def prealigned_sequence_file(self, sample_name, singlem_package, tmpbase):
+        '''path to the sequences that were aligned (ORF for proteins, regular seqs for
+        nucleotide).
+
+        '''
+        if singlem_package.is_protein_package():
+            return self.protein_orf_file(sample_name, singlem_package, tmpbase)
+        else:
+            return self.nucleotide_hits_file(sample_name, singlem_package, tmpbase)
     
     def nucleotide_hits_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),

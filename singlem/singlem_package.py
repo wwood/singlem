@@ -156,7 +156,19 @@ class SingleMPackageVersion1(SingleMPackage):
 
         '''
         if not hasattr(self, '_is_protein_package'):
-            self._is_protein_package = (self.graftm_package().diamond_database_path != None)
+            found = None
+            with open(self.graftm_package().alignment_hmm_path()) as f:
+                r = f.read().split("\n")
+            for line in r:
+                if line=='ALPH  DNA':
+                    found = False
+                    break
+                elif line=='ALPH  amino':
+                    found = True
+                    break
+            if found is None:
+                raise Exception("Unable to determine whether the HMM was amino acid or dna")
+            self._is_protein_package = found
         return self._is_protein_package
 
     @staticmethod
