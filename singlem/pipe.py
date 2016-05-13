@@ -42,6 +42,12 @@ class SearchPipe:
         force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+        
+        self._num_threads = num_threads
+        self._evalue = evalue
+        self._min_orf_length = min_orf_length
+        self._restrict_read_length = restrict_read_length
+        self._filter_minimum = filter_minimum
 
         hmms = HmmDatabase(singlem_packages)
         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
@@ -50,9 +56,9 @@ class SearchPipe:
             graftm_assignment_method = singlem_assignment_method
             
         if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
-            graftm_verbosity = '5'
+            self._graftm_verbosity = '5'
         else:
-            graftm_verbosity = '2'
+            self._graftm_verbosity = '2'
 
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
@@ -70,9 +76,7 @@ class SearchPipe:
         else:
             working_directory = working_directory
             if os.path.exists(working_directory):
-                if previous_graftm_search_directory:
-                    logging.debug("Using previously half-run singlem results")
-                elif force:
+                if force:
                     logging.info("Overwriting directory %s" % working_directory)
                     shutil.rmtree(working_directory)
                     os.mkdir(working_directory)
@@ -81,6 +85,7 @@ class SearchPipe:
             else:
                 os.mkdir(working_directory)
         logging.debug("Using working directory %s" % working_directory)
+        self._working_directory = working_directory
 
         sample_to_gpkg_to_input_sequences = {}
         def return_cleanly():
@@ -92,88 +97,50 @@ class SearchPipe:
             if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
 
-        graftm_search_directory = os.path.join(working_directory, 'graftm_search')
-        # run graftm across all the HMMs
-        logging.info("Using as input %i different sequence files e.g. %s" % (
-            len(forward_read_files), forward_read_files[0]))
-        cmd = "graftM graft --threads %i --forward %s "\
-            "--min_orf_length %s "\
-            "--search_hmm_files %s --search_and_align_only "\
-            "--output_directory %s --aln_hmm_file %s --verbosity %s "\
-            "--input_sequence_type nucleotide"\
-                             % (num_threads,
-                                ' '.join(forward_read_files),
-                                min_orf_length,
-                                ' '.join(hmms.search_hmm_paths()),
-                                graftm_search_directory,
-                                hmms.search_hmm_paths()[0],
-                                graftm_verbosity)
-        if evalue: cmd += ' --evalue %s' % evalue
-        if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
-        if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
-        logging.info("Running GraftM to find particular reads..")
-        extern.run(cmd)
-        logging.info("Finished running GraftM search phase")
-
-        # Get the names of the samples from the graftm directory
-        sample_names = [f for f in os.listdir(graftm_search_directory) \
-                        if os.path.isdir(os.path.join(graftm_search_directory, f))]
-        logging.debug("Recovered %i samples from graftm search output e.g. %s" \
+        #### Search
+        search_result = self._search(hmms, forward_read_files)
+        sample_to_protein_hit_files = search_result.protein_hit_paths()
+        sample_names = sample_to_protein_hit_files.keys()
+        logging.debug("Recovered %i samples from GraftM search output e.g. %s" \
                      % (len(sample_names), sample_names[0]))
+        if len(sample_names) == 0:
+            logging.info("No reads identified in any samples, stopping")
+            return_cleanly()
+            return
+        else:
+            logging.debug("Found %i samples with reads identified" % len(sample_names))
 
+        #### Alignment
         graftm_separate_directory_base = os.path.join(working_directory, 'graftm_separates')
         os.mkdir(graftm_separate_directory_base)
-        with tempfile.NamedTemporaryFile() as samples_file:
-            # Don't look at samples that have no hits
-            viable_sample_names = []
-            for sample_name in sample_names:
-                if os.stat("%s/%s/%s_hits.fa" % (graftm_search_directory,
-                                              sample_name,
-                                              sample_name)).st_size > 0:
-                    viable_sample_names.append(sample_name)
-                else:
-                    logging.warn("Sample '%s' does not appear to contain any hits" % sample_name)
-            if len(viable_sample_names) == 0:
-                logging.info("No reads identified in any samples, stopping")
-                return_cleanly()
-                return
-            else:
-                logging.debug("Found %i samples with reads identified" %
-                              len(viable_sample_names))
-            samples_file.write("\n".join(viable_sample_names))
-            samples_file.flush()
-
-            logging.info("Running separate alignments in GraftM..")
-            commands = []
-            for sample_name in viable_sample_names:
-                for hmm in hmms:
-                    cmd = "graftM graft --threads %i --verbosity %s "\
-                         "--min_orf_length %s "\
-                         "--forward %s/%s/%s_hits.fa "\
-                         "--graftm_package %s --output_directory %s/%s_vs_%s "\
-                         "--input_sequence_type nucleotide "\
-                         "--search_and_align_only" % (\
-                                1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
-                                graftm_verbosity,
-                                min_orf_length,
-                                graftm_search_directory,
-                                sample_name,
-                                sample_name,
-                                hmm.graftm_package_path(),
-                                graftm_separate_directory_base,
-                                sample_name,
-                                os.path.basename(hmm.graftm_package_path()))
-                    if evalue: cmd += ' --evalue %s' % evalue
-                    if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
-                    if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
-                    commands.append(cmd)
-            extern.run_many(commands, num_threads=num_threads)
+        logging.info("Running separate alignments in GraftM..")
+        commands = []
+        for sample_name, protein_hit_file in sample_to_protein_hit_files.items():
+            for hmm in hmms:
+                cmd = "graftM graft --threads %i --verbosity %s "\
+                     "--min_orf_length %s "\
+                     "--forward %s "\
+                     "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                     "--input_sequence_type nucleotide "\
+                     "--search_and_align_only" % (\
+                            1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
+                            self._graftm_verbosity,
+                            min_orf_length,
+                            protein_hit_file,
+                            hmm.graftm_package_path(),
+                            graftm_separate_directory_base,
+                            sample_name,
+                            os.path.basename(hmm.graftm_package_path()))
+                if evalue: cmd += ' --evalue %s' % evalue
+                if restrict_read_length: cmd += ' --restrict_read_length %i' % restrict_read_length
+                if filter_minimum: cmd += '--filter_minimum %i' % filter_minimum
+                commands.append(cmd)
+        extern.run_many(commands, num_threads=num_threads)
 
         sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(graftm_separate_directory_base, sample_names, hmms, include_inserts)
         logging.info("Finished extracting aligned sequences")
 
-        # runs graftm for each of the HMMs doing the actual alignments, for each
-        # of the input sequences
+        #### Taxonomic assignment
         logging.info("Running taxonomic assignment with graftm..")
         graftm_align_directory_base = os.path.join(working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
@@ -191,7 +158,7 @@ class SearchPipe:
                              "--input_sequence_type nucleotide "\
                              "--assignment_method %s" % (\
                                     1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
-                                    graftm_verbosity,
+                                    self._graftm_verbosity,
                                     min_orf_length,
                                     tmp_graft.name,
                                     singlem_package.graftm_package_path(),
@@ -502,3 +469,63 @@ class SearchPipe:
         jplace['placements'] = new_placements
         json.dump(jplace, output_jplace_io)
         
+    def _search(self, singlem_package_database, forward_read_files):
+        '''Find all reads that match one or more of the search HMMs in the
+        singlem_package_database.
+
+        Parameters
+        ----------
+        singlem_package_database: HmmDatabase
+            packages to search the reads for
+        forward_read_files: list of str
+            paths to the sequences to be searched
+
+        Returns
+        -------
+        SingleMPipeSearchResult
+        '''
+        graftm_search_directory = os.path.join(self._working_directory, 'graftm_search')
+        # run graftm across all the HMMs
+        logging.info("Using as input %i different sequence files e.g. %s" % (
+            len(forward_read_files), forward_read_files[0]))
+        cmd = "graftM graft --threads %i --forward %s "\
+            "--min_orf_length %s "\
+            "--search_hmm_files %s --search_and_align_only "\
+            "--output_directory %s --aln_hmm_file %s --verbosity %s "\
+            "--input_sequence_type nucleotide"\
+                             % (self._num_threads,
+                                ' '.join(forward_read_files),
+                                self._min_orf_length,
+                                ' '.join(singlem_package_database.search_hmm_paths()),
+                                graftm_search_directory,
+                                singlem_package_database.search_hmm_paths()[0],
+                                self._graftm_verbosity)
+        if self._evalue: cmd += ' --evalue %s' % self._evalue
+        if self._restrict_read_length: cmd += ' --restrict_read_length %i' % self._restrict_read_length
+        if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
+        logging.info("Running GraftM to find particular reads..")
+        extern.run(cmd)
+        logging.info("Finished running GraftM search phase")
+
+        return SingleMPipeSearchResult(graftm_search_directory)
+
+
+class SingleMPipeSearchResult:
+    def __init__(self, graftm_output_directory):
+        self._graftm_output_directory = graftm_output_directory
+
+    def protein_hit_paths(self):
+        '''Return a dict of sample name to corresponding '_hits.fa' files generated in
+        the search step. Do not return those samples where there were no hits.
+
+        '''
+        sample_names = [f for f in os.listdir(self._graftm_output_directory) \
+                        if os.path.isdir(os.path.join(self._graftm_output_directory, f))]
+        paths = {}
+        for sample in sample_names:
+            path = "%s/%s/%s_hits.fa" % (
+                self._graftm_output_directory, sample, sample)
+            if os.stat(path).st_size > 0:
+                paths[sample] = path
+        return paths
+
