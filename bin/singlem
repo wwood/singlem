@@ -184,8 +184,6 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--min_orf_length', metavar='length', help='When predicting ORFs require this many base pairs uninterrupted by a stop codon (default: 96)', type=int, default=96)
     pipe_parser.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
     pipe_parser.add_argument('--filter_minimum', metavar='length', help='Ignore reads aligning in less than this many positions to the HMM (default: as per "graftM graft")', type=int)
-    pipe_parser.add_argument('--previous_graftm_search_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
-    pipe_parser.add_argument('--previous_graftm_separate_directory', metavar='directory', help='previously half-run pipeline (mainly for debug purposes)')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
     pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
@@ -296,8 +294,6 @@ if __name__ == '__main__':
             include_inserts = args.include_inserts,
             working_directory = args.working_directory,
             force = args.force,
-            previous_graftm_search_directory = args.previous_graftm_search_directory,
-            previous_graftm_separate_directory = args.previous_graftm_separate_directory,
             singlem_packages = args.singlem_packages)
 
     elif args.subparser_name=='makedb':
