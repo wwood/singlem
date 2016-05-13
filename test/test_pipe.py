@@ -195,11 +195,13 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
  u'version': 3}
         
         with tempdir.TempDir() as d:
-            cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s" % (path_to_script,
-                                                            os.path.join(path_to_data,'1_pipe','jplace_test.fna'),
-                                                            os.path.join(d, "my_jplace"))
+            cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s" % (
+                path_to_script,
+                os.path.join(path_to_data,'1_pipe','jplace_test.fna'),
+                os.path.join(d, "my_jplace"))
             extern.run(cmd)
-            j = json.load(open(os.path.join(d, 'my_jplace_jplace_test_4.12.ribosomal_protein_L11_rplK.jplace')))
+            j = json.load(open(
+                os.path.join(d, 'my_jplace_jplace_test_4.12.ribosomal_protein_L11_rplK.jplace')))
             j['tree'] = 'tree_thanks'
             j['metadata'] = 'the_metadata'
             self.assertEqual(expected_jpace, j)
