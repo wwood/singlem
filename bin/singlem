@@ -205,7 +205,7 @@ if __name__ == '__main__':
     seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
     seqs_parser.add_argument('--reads', metavar='raw_reads', help='Unaligned nucleotide sequences that were translated into the protein sequences', required=True)
     seqs_parser.add_argument('--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
-    seqs_parser.add_argument('--window_size', metavar='aa', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
+    seqs_parser.add_argument('--window_size', metavar='INT', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
     seqs_parser.add_argument('--start_position', metavar='bp', help='Start the window at the position in the alignment (1-based index) [default: pick one automatically]', type=int)
 
     temp_description = 'From aligned nucleotide sequences to searchable database'
