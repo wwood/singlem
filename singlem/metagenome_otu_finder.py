@@ -202,7 +202,10 @@ class MetagenomeOtuFinder:
                 codons.append(nucleotides[:length_ratio])
                 if len(nucleotides)>=length_ratio: nucleotides = nucleotides[length_ratio:]
                 if nucleotides[:length_ratio] == empty_codon: raise Exception("Input nucleotide sequence had gap characters, didn't expect this")
-        if len(nucleotides) > 0: raise Exception("Insufficient unaligned length found")
+        if len(nucleotides) > 0:
+            raise Exception(
+                "Insufficient aligned length found - were unaligned columns"
+                " removed? Don't remove them.")
 
         aligned_length = 0
         for i in range(chosen_positions[0],chosen_positions[-1]+1):
