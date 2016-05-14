@@ -37,6 +37,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
 class Tests(unittest.TestCase):
+    headers = split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
         
     def test_makedb_query(self):

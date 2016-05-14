@@ -61,7 +61,7 @@ TATGGAGGAACACCAGTGGC
                 n.write(aln.replace('-',''))
                 n.flush()
                 
-                cmd = "%s --debug seqs --alignment %s --alignment_type dna --reads %s" % (
+                cmd = "%s --debug seqs --alignment %s --alignment_type dna --reads %s --window_size 20" % (
                     path_to_script, a.name, n.name)
                 self.assertEqual(sorted(expected), sorted(extern.run(cmd)))
 

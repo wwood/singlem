@@ -1,0 +1,53 @@
+{
+    "files": {
+        "phylo_model": "phylo_modelHmHMWi.json", 
+        "taxonomy": "61_otus_taxonomy.csv", 
+        "tree": "treeUSA73p.tre", 
+        "aln_fasta": "61_otus_deduplicated_aligned.fasta", 
+        "seq_info": "61_otus_seqinfo.csv", 
+        "tree_stats": "61_otus.tre.log"
+    }, 
+    "rollback": {
+        "files": {
+            "phylo_model": "phylo_modelHmHMWi.json", 
+            "taxonomy": "61_otus_taxonomy.csv", 
+            "tree": "61_otus.tre", 
+            "aln_fasta": "61_otus_deduplicated_aligned.fasta", 
+            "seq_info": "61_otus_seqinfo.csv", 
+            "tree_stats": "61_otus.tre.log"
+        }, 
+        "rollback": null, 
+        "metadata": {
+            "create_date": "2016-05-13 18:48:09", 
+            "format_version": "1.1", 
+            "locus": "/tmp/tmpA6gDUe/61_otus"
+        }, 
+        "md5": {
+            "phylo_model": "6caef13793b8543f951d03b2f0532a3c", 
+            "taxonomy": "11776e20e7e5ce2b8c0c9aaf4c216439", 
+            "tree": "d73c3eca64f64d48362bb35191646791", 
+            "aln_fasta": "0cd485912447ddc3e8d78fc5e7fc6224", 
+            "seq_info": "f216b8ed67287bc1f9611a682b4a51d5", 
+            "tree_stats": "d4f10ae9b3b3b038c5ff12f95002d466"
+        }
+    }, 
+    "log": [
+        "Rerooted", 
+        "Stripped refpkg (removed 0 files)", 
+        "Loaded initial files into empty refpkg"
+    ], 
+    "metadata": {
+        "create_date": "2016-05-13 18:48:09", 
+        "format_version": "1.1", 
+        "locus": "/tmp/tmpA6gDUe/61_otus"
+    }, 
+    "rollforward": null, 
+    "md5": {
+        "phylo_model": "6caef13793b8543f951d03b2f0532a3c", 
+        "taxonomy": "11776e20e7e5ce2b8c0c9aaf4c216439", 
+        "tree": "3b43a0751a04f66e8cbe6e0da40edbc8", 
+        "aln_fasta": "0cd485912447ddc3e8d78fc5e7fc6224", 
+        "seq_info": "f216b8ed67287bc1f9611a682b4a51d5", 
+        "tree_stats": "d4f10ae9b3b3b038c5ff12f95002d466"
+    }
+}

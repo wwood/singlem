@@ -37,6 +37,7 @@ class SearchPipe:
         filter_minimum = kwargs.pop('filter_minimum')
         include_inserts = kwargs.pop('include_inserts')
         singlem_packages = kwargs.pop('singlem_packages')
+        window_size = kwargs.pop('window_size')
 
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
@@ -100,23 +101,20 @@ class SearchPipe:
         #### Search
         self._singlem_package_database = hmms
         search_result = self._search(hmms, forward_read_files)
-        sample_to_protein_hit_files = search_result.protein_hit_paths()
-        sample_names = sample_to_protein_hit_files.keys()
-        logging.debug("Recovered %i samples from GraftM search output e.g. %s" \
-                     % (len(sample_names), sample_names[0]))
+        sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
             return_cleanly()
             return
-        else:
-            logging.debug("Found %i samples with reads identified" % len(sample_names))
+        logging.debug("Recovered %i samples with at least one hit e.g. '%s'" \
+                     % (len(sample_names), sample_names[0]))
 
         #### Alignment
         align_result = self._align(search_result)
 
         ### Extract reads
         sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(
-            align_result._graftm_separate_directory_base, sample_names, hmms, include_inserts)
+            align_result, include_inserts)
         logging.info("Finished extracting aligned sequences")
 
         #### Taxonomic assignment
@@ -248,37 +246,29 @@ class SearchPipe:
                                                   sample_name,
                                                   sample_name)
 
-    def _extract_relevant_reads(self, graftm_separate_directory_base, sample_names,
-                                hmms, include_inserts):
-        '''Given 'separates' directory, extract reads that will be used as
+    def _extract_relevant_reads(self, alignment_result, include_inserts):
+        '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
         part of the singlem choppage process as tempfiles in a hash'''
         sample_to_gpkg_to_input_sequences = {}
-        for sample_name in sample_names:
+        for sample_name in alignment_result.sample_names():
             sample_to_gpkg_to_input_sequences[sample_name] = {}
-            for singlem_package in hmms:
-                base_dir = os.path.join(\
-                    graftm_separate_directory_base,
-                    "%s_vs_%s" % (sample_name,
-                                  os.path.basename(singlem_package.graftm_package_path())),
-                    '%s_hits' % sample_name)
-                nucleotide_sequence_fasta_file = os.path.join(
-                    base_dir, "%s_hits_hits.fa" % sample_name)
-
-                # extract the names of the relevant reads
-                if singlem_package.is_protein_package():
-                    unaligned_seq_file = os.path.join(
-                        base_dir, "%s_hits_orf.fa" % sample_name)
-                else:
-                    unaligned_seq_file = nucleotide_sequence_fasta_file
-                logging.debug("Aligning %s to the HMM" % unaligned_seq_file)
-                aligned_seqs = self._get_windowed_sequences(\
-                        unaligned_seq_file,
-                        nucleotide_sequence_fasta_file,
-                        singlem_package,
-                        include_inserts)
+            for singlem_package in self._singlem_package_database:
+                prealigned_file = alignment_result.prealigned_sequence_file(
+                    sample_name, singlem_package)
+                nucleotide_sequence_fasta_file = alignment_result.nucleotide_sequence_file(
+                    sample_name, singlem_package)
+                logging.debug("Aligning %s to the HMM" % prealigned_file)
+                aligned_seqs = self._get_windowed_sequences(
+                    prealigned_file,
+                    nucleotide_sequence_fasta_file,
+                    singlem_package,
+                    include_inserts)
                 if len(aligned_seqs) > 0:
-                    tmp = tempfile.NamedTemporaryFile(prefix='singlem.%s.' % sample_name,suffix='.fasta')
-                    cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (nucleotide_sequence_fasta_file, tmp.name)
+                    tmp = tempfile.NamedTemporaryFile(
+                        prefix='singlem.%s.' % sample_name,
+                        suffix='.fasta')
+                    cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (
+                        nucleotide_sequence_fasta_file, tmp.name)
                     process = subprocess.Popen(['bash','-c',cmd],
                                                stdin=subprocess.PIPE)
                     process.communicate("\n".join([s.name for s in aligned_seqs]))
@@ -428,7 +418,21 @@ class SearchPipe:
             
         jplace['placements'] = new_placements
         json.dump(jplace, output_jplace_io)
-        
+
+    def _graftm_command_prefix(self):
+        # --min_orf_length is unused for nucleotide HMMs but does no harm.
+        cmd = "graftM graft "\
+              "--min_orf_length %s "\
+              "--verbosity %s "\
+              "--input_sequence_type nucleotide "\
+              "--no_clustering " % (
+                  self._min_orf_length,
+                  self._graftm_verbosity)
+        if self._evalue: cmd += ' --evalue %s' % self._evalue
+        if self._restrict_read_length: cmd += ' --restrict_read_length %i' % self._restrict_read_length
+        if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
+        return cmd
+
     def _search(self, singlem_package_database, forward_read_files):
         '''Find all reads that match one or more of the search HMMs in the
         singlem_package_database.
@@ -444,61 +448,77 @@ class SearchPipe:
         -------
         SingleMPipeSearchResult
         '''
-        graftm_search_directory = os.path.join(self._working_directory, 'graftm_search')
-        # run graftm across all the HMMs
         logging.info("Using as input %i different sequence files e.g. %s" % (
             len(forward_read_files), forward_read_files[0]))
-        cmd = "graftM graft --threads %i --forward %s "\
-            "--min_orf_length %s "\
-            "--search_hmm_files %s --search_and_align_only "\
-            "--output_directory %s --aln_hmm_file %s --verbosity %s "\
-            "--input_sequence_type nucleotide"\
-                             % (self._num_threads,
-                                ' '.join(forward_read_files),
-                                self._min_orf_length,
-                                ' '.join(singlem_package_database.search_hmm_paths()),
-                                graftm_search_directory,
-                                singlem_package_database.search_hmm_paths()[0],
-                                self._graftm_verbosity)
-        if self._evalue: cmd += ' --evalue %s' % self._evalue
-        if self._restrict_read_length: cmd += ' --restrict_read_length %i' % self._restrict_read_length
-        if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
-        logging.info("Running GraftM to find particular reads..")
-        extern.run(cmd)
-        logging.info("Finished running GraftM search phase")
+        graftm_protein_search_directory = os.path.join(
+            self._working_directory, 'graftm_protein_search')
+        graftm_nucleotide_search_directory = os.path.join(
+            self._working_directory,'graftm_nucleotide_search')
 
-        return SingleMPipeSearchResult(graftm_search_directory)
+        def run(hmm_paths, output_directory):
+            cmd = self._graftm_command_prefix() + \
+                  "--threads %i "\
+                  "--forward %s "\
+                  "--search_and_align_only "\
+                  "--search_hmm_files %s "\
+                  "--output_directory %s "\
+                  "--aln_hmm_file %s " % (
+                      self._num_threads,
+                      ' '.join(forward_read_files),
+                      ' '.join(hmm_paths),
+                      output_directory,
+                      hmm_paths[0])
+            extern.run(cmd)
+        
+        # Run searches for proteins
+        hmms = singlem_package_database.protein_search_hmm_paths()
+        if len(hmms) > 0:
+            logging.info("Searching for reads matching %i different protein HMMs" % len(hmms))
+            run(hmms, graftm_protein_search_directory)
+
+        # Run searches for nucleotides
+        hmms = singlem_package_database.nucleotide_search_hmm_paths()
+        if len(hmms) > 0:
+            logging.info("Searching for reads matching %i different nucleotide HMMs" % len(hmms))
+            run(hmms, graftm_nucleotide_search_directory)
+            
+        logging.info("Finished search phase")
+        return SingleMPipeSearchResult(
+            graftm_protein_search_directory, graftm_nucleotide_search_directory)
 
     def _align(self, search_result):
         graftm_separate_directory_base = os.path.join(self._working_directory, 'graftm_separates')
         os.mkdir(graftm_separate_directory_base)
         logging.info("Running separate alignments in GraftM..")
         commands = []
-        search_dict = search_result.protein_hit_paths()
-        for sample_name, protein_hit_file in search_dict.items():
-            for hmm in self._singlem_package_database:
-                cmd = "graftM graft --threads %i --verbosity %s "\
-                     "--min_orf_length %s "\
-                     "--forward %s "\
-                     "--graftm_package %s --output_directory %s/%s_vs_%s "\
-                     "--input_sequence_type nucleotide "\
-                     "--search_and_align_only" % (\
-                            1, #use 1 thread since most likely better to parallelise processes with extern, not threads here
-                            self._graftm_verbosity,
-                            self._min_orf_length,
-                            protein_hit_file,
-                            hmm.graftm_package_path(),
-                            graftm_separate_directory_base,
-                            sample_name,
-                            os.path.basename(hmm.graftm_package_path()))
-                if self._evalue: cmd += ' --evalue %s' % self._evalue
-                if self._restrict_read_length:
-                    cmd += ' --restrict_read_length %i' % self._restrict_read_length
-                if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
-                commands.append(cmd)
+
+        def command(singlem_package, sample_name, hit_file):
+            return self._graftm_command_prefix() + \
+                "--threads %i "\
+                "--forward %s "\
+                "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                "--search_and_align_only" % (
+                    1, #use 1 thread since most likely better to parallelise processes with extern
+                    hit_file,
+                    singlem_package.graftm_package_path(),
+                    graftm_separate_directory_base,
+                    sample_name,
+                    os.path.basename(singlem_package.graftm_package_path()))
+
+        # Gather commands for aligning protein packages
+        protein_paths = search_result.protein_hit_paths()
+        for sample_name, hit_file in protein_paths.items():
+            for singlem_package in self._singlem_package_database.protein_packages():
+                commands.append(command(singlem_package, sample_name, hit_file))
+        # Gather commands for aligning nucleotide packages
+        nucleotide_paths = search_result.nucleotide_hit_paths()
+        for sample_name, hit_file in nucleotide_paths.items():
+            for singlem_package in self._singlem_package_database.nucleotide_packages():
+                commands.append(command(singlem_package, sample_name, hit_file))
+                
         extern.run_many(commands, num_threads=self._num_threads)
         return SingleMPipeAlignSearchResult(
-            graftm_separate_directory_base, search_dict.keys())
+            graftm_separate_directory_base, search_result.samples_with_hits())
 
     def _assign_taxonomy(self, sample_to_gpkg_to_input_sequences, assignment_method):
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
@@ -539,28 +559,71 @@ class SearchPipe:
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
 class SingleMPipeSearchResult:
-    def __init__(self, graftm_output_directory):
-        self._graftm_output_directory = graftm_output_directory
+    def __init__(self, graftm_protein_output_directory, graftm_nucleotide_output_directory):
+        self._graftm_protein_output_directory = graftm_protein_output_directory
+        self._graftm_nucleotide_output_directory = graftm_nucleotide_output_directory
 
     def protein_hit_paths(self):
         '''Return a dict of sample name to corresponding '_hits.fa' files generated in
         the search step. Do not return those samples where there were no hits.
 
         '''
-        sample_names = [f for f in os.listdir(self._graftm_output_directory) \
-                        if os.path.isdir(os.path.join(self._graftm_output_directory, f))]
-        paths = {}
-        for sample in sample_names:
-            path = "%s/%s/%s_hits.fa" % (
-                self._graftm_output_directory, sample, sample)
-            if os.stat(path).st_size > 0:
-                paths[sample] = path
-        return paths
+        return self._hit_paths(self._graftm_protein_output_directory)
+
+    def nucleotide_hit_paths(self):
+        '''Return a dict of sample name to corresponding '_hits.fa' files generated in
+        the search step. Do not return those samples where there were no hits.
+
+        '''
+        return self._hit_paths(self._graftm_nucleotide_output_directory)
+
+    def _hit_paths(self, base):
+        if os.path.isdir(base):
+            sample_names = [f for f in os.listdir(base) \
+                            if os.path.isdir(os.path.join(base, f))]
+            paths = {}
+            for sample in sample_names:
+                path = "%s/%s/%s_hits.fa" % (
+                    base, sample, sample)
+                if os.stat(path).st_size > 0:
+                    paths[sample] = path
+                return paths
+        else:
+            # This happens if there are no protein singlem packages.
+            return {}
+
+    def samples_with_hits(self):
+        '''Return a list of sample names that had at least one hit'''
+        return list(set(itertools.chain(
+            self.protein_hit_paths().keys(), self.nucleotide_hit_paths().keys())))
 
 class SingleMPipeAlignSearchResult:
     def __init__(self, graftm_separate_directory_base, sample_names):
         self._graftm_separate_directory_base = graftm_separate_directory_base
         self._sample_names = sample_names
+
+    def _base_dir(self, sample_name, singlem_package):
+        return os.path.join(
+            self._graftm_separate_directory_base,
+            "%s_vs_%s" % (sample_name,
+                          os.path.basename(singlem_package.graftm_package_path())),
+            '%s_hits' % sample_name)
+
+    def prealigned_sequence_file(self, sample_name, singlem_package):
+        if singlem_package.is_protein_package():
+            return os.path.join(
+                self._base_dir(sample_name, singlem_package),
+                "%s_hits_orf.fa" % sample_name)
+        else:
+            return self.nucleotide_sequence_file(sample_name, singlem_package)
+
+    def nucleotide_sequence_file(self, sample_name, singlem_package):
+        return os.path.join(
+            self._base_dir(sample_name, singlem_package),
+            "%s_hits_hits.fa" % sample_name)
+
+    def sample_names(self):
+        return self._sample_names
 
 class SingleMPipeTaxonomicAssignmentResult:
     def __init__(self, graftm_output_directory):

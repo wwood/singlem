@@ -18,14 +18,38 @@ class MetagenomeOtuFinder:
 
         Parameters
         ----------
+        aligned_sequences: list of Sequence or AlignedProteinSequence
+            aligned sequences
+        nucleotide_sequences: dict of sequence name to Sequence object
+            unaligned nucleotide sequences
+        stretch_length: int
+            window size, measured in nucleotides (ie 60 not 20)
+        include_inserts: boolean
+            include lower case bases (that were not aligned to the HMM) in the
+            returned sequences.
+        is_protein_alignment: boolean
+            True for a protein alignment, False for a nucleotide one
+        best_position: int or None
+            Start of the window in the alignment not counting 'insert' columns,
+            or None to calculate the best window and use that.
 
         '''
         ignored_columns = self._find_lower_case_columns(aligned_sequences)
         logging.debug("Ignoring columns %s", str(ignored_columns))
 
+        # Internally stretch_length is the length of the alignment
+        if is_protein_alignment:
+            if stretch_length % 3 != 0:
+                raise Exception(
+                    "For protein alignments the window length must be divisible "
+                    "by 3 i.e. correspond to whole codons")
+            stretch_length = stretch_length / 3
+        if stretch_length < 1:
+            raise Exception("stretch_length must be positive")
+
         # Find the stretch of the protein that has the most number of aligned
-        # bases in a 20 position stretch, excluding sequences that do not
-        # aligned to the first and last bases
+        # bases in the stretch, excluding sequences that do not aligned to the
+        # first and last bases
         if best_position:
             start_position = self._upper_case_position_to_alignment_position(
                 best_position, ignored_columns)

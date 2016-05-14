@@ -43,11 +43,22 @@ class HmmDatabase:
         for pkg in self.singlem_packages:
             self._hmms_and_positions[pkg.hmm_basename()] = pkg
 
-    def search_hmm_paths(self):
-        'return an array of absolute paths to the hmms in this database'
-        return list(itertools.chain(\
-            *[pkg.graftm_package().search_hmm_paths() for pkg in self._hmms_and_positions.values()]))
+    def protein_packages(self):
+        return [pkg for pkg in self._hmms_and_positions.values() if pkg.is_protein_package()]
 
+    def nucleotide_packages(self):
+        return [pkg for pkg in self._hmms_and_positions.values() if not pkg.is_protein_package()]
+
+    def protein_search_hmm_paths(self):
+        'return an array of absolute paths to the protein hmms in this database'
+        return list(itertools.chain(
+            *[pkg.graftm_package().search_hmm_paths() for pkg in self.protein_packages()]))
+
+    def nucleotide_search_hmm_paths(self):
+        'return an array of absolute paths to the protein hmms in this database'
+        return list(itertools.chain(
+            *[pkg.graftm_package().search_hmm_paths() for pkg in self.nucleotide_packages()]))
+    
     def __iter__(self):
         for hp in self._hmms_and_positions.values():
             yield hp

@@ -41,6 +41,25 @@ class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
+    def test_fast_protein_package(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
+
     def test_minimal(self):
         expected = [
             self.headers,
@@ -208,14 +227,12 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
             self.assertEqual(expected_jpace, j)
 
     def test_nucleotide_package(self):
+        expected = [
+            "\t".join(self.headers),
+            '61_otus.v3		GGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGACTGACGCTGATGTGCGAAAGCG	1	2.56	Root; k__Bacteria; p__Proteobacteria',
+            '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
-GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGC
->HWI-ST1243:156:D1K83ACXX:7:1109:8070:99586 1:N:0:CGTACTAGCTAAGCCT
-CAGAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGAT
->HWI-ST1243:156:D1K83ACXX:7:1106:7275:39452 1:N:0:GTAGAGGAAAGGAGTA
-GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGGCGCTGATGTGC
->HWI-ST1243:156:D1K83ACXX:7:1106:4406:71922 1:N:0:TCCTGAGCCTAAGCCT
-GAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGT
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
 '''
         with tempfile.NamedTemporaryFile(suffix='.fa') as n:
             n.write(inseqs)
@@ -223,8 +240,10 @@ GAGATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGT
 
             cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
-            extern.run(cmd)
-
-
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
+            
 if __name__ == "__main__":
     unittest.main()
