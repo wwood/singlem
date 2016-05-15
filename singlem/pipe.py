@@ -520,7 +520,7 @@ class SearchPipe:
                 commands.append(command(singlem_package, sample_name, hit_file))
         # Gather commands for aligning nucleotide packages.
         for sample_name, temporary_hit_file in \
-            search_result.direction_corrected_temporary_read_files():
+            search_result.direction_corrected_nucleotide_read_files():
             for singlem_package in self._singlem_package_database.nucleotide_packages():
                 commands.append(command(singlem_package, sample_name, temporary_hit_file))
                 
@@ -578,10 +578,10 @@ class SingleMPipeSearchResult:
         '''
         return self._hit_paths(self._graftm_protein_output_directory)
 
-    def direction_corrected_temporary_read_files(self):
-        '''For nucleotide HMMs: Iterate over the sample names plus a temporary file per
-        sample, temporary files that are 'direction-corrected' i.e. contain
-        sequences in the direction that they were aligned.. These tempfiles must
+    def direction_corrected_nucleotide_read_files(self):
+        '''For nucleotide HMMs: Iterate over the sample names plus a fasta filename per
+        sample, fasta files that are 'direction-corrected' i.e. contain
+        sequences in the direction that they were aligned. These tempfiles must
         be closed by code using this function. Do not use this method for
         protein HMMs.
 
@@ -609,7 +609,6 @@ class SingleMPipeSearchResult:
                 else:
                     reverse_reads.add(hit[0])
             nucs = self._hit_path(self._graftm_nucleotide_output_directory, sample_name)
-
             yieldme = os.path.join(self._graftm_nucleotide_output_directory,
                                    "%s_hits.fa" % sample_name)
             SequenceExtractor().extract_forward_and_reverse_complement(
