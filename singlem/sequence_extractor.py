@@ -25,15 +25,17 @@ class SequenceExtractor:
                                    stdout=subprocess.PIPE)
         process.communicate('\n'.join(reads_to_extract))
 
-    def extract_and_reverse_complement(self, reads_to_extract,
-                                       database_fasta_file, output_file):
+    def extract_forward_and_reverse_complement(
+            self, forward_reads_to_extract, reverse_reads_to_extract, database_fasta_file,
+            output_file):
         '''As per extract except also reverse complement the sequences.'''
-        cmd = "fxtract -XH -f /dev/stdin '%s' | " % database_fasta_file + \
-              "seqmagick convert --reverse-complement --input-format fasta "\
-              "--output-format fasta - %s" % (output_file)
+        self.extract(forward_reads_to_extract, database_fasta_file, output_file)
+        cmd_rev = "fxtract -XH -f /dev/stdin '%s' | " % database_fasta_file + \
+                  "seqmagick convert --reverse-complement --input-format fasta "\
+                  "--output-format fasta - - >>%s" % (output_file)
 
-        process = subprocess.Popen(["bash", "-c", cmd], 
+        process = subprocess.Popen(["bash", "-c", cmd_rev], 
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE)
-        process.communicate('\n'.join(reads_to_extract))
+        process.communicate('\n'.join(reverse_reads_to_extract))
         

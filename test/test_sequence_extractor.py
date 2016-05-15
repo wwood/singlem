@@ -45,7 +45,7 @@ AAAAA
                 self.assertEqual(['>1','ATG','>2 comment','AAAAA',''],
                                  open(g.name).read().split("\n"))
 
-    def test_extract_and_revcom(self):
+    def test_extract_fwd_and_revcom(self):
         fasta = '''>1
 ATG
 >2 comment
@@ -55,10 +55,11 @@ AAAAA
             f.write(fasta)
             f.flush()
             with tempfile.NamedTemporaryFile() as g:
-                SequenceExtractor().extract_and_reverse_complement(['1','2'], f.name, g.name)
-                self.assertEqual(['>1','CAT','>2 comment','TTTTT',''],
-                                 open(g.name).read().split("\n"))                
-            
+                SequenceExtractor().extract_forward_and_reverse_complement(
+                    ['1'],['1','2'], f.name, g.name)
+                self.assertEqual(['>1','ATG','>1','CAT','>2 comment','TTTTT',''],
+                                 open(g.name).read().split("\n"))
+
                             
 if __name__ == "__main__":
     logging.basicConfig(level=logging.ERROR)
