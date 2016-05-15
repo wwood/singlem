@@ -16,6 +16,9 @@ from known_otu_table import KnownOtuTable
 from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
 from diamond_parser import DiamondResultParser
+from sequence_extractor import SequenceExtractor
+
+from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
 PPLACER_ASSIGNMENT_METHOD = 'pplacer'
 DIAMOND_ASSIGNMENT_METHOD = 'diamond'
@@ -253,26 +256,31 @@ class SearchPipe:
         for sample_name in alignment_result.sample_names():
             sample_to_gpkg_to_input_sequences[sample_name] = {}
             for singlem_package in self._singlem_package_database:
-                prealigned_file = alignment_result.prealigned_sequence_file(
-                    sample_name, singlem_package)
-                nucleotide_sequence_fasta_file = alignment_result.nucleotide_sequence_file(
-                    sample_name, singlem_package)
-                logging.debug("Aligning %s to the HMM" % prealigned_file)
-                aligned_seqs = self._get_windowed_sequences(
-                    prealigned_file,
-                    nucleotide_sequence_fasta_file,
-                    singlem_package,
-                    include_inserts)
-                if len(aligned_seqs) > 0:
-                    tmp = tempfile.NamedTemporaryFile(
-                        prefix='singlem.%s.' % sample_name,
-                        suffix='.fasta')
-                    cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (
-                        nucleotide_sequence_fasta_file, tmp.name)
-                    process = subprocess.Popen(['bash','-c',cmd],
-                                               stdin=subprocess.PIPE)
-                    process.communicate("\n".join([s.name for s in aligned_seqs]))
-                    sample_to_gpkg_to_input_sequences[sample_name][os.path.basename(singlem_package.graftm_package_path())] = tmp
+                for prealigned_file in alignment_result.prealigned_sequence_files(
+                        sample_name, singlem_package):
+                    if singlem_package.is_protein_package():
+                        nucleotide_sequence_fasta_file = alignment_result.nucleotide_sequence_file(
+                            sample_name, singlem_package)
+                    else:
+                        nucleotide_sequence_fasta_file = prealigned_file
+                        
+                    logging.debug("Aligning %s to the HMM" % prealigned_file)
+                    aligned_seqs = self._get_windowed_sequences(
+                        prealigned_file,
+                        nucleotide_sequence_fasta_file,
+                        singlem_package,
+                        include_inserts)
+                    if len(aligned_seqs) > 0:
+                        tmp = tempfile.NamedTemporaryFile(
+                            prefix='singlem.%s.' % sample_name,
+                            suffix='.fasta')
+                        cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (
+                            nucleotide_sequence_fasta_file, tmp.name)
+                        process = subprocess.Popen(['bash','-c',cmd],
+                                                   stdin=subprocess.PIPE)
+                        process.communicate("\n".join([s.name for s in aligned_seqs]))
+                        sample_to_gpkg_to_input_sequences[sample_name]\
+                            [os.path.basename(singlem_package.graftm_package_path())] = tmp
 
         return sample_to_gpkg_to_input_sequences
 
@@ -510,11 +518,11 @@ class SearchPipe:
         for sample_name, hit_file in protein_paths.items():
             for singlem_package in self._singlem_package_database.protein_packages():
                 commands.append(command(singlem_package, sample_name, hit_file))
-        # Gather commands for aligning nucleotide packages
-        nucleotide_paths = search_result.nucleotide_hit_paths()
-        for sample_name, hit_file in nucleotide_paths.items():
+        # Gather commands for aligning nucleotide packages.
+        for sample_name, temporary_hit_file in \
+            search_result.direction_corrected_temporary_read_files():
             for singlem_package in self._singlem_package_database.nucleotide_packages():
-                commands.append(command(singlem_package, sample_name, hit_file))
+                commands.append(command(singlem_package, sample_name, temporary_hit_file))
                 
         extern.run_many(commands, num_threads=self._num_threads)
         return SingleMPipeAlignSearchResult(
@@ -552,7 +560,7 @@ class SearchPipe:
                     commands.append(cmd)
                 else:
                     logging.debug(
-                        "No sequences found aligning from gpkg %s to sample %s, skipping" % (
+                        "No sequences found aligning from sample %s to gpkg %s, skipping" % (
                             singlem_package.graftm_package_basename(), sample_name))
         extern.run_many(commands, num_threads=self._num_threads)
         logging.info("Finished running taxonomic assignment with graftm")
@@ -570,12 +578,44 @@ class SingleMPipeSearchResult:
         '''
         return self._hit_paths(self._graftm_protein_output_directory)
 
-    def nucleotide_hit_paths(self):
-        '''Return a dict of sample name to corresponding '_hits.fa' files generated in
-        the search step. Do not return those samples where there were no hits.
+    def direction_corrected_temporary_read_files(self):
+        '''For nucleotide HMMs: Iterate over the sample names plus a temporary file per
+        sample, temporary files that are 'direction-corrected' i.e. contain
+        sequences in the direction that they were aligned.. These tempfiles must
+        be closed by code using this function. Do not use this method for
+        protein HMMs.
 
         '''
-        return self._hit_paths(self._graftm_nucleotide_output_directory)
+        if not os.path.isdir(self._graftm_nucleotide_output_directory):
+            # No protein singlem packages
+            return
+        sample_names = [f for f in
+                        os.listdir(self._graftm_nucleotide_output_directory) \
+                        if os.path.isdir(os.path.join(
+                                self._graftm_nucleotide_output_directory, f))]
+        for sample_name in sample_names:
+            forward_reads = set()
+            reverse_reads = set()
+            hmmout_result = HMMSearchResult.import_from_nhmmer_table(
+                os.path.join(
+                    self._graftm_nucleotide_output_directory,
+                    sample_name,
+                    "%s.hmmout.csv" % sample_name))
+            for hit in hmmout_result.each(
+                    [SequenceSearchResult.QUERY_ID_FIELD,
+                     SequenceSearchResult.ALIGNMENT_DIRECTION]):
+                if hit[1]:
+                    forward_reads.add(hit[0])
+                else:
+                    reverse_reads.add(hit[0])
+            nucs = self._hit_path(self._graftm_nucleotide_output_directory, sample_name)
+
+            yieldme = os.path.join(self._graftm_nucleotide_output_directory,
+                                   "%s_hits.fa" % sample_name)
+            SequenceExtractor().extract_forward_and_reverse_complement(
+                forward_reads, reverse_reads, nucs, yieldme)
+            if os.stat(yieldme).st_size > 0:
+                yield sample_name, yieldme
 
     def _hit_paths(self, base):
         if os.path.isdir(base):
@@ -583,19 +623,23 @@ class SingleMPipeSearchResult:
                             if os.path.isdir(os.path.join(base, f))]
             paths = {}
             for sample in sample_names:
-                path = "%s/%s/%s_hits.fa" % (
-                    base, sample, sample)
+                path = self._hit_path(base, sample)
                 if os.stat(path).st_size > 0:
                     paths[sample] = path
                 return paths
         else:
-            # This happens if there are no protein singlem packages.
+            # This happens if there are no protein singlem packages, or
+            # alternatively no nucleotide packages.
             return {}
+        
+    def _hit_path(self, base, sample):
+        return "%s/%s/%s_hits.fa" % (base, sample, sample)
 
     def samples_with_hits(self):
         '''Return a list of sample names that had at least one hit'''
         return list(set(itertools.chain(
-            self.protein_hit_paths().keys(), self.nucleotide_hit_paths().keys())))
+            self.protein_hit_paths().keys(),
+            self._hit_paths(self._graftm_nucleotide_output_directory).keys())))
 
 class SingleMPipeAlignSearchResult:
     def __init__(self, graftm_separate_directory_base, sample_names):
@@ -609,13 +653,18 @@ class SingleMPipeAlignSearchResult:
                           os.path.basename(singlem_package.graftm_package_path())),
             '%s_hits' % sample_name)
 
-    def prealigned_sequence_file(self, sample_name, singlem_package):
+    def prealigned_sequence_files(self, sample_name, singlem_package):
+        '''Yield a path to the sequences that were aligned to the HMM. In the nucleotide
+        case, this is a temporary file(name) which is a concatenation of forward
+        and reverse.
+
+        '''
         if singlem_package.is_protein_package():
-            return os.path.join(
+            yield os.path.join(
                 self._base_dir(sample_name, singlem_package),
                 "%s_hits_orf.fa" % sample_name)
         else:
-            return self.nucleotide_sequence_file(sample_name, singlem_package)
+            yield self.nucleotide_sequence_file(sample_name, singlem_package)
 
     def nucleotide_sequence_file(self, sample_name, singlem_package):
         return os.path.join(

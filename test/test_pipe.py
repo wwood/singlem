@@ -244,6 +244,46 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
                              extern.run(cmd).replace(
                                  os.path.basename(n.name).replace('.fa',''),
                                  '').split("\n"))
+
+    def test_revcom_nucleotide_package(self):
+        expected = [
+            "\t".join(self.headers),
+            '61_otus.v3		GGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGACTGACGCTGATGTGCGAAAGCG	1	2.56	Root; k__Bacteria; p__Proteobacteria',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483_revcom
+ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGCCACTGGTGTTCCTCCATATC
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
+
+    def test_fwd_and_revcom_nucleotide_package(self):
+        expected = [
+            "\t".join(self.headers),
+            '61_otus.v3		GGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGACTGACGCTGATGTGCGAAAGCG	2	5.13	Root; k__Bacteria; p__Proteobacteria',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
+>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483_revcom
+ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGCCACTGGTGTTCCTCCATATC
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
             
 if __name__ == "__main__":
     unittest.main()
