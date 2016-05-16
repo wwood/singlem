@@ -287,6 +287,8 @@ if __name__ == '__main__':
             raise Exception("At least one of --otu_table or --archive_otu_table must be specified")
         if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
             raise Exception("If --output_jplace is specified, then --assignment_method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
+        if args.output_jplace and args.known_otu_tables:
+            raise Exception("Currently --output_jplace and --known_otu_tables are incompatible")
         singlem.pipe.SearchPipe().run(
             sequences = args.sequences,
             otu_table = args.otu_table,
