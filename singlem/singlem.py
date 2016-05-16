@@ -41,7 +41,7 @@ class HmmDatabase:
             self.singlem_packages = [SingleMPackage.acquire(os.path.join(db_directory, path)) for path in pkg_paths]
 
         for pkg in self.singlem_packages:
-            self._hmms_and_positions[pkg.hmm_basename()] = pkg
+            self._hmms_and_positions[pkg.base_directory()] = pkg
 
     def protein_packages(self):
         return [pkg for pkg in self._hmms_and_positions.values() if pkg.is_protein_package()]

@@ -98,6 +98,9 @@ class SingleMPackage:
     def contents_path(self):
         return os.path.join(self._base_directory, SingleMPackage._CONTENTS_FILE_NAME)
 
+    def base_directory(self):
+        return self._base_directory
+
 class SingleMPackageVersion1(SingleMPackage):
     version = 1 # don't change me bro
     
@@ -173,7 +176,6 @@ class SingleMPackageVersion1(SingleMPackage):
 
     @staticmethod
     def compile(output_package_path, graftm_package_path, singlem_position):
-
         '''Create a new SingleM package with the given inputs. Any files
         specified as parameters are copied into the final package so can
         be removed after calling this function.
