@@ -116,7 +116,13 @@ class SearchPipe:
         #### Alignment
         align_result = self._align(search_result)
 
-        ### Extract reads
+        ### Extract reads that have already known taxonomy
+        if known_otu_tables:
+            logging.info("Parsing known taxonomy OTU tables")
+            known_taxes = KnownOtuTable()
+            known_taxes.parse_otu_tables(known_otu_tables)
+
+        ### Extract other reads which do not have known taxonomy
         sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(
             align_result, include_inserts)
         logging.info("Finished extracting aligned sequences")
@@ -132,12 +138,7 @@ class SearchPipe:
         regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
                                   split('read_names nucleotides_aligned taxonomy_by_known?')
-
-        if known_otu_tables:
-            logging.info("Parsing known taxonomy OTU tables")
-            known_taxes = KnownOtuTable()
-            known_taxes.parse_otu_tables(known_otu_tables)
-
+        
         for sample_name in sample_names:
             if sample_name in sample_to_gpkg_to_input_sequences:
                 for singlem_package in hmms:
