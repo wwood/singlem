@@ -92,7 +92,7 @@ class SearchPipe:
         logging.debug("Using working directory %s" % working_directory)
         self._working_directory = working_directory
 
-        sample_to_gpkg_to_input_sequences = None
+        extracted_reads = None
         def return_cleanly():
             if extracted_reads: extracted_reads.cleanup()
             if using_temporary_working_directory: tmp.dissolve()
@@ -263,11 +263,9 @@ class SearchPipe:
                         tmp = tempfile.NamedTemporaryFile(
                             prefix='singlem.%s.' % sample_name,
                             suffix='.fasta')
-                        cmd = "fxtract -X -H -f /dev/stdin %s > %s" % (
-                            nucleotide_sequence_fasta_file, tmp.name)
-                        process = subprocess.Popen(['bash','-c',cmd],
-                                                   stdin=subprocess.PIPE)
-                        process.communicate("\n".join([s.name for s in aligned_seqs]))
+                        SequenceExtractor().extract([s.name for s in aligned_seqs],
+                                                    nucleotide_sequence_fasta_file,
+                                                    tmp.name)
                         sample_to_gpkg_to_input_sequences[sample_name]\
                             [os.path.basename(singlem_package.graftm_package_path())] = tmp
 
