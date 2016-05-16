@@ -92,13 +92,9 @@ class SearchPipe:
         logging.debug("Using working directory %s" % working_directory)
         self._working_directory = working_directory
 
-        sample_to_gpkg_to_input_sequences = {}
+        sample_to_gpkg_to_input_sequences = None
         def return_cleanly():
-            # remove these tempfiles because otherwise errors are spewed
-            # when they are cleaned up after the tempdir is gone
-            for gpkg_to_input_sequences in sample_to_gpkg_to_input_sequences.values():
-                for seqs_tempfile in gpkg_to_input_sequences.values():
-                    seqs_tempfile.close()
+            if extracted_reads: extracted_reads.cleanup()
             if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
 
@@ -123,14 +119,14 @@ class SearchPipe:
             known_taxes.parse_otu_tables(known_otu_tables)
 
         ### Extract other reads which do not have known taxonomy
-        sample_to_gpkg_to_input_sequences = self._extract_relevant_reads(
+        extracted_reads = self._extract_relevant_reads(
             align_result, include_inserts)
         logging.info("Finished extracting aligned sequences")
 
         #### Taxonomic assignment
         logging.info("Running taxonomic assignment with graftm..")
         assignment_result = self._assign_taxonomy(
-            sample_to_gpkg_to_input_sequences, graftm_assignment_method)
+            extracted_reads, graftm_assignment_method)
 
         #### Process taxonomically assigned reads
         # get the sequences out for each of them
@@ -138,84 +134,82 @@ class SearchPipe:
         regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
                                   split('read_names nucleotides_aligned taxonomy_by_known?')
-        
-        for sample_name in sample_names:
-            if sample_name in sample_to_gpkg_to_input_sequences:
-                for singlem_package in hmms:
-                    key = singlem_package.graftm_package_basename()
-                    if key in sample_to_gpkg_to_input_sequences[sample_name]:
-                        tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
 
-                        tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
-                        aligned_seqs = self._get_windowed_sequences(
-                            assignment_result.prealigned_sequence_file(
-                                sample_name, singlem_package, tmpbase),
-                            assignment_result.nucleotide_hits_file(
-                                sample_name, singlem_package, tmpbase),
-                            singlem_package,
-                            include_inserts)
+        for sample_name, singlem_package, tmp_graft in extracted_reads:
+            tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
 
-                        if len(aligned_seqs) == 0:
-                            logging.debug("Found no alignments for %s, skipping to next sample/hmm" % os.path.basename(singlem_package.graftm_package().alignment_hmm_path()))
-                            continue
-                        logging.debug("Found %i sequences for hmm %s, sample '%s'" % (len(aligned_seqs),
-                                                                                    os.path.basename(singlem_package.graftm_package().alignment_hmm_path()),
-                                                                                    sample_name))
-                        if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                            tax_file = assignment_result.diamond_assignment_file(
-                                sample_name, singlem_package, tmpbase)
-                        else:
-                            tax_file = assignment_result.read_tax_file(
-                                sample_name, singlem_package, tmpbase)
-                        logging.debug("Reading taxonomy from %s" % tax_file)
-                        
-                        if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                            taxonomies = DiamondResultParser(tax_file)
-                            use_first = True
-                        else:
-                            if not os.path.isfile(tax_file):
-                                logging.warn("Unable to find tax file for gene %s from sample %s (likely do to min length filtering), skipping" %\
-                                         (key, sample_name))
-                                continue
-                            taxonomies = TaxonomyFile(tax_file)
-                            use_first = False
+            aligned_seqs = self._get_windowed_sequences(
+                assignment_result.prealigned_sequence_file(
+                    sample_name, singlem_package, tmpbase),
+                assignment_result.nucleotide_hits_file(
+                    sample_name, singlem_package, tmpbase),
+                singlem_package,
+                include_inserts)
 
-                        # convert to OTU table, output
-                        infos = list(self._seqs_to_counts_and_taxonomy(aligned_seqs, taxonomies, use_first))
-                        for info in infos:
-                            if known_otu_tables:
-                                tax_assigned_through_known = False
-                            to_print = [singlem_package.graftm_package_basename(),
-                                            sample_name,
-                                            info.seq,
-                                            info.count,
-                                            info.coverage]
-                            if known_otu_tables and info.seq in known_taxes:
-                                tax_assigned_through_known = True
-                                to_print.append(known_taxes[info.seq].taxonomy)
-                            else:
-                                to_print.append(info.taxonomy)
+            if len(aligned_seqs) == 0:
+                logging.debug(
+                    "Found no alignments for %s, skipping to next sample/hmm" %
+                    os.path.basename(singlem_package.graftm_package().alignment_hmm_path()))
+                continue
+            logging.debug("Found %i sequences for hmm %s, sample '%s'" % (
+                len(aligned_seqs),
+                os.path.basename(singlem_package.graftm_package().alignment_hmm_path()),
+                sample_name))
+            if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                tax_file = assignment_result.diamond_assignment_file(
+                    sample_name, singlem_package, tmpbase)
+            else:
+                tax_file = assignment_result.read_tax_file(
+                    sample_name, singlem_package, tmpbase)
+            logging.debug("Reading taxonomy from %s" % tax_file)
 
-                            to_print.append(info.names)
-                            to_print.append(info.aligned_lengths)
-                            if known_otu_tables:
-                                to_print.append(tax_assigned_through_known)
-                            else:
-                                to_print.append(False)
-                            otu_table_object.data.append(to_print)
-                            
-                        if output_jplace:
-                            base_dir = assignment_result._base_dir(
-                                sample_name, singlem_package, tmpbase)
-                            input_jplace_file = os.path.join(base_dir, "placements.jplace")
-                            output_jplace_file = os.path.join(base_dir, "%s_%s_%s.jplace" % (
-                                output_jplace, sample_name, singlem_package.graftm_package_basename()))
-                            logging.debug("Converting jplace file %s to singlem jplace file %s" % (
-                                input_jplace_file, output_jplace_file))
-                            with open(output_jplace_file, 'w') as output_jplace_io:
-                                self._write_jplace_from_infos(
-                                    open(input_jplace_file), infos, output_jplace_io)
-                                
+            if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                taxonomies = DiamondResultParser(tax_file)
+                use_first = True
+            else:
+                if not os.path.isfile(tax_file):
+                    logging.warn("Unable to find tax file for gene %s from sample %s (likely do to min length filtering), skipping" %\
+                             (key, sample_name))
+                    continue
+                taxonomies = TaxonomyFile(tax_file)
+                use_first = False
+
+            # convert to OTU table, output
+            infos = list(self._seqs_to_counts_and_taxonomy(aligned_seqs, taxonomies, use_first))
+            for info in infos:
+                if known_otu_tables:
+                    tax_assigned_through_known = False
+                to_print = [singlem_package.graftm_package_basename(),
+                                sample_name,
+                                info.seq,
+                                info.count,
+                                info.coverage]
+                if known_otu_tables and info.seq in known_taxes:
+                    tax_assigned_through_known = True
+                    to_print.append(known_taxes[info.seq].taxonomy)
+                else:
+                    to_print.append(info.taxonomy)
+
+                to_print.append(info.names)
+                to_print.append(info.aligned_lengths)
+                if known_otu_tables:
+                    to_print.append(tax_assigned_through_known)
+                else:
+                    to_print.append(False)
+                otu_table_object.data.append(to_print)
+
+            if output_jplace:
+                base_dir = assignment_result._base_dir(
+                    sample_name, singlem_package, tmpbase)
+                input_jplace_file = os.path.join(base_dir, "placements.jplace")
+                output_jplace_file = os.path.join(base_dir, "%s_%s_%s.jplace" % (
+                    output_jplace, sample_name, singlem_package.graftm_package_basename()))
+                logging.debug("Converting jplace file %s to singlem jplace file %s" % (
+                    input_jplace_file, output_jplace_file))
+                with open(output_jplace_file, 'w') as output_jplace_io:
+                    self._write_jplace_from_infos(
+                        open(input_jplace_file), infos, output_jplace_io)
+
                             
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
@@ -277,7 +271,7 @@ class SearchPipe:
                         sample_to_gpkg_to_input_sequences[sample_name]\
                             [os.path.basename(singlem_package.graftm_package_path())] = tmp
 
-        return sample_to_gpkg_to_input_sequences
+        return ExtractedReads(sample_to_gpkg_to_input_sequences, self._singlem_package_database)
 
     def _align_proteins_to_hmm(self, proteins_file, hmm_file):
         '''hmmalign proteins to hmm, and return an alignment object'''
@@ -530,40 +524,26 @@ class SearchPipe:
         return SingleMPipeAlignSearchResult(
             graftm_separate_directory_base, search_result.samples_with_hits())
 
-    def _assign_taxonomy(self, sample_to_gpkg_to_input_sequences, assignment_method):
+    def _assign_taxonomy(self, extracted_reads, assignment_method):
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
-        sample_names = sample_to_gpkg_to_input_sequences.keys()
-        for sample_name in sample_names:
-            for singlem_package in self._singlem_package_database:
-                key = singlem_package.graftm_package_basename()
-                if key in sample_to_gpkg_to_input_sequences[sample_name]:
-                    tmp_graft = sample_to_gpkg_to_input_sequences[sample_name][key]
-                    cmd = "graftM graft --threads %i --verbosity %s "\
-                         "--min_orf_length %s "\
-                         "--forward %s "\
-                         "--graftm_package %s --output_directory %s/%s_vs_%s "\
-                         "--input_sequence_type nucleotide "\
-                         "--assignment_method %s" % (\
-                                1,
-                                self._graftm_verbosity,
-                                self._min_orf_length,
-                                tmp_graft.name,
-                                singlem_package.graftm_package_path(),
-                                graftm_align_directory_base,
-                                sample_name,
-                                singlem_package.graftm_package_basename(),
-                                assignment_method)
-                    if self._evalue: cmd += ' --evalue %s' % self._evalue
-                    if self._restrict_read_length:
-                        cmd += ' --restrict_read_length %i' % self._restrict_read_length
-                    if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
-                    commands.append(cmd)
-                else:
-                    logging.debug(
-                        "No sequences found aligning from sample %s to gpkg %s, skipping" % (
-                            singlem_package.graftm_package_basename(), sample_name))
+        for sample_name, singlem_package, tmp_graft in extracted_reads:
+            cmd = "%s "\
+                  "--threads %i "\
+                  "--forward %s "\
+                  "--graftm_package %s "\
+                  "--output_directory %s/%s_vs_%s "\
+                  "--assignment_method %s" % (
+                      self._graftm_command_prefix(),
+                      1,
+                      tmp_graft.name,
+                      singlem_package.graftm_package_path(),
+                      graftm_align_directory_base,
+                      sample_name,
+                      singlem_package.graftm_package_basename(),
+                      assignment_method)
+            commands.append(cmd)
         extern.run_many(commands, num_threads=self._num_threads)
         logging.info("Finished running taxonomic assignment with graftm")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
@@ -689,3 +669,30 @@ class SingleMPipeTaxonomicAssignmentResult:
     def read_tax_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             '%s_read_tax.tsv' % tmpbase)
+
+class ExtractedReads:
+    def __init__(self, sample_to_gpkg_to_input_sequences, singlem_packages):
+        self._sample_to_gpkg_to_input_sequences = sample_to_gpkg_to_input_sequences
+        self._singlem_packages = singlem_packages
+
+    def __iter__(self):
+        for sample, second_level in self._sample_to_gpkg_to_input_sequences.items():
+            for singlem_package in self._singlem_packages:
+                try:
+                    tf = second_level[singlem_package.graftm_package_basename()]
+                    yield sample, singlem_package, tf
+                except KeyError:
+                    logging.debug("No reads found with package %s from sample %s" % (
+                        singlem_package.base_directory(),
+                        sample))
+
+    def each_sample(self):
+        for sample, gpkg_to_input_sequences in self._sample_to_gpkg_to_input_sequences.items():
+            yield sample
+
+    def cleanup(self):
+        # remove these tempfiles because otherwise errors are spewed
+        # when they are cleaned up after the tempdir is gone
+        for gpkg_to_input_sequences in self._sample_to_gpkg_to_input_sequences.values():
+            for seqs_tempfile in gpkg_to_input_sequences.values():
+                seqs_tempfile.close()
