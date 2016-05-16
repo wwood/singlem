@@ -17,6 +17,7 @@ from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
 from diamond_parser import DiamondResultParser
 from sequence_extractor import SequenceExtractor
+from graftm_result import GraftMResult
 
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
@@ -241,13 +242,6 @@ class SearchPipe:
             include_inserts,
             singlem_package.is_protein_package(),
             best_position=singlem_package.singlem_position())
-
-    def _placement_input_fasta_name(self, hmm_and_position, sample_name, graftm_separate_directory_base):
-        return '%s/%s_vs_%s/%s_hits/%s_hits_hits.fa' % (graftm_separate_directory_base,
-                                                  sample_name,
-                                                  os.path.basename(hmm_and_position.gpkg_path),
-                                                  sample_name,
-                                                  sample_name)
 
     def _extract_relevant_reads(self, alignment_result, include_inserts):
         '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
@@ -480,19 +474,26 @@ class SearchPipe:
         
         # Run searches for proteins
         hmms = singlem_package_database.protein_search_hmm_paths()
+        doing_proteins = False
         if len(hmms) > 0:
+            doing_proteins = True
             logging.info("Searching for reads matching %i different protein HMMs" % len(hmms))
             run(hmms, graftm_protein_search_directory)
 
         # Run searches for nucleotides
         hmms = singlem_package_database.nucleotide_search_hmm_paths()
+        doing_nucs = False
         if len(hmms) > 0:
+            doing_nucs = True
             logging.info("Searching for reads matching %i different nucleotide HMMs" % len(hmms))
             run(hmms, graftm_nucleotide_search_directory)
             
         logging.info("Finished search phase")
-        return SingleMPipeSearchResult(
-            graftm_protein_search_directory, graftm_nucleotide_search_directory)
+        protein_graftm = GraftMResult(graftm_protein_search_directory, hmms) if \
+                         doing_proteins else None
+        nuc_graftm = GraftMResult(graftm_nucleotide_search_directory, hmms) if \
+                     doing_nucs else None
+        return SingleMPipeSearchResult(protein_graftm, nuc_graftm)
 
     def _align(self, search_result):
         graftm_separate_directory_base = os.path.join(self._working_directory, 'graftm_separates')
@@ -523,7 +524,7 @@ class SearchPipe:
             search_result.direction_corrected_nucleotide_read_files():
             for singlem_package in self._singlem_package_database.nucleotide_packages():
                 commands.append(command(singlem_package, sample_name, temporary_hit_file))
-                
+
         extern.run_many(commands, num_threads=self._num_threads)
         return SingleMPipeAlignSearchResult(
             graftm_separate_directory_base, search_result.samples_with_hits())
@@ -567,16 +568,19 @@ class SearchPipe:
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
 class SingleMPipeSearchResult:
-    def __init__(self, graftm_protein_output_directory, graftm_nucleotide_output_directory):
-        self._graftm_protein_output_directory = graftm_protein_output_directory
-        self._graftm_nucleotide_output_directory = graftm_nucleotide_output_directory
+    def __init__(self, graftm_protein_result, graftm_nucleotide_result):
+        self._protein_result = graftm_protein_result
+        self._nucleotide_result = graftm_nucleotide_result
 
     def protein_hit_paths(self):
         '''Return a dict of sample name to corresponding '_hits.fa' files generated in
         the search step. Do not return those samples where there were no hits.
 
         '''
-        return self._hit_paths(self._graftm_protein_output_directory)
+        if self._protein_result is None:
+            return {}
+        else:
+            return self._protein_result.unaligned_sequence_paths(require_hits=True)
 
     def direction_corrected_nucleotide_read_files(self):
         '''For nucleotide HMMs: Iterate over the sample names plus a fasta filename per
@@ -586,59 +590,36 @@ class SingleMPipeSearchResult:
         protein HMMs.
 
         '''
-        if not os.path.isdir(self._graftm_nucleotide_output_directory):
-            # No protein singlem packages
+        if self._nucleotide_result is None:
+            # No nucleotide singlem packages
             return
-        sample_names = [f for f in
-                        os.listdir(self._graftm_nucleotide_output_directory) \
-                        if os.path.isdir(os.path.join(
-                                self._graftm_nucleotide_output_directory, f))]
-        for sample_name in sample_names:
+        for sample_name in self._nucleotide_result.sample_names(require_hits=True):
             forward_reads = set()
             reverse_reads = set()
-            hmmout_result = HMMSearchResult.import_from_nhmmer_table(
-                os.path.join(
-                    self._graftm_nucleotide_output_directory,
-                    sample_name,
-                    "%s.hmmout.csv" % sample_name))
-            for hit in hmmout_result.each(
-                    [SequenceSearchResult.QUERY_ID_FIELD,
-                     SequenceSearchResult.ALIGNMENT_DIRECTION]):
-                if hit[1]:
-                    forward_reads.add(hit[0])
-                else:
-                    reverse_reads.add(hit[0])
-            nucs = self._hit_path(self._graftm_nucleotide_output_directory, sample_name)
-            yieldme = os.path.join(self._graftm_nucleotide_output_directory,
+            for hmmout in self._nucleotide_result.hmmout_paths_from_sample_name(sample_name):
+                hmmout_result = HMMSearchResult.import_from_nhmmer_table(hmmout)
+                for hit in hmmout_result.each(
+                        [SequenceSearchResult.QUERY_ID_FIELD,
+                         SequenceSearchResult.ALIGNMENT_DIRECTION]):
+                    if hit[1]:
+                        forward_reads.add(hit[0])
+                    else:
+                        reverse_reads.add(hit[0])
+            nucs = self._nucleotide_result.unaligned_sequences_path_from_sample_name(sample_name)
+            
+            yieldme = os.path.join(self._nucleotide_result.output_directory,
                                    "%s_hits.fa" % sample_name)
             SequenceExtractor().extract_forward_and_reverse_complement(
                 forward_reads, reverse_reads, nucs, yieldme)
             if os.stat(yieldme).st_size > 0:
                 yield sample_name, yieldme
 
-    def _hit_paths(self, base):
-        if os.path.isdir(base):
-            sample_names = [f for f in os.listdir(base) \
-                            if os.path.isdir(os.path.join(base, f))]
-            paths = {}
-            for sample in sample_names:
-                path = self._hit_path(base, sample)
-                if os.stat(path).st_size > 0:
-                    paths[sample] = path
-                return paths
-        else:
-            # This happens if there are no protein singlem packages, or
-            # alternatively no nucleotide packages.
-            return {}
-        
-    def _hit_path(self, base, sample):
-        return "%s/%s/%s_hits.fa" % (base, sample, sample)
-
     def samples_with_hits(self):
         '''Return a list of sample names that had at least one hit'''
         return list(set(itertools.chain(
             self.protein_hit_paths().keys(),
-            self._hit_paths(self._graftm_nucleotide_output_directory).keys())))
+            self._nucleotide_result.sample_names(require_hits=True) if \
+                self._nucleotide_result else [])))
 
 class SingleMPipeAlignSearchResult:
     def __init__(self, graftm_separate_directory_base, sample_names):

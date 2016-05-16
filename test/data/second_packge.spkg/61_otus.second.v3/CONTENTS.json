@@ -1,0 +1,1 @@
+{"unaligned_sequence_database": "singlem_package_creatorYfSuZI.fasta", "align_hmm": "61_otus.hmm", "range": 2302.5, "refpkg": "61_otus.v3.gpkg.refpkg", "trusted_cutoff": false, "diamond_database": "singlem_package_creatoryczQjw.dmnd", "graftm_package_version": 3, "search_hmms": ["graftm7vJ9PD_search.hmm"]}

@@ -284,6 +284,33 @@ ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGC
                              extern.run(cmd).replace(
                                  os.path.basename(n.name).replace('.fa',''),
                                  '').split("\n"))
+
+    def test_two_nucleotide_packages(self):
+        expected = [
+            "\t".join(self.headers),
+            '61_otus.v3		GGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGACTGACGCTGATGTGCGAAAGCG	2	5.13	Root; k__Bacteria; p__Proteobacteria',
+            '61_otus.second.v3		TTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCA	1	1.66	Root; k__Archaea; p__Euryarchaeota',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
+>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483_revcom
+ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGCCACTGGTGTTCCTCCATATC
+>NS500333:10:H0V2GAGXX:2:13211:8623:16289 1:N:0:GATCAG
+ATTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCAAGAGCCCGGAGATGGATTCTGAGACACGAATCCAGGTCCTACGGGGCGCAGCAGGCGCGAAAACTTTACACTGCGCGAAAGCGCGATA
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s %s" % (
+                path_to_script,
+                n.name,
+                os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'),
+                os.path.join(path_to_data,'second_packge.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
             
 if __name__ == "__main__":
     unittest.main()
