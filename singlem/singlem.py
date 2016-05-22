@@ -31,8 +31,13 @@ class HmmDatabase:
             self.singlem_packages = [SingleMPackage.acquire(path) for path in package_paths]
             logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
         else:
+            # Prefer development DB directory
             db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                            '..','db')
+            if not os.path.exists(db_directory):
+                # If no development DB directory exists, use the installed DB directory
+                db_directory = os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)), 'db')
             pkg_paths = [d for d in os.listdir(db_directory) if d[-5:]=='.spkg']
             logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
                                                         ', '.join(pkg_paths)))
