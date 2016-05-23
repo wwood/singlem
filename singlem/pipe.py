@@ -435,7 +435,6 @@ class SearchPipe:
               "--min_orf_length %s "\
               "--verbosity %s "\
               "--input_sequence_type nucleotide " %(
-                  #"--no_clustering %("\
                   self._min_orf_length,
                   self._graftm_verbosity)
         if self._evalue: cmd += ' --evalue %s' % self._evalue
