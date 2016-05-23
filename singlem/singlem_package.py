@@ -145,33 +145,42 @@ class SingleMPackageVersion1(SingleMPackage):
         h.update(str(self.graftm_package()._refpkg_contents()))
         h.update(str(self.version))
         h.update(str(self.singlem_position()))
-        for f in [self.graftm_package().alignment_hmm_path(),
-                  self.graftm_package().diamond_database_path(),
-                  self.graftm_package().unaligned_sequence_database_path()
-                  ]+self.graftm_package().search_hmm_paths():
+        files_to_hash = [self.graftm_package().alignment_hmm_path()]
+        if self.is_protein_package():
+            files_to_hash.append(self.graftm_package().diamond_database_path())
+        files_to_hash.append(self.graftm_package().unaligned_sequence_database_path())
+        files_to_hash += self.graftm_package().search_hmm_paths()
+        for f in files_to_hash:
             h.update(open(f).read())
         return h.hexdigest()
 
+    @staticmethod
+    def graftm_package_is_protein(graftm_package):
+        '''TODO: this code is about to be merged into graftm (released in 0.9.6?) so
+        delete from here.'''
+        
+        found = None
+        with open(graftm_package.alignment_hmm_path()) as f:
+            r = f.read().split("\n")
+        for line in r:
+            if line=='ALPH  DNA':
+                found = False
+                break
+            elif line=='ALPH  amino':
+                found = True
+                break
+        if found is None:
+            raise Exception("Unable to determine whether the HMM was amino acid or dna")
+        return found
+
     def is_protein_package(self):
         '''Return true if this package is an Amino Acid alignment package, otherwise
-        False i.e. it is a nucleotide package. For the moment just figure it out
-        by the presence of the diamond DB.
+        False i.e. it is a nucleotide package.
 
         '''
         if not hasattr(self, '_is_protein_package'):
-            found = None
-            with open(self.graftm_package().alignment_hmm_path()) as f:
-                r = f.read().split("\n")
-            for line in r:
-                if line=='ALPH  DNA':
-                    found = False
-                    break
-                elif line=='ALPH  amino':
-                    found = True
-                    break
-            if found is None:
-                raise Exception("Unable to determine whether the HMM was amino acid or dna")
-            self._is_protein_package = found
+            self._is_protein_package = SingleMPackageVersion1.graftm_package_is_protein(
+                self.graftm_package())
         return self._is_protein_package
 
     @staticmethod
