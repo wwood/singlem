@@ -247,7 +247,7 @@ class SearchPipe:
                             sample_name, singlem_package)
                     else:
                         nucleotide_sequence_fasta_file = prealigned_file
-                        
+
                     logging.debug("Aligning %s to the HMM" % prealigned_file)
                     aligned_seqs = self._get_windowed_sequences(
                         prealigned_file,
@@ -434,8 +434,8 @@ class SearchPipe:
         cmd = "graftM graft "\
               "--min_orf_length %s "\
               "--verbosity %s "\
-              "--input_sequence_type nucleotide "\
-              "--no_clustering " % (
+              "--input_sequence_type nucleotide " %(
+                  #"--no_clustering %("\
                   self._min_orf_length,
                   self._graftm_verbosity)
         if self._evalue: cmd += ' --evalue %s' % self._evalue

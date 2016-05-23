@@ -45,18 +45,18 @@ def seqs(args):
     
     # Read in the fasta Alignment
     protein_alignment = SeqReader().alignment_from_alignment_file(args.alignment)
-    logging.info("Read in %i aligned protein sequences e.g. %s %s" % (len(protein_alignment),
-                                                          protein_alignment[0].name,
-                                                          protein_alignment[0].seq
-                                                          ))
+    logging.info("Read in %i aligned protein sequences e.g. %s %s" % (
+        len(protein_alignment),
+        protein_alignment[0].name,
+        protein_alignment[0].seq))
 
     # Read in the original nucleotide sequences
     nucleotide_sequences = SeqReader().read_nucleotide_sequences(args.reads)
     eg_name = nucleotide_sequences.keys()[0]
-    logging.info("Read in %i nucleotide sequences e.g. %s %s" % (len(nucleotide_sequences),
-                                                          eg_name,
-                                                          nucleotide_sequences[eg_name]
-                                                          ))
+    logging.info("Read in %i nucleotide sequences e.g. %s %s" % (
+        len(nucleotide_sequences),
+        eg_name,
+        nucleotide_sequences[eg_name]))
     if args.start_position:
         best_position = args.start_position - 1
     else:
@@ -65,7 +65,7 @@ def seqs(args):
         protein_alignment,
         nucleotide_sequences,
         args.window_size,
-        False, #do not include inserts
+        False, # do not include inserts
         is_protein_alignment,
         best_position=best_position)
     logging.info("Printing %i aligned sequences" % len(aligned_sequences))

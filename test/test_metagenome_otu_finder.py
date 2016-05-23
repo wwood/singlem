@@ -82,7 +82,7 @@ class Tests(unittest.TestCase):
             None)
         self.assertEqual(['AAAAA','TATGG','TATGG','TATGG','TATGG'],
                          [o.aligned_sequence for o in obs])
-
+        
         
                             
 if __name__ == "__main__":

@@ -56,7 +56,12 @@ class MetagenomeOtuFinder:
             logging.debug("Using pre-defined best section of the alignment starting from %i" % (start_position+1))
         else:
             start_position = self._find_best_window(aligned_sequences, stretch_length, ignored_columns)
-            logging.info("Found best section of the alignment starting from %i" % (start_position+1))
+            start_position_without_gaps = start_position
+            for col in ignored_columns:
+                if col < start_position:
+                    start_position_without_gaps -= 1
+            logging.info("Found best section of the alignment starting from %i" % (
+                start_position_without_gaps+1))
 
         chosen_positions = self._best_position_to_chosen_positions(
             start_position, stretch_length, ignored_columns)
