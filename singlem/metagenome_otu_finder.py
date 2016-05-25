@@ -10,8 +10,7 @@ class MetagenomeOtuFinder:
                                 stretch_length,
                                 include_inserts,
                                 is_protein_alignment,
-                                best_position=None,
-                                ):
+                                best_position):
         '''Return an array of UnalignedAlignedNucleotideSequence objects containing
         sequences aligned at the given best_position, finding that best position
         if None is given.
@@ -29,11 +28,11 @@ class MetagenomeOtuFinder:
             returned sequences.
         is_protein_alignment: boolean
             True for a protein alignment, False for a nucleotide one
-        best_position: int or None
-            Start of the window in the alignment not counting 'insert' columns,
-            or None to calculate the best window and use that.
+        best_position: int
+            Start of the window in the alignment not counting 'insert' columns.
 
         '''
+        if len(aligned_sequences) == 0: return []
         ignored_columns = self._find_lower_case_columns(aligned_sequences)
         logging.debug("Ignoring columns %s", str(ignored_columns))
 
@@ -47,21 +46,10 @@ class MetagenomeOtuFinder:
         if stretch_length < 1:
             raise Exception("stretch_length must be positive")
 
-        # Find the stretch of the protein that has the most number of aligned
-        # bases in the stretch, excluding sequences that do not aligned to the
-        # first and last bases
-        if best_position:
-            start_position = self._upper_case_position_to_alignment_position(
-                best_position, ignored_columns)
-            logging.debug("Using pre-defined best section of the alignment starting from %i" % (start_position+1))
-        else:
-            start_position = self._find_best_window(aligned_sequences, stretch_length, ignored_columns)
-            start_position_without_gaps = start_position
-            for col in ignored_columns:
-                if col < start_position:
-                    start_position_without_gaps -= 1
-            logging.info("Found best section of the alignment starting from %i" % (
-                start_position_without_gaps+1))
+        start_position = self._upper_case_position_to_alignment_position(
+            best_position, ignored_columns)
+        logging.debug("Using pre-defined best section of the alignment starting from %i" % (
+            start_position+1))
 
         chosen_positions = self._best_position_to_chosen_positions(
             start_position, stretch_length, ignored_columns)
@@ -97,14 +85,34 @@ class MetagenomeOtuFinder:
                     lower_cases[i] = True
         return [i for i, is_lower in enumerate(lower_cases) if is_lower]
 
-    def _find_best_window(self, protein_alignment, stretch_length, ignored_columns):
-        '''Return the position in the alignment that has the most bases aligned
-        only counting sequences that overlap the entirety of the stretch.'''
+    def find_best_window(self, alignment, stretch_length, is_protein_alignment):
+        '''Return the position in the alignment that has the most bases aligned only
+        counting sequences that overlap the entirety of the stretch. Columns
+        including gap columns are ignored and not in the index returned i.e. it
+        may not be a direct index into the given alignment.
+
+        Parameters
+        ----------
+        alignment: list of Sequence or AlignedProteinSequence
+            aligned sequences
+        stretch_length: int
+            window size, measured in nucleotides (ie 60 not 20)
+        is_protein_alignment: boolean
+            True for a protein alignment, False for a nucleotide one
+        
+        Returns
+        -------
+        int
+            the best position
+
+        '''
+
+        ignored_columns = self._find_lower_case_columns(alignment)
 
         # Convert the alignment into a True/False matrix for ease,
         # True meaning that there is something aligned, else False
         binary_alignment = []
-        for s in protein_alignment:
+        for s in alignment:
             aln = []
             for i, base in enumerate(s.seq):
                 if base=='-':
@@ -122,7 +130,8 @@ class MetagenomeOtuFinder:
             logging.debug("Testing positions %s" % str(positions))
             num_bases_covered_here = 0
             end_index = positions[-1]
-            if end_index >= len(binary_alignment[0]): continue #if ignored char is within stretch length of end of aln
+            #if ignored char is within stretch length of end of aln
+            if end_index >= len(binary_alignment[0]): continue 
             for s in binary_alignment:
                 if not s[i] or not s[end_index]: continue #ignore reads that don't cover the entirety
                 for pos in positions:
@@ -133,7 +142,16 @@ class MetagenomeOtuFinder:
                 current_max_num_aligned_bases = num_bases_covered_here
         logging.info("Found a window starting at position %i with %i bases aligned" % (
             current_best_position, current_max_num_aligned_bases))
-        return current_best_position
+
+        # Convert the best position to the best position not including ignored columns
+        start_position_without_gaps = current_best_position
+        for col in ignored_columns:
+            if col < current_best_position:
+                start_position_without_gaps -= 1
+        logging.info("Found best section of the alignment starting from %i" % (
+            start_position_without_gaps+1))
+
+        return start_position_without_gaps
 
     def _best_position_to_chosen_positions(self, best_position, stretch_length, ignored_columns):
         '''Given a position to start from, and the number of positions to index,

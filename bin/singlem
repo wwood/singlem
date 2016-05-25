@@ -50,27 +50,11 @@ def seqs(args):
         protein_alignment[0].name,
         protein_alignment[0].seq))
 
-    # Read in the original nucleotide sequences
-    nucleotide_sequences = SeqReader().read_nucleotide_sequences(args.reads)
-    eg_name = nucleotide_sequences.keys()[0]
-    logging.info("Read in %i nucleotide sequences e.g. %s %s" % (
-        len(nucleotide_sequences),
-        eg_name,
-        nucleotide_sequences[eg_name]))
-    if args.start_position:
-        best_position = args.start_position - 1
-    else:
-        best_position = None
-    aligned_sequences = MetagenomeOtuFinder().find_windowed_sequences(
+    best_position = MetagenomeOtuFinder().find_best_window(
         protein_alignment,
-        nucleotide_sequences,
         args.window_size,
-        False, # do not include inserts
-        is_protein_alignment,
-        best_position=best_position)
-    logging.info("Printing %i aligned sequences" % len(aligned_sequences))
-    print '\n'.join((s.aligned_sequence for s in aligned_sequences))
-
+        is_protein_alignment)
+    logging.info("Found best start position %i" % best_position)
 
 
 def query(args):
@@ -197,16 +181,14 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
     pipe_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
 
-    temp_description = 'From protein alignment to aligned nucleotide sequences'
+    temp_description = 'From alignment to predicted best window position'
     seqs_parser = subparsers.add_parser('seqs',
                                         description=temp_description,
                                         help=temp_description,
                                         epilog=__author__)
     seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
-    seqs_parser.add_argument('--reads', metavar='raw_reads', help='Unaligned nucleotide sequences that were translated into the protein sequences', required=True)
     seqs_parser.add_argument('--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
     seqs_parser.add_argument('--window_size', metavar='INT', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
-    seqs_parser.add_argument('--start_position', metavar='bp', help='Start the window at the position in the alignment (1-based index) [default: pick one automatically]', type=int)
 
     temp_description = 'From aligned nucleotide sequences to searchable database'
     makedb_parser = subparsers.add_parser('makedb',

@@ -57,17 +57,14 @@ TATGGAGGAACACCAGTGGC
         with tempfile.NamedTemporaryFile() as a:
             a.write(aln)
             a.flush()
-            with tempfile.NamedTemporaryFile() as n:
-                n.write(aln.replace('-',''))
-                n.flush()
-                with tempfile.NamedTemporaryFile() as stderr:
-                
-                    cmd = "%s --debug seqs --alignment %s --alignment_type dna --reads %s"\
-                          " --window_size 20 2>%s" % (path_to_script, a.name, n.name, stderr.name)
-                    self.assertEqual(expected, extern.run(cmd))
-                    # This includes ignored columns at the front, which were messing things up.
-                    self.assertTrue('Found best section of the alignment starting from 14\n' in \
-                                    open(stderr.name).read())
+            with tempfile.NamedTemporaryFile() as stderr:
+                cmd = "%s --debug seqs --alignment %s --alignment_type dna"\
+                      " --window_size 20 2>%s" % (
+                          path_to_script, a.name, stderr.name)
+                self.assertEqual('', extern.run(cmd))
+                # This includes ignored columns at the front, which were messing things up.
+                self.assertTrue('Found best section of the alignment starting from 14\n' in \
+                                open(stderr.name).read())
 
 if __name__ == "__main__":
     unittest.main()

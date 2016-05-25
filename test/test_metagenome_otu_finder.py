@@ -73,13 +73,14 @@ class Tests(unittest.TestCase):
                          [o.aligned_sequence for o in obs])
 
         # now without a known window
+        best_position = m.find_best_window(s2, 5, False)
         obs = m.find_windowed_sequences(
             s2,
             unaligned,
             5,
             False,
             False,
-            None)
+            best_position)
         self.assertEqual(['AAAAA','TATGG','TATGG','TATGG','TATGG'],
                          [o.aligned_sequence for o in obs])
         
