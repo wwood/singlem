@@ -183,7 +183,8 @@ class SearchPipe:
                     if not os.path.isfile(tax_file):
                         logging.warn("Unable to find tax file for gene %s from sample %s "
                                      "(likely do to min length filtering), skipping" % (
-                                         key, sample_name))
+                                         os.path.basename(singlem_package.base_directory()),
+                                         sample_name))
                         taxonomies = {}
                     else:
                         taxonomies = TaxonomyFile(tax_file)
@@ -439,7 +440,8 @@ class SearchPipe:
                   self._graftm_verbosity)
         if self._evalue: cmd += ' --evalue %s' % self._evalue
         if self._restrict_read_length: cmd += ' --restrict_read_length %i' % self._restrict_read_length
-        if self._filter_minimum: cmd += '--filter_minimum %i' % self._filter_minimum
+        if self._filter_minimum: cmd += ' --filter_minimum %i' % self._filter_minimum
+        cmd += ' '
         return cmd
 
     def _search(self, singlem_package_database, forward_read_files):
