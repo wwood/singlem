@@ -176,68 +176,47 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
 
     def test_jplace_output(self):
         expected_jpace = {u'fields': [u'classification',
-  u'distal_length',
-  u'edge_num',
-  u'like_weight_ratio',
-  u'likelihood',
-  u'pendant_length'],
- u'metadata': 'the_metadata',
- u'placements': {u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG': {u'nm': [[u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
-     2]],
-   u'p': [[u'g__Bacillus',
-     8.59375e-06,
-     178,
-     0.142857142864,
-     -19892.7622511,
-     0.322551664432],
-    [u'g__Bacillus',
-     8.59375e-06,
-     179,
-     0.142857142864,
-     -19892.7622511,
-     0.322551664432],
-    [u'g__Bacillus',
-     8.59375e-06,
-     254,
-     0.142857142864,
-     -19892.7622511,
-     0.322551674793],
-    [u'g__Virgibacillus',
-     8.59375e-06,
-     304,
-     0.142857142864,
-     -19892.7622511,
-     0.322551394722],
-    [u'g__Virgibacillus',
-     8.59375e-06,
-     305,
-     0.142857142864,
-     -19892.7622511,
-     0.322551394722],
-    [u'g__Exiguobacterium',
-     8.59375e-06,
-     376,
-     0.142857142864,
-     -19892.7622511,
-     0.322551677204],
-    [u'g__Brevibacillus',
-     0.0005315625,
-     324,
-     0.142857142818,
-     -19892.7622511,
-     0.32255147376]]}},
- u'tree': 'tree_thanks',
- u'version': 3}
+                                      u'distal_length',
+                                      u'edge_num',
+                                      u'like_weight_ratio',
+                                      u'likelihood',
+                                      u'pendant_length'],
+                          u'metadata': 'the_metadata',
+                          u'placements':
+                          {u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG':
+                           {u'nm': [[u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                                     2]],
+                            u'p': [[u'o__Bacillales',
+                                    0.0874346630859,
+                                    13,
+                                    0.333351177694,
+                                    -631.301684875,
+                                    0.150831104822],
+                                   [u'o__Bacillales',
+                                    0.0643521435547,
+                                    14,
+                                    0.333326655502,
+                                    -631.301758441,
+                                    0.15083915761],
+                                   [u'p__Firmicutes',
+                                    5.97534179688e-06,
+                                    15,
+                                    0.333322166804,
+                                    -631.301771907,
+                                    0.150839131805]]}},
+                          u'tree': 'tree_thanks',
+                          u'version': 3}
         
         with tempdir.TempDir() as d:
-            cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s" % (
-                path_to_script,
-                os.path.join(path_to_data,'1_pipe','jplace_test.fna'),
-                os.path.join(d, "my_jplace"),
-                )
+            cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s"\
+                  " --singlem_packages %s" % (
+                      path_to_script,
+                      os.path.join(path_to_data,'1_pipe','jplace_test.fna'),
+                      os.path.join(d, "my_jplace"),
+                      os.path.join(path_to_data,'4.12.22seqs.spkg'))
             extern.run(cmd)
             j = json.load(open(
-                os.path.join(d, 'my_jplace_jplace_test_4.12.ribosomal_protein_L11_rplK.jplace')))
+                os.path.join(d, 'my_jplace_jplace_test_4.12.22seqs.jplace')))
             j['tree'] = 'tree_thanks'
             j['metadata'] = 'the_metadata'
             self.assertEqual(expected_jpace, j)
