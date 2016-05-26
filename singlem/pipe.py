@@ -39,7 +39,8 @@ class SearchPipe:
         evalue = kwargs.pop('evalue')
         min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
-        filter_minimum = kwargs.pop('filter_minimum')
+        filter_minimum_protein = kwargs.pop('filter_minimum_protein')
+        filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide')
         include_inserts = kwargs.pop('include_inserts')
         singlem_packages = kwargs.pop('singlem_packages')
         window_size = kwargs.pop('window_size')
@@ -55,7 +56,8 @@ class SearchPipe:
         self._evalue = evalue
         self._min_orf_length = min_orf_length
         self._restrict_read_length = restrict_read_length
-        self._filter_minimum = filter_minimum
+        self._filter_minimum_protein = filter_minimum_protein
+        self._filter_minimum_nucleotide = filter_minimum_nucleotide
 
         hmms = HmmDatabase(singlem_packages)
         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
@@ -455,19 +457,22 @@ class SearchPipe:
         jplace['placements'] = new_placements
         json.dump(jplace, output_jplace_io)
 
-    def _graftm_command_prefix(self):
+    def _graftm_command_prefix(self, is_protein):
         # --min_orf_length is unused for nucleotide HMMs but does no harm.
         cmd = "graftM graft "\
-              "--min_orf_length %s "\
               "--verbosity %s "\
-              "--input_sequence_type nucleotide " %(
-                  self._min_orf_length,
-                  self._graftm_verbosity)
+              "--input_sequence_type nucleotide " % self._graftm_verbosity
         if self._evalue: cmd += ' --evalue %s' % self._evalue
         if self._restrict_read_length: cmd += ' --restrict_read_length %i' % self._restrict_read_length
-        if self._filter_minimum: cmd += ' --filter_minimum %i' % self._filter_minimum
-        cmd += ' '
-        return cmd
+        
+        if is_protein:
+            cmd += " --min_orf_length %s " % self._min_orf_length
+            if self._filter_minimum_protein:
+                cmd += "  --filter_minimum %i" % self._filter_minimum_protein
+        elif self._filter_minimum_nucleotide:
+            cmd += "  --filter_minimum %i" % self._filter_minimum_nucleotide
+            
+        return cmd+' '
 
     def _search(self, singlem_package_database, forward_read_files):
         '''Find all reads that match one or more of the search HMMs in the
@@ -491,8 +496,8 @@ class SearchPipe:
         graftm_nucleotide_search_directory = os.path.join(
             self._working_directory,'graftm_nucleotide_search')
 
-        def run(hmm_paths, output_directory):
-            cmd = self._graftm_command_prefix() + \
+        def run(hmm_paths, output_directory, is_protein):
+            cmd = self._graftm_command_prefix(is_protein) + \
                   "--threads %i "\
                   "--forward %s "\
                   "--search_and_align_only "\
@@ -512,7 +517,7 @@ class SearchPipe:
         if len(hmms) > 0:
             doing_proteins = True
             logging.info("Searching for reads matching %i different protein HMMs" % len(hmms))
-            run(hmms, graftm_protein_search_directory)
+            run(hmms, graftm_protein_search_directory, True)
 
         # Run searches for nucleotides
         hmms = singlem_package_database.nucleotide_search_hmm_paths()
@@ -520,7 +525,7 @@ class SearchPipe:
         if len(hmms) > 0:
             doing_nucs = True
             logging.info("Searching for reads matching %i different nucleotide HMMs" % len(hmms))
-            run(hmms, graftm_nucleotide_search_directory)
+            run(hmms, graftm_nucleotide_search_directory, False)
             
         logging.info("Finished search phase")
         protein_graftm = GraftMResult(graftm_protein_search_directory, hmms) if \
@@ -535,8 +540,8 @@ class SearchPipe:
         logging.info("Running separate alignments in GraftM..")
         commands = []
 
-        def command(singlem_package, sample_name, hit_file):
-            return self._graftm_command_prefix() + \
+        def command(singlem_package, sample_name, hit_file, is_protein):
+            return self._graftm_command_prefix(is_protein) + \
                 "--threads %i "\
                 "--forward %s "\
                 "--graftm_package %s --output_directory %s/%s_vs_%s "\
@@ -552,12 +557,12 @@ class SearchPipe:
         protein_paths = search_result.protein_hit_paths()
         for sample_name, hit_file in protein_paths.items():
             for singlem_package in self._singlem_package_database.protein_packages():
-                commands.append(command(singlem_package, sample_name, hit_file))
+                commands.append(command(singlem_package, sample_name, hit_file, True))
         # Gather commands for aligning nucleotide packages.
         for sample_name, temporary_hit_file in \
             search_result.direction_corrected_nucleotide_read_files():
             for singlem_package in self._singlem_package_database.nucleotide_packages():
-                commands.append(command(singlem_package, sample_name, temporary_hit_file))
+                commands.append(command(singlem_package, sample_name, temporary_hit_file, False))
 
         extern.run_many(commands, num_threads=self._num_threads)
         return SingleMPipeAlignSearchResult(
@@ -575,7 +580,7 @@ class SearchPipe:
                       "--graftm_package %s "\
                       "--output_directory %s/%s_vs_%s "\
                       "--assignment_method %s" % (
-                          self._graftm_command_prefix(),
+                          self._graftm_command_prefix(singlem_package.is_protein_package()),
                           1,
                           tmp_graft.name,
                           singlem_package.graftm_package_path(),

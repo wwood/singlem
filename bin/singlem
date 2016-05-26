@@ -175,7 +175,12 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--evalue', help='GraftM e-value cutoff')
     pipe_parser.add_argument('--min_orf_length', metavar='length', help='When predicting ORFs require this many base pairs uninterrupted by a stop codon (default: 96)', type=int, default=96)
     pipe_parser.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
-    pipe_parser.add_argument('--filter_minimum', metavar='length', help='Ignore reads aligning in less than this many positions to the HMM (default: as per "graftM graft")', type=int)
+    pipe_parser.add_argument(
+        '--filter_minimum_protein', metavar='length', type=int, default=28,
+        help='Ignore reads aligning in less than this many positions to the protein HMM')
+    pipe_parser.add_argument(
+        '--filter_minimum_nucleotide', metavar='length', type=int, default=95,
+        help='Ignore reads aligning in less than this many positions to the nucleotide HMM')
     pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
     pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
@@ -309,7 +314,8 @@ if __name__ == '__main__':
             evalue = args.evalue,
             min_orf_length = args.min_orf_length,
             restrict_read_length = args.restrict_read_length,
-            filter_minimum = args.filter_minimum,
+            filter_minimum_protein = args.filter_minimum_protein,
+            filter_minimum_nucleotide = args.filter_minimum_nucleotide,
             output_extras = args.output_extras,
             include_inserts = args.include_inserts,
             working_directory = args.working_directory,
