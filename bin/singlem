@@ -180,6 +180,7 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
     pipe_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
+    pipe_parser.add_argument('--no_assign_taxonomy', action='store_true', help='Do not assign any taxonomy except for those already known', default=False)
 
     seqs_description = 'Find the best window for a SingleM package'
     seqs_parser = subparsers.add_parser('seqs',
@@ -308,7 +309,8 @@ if __name__ == '__main__':
             working_directory = args.working_directory,
             force = args.force,
             singlem_packages = args.singlem_packages,
-            window_size=DEFAULT_WINDOW_SIZE)
+            window_size=DEFAULT_WINDOW_SIZE,
+            assign_taxonomy = not args.no_assign_taxonomy)
 
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:

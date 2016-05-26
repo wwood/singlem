@@ -42,6 +42,7 @@ class SearchPipe:
         include_inserts = kwargs.pop('include_inserts')
         singlem_packages = kwargs.pop('singlem_packages')
         window_size = kwargs.pop('window_size')
+        assign_taxonomy = kwargs.pop('assign_taxonomy')
 
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
@@ -127,9 +128,10 @@ class SearchPipe:
         logging.info("Finished extracting aligned sequences")
 
         #### Taxonomic assignment
-        logging.info("Running taxonomic assignment with graftm..")
-        assignment_result = self._assign_taxonomy(
-            extracted_reads, graftm_assignment_method)
+        if assign_taxonomy:
+            logging.info("Running taxonomic assignment with graftm..")
+            assignment_result = self._assign_taxonomy(
+                extracted_reads, graftm_assignment_method)
 
         #### Process taxonomically assigned reads
         # get the sequences out for each of them
@@ -138,7 +140,7 @@ class SearchPipe:
         otu_table_object.fields = regular_output_fields + \
                                   split('read_names nucleotides_aligned taxonomy_by_known?')
 
-        for sample_name, singlem_package, tmp_graft, known_sequences in extracted_reads:
+        for sample_name, singlem_package, tmp_graft, known_sequences, unknown_sequences in extracted_reads:
             def add_info(infos, otu_table_object, known_tax):
                 for info in infos:
                     to_print = [
@@ -161,34 +163,40 @@ class SearchPipe:
             
             if tmp_graft: # if any sequences were aligned (not just already known)
                 tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
-                aligned_seqs = self._get_windowed_sequences(
-                    assignment_result.prealigned_sequence_file(
-                        sample_name, singlem_package, tmpbase),
-                    assignment_result.nucleotide_hits_file(
-                        sample_name, singlem_package, tmpbase),
-                    singlem_package,
-                    include_inserts)
-                if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                    tax_file = assignment_result.diamond_assignment_file(
-                        sample_name, singlem_package, tmpbase)
-                else:
-                    tax_file = assignment_result.read_tax_file(
-                        sample_name, singlem_package, tmpbase)
-                logging.debug("Reading taxonomy from %s" % tax_file)
-
-                if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                    taxonomies = DiamondResultParser(tax_file)
-                    use_first = True
-                else:
-                    if not os.path.isfile(tax_file):
-                        logging.warn("Unable to find tax file for gene %s from sample %s "
-                                     "(likely do to min length filtering), skipping" % (
-                                         os.path.basename(singlem_package.base_directory()),
-                                         sample_name))
-                        taxonomies = {}
+                
+                if assign_taxonomy:
+                    aligned_seqs = self._get_windowed_sequences(
+                        assignment_result.prealigned_sequence_file(
+                            sample_name, singlem_package, tmpbase),
+                        assignment_result.nucleotide_hits_file(
+                            sample_name, singlem_package, tmpbase),
+                        singlem_package,
+                        include_inserts)
+                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                        tax_file = assignment_result.diamond_assignment_file(
+                            sample_name, singlem_package, tmpbase)
                     else:
-                        taxonomies = TaxonomyFile(tax_file)
-                    use_first = False
+                        tax_file = assignment_result.read_tax_file(
+                            sample_name, singlem_package, tmpbase)
+                    logging.debug("Reading taxonomy from %s" % tax_file)
+
+                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                        taxonomies = DiamondResultParser(tax_file)
+                        use_first = True
+                    else:
+                        if not os.path.isfile(tax_file):
+                            logging.warn("Unable to find tax file for gene %s from sample %s "
+                                         "(likely do to min length filtering), skipping" % (
+                                             os.path.basename(singlem_package.base_directory()),
+                                             sample_name))
+                            taxonomies = {}
+                        else:
+                            taxonomies = TaxonomyFile(tax_file)
+                        use_first = False
+                else:
+                    aligned_seqs = unknown_sequences
+                    taxonomies = {}
+                    use_first = False # irrelevant
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, taxonomies, use_first, False))
                 add_info(new_infos, otu_table_object, False)
@@ -278,7 +286,7 @@ class SearchPipe:
                                                     tmp.name)
                     else:
                         tmp = None
-                    extracted_reads.add(sample_name, singlem_package, tmp, known_sequences)
+                    extracted_reads.add(sample_name, singlem_package, tmp, known_sequences, unknown_sequences)
 
         return extracted_reads
 
@@ -321,7 +329,7 @@ class SearchPipe:
                     tax = taxonomies[s.name]
             except KeyError:
                 # happens sometimes when HMMER picks up something where
-                # diamond does not
+                # diamond does not, or when --no_assign_taxonomy is specified.
                 tax = ''
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
@@ -542,7 +550,7 @@ class SearchPipe:
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
-        for sample_name, singlem_package, tmp_graft, _ in extracted_reads:
+        for sample_name, singlem_package, tmp_graft, _, _ in extracted_reads:
             if tmp_graft is not None:
                 cmd = "%s "\
                       "--threads %i "\
@@ -690,18 +698,18 @@ class ExtractedReads:
         self._singlem_packages = singlem_packages
         self._sample_to_array = {}
 
-    def add(self, sample_name, singlem_package, tmp_file, known_sequences):
-        arr = [singlem_package, tmp_file, known_sequences]
+    def add(self, sample_name, singlem_package, tmp_file, known_sequences, unknown_sequences):
+        arr = [singlem_package, tmp_file, known_sequences, unknown_sequences]
         if sample_name in self._sample_to_array:
             self._sample_to_array[sample_name].append(arr)
         else:
             self._sample_to_array[sample_name] = [arr]
 
     def __iter__(self):
-        '''yield sample, single_package, tmp_file, known_sequences'''
+        '''yield sample, single_package, tmp_file, known_sequences, unknown_sequences'''
         for sample, arrs in self._sample_to_array.items():
             for arr in arrs:
-                yield sample, arr[0], arr[1], arr[2]
+                yield sample, arr[0], arr[1], arr[2], arr[3]
 
     def each_sample(self):
         for sample in self._sample_to_array.keys():

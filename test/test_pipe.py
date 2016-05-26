@@ -326,6 +326,25 @@ ATTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCAAGAGCCCGGAGATGGATTC
                              extern.run(cmd).replace(
                                  os.path.basename(n.name).replace('.fa',''),
                                  '').split("\n"))
+
+    def test_no_taxonomy(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s --no_assign_taxonomy" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
             
 if __name__ == "__main__":
     unittest.main()
