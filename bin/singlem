@@ -155,10 +155,10 @@ if __name__ == '__main__':
     parser.add_argument('--quiet', help='only output errors', action="store_true")
     subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name')
 
-    temp_description = 'From raw reads to OTU table'
+    pipe_description = 'Generate an OTU table from raw sequence data'
     pipe_parser = subparsers.add_parser('pipe',
-                                        description=temp_description,
-                                        help=temp_description,
+                                        description=pipe_description,
+                                        help=pipe_description,
                                         epilog=__author__)
     pipe_parser.add_argument('--sequences', nargs='+', metavar='sequence_file', help='forward nucleotide sequences to be searched')
     pipe_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use', default=1)
@@ -181,41 +181,41 @@ if __name__ == '__main__':
     pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
     pipe_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
 
-    temp_description = 'From alignment to predicted best window position'
+    seqs_description = 'Find the best window for a SingleM package'
     seqs_parser = subparsers.add_parser('seqs',
-                                        description=temp_description,
-                                        help=temp_description,
+                                        description=seqs_description,
+                                        help=seqs_description,
                                         epilog=__author__)
     seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
     seqs_parser.add_argument('--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
     seqs_parser.add_argument('--window_size', metavar='INT', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
 
-    temp_description = 'From aligned nucleotide sequences to searchable database'
+    makedb_description = 'Create a searchable database from an OTU table'
     makedb_parser = subparsers.add_parser('makedb',
-                                        description=temp_description,
-                                        help=temp_description,
+                                        description=makedb_description,
+                                        help=makedb_description,
                                         epilog=__author__)
     makedb_parser.add_argument('--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
     makedb_parser.add_argument('--otu_tables', nargs='+', help="Make a db from these OTU tables")
     makedb_parser.add_argument('--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
 
-    temp_description = 'Find closely related sequences in a singlem database'
-    makedb_parser = subparsers.add_parser('query',
-                                        description=temp_description,
-                                        help=temp_description,
+    query_description = 'Find closely related sequences in a database'
+    query_parser = subparsers.add_parser('query',
+                                        description=query_description,
+                                        help=query_description,
                                         epilog=__author__)
-    makedb_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
-    makedb_parser.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
-    makedb_parser.add_argument('--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
-    makedb_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
-    makedb_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
-    makedb_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
-    makedb_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
+    query_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
+    query_parser.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
+    query_parser.add_argument('--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
+    query_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
+    query_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
+    query_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
+    query_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
 
-    temp_description = 'Summarise OTU tables'
+    summarise_description = 'Summarise and transform OTU tables'
     summarise_parser = subparsers.add_parser('summarise',
-                                        description=temp_description,
-                                        help=temp_description,
+                                        description=summarise_description,
+                                        help=summarise_description,
                                         epilog=__author__)
     summarise_parser.add_argument('--input_archive_otu_tables', nargs='+', help="Summarise these tables")
     summarise_parser.add_argument('--input_otu_tables', nargs='+', help="Summarise these tables")
@@ -231,20 +231,20 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all are sufficient]")
     
 
-    temp_description = 'Create a SingleM-compatible GraftM package'
+    create_description = 'Create a SingleM-compatible GraftM package'
     create_parser = subparsers.add_parser('create',
-                                        description=temp_description,
-                                        help=temp_description,
+                                        description=create_description,
+                                        help=create_description,
                                         epilog=__author__)
     create_parser.add_argument('--input_graftm_package', metavar="PATH", help="input package", required=True)
     create_parser.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
     create_parser.add_argument('--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
     
-    temp_description = 'How much of the metagenome do the genomes account for?'
+    appraise_description = 'How much of the metagenome do the genomes account for?'
     appraise_parser = subparsers.add_parser('appraise',
-                                        description=temp_description,
-                                        help=temp_description,
+                                        description=appraise_description,
+                                        help=appraise_description,
                                         epilog=__author__)
     appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
     appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
@@ -253,7 +253,27 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--accounted_for_otu_table', help="output OTU table of accounted-for populations", default=None)
     appraise_parser.add_argument('--unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
 
-    args = parser.parse_args()
+    if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv == '--help'):
+        print ''
+        print '                ...::: SingleM v' + singlem.__version__ + ' :::...'''
+        print '\n  General usage:'
+        print '    pipe         -> %s' % pipe_description
+        print '    summarise    -> %s' % summarise_description
+        print '    appraise     -> %s' % appraise_description
+        
+        print '\n  SingleM databases:'
+        print '    makedb       -> %s' % makedb_description
+        print '    query        -> %s' % query_description
+        
+        print '\n  Package creation:'
+        print '    seqs         -> %s' % seqs_description
+        print '    create       -> %s' % create_description
+
+        print '\n  Use: singlem <command> -h for command-specific help'
+        sys.exit(0)
+    else:
+        args = parser.parse_args()
+        
     if args.debug:
         loglevel = logging.DEBUG
     elif args.quiet:
