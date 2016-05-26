@@ -231,7 +231,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all are sufficient]")
     
 
-    create_description = 'Create a SingleM-compatible GraftM package'
+    create_description = 'Create a SingleM package'
     create_parser = subparsers.add_parser('create',
                                         description=create_description,
                                         help=create_description,
@@ -261,7 +261,7 @@ if __name__ == '__main__':
         print '    summarise    -> %s' % summarise_description
         print '    appraise     -> %s' % appraise_description
         
-        print '\n  SingleM databases:'
+        print '\n  Databases:'
         print '    makedb       -> %s' % makedb_description
         print '    query        -> %s' % query_description
         
@@ -269,7 +269,7 @@ if __name__ == '__main__':
         print '    seqs         -> %s' % seqs_description
         print '    create       -> %s' % create_description
 
-        print '\n  Use: singlem <command> -h for command-specific help'
+        print '\n  Use: singlem <command> -h for command-specific help\n'
         sys.exit(0)
     else:
         args = parser.parse_args()
