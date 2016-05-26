@@ -233,7 +233,8 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
             cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s" % (
                 path_to_script,
                 os.path.join(path_to_data,'1_pipe','jplace_test.fna'),
-                os.path.join(d, "my_jplace"))
+                os.path.join(d, "my_jplace"),
+                )
             extern.run(cmd)
             j = json.load(open(
                 os.path.join(d, 'my_jplace_jplace_test_4.12.ribosomal_protein_L11_rplK.jplace')))
@@ -345,6 +346,33 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                              extern.run(cmd).replace(
                                  os.path.basename(n.name).replace('.fa',''),
                                  '').split("\n"))
+
+    def test_known_sequence_taxonomy(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	mytax; yeh; 2',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>another
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:            
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile() as taxf:
+                taxf.write("HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482\tmytax; yeh\n")
+                taxf.write("another\tmytax; yeh; 2\n")
+                taxf.flush()
+                
+                cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s "\
+                      "--no_assign_taxonomy --known_sequence_taxonomy %s"% (
+                          path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
+                          taxf.name)
+                self.assertEqual(expected,
+                                 extern.run(cmd).replace(
+                                     os.path.basename(n.name).replace('.fa',''),
+                                     '').split("\n"))
             
 if __name__ == "__main__":
     unittest.main()

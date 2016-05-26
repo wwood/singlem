@@ -19,6 +19,7 @@ from diamond_parser import DiamondResultParser
 from sequence_extractor import SequenceExtractor
 from graftm_result import GraftMResult
 
+from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
 PPLACER_ASSIGNMENT_METHOD = 'pplacer'
@@ -43,6 +44,7 @@ class SearchPipe:
         singlem_packages = kwargs.pop('singlem_packages')
         window_size = kwargs.pop('window_size')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
+        known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
 
         working_directory = kwargs.pop('working_directory')
         force = kwargs.pop('force')
@@ -121,6 +123,13 @@ class SearchPipe:
             logging.debug("Read in %i sequences with known taxonomy" % len(known_taxes))
         else:
             known_taxes = []
+        if known_sequence_taxonomy:
+            logging.debug("Parsing sequence-wise taxonomy..")
+            tax1 = GreenGenesTaxonomy.read(open(known_sequence_taxonomy)).taxonomy
+            known_sequence_tax = {}
+            for seq_id, tax in tax1.items():
+                known_sequence_tax[seq_id] = '; '.join(tax)
+            logging.info("Read in %i taxonomies from the GreenGenes format taxonomy file" % len(known_sequence_tax))
 
         ### Extract other reads which do not have known taxonomy
         extracted_reads = self._extract_relevant_reads(
@@ -165,6 +174,7 @@ class SearchPipe:
                 tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
                 
                 if assign_taxonomy:
+                    is_known_taxonomy = False
                     aligned_seqs = self._get_windowed_sequences(
                         assignment_result.prealigned_sequence_file(
                             sample_name, singlem_package, tmpbase),
@@ -193,14 +203,20 @@ class SearchPipe:
                         else:
                             taxonomies = TaxonomyFile(tax_file)
                         use_first = False
-                else:
+                        
+                else: # Taxonomy has not been assigned.
                     aligned_seqs = unknown_sequences
-                    taxonomies = {}
+                    if known_sequence_taxonomy:
+                        taxonomies = known_sequence_tax
+                    else:
+                        taxonomies = {}
                     use_first = False # irrelevant
+                    is_known_taxonomy = True
+                    
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, taxonomies, use_first, False))
-                add_info(new_infos, otu_table_object, False)
-
+                add_info(new_infos, otu_table_object, is_known_taxonomy)
+                
                 if output_jplace:
                     base_dir = assignment_result._base_dir(
                         sample_name, singlem_package, tmpbase)
@@ -271,7 +287,7 @@ class SearchPipe:
                             known_sequences.append(s)
                         else:
                             unknown_sequences.append(s)
-                    logging.debug("For sample %s, spkg %s, found %i known and %i unknown seqs" %(
+                    logging.debug("For sample %s, spkg %s, found %i known and %i unknown OTU sequences" %(
                         sample_name,
                         singlem_package.base_directory(),
                         len(known_sequences),
@@ -330,6 +346,7 @@ class SearchPipe:
             except KeyError:
                 # happens sometimes when HMMER picks up something where
                 # diamond does not, or when --no_assign_taxonomy is specified.
+                logging.debug("Did not find any taxonomy information for %s" % s.name)
                 tax = ''
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
