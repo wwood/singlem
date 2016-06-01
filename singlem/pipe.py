@@ -500,7 +500,7 @@ class SearchPipe:
             cmd = self._graftm_command_prefix(is_protein) + \
                   "--threads %i "\
                   "--forward %s "\
-                  "--search_and_align_only "\
+                  "--search_only "\
                   "--search_hmm_files %s "\
                   "--output_directory %s "\
                   "--aln_hmm_file %s " % (
