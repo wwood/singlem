@@ -581,7 +581,7 @@ class SearchPipe:
                       "--output_directory %s/%s_vs_%s "\
                       "--assignment_method %s" % (
                           self._graftm_command_prefix(singlem_package.is_protein_package()),
-                          1,
+                          self._num_threads,
                           tmp_graft.name,
                           singlem_package.graftm_package_path(),
                           graftm_align_directory_base,
@@ -589,7 +589,7 @@ class SearchPipe:
                           singlem_package.graftm_package_basename(),
                           assignment_method)
                 commands.append(cmd)
-        extern.run_many(commands, num_threads=self._num_threads)
+        extern.run_many(commands, num_threads=1)
         logging.info("Finished running taxonomic assignment with graftm")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
