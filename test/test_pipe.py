@@ -44,6 +44,12 @@ class Tests(unittest.TestCase):
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
 
+    def assertEqualOtuTable(self, expected_array, observed_array):
+        # make sure headers are OK
+        self.assertEqual(expected_array[0], observed_array[0])
+        # sort the rest of the table and compare that
+        self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
+
     def test_fast_protein_package(self):
         expected = [
             "\t".join(self.headers),
@@ -58,10 +64,11 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 
             cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
-            self.assertEqual(expected,
-                             extern.run(cmd).replace(
-                                 os.path.basename(n.name).replace('.fa',''),
-                                 '').split("\n"))
+            self.assertEqualOtuTable(
+                expected,
+                extern.run(cmd).replace(
+                    os.path.basename(n.name).replace('.fa',''),
+                    '').split("\n"))
 
     def test_minimal(self):
         expected = [
@@ -302,10 +309,11 @@ ATTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCAAGAGCCCGGAGATGGATTC
                 n.name,
                 os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'),
                 os.path.join(path_to_data,'second_packge.spkg'))
-            self.assertEqual(expected,
-                             extern.run(cmd).replace(
-                                 os.path.basename(n.name).replace('.fa',''),
-                                 '').split("\n"))
+            self.assertEqualOtuTable(
+                expected,
+                extern.run(cmd).replace(
+                    os.path.basename(n.name).replace('.fa',''),
+                    '').split("\n"))
 
     def test_no_taxonomy(self):
         expected = [
