@@ -17,7 +17,7 @@ class GraftMResult:
             path = self.unaligned_sequences_path_from_sample_name(sample)
             if os.stat(path).st_size > 0:
                 paths[sample] = path
-            return paths
+        return paths
 
     def unaligned_sequences_path_from_sample_name(self, sample_name):
         path = os.path.join(self.output_directory,
