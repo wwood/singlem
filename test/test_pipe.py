@@ -44,9 +44,14 @@ class Tests(unittest.TestCase):
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
 
-    def assertEqualOtuTable(self, expected_array, observed_array):
+    def assertEqualOtuTable(self, expected_array, observed_string):
+        observed_array = list([line.split("\t") for line in observed_string.split("\n")])
+        if expected_array[-1] != ['']:
+            expected_array.append([''])
+            
         # make sure headers are OK
         self.assertEqual(expected_array[0], observed_array[0])
+
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
 
@@ -65,10 +70,8 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
-                expected,
-                extern.run(cmd).replace(
-                    os.path.basename(n.name).replace('.fa',''),
-                    '').split("\n"))
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
     def test_minimal(self):
         expected = [
@@ -310,10 +313,8 @@ ATTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCAAGAGCCCGGAGATGGATTC
                 os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'),
                 os.path.join(path_to_data,'second_packge.spkg'))
             self.assertEqualOtuTable(
-                expected,
-                extern.run(cmd).replace(
-                    os.path.basename(n.name).replace('.fa',''),
-                    '').split("\n"))
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
     def test_no_taxonomy(self):
         expected = [
@@ -360,6 +361,30 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                                  extern.run(cmd).replace(
                                      os.path.basename(n.name).replace('.fa',''),
                                      '').split("\n"))
-            
+
+    def test_sample_name_strange_characters(self):
+        expected = [self.headers,
+                    ['4.12.22seqs','contigs.fasta.metabat-bins-_-t20_--superspecific.8',
+                     'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                     '4','9.76','Root; d__Bacteria; p__Firmicutes'],
+                    ['4.11.22seqs','contigs.fasta.metabat-bins-_-t20_--superspecific.8',
+                     'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA',
+                     '2','4.88','Root; d__Bacteria; p__Firmicutes'],
+                    ['4.12.22seqs','contigs.fasta.metabat-bins-_-t20_--superspecific.9',
+                     'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                     '4','9.76','Root; d__Bacteria; p__Firmicutes'],
+                    ['4.11.22seqs','contigs.fasta.metabat-bins-_-t20_--superspecific.9',
+                     'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA',
+                     '2','4.88','Root; d__Bacteria; p__Firmicutes']]
+        cmd = "%s --quiet pipe --sequences "\
+        "%s/1_pipe/contigs.fasta.metabat-bins-_-t20_--superspecific.9.fa "\
+        "%s/1_pipe/contigs.fasta.metabat-bins-_-t20_--superspecific.8.fa "\
+        "--otu_table /dev/stdout --threads 4 --singlem_packages %s" %(
+            path_to_script,
+            path_to_data,
+            path_to_data,
+            self.two_packages)
+        self.assertEqualOtuTable(expected, extern.run(cmd))
+
 if __name__ == "__main__":
     unittest.main()
