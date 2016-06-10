@@ -1,5 +1,5 @@
 from graftm.graftm_package import GraftMPackage, GraftMPackageVersion3
-from skbio.tree import TreeNode
+import dendropy
 import logging
 import tempfile
 from Bio import SeqIO
@@ -30,10 +30,12 @@ class PackageCreator:
                      ('protein' if is_protein_package else 'nucleotide'))
         if is_protein_package:
             tree_leaves = set()
-            for node in TreeNode.read(gpkg.reference_package_tree_path()).tips():
+            for node in dendropy.Tree.get(
+                    path=gpkg.reference_package_tree_path(),
+                    schema='newick').leaf_node_iter():
                 # need to replace here because otherwise they don't line up with the
                 # diamond database IDs
-                node_name = node.name.replace(' ','_')
+                node_name = node.taxon.label.replace(' ','_')
                 if node_name in tree_leaves:
                     raise Exception("Found duplicate tree leaf name in graftm package "
                                     "tree. Currently this case is not handled, sorry")
@@ -77,35 +79,34 @@ class PackageCreator:
                 logging.info("Creating DIAMOND database")
                 extern.run(cmd)
                 
+                # Compile the final graftm/singlem package
+                if len(gpkg.search_hmm_paths()) == 1 and \
+                   gpkg.search_hmm_paths()[0] == gpkg.alignment_hmm_path():
+                    search_hmms = None
+                else:
+                    search_hmms = gpkg.search_hmm_paths()
 
-        # Compile the final graftm/singlem package
-        if len(gpkg.search_hmm_paths()) == 1 and \
-           gpkg.search_hmm_paths()[0] == gpkg.alignment_hmm_path():
-            search_hmms = None
-        else:
-            search_hmms = gpkg.search_hmm_paths()
+                with tempdir.TempDir() as tmpdir:
+                    gpkg_name = os.path.join(
+                        tmpdir,
+                        os.path.basename(
+                            os.path.abspath(input_graftm_package_path)).replace('.gpkg',''))
+                    GraftMPackageVersion3.compile(gpkg_name,
+                                                  gpkg.reference_package_path(),
+                                                  gpkg.alignment_hmm_path(),
+                                                  dmnd_tf.name if is_protein_package else None,
+                                                  gpkg.maximum_range(),
+                                                  t.name if is_protein_package else \
+                                                      gpkg.unaligned_sequence_database_path(),
+                                                  gpkg.use_hmm_trusted_cutoff(),
+                                                  search_hmms)
+                    logging.debug("Finished creating GraftM package for conversion to SingleM package")
 
-        with tempdir.TempDir() as tmpdir:
-            gpkg_name = os.path.join(
-                tmpdir,
-                os.path.basename(
-                    os.path.abspath(input_graftm_package_path)).replace('.gpkg',''))
-            GraftMPackageVersion3.compile(gpkg_name,
-                                          gpkg.reference_package_path(),
-                                          gpkg.alignment_hmm_path(),
-                                          dmnd_tf.name if is_protein_package else None,
-                                          gpkg.maximum_range(),
-                                          t.name if is_protein_package else \
-                                              gpkg.unaligned_sequence_database_path(),
-                                          gpkg.use_hmm_trusted_cutoff(),
-                                          search_hmms)
-            logging.debug("Finished creating GraftM package for conversion to SingleM package")
+                    SingleMPackageVersion1.compile(output_singlem_package_path,
+                                                   gpkg_name, hmm_position)
 
-            SingleMPackageVersion1.compile(output_singlem_package_path,
-                                           gpkg_name, hmm_position)
+                    shutil.rmtree(gpkg_name)
+                    if is_protein_package: dmnd_tf.close()
 
-            shutil.rmtree(gpkg_name)
-            if is_protein_package: dmnd_tf.close()
-
-            logging.info("SingleM-compatible package creation finished")
+                    logging.info("SingleM-compatible package creation finished")
 
