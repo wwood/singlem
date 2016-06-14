@@ -26,6 +26,8 @@ class OtuTable:
             e.count = d[3]
             e.coverage = d[4]
             e.taxonomy = d[5]
+            e.data = d
+            e.fields = self.fields
             yield e
 
     def add(self, otu_table_entries):
@@ -74,24 +76,23 @@ class OtuTable:
             output_io.write("\t".join([self._to_printable(d[i]) for i in field_indices_to_print])+"\n")
             
     @staticmethod
-    def write_otus_to(otu_table_entries, output_io):
+    def write_otus_to(otu_table_entries, output_io, fields_to_print=None):
         '''Output as a CSV file to the (open) I/O object
         
         Parameters
         ----------
         output_io: open io object
             this method neither opens nor closes this
+        fields_to_print: list of str
+            names of the fields to be printed. None indicates DEFAULT_OUTPUT_FIELDS
         '''
-        output_io.write("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS)+"\n")
-        
-        for d in otu_table_entries:
-            output_io.write("\t".join([OtuTable._to_printable(cell) for cell in [\
-                d.marker,
-                d.sample_name,
-                d.sequence,
-                d.count,
-                d.coverage,
-                d.taxonomy]])+"\n")
+
+        if fields_to_print is None: fields_to_print = OtuTable.DEFAULT_OUTPUT_FIELDS
+        output_io.write("\t".join(fields_to_print)+"\n")
+        for o in otu_table_entries:
+            field_indices_to_print = [o.fields.index(f) for f in fields_to_print]
+            output_io.write("\t".join([OtuTable._to_printable(cell) for cell in [
+                o.data[i] for i in field_indices_to_print]])+"\n")
          
     @staticmethod
     def _to_printable(e):

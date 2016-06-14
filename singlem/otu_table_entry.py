@@ -7,6 +7,8 @@ class OtuTableEntry:
     count = None
     taxonomy = None
     coverage = None
+    data = None
+    fields = None
     
     def taxonomy_array(self):
         return Taxonomy.split_taxonomy(self.taxonomy)

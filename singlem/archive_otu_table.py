@@ -42,5 +42,7 @@ class ArchiveOtuTable:
             e.count = d[3]
             e.coverage = d[4]
             e.taxonomy = d[5]
+            e.data = d
+            e.fields = self.fields
             yield e
         
