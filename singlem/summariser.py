@@ -93,6 +93,7 @@ class Summariser:
     def write_otu_table(**kwargs):
         output_table_io = kwargs.pop('output_table_io')
         table_collection = kwargs.pop('table_collection')
+        output_extras = kwargs.pop('output_extras')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -100,8 +101,13 @@ class Summariser:
             logging.info("Writing %s" % output_table_io.name)
         else:
             logging.info("Writing an OTU table")
-        OtuTable.write_otus_to(table_collection, output_table_io)
-    
+
+        if output_extras:
+            OtuTable.write_otus_to(table_collection, output_table_io,
+                                   fields_to_print=table_collection.example_field_names())
+        else:
+            OtuTable.write_otus_to(table_collection, output_table_io)
+            
     @staticmethod
     def write_clustered_otu_table(**kwargs):
         output_table_io = kwargs.pop('output_table_io')

@@ -40,9 +40,16 @@ class OtuTableCollection:
         gets parsed into the requisite array form and stored in the instance
         variable'''
         self.target_taxonomy = Taxonomy.split_taxonomy(taxonomy_string)
+
+    def example_field_names(self):
+        '''Return the field names of the first OTU table'''
+        for table_types in (self.otu_table_objects, self.archive_table_objects):
+            for table in table_types:
+                return table.fields
+        raise Exception("Attempt to get fields from empty TableCollection")
         
     def __iter__(self):
-        '''Iterate over all the OTUs from all the tables.
+        '''Iterate over all the OTUs from all the tables
         
         Affected by the target_taxonomy instance variable, which narrows
         the scope of iteration to just those instances from that taxonomy

@@ -229,6 +229,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_parser.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=ALMOST_90_PERCENT_ON_60BP)
     summarise_parser.add_argument('--output_otu_table', help="Output combined OTU table to this file")
+    summarise_parser.add_argument('--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
     summarise_parser.add_argument('--unifrac', help="Output UniFrac format file")
@@ -379,7 +380,8 @@ if __name__ == '__main__':
         elif args.output_otu_table:
             Summariser.write_otu_table(
                 table_collection = otus,
-                output_table_io = open(args.output_otu_table,'w'))
+                output_table_io = open(args.output_otu_table,'w'),
+                output_extras = args.output_extras)
         elif args.strain_overview_table:
             StrainSummariser().summarise_strains(
                 table_collection = otus,
