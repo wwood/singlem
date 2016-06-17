@@ -540,29 +540,26 @@ class SearchPipe:
         logging.info("Running separate alignments in GraftM..")
         commands = []
 
-        def command(singlem_package, sample_name, hit_file, is_protein):
+        def command(singlem_package, hit_files, is_protein):
             return self._graftm_command_prefix(is_protein) + \
                 "--threads %i "\
                 "--forward %s "\
-                "--graftm_package %s --output_directory %s/%s_vs_%s "\
+                "--graftm_package %s --output_directory %s/%s "\
                 "--search_and_align_only" % (
                     1, #use 1 thread since most likely better to parallelise processes with extern
-                    hit_file,
+                    ' '.join(hit_files),
                     singlem_package.graftm_package_path(),
                     graftm_separate_directory_base,
-                    sample_name,
                     os.path.basename(singlem_package.graftm_package_path()))
 
         # Gather commands for aligning protein packages
-        protein_paths = search_result.protein_hit_paths()
-        for sample_name, hit_file in protein_paths.items():
-            for singlem_package in self._singlem_package_database.protein_packages():
-                commands.append(command(singlem_package, sample_name, hit_file, True))
+        for singlem_package in self._singlem_package_database.protein_packages():
+            commands.append(command(singlem_package, search_result.protein_hit_paths().values(), True))
         # Gather commands for aligning nucleotide packages.
-        for sample_name, temporary_hit_file in \
-            search_result.direction_corrected_nucleotide_read_files():
-            for singlem_package in self._singlem_package_database.nucleotide_packages():
-                commands.append(command(singlem_package, sample_name, temporary_hit_file, False))
+        for singlem_package in self._singlem_package_database.nucleotide_packages():
+            temporary_hit_files = [tf for _, tf in \
+                search_result.direction_corrected_nucleotide_read_files()]
+            commands.append(command(singlem_package, temporary_hit_files, False))
 
         extern.run_many(commands, num_threads=self._num_threads)
         return SingleMPipeAlignSearchResult(
@@ -655,8 +652,7 @@ class SingleMPipeAlignSearchResult:
     def _base_dir(self, sample_name, singlem_package):
         return os.path.join(
             self._graftm_separate_directory_base,
-            "%s_vs_%s" % (sample_name,
-                          os.path.basename(singlem_package.graftm_package_path())),
+            os.path.basename(singlem_package.graftm_package_path()),
             '%s_hits' % sample_name)
 
     def prealigned_sequence_files(self, sample_name, singlem_package):
