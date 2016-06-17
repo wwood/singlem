@@ -545,7 +545,7 @@ class SearchPipe:
                 "--threads %i "\
                 "--forward %s "\
                 "--graftm_package %s --output_directory %s/%s "\
-                "--search_and_align_only" % (
+                "--search_only" % (
                     1, #use 1 thread since most likely better to parallelise processes with extern
                     ' '.join(hit_files),
                     singlem_package.graftm_package_path(),
