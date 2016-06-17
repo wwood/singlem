@@ -572,20 +572,20 @@ class SearchPipe:
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
-        for sample_name, singlem_package, tmp_graft, _, _ in extracted_reads:
-            if tmp_graft is not None:
+        for singlem_package, sample_names, tmp_grafts in extracted_reads.each_package_wise():
+            tmpnames = list([tg.name for tg in tmp_grafts if tg])
+            if len(tmpnames) > 0:
                 cmd = "%s "\
                       "--threads %i "\
                       "--forward %s "\
                       "--graftm_package %s "\
-                      "--output_directory %s/%s_vs_%s "\
+                      "--output_directory %s/%s "\
                       "--assignment_method %s" % (
                           self._graftm_command_prefix(singlem_package.is_protein_package()),
                           self._num_threads,
-                          tmp_graft.name,
+                          ' '.join(tmpnames),
                           singlem_package.graftm_package_path(),
                           graftm_align_directory_base,
-                          sample_name,
                           singlem_package.graftm_package_basename(),
                           assignment_method)
                 commands.append(cmd)
@@ -686,8 +686,9 @@ class SingleMPipeTaxonomicAssignmentResult:
 
     def _base_dir(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._graftm_output_directory,
-                            '%s_vs_%s' % (sample_name, singlem_package.graftm_package_basename()),
-                            tmpbase)
+                            '%s/%s' % (
+                                singlem_package.graftm_package_basename(),
+                                re.sub('\.fasta$','',tmpbase)))
 
     def protein_orf_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
@@ -732,6 +733,21 @@ class ExtractedReads:
         for sample, arrs in self._sample_to_array.items():
             for arr in arrs:
                 yield sample, arr[0], arr[1], arr[2], arr[3]
+
+    def each_package_wise(self):
+        '''yield once per pkg: [singlem_package, list of samples, list of tmp_files]'''
+        pkg_basename_to_pkg_samples_tmp_files = {}
+        for sample, arrs in self._sample_to_array.items():
+            for arr in arrs:
+                pkg_base = arr[0].base_directory()
+                if pkg_base in pkg_basename_to_pkg_samples_tmp_files:
+                    pkg_basename_to_pkg_samples_tmp_files[pkg_base][1].append(sample)
+                    pkg_basename_to_pkg_samples_tmp_files[pkg_base][2].append(arr[1])
+                else:
+                    pkg_basename_to_pkg_samples_tmp_files[pkg_base] = \
+                        [arr[0], [sample], [arr[1]]]
+        for arr in pkg_basename_to_pkg_samples_tmp_files.values():
+            yield arr
 
     def each_sample(self):
         for sample in self._sample_to_array.keys():
