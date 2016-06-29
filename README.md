@@ -51,9 +51,14 @@ singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv -
 ```
 
 ###Calculating beta diversity between samples
-As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, convert your OTU table to unifrac format using `singlem summarise`, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
+As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac format using `singlem summarise`:
 ```
 singlem summarise --input_otu_table otu_table.csv --unifrac otu_table.unifrac
+```
+The above commands generates 15 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
+
+To calculate beta diversity, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
+```
 convertToEBD.py otu_table.unifrac otu_table.ebd
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
