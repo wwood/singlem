@@ -59,7 +59,7 @@ The above commands generates 15 different unifrac format files, one for each mar
 
 To calculate beta diversity, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
 ```
-convertToEBD.py otu_table.unifrac otu_table.ebd
+convertToEBD.py otu_table.unifrac.4.12.ribosomal_protein_L11_rplK.unifrac otu_table.ebd
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
 Phylogenetic tree-based methods of calculating beta diversity can also be calculated, but `pipe` must be used to generate a new OTU table using the `diamond_example` taxonomy assignment method so that each OTU is assigned to a single leaf in the tree:
