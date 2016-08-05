@@ -9,6 +9,11 @@ class Appraiser:
         '''Given a collection of OTU tables derived from samples, and OTU
         table(s) corresponding to a collection of recovered genomes, how
         much of the community has been recovered in those genomes?
+
+        Parameters
+        ----------
+        kwargs:
+            sequence_identity: float for 'near enough', None when an exact match is required.
         
         Returns
         -------
