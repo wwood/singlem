@@ -577,6 +577,7 @@ class SearchPipe:
                       "--forward %s "\
                       "--graftm_package %s "\
                       "--output_directory %s/%s "\
+                      "--max_samples_for_krona 0 "\
                       "--assignment_method %s" % (
                           self._graftm_command_prefix(singlem_package.is_protein_package()),
                           self._num_threads,
