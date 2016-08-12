@@ -2,6 +2,7 @@ import logging
 import sys
 
 from otu_table import OtuTable
+from otu_table_collection import OtuTableCollection
 from sequence_searcher import SequenceSearcher
 
 class Appraiser:
@@ -24,15 +25,22 @@ class Appraiser:
         sequence_identity = kwargs.pop('sequence_identity', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Read in %i markers from the different genomes" %\
+                     len(genome_otu_table_collection))
+        filtered_genome_otus = \
+            list(genome_otu_table_collection.excluded_duplicate_distinct_genes())
+        logging.info("After excluding duplicate markers that may indicate "
+                     "contamination, found %i markers" % len(filtered_genome_otus))
         
         if sequence_identity is None:
-            # read in genome OTU sequences
             genome_otu_sequences = set()
             genome_names = set()
-            for otu in genome_otu_table_collection:
+            for otu in filtered_genome_otus:
                 genome_otu_sequences.add(otu.sequence)
                 genome_names.add(otu.sample_name)
-            logging.info("Read in %i unique sequences from the %i reference genomes" % (len(genome_otu_sequences), len(genome_names)))
+            logging.info("Read in %i unique sequences from the %i reference genomes" %\
+                         (len(genome_otu_sequences), len(genome_names)))
             
             # read in metagenome OTU sequences
             sample_name_to_appraisal = {}
@@ -59,8 +67,12 @@ class Appraiser:
         else:
             sample_name_to_appraisal = {}
             seen_otus = set()
+            genome_otu_table = OtuTable()
+            genome_otu_table.add(filtered_genome_otus)
+            filtered_collection = OtuTableCollection()
+            filtered_collection.otu_table_objects = [genome_otu_table]
             for uc in SequenceSearcher().global_search(metagenome_otu_table_collection,
-                                             genome_otu_table_collection,
+                                             filtered_collection,
                                              sequence_identity):
                 q = uc.query
                 key = str([q.sample_name, q.sequence])

@@ -63,6 +63,9 @@ class OtuTableCollection:
                     if self.target_taxonomy is None or otu.within_taxonomy(self.target_taxonomy):
                         yield otu
 
+    def __len__(self):
+        return sum(1 for e in self) # Why is this not automatic Python?
+
     def excluded_duplicate_distinct_genes(self):
         '''Filter the OTU table collection so that only a single OTU from each gene
         and sample combination is preserved, and iterate over the remaining
