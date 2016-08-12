@@ -48,4 +48,3 @@ class SequenceSearcher:
                             if uc_entry.target is not None:
                                 uc_entry.target = subject_otus[name_to_index(uc_entry.target)]
                             yield uc_entry
-        
