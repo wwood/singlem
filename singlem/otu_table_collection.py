@@ -62,3 +62,31 @@ class OtuTableCollection:
                 for otu in table:
                     if self.target_taxonomy is None or otu.within_taxonomy(self.target_taxonomy):
                         yield otu
+
+    def excluded_duplicate_distinct_genes(self):
+        '''Filter the OTU table collection so that only a single OTU from each gene
+        and sample combination is preserved, and iterate over the remaining
+        OTUs.  When there is more than one different sequence for a different
+        gene in the sample, then all of that gene from that sample are removed.
+        Requires slurping the OTU table up.
+
+        Returns
+        -------
+        A new OtuTableCollection object that has been filtered.
+
+        '''
+        sample_to_gene_to_otu = {}
+        for otu in self:
+            if otu.sample_name in sample_to_gene_to_otu:
+                if otu.marker in sample_to_gene_to_otu[otu.sample_name]:
+                    sample_to_gene_to_otu[otu.sample_name][otu.marker].append(otu)
+                else:
+                    sample_to_gene_to_otu[otu.sample_name][otu.marker] = [otu]
+            else:
+                sample_to_gene_to_otu[otu.sample_name] = {}
+                sample_to_gene_to_otu[otu.sample_name][otu.marker] = [otu]
+
+        for sample, gene_to_otu in sample_to_gene_to_otu.items():
+            for gene, otus in gene_to_otu.items():
+                if len(otus) == 1:
+                    yield otu
