@@ -293,7 +293,12 @@ class Tests(unittest.TestCase):
                 '4.12.ribosomal_protein_L11_rplK',
                 'minimal',
                 'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                '7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+                '7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            [
+                '4.16.ribosomal_protein_S5',
+                'minimal',
+                'GGTACCGGCGTCATCGCCGGTGGCGCGGCACGCGCCATCTTGGAGATGGCCGGCATCCGC',
+                '8','12.50','Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria']]
         metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
         genomes_otu_table = [
             self.headers,[
@@ -305,7 +310,12 @@ class Tests(unittest.TestCase):
                 '4.12.ribosomal_protein_L11_rplK',
                 'genome',
                 'AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC', #one base pair different to the one above
-                '1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+                '1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+            [
+                '4.16.ribosomal_protein_S5',
+                'genome',
+                'GGTACCGGCGTCATCGCCGGTGGCGCGGCACGCGCCATCTTGGAGATGGCCGGCATCCGC',
+                '1','1.06','Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria']
         ]
         genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
         
@@ -318,8 +328,69 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
+        self.assertEqual(8, a.num_found)
+        self.assertEqual(7, a.num_not_found)
+
+                
+    def test_contamination_near_enough(self):
+        metagenome_otu_table = [
+            self.headers,[
+                '4.12.ribosomal_protein_L11_rplK',
+                'minimal',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                '7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            [
+                '4.16.ribosomal_protein_S5',
+                'another',
+                'GGTACCGGCGTCATCGCCGGTGGCGCGGCACGCGCCATCTTGGAGATGGCCGGCATCCGC',
+                '8','12.50','Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria']]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+        genomes_otu_table = [
+            self.headers,[
+                '4.12.ribosomal_protein_L11_rplK',
+                'genome',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                '1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+            [
+                '4.12.ribosomal_protein_L11_rplK',
+                'genome',
+                'AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC', #one base pair different to the one above
+                '1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+            [
+                '4.16.ribosomal_protein_S5',
+                'genome',
+                'GGTACCGGCGTCATCGCCGGTGGGGCGGCACGCGCCATCTTGGAGATGGCCGGCATCCGC',#one base pair different to the one above
+                '1','1.06','Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria']
+        ]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+        
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection)
+        self.assertEqual(2, len(app.appraisal_results))
+        a = app.appraisal_results[0]
         self.assertEqual(0, a.num_found)
-    
+        self.assertEqual(8, a.num_not_found)
+        a = app.appraisal_results[1]
+        self.assertEqual(0, a.num_found)
+        self.assertEqual(7, a.num_not_found)
+
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 sequence_identity=0.9)
+        self.assertEqual(2, len(app.appraisal_results))
+        a = app.appraisal_results[0]
+        self.assertEqual(8, a.num_found)
+        self.assertEqual(0, a.num_not_found)
+        a = app.appraisal_results[1]
+        self.assertEqual(0, a.num_found)
+        self.assertEqual(7, a.num_not_found)
+
+
        
 
 if __name__ == "__main__":
