@@ -1,3 +1,5 @@
+import logging
+
 from archive_otu_table import ArchiveOtuTable
 from otu_table import OtuTable
 from taxonomy import Taxonomy
@@ -91,5 +93,7 @@ class OtuTableCollection:
 
         for sample, gene_to_otu in sample_to_gene_to_otu.items():
             for gene, otus in gene_to_otu.items():
+                logging.debug("Found %i OTUs for %s/%s" %(
+                    len(otus), gene, otus[0].marker))
                 if len(otus) == 1:
-                    yield otu
+                    yield otus[0]
