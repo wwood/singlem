@@ -31,11 +31,11 @@ class GraftMResult:
         elif len(self._search_hmm_files) == 1:
             return [os.path.join(self.output_directory,
                                  sample_name,
-                                 "%s.hmmout.csv" % sample_name)]
+                                 "%s.hmmout.txt" % sample_name)]
         else:
             reg = re.compile(r'\.hmm$')
             hmmout_names = [
-                "%s_%s.hmmout.csv" % (reg.sub('', os.path.basename(h)),
+                "%s_%s.hmmout.txt" % (reg.sub('', os.path.basename(h)),
                                       sample_name)
                 for h in self._search_hmm_files]
             return [os.path.join(
