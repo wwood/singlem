@@ -89,13 +89,11 @@ SingleM is not currently available on pip, though we anticipate this in future. 
 git clone https://github.com/wwood/singlem
 ./singlem/bin/singlem -h
 ```
-SingleM has the following dependencies:
+
+SingleM also has the following dependencies:
 * [GraftM](https://github.com/geronimp/graftM), which in itself has several dependencies :(
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi)
 * [VSEARCH](https://github.com/torognes/vsearch)
 
-If you are running SingleM on large datasets, you may wish to speed processing up by using the bleeding edge version of BioPython, which includes an [optimisation](https://github.com/biopython/biopython/pull/673) not released in version 1.66.
-
-
 ##License
-SingleM is written by Ben Woodcroft (@wwood) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
+SingleM is written by [Ben Woodcroft](http://ecogenomic.org/personnel/dr-ben-woodcroft) (@wwood) at the Australian Centre for Ecogenomics (UQ) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
