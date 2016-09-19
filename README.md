@@ -91,7 +91,7 @@ git clone https://github.com/wwood/singlem
 ```
 
 SingleM also has the following dependencies:
-* [GraftM](https://github.com/geronimp/graftM), which in itself has several dependencies :(
+* [GraftM](https://github.com/geronimp/graftM), which in itself has several dependencies :( and worse, SingleM currently requires changes in GraftM introduced after 0.9.5. This will be fixed soon.
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi)
 * [VSEARCH](https://github.com/torognes/vsearch)
 
