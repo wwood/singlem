@@ -23,7 +23,7 @@ if 'sdist' in sys.argv:
         # The CONTENTS file comes courtesy of the Python MANIFEST.in
         archive_list.append(archive)
     
-elif 'build' in sys.argv:
+if 'build' in sys.argv or 'bdist_wheel' in sys.argv:
     # Extract each of the GraftM gpkgs in 'db' into 'singlem/db'
     os.mkdir('singlem/db')
     spkgs = os.listdir('db')
