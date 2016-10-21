@@ -9,7 +9,7 @@ class Summariser:
     @staticmethod
     def summarise(**kwargs):
         '''Summarise an OTU table'''
-        krona_output_prefix = kwargs.pop('krona_output_prefix')
+        krona_output_file = kwargs.pop('krona_output')
         table_collection = kwargs.pop('table_collection')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -17,15 +17,15 @@ class Summariser:
         # prep the array
         gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection)
 
-        # write the input krona files
+        # write the output krona files
         sample_name_to_tempfile = OrderedDict()
+        logging.info("Writing krona %s" % krona_output_file)
+        cmd = 'ktImportText -o %s' % krona_output_file
+        sample_tempfiles = []
         for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.iteritems():
-            krona_output_file = '%s.%s.krona.html' % (krona_output_prefix, gene)
-            logging.info("Writing krona %s" % krona_output_file)
-            cmd = 'ktImportText -o %s' % krona_output_file
             for sample, taxonomy_to_count in sample_to_taxonomy_to_count.iteritems():
                 f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona')
-                sample_name_to_tempfile[sample] = f
+                sample_tempfiles.append(f)
 
                 for taxonomy, coverage in taxonomy_to_count.iteritems():
                     tax_split = taxonomy.split('; ')
@@ -33,10 +33,14 @@ class Summariser:
                     f.write('\t'.join([str(coverage)]+tax_split))
                     f.write('\n')
                 f.flush()
-                cmd += ' %s,%s' % (f.name, sample)
-            extern.run(cmd)
-            for f in sample_name_to_tempfile.values():
-                f.close()
+                if len(sample_to_taxonomy_to_count) == 1:
+                    display_name = gene
+                else:
+                    display_name = '%s: %s' % (sample, gene)
+                cmd += " %s,'%s'" % (f.name, display_name)
+        extern.run(cmd)
+        for f in sample_tempfiles:
+            f.close()
 
     @staticmethod
     def _collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection,
