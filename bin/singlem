@@ -160,33 +160,35 @@ if __name__ == '__main__':
                                         description=pipe_description,
                                         help=pipe_description,
                                         epilog=__author__)
-    pipe_parser.add_argument('--sequences', nargs='+', metavar='sequence_file', help='forward nucleotide sequences to be searched')
-    pipe_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use', default=1)
-    pipe_parser.add_argument('--otu_table', metavar='filename', help='output OTU table')
-    pipe_parser.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc.')
-    pipe_parser.add_argument('--working_directory', metavar='directory', help='work in this directory (default: a temporary directory)')
-    pipe_parser.add_argument('--force', action='store_true', help='overwrite working directory if required')
-    pipe_parser.add_argument('--assignment_method', choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
+    common_pipe_options = pipe_parser.add_argument_group('Common options')
+    common_pipe_options.add_argument('--sequences', nargs='+', metavar='sequence_file', help='forward nucleotide sequences to be searched')
+    common_pipe_options.add_argument('--otu_table', metavar='filename', help='output OTU table')
+    common_pipe_options.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use', default=1)
+    common_pipe_options.add_argument('--assignment_method', choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
                                                              pipe.DIAMOND_ASSIGNMENT_METHOD,
                                                              pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
                              help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification' % pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                              default=pipe.PPLACER_ASSIGNMENT_METHOD)
-    pipe_parser.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method' % pipe.PPLACER_ASSIGNMENT_METHOD)
-    pipe_parser.add_argument('--evalue', help='GraftM e-value cutoff')
-    pipe_parser.add_argument('--min_orf_length', metavar='length', help='When predicting ORFs require this many base pairs uninterrupted by a stop codon (default: 96)', type=int, default=96)
-    pipe_parser.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
-    pipe_parser.add_argument(
+    common_pipe_options.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (e.g. name of each OTU\'s reads)', default=False)
+    less_common_pipe_options = pipe_parser.add_argument_group('Less common options')
+    less_common_pipe_options.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc.')
+    less_common_pipe_options.add_argument('--working_directory', metavar='directory', help='work in this directory (default: a temporary directory)')
+    less_common_pipe_options.add_argument('--force', action='store_true', help='overwrite working directory if required')
+    less_common_pipe_options.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method' % pipe.PPLACER_ASSIGNMENT_METHOD)
+    less_common_pipe_options.add_argument('--evalue', help='GraftM e-value cutoff')
+    less_common_pipe_options.add_argument('--min_orf_length', metavar='length', help='When predicting ORFs require this many base pairs uninterrupted by a stop codon (default: 96)', type=int, default=96)
+    less_common_pipe_options.add_argument('--restrict_read_length', metavar='length', help='Only use this many base pairs at the start of each sequence searched (default: no restriction)', type=int)
+    less_common_pipe_options.add_argument(
         '--filter_minimum_protein', metavar='length', type=int, default=28,
         help='Ignore reads aligning in less than this many positions to the protein HMM')
-    pipe_parser.add_argument(
+    less_common_pipe_options.add_argument(
         '--filter_minimum_nucleotide', metavar='length', type=int, default=95,
         help='Ignore reads aligning in less than this many positions to the nucleotide HMM')
-    pipe_parser.add_argument('--output_extras', action='store_true', help='give extra output for each sequence identified (mainly for debug purposes)', default=False)
-    pipe_parser.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
-    pipe_parser.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
-    pipe_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
-    pipe_parser.add_argument('--no_assign_taxonomy', action='store_true', help='Do not assign any taxonomy except for those already known', default=False)
-    pipe_parser.add_argument('--known_sequence_taxonomy', metavar='FILE', help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy')
+    less_common_pipe_options.add_argument('--include_inserts', action='store_true', help='print the entirety of the sequences, not just the aligned nucleotides', default=False)
+    less_common_pipe_options.add_argument('--known_otu_tables', nargs='+', help='OTU tables previously generated that trusted taxonomies for each sequence (default: do not use)')
+    less_common_pipe_options.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use (default: use the default set)')
+    less_common_pipe_options.add_argument('--no_assign_taxonomy', action='store_true', help='Do not assign any taxonomy except for those already known', default=False)
+    less_common_pipe_options.add_argument('--known_sequence_taxonomy', metavar='FILE', help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy')
 
     seqs_description = 'Find the best window for a SingleM package'
     seqs_parser = subparsers.add_parser('seqs',
