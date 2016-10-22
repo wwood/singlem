@@ -374,7 +374,7 @@ if __name__ == '__main__':
         if args.krona:
             Summariser.summarise(
                 table_collection = otus,
-                krona_output_prefix = args.krona)
+                krona_output = args.krona)
         elif args.unifrac:
             Summariser.write_unifrac_format_file(
                 table_collection = otus,
