@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 
 #=======================================================================
@@ -148,13 +149,13 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             cmd = "%s --debug pipe --sequences %s --otu_table /dev/stdout --assignment_method diamond --threads 4" % (path_to_script,
                                                             f.name)
             
-            expected = [self.headers,['4.12.ribosomal_protein_L11_rplK',os.path.basename(f.name)[:-6],'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Bacillus; s__Bacillus_sp._1NLA3E']]
+            expected = [self.headers,['4.12.ribosomal_protein_L11_rplK',os.path.basename(f.name)[:-6],'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Ornithinibacillus; s__Ornithinibacillus_scapharcae']]
             expected = ["\t".join(x) for x in expected]+['']
             observed = extern.run(cmd).split("\n")
             self.assertEqual(expected, observed)
             
     def test_diamond_example_assign_taxonomy(self):
-        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2506520047'],
+        expected = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2513237297'],
                     ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','2541047520']
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
