@@ -97,3 +97,36 @@ class OtuTableCollection:
                     len(otus), gene, otus[0].marker))
                 if len(otus) == 1:
                     yield otus[0]
+
+class StreamingOtuTableCollection:
+    def __init__(self):
+        self._otu_table_io_objects = []
+        self._archive_table_io_objects = []
+
+    def add_otu_table(self, input_otu_table_io):
+        '''Add a regular style OTU table to the collection.
+
+        Parameters
+        ----------
+        input_otu_table_ios: list of IO
+            entries are open streams of OTU table data
+
+        Returns
+        -------
+        None
+        '''
+        self._otu_table_io_objects.append(input_otu_table_io)
+
+    def add_archive_otu_table(self, input_archive_table_io):
+        self.archive_table_io_objects.append(input_archive_table_io)
+
+    def __iter__(self):
+        '''Iterate over all the OTUs from all the tables. This can only be done once
+        since the data is streamed in.
+        '''
+        for io in self._archive_table_io_objects:
+            for otu in ArchiveOtuTable.read(io):
+                yield otu
+        for io in self._otu_table_io_objects:
+            for otu in OtuTable.read(io):
+                yield otu
