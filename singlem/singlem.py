@@ -26,7 +26,7 @@ class HmmDatabase:
     def __init__(self, package_paths=None):
         # Array of gpkg names to SingleMPackage objects
         self._hmms_and_positions = {}
-        
+
         if package_paths:
             self.singlem_packages = [SingleMPackage.acquire(path) for path in package_paths]
             logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
@@ -62,8 +62,8 @@ class HmmDatabase:
         'return an array of absolute paths to the protein hmms in this database'
         return list(itertools.chain(
             *[pkg.graftm_package().search_hmm_paths() for pkg in self.nucleotide_packages()]))
-    
+
     def __iter__(self):
         for hp in self._hmms_and_positions.values():
             yield hp
-    
+

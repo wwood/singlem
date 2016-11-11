@@ -28,7 +28,7 @@ from singlem.strain_summariser import StrainSummariser
 from singlem.sequence_classes import SeqReader
 from singlem.metagenome_otu_finder import MetagenomeOtuFinder
 from singlem.package_creator import PackageCreator
-from singlem.otu_table_collection import OtuTableCollection
+from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
 from singlem.clusterer import Clusterer
 from singlem.appraiser import Appraiser
 
@@ -352,7 +352,7 @@ if __name__ == '__main__':
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:
             raise Exception("Making a database requires input OTU tables or archive tables")
-        otus = OtuTableCollection()
+        otus = StreamingOtuTableCollection()
         if args.otu_tables:
             for o in args.otu_tables:
                 otus.add_otu_table(open(o))
@@ -423,7 +423,7 @@ if __name__ == '__main__':
 
         else: raise Exception("Programming error")
         logging.info("Finished")
-            
+
     elif args.subparser_name == 'create':
         PackageCreator().create(input_graftm_package = args.input_graftm_package,
                                 output_singlem_package = args.output_singlem_package,
@@ -431,18 +431,18 @@ if __name__ == '__main__':
                                 force = args.force)
     elif args.subparser_name == 'appraise':
         appraiser = Appraiser()
-        
+
         genomes = OtuTableCollection()
         for table in args.genome_otu_tables:
             genomes.add_otu_table(open(table))
         metagenomes = OtuTableCollection()
         for table in args.metagenome_otu_tables:
             metagenomes.add_otu_table(open(table))
-            
+
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                  metagenome_otu_table_collection=metagenomes,
                                  sequence_identity=(args.sequence_identity if args.imperfect else None))
-        
+
         if args.accounted_for_otu_table:
             accounted_for_otu_table_io = open(args.accounted_for_otu_table,'w')
         else:
@@ -451,7 +451,7 @@ if __name__ == '__main__':
             unaccounted_for_otu_table_io = open(args.unaccounted_for_otu_table,'w')
         else:
             unaccounted_for_otu_table_io = None
-            
+
         appraiser.print_appraisal(app,
                                   accounted_for_otu_table_io=accounted_for_otu_table_io,
                                   unaccounted_for_otu_table_io=unaccounted_for_otu_table_io)
@@ -459,6 +459,3 @@ if __name__ == '__main__':
         if args.unaccounted_for_otu_table: unaccounted_for_otu_table_io.close()
     else:
         raise Exception("Programming error")
-
-
-
