@@ -102,6 +102,8 @@ class StreamingOtuTableCollection:
     def __init__(self):
         self._otu_table_io_objects = []
         self._archive_table_io_objects = []
+        self._otu_table_file_paths = []
+        self._archive_table_file_paths = []
 
     def add_otu_table(self, input_otu_table_io):
         '''Add a regular style OTU table to the collection.
@@ -118,7 +120,13 @@ class StreamingOtuTableCollection:
         self._otu_table_io_objects.append(input_otu_table_io)
 
     def add_archive_otu_table(self, input_archive_table_io):
-        self.archive_table_io_objects.append(input_archive_table_io)
+        self._archive_table_io_objects.append(input_archive_table_io)
+
+    def add_otu_table_file(self, file_path):
+        self._otu_table_file_paths.append(file_path)
+
+    def add_archive_otu_table_file(self, file_path):
+        self._archive_table_file_paths.append(file_path)
 
     def __iter__(self):
         '''Iterate over all the OTUs from all the tables. This can only be done once
@@ -129,4 +137,10 @@ class StreamingOtuTableCollection:
                 yield otu
         for io in self._otu_table_io_objects:
             for otu in OtuTable.read(io):
+                yield otu
+        for file_path in self._archive_table_file_paths:
+            for otu in ArchiveOtuTable.read(open(file_path)):
+                yield otu
+        for file_path in self._otu_table_file_paths:
+            for otu in OtuTable.read(open(file_path)):
                 yield otu
