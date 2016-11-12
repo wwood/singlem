@@ -123,9 +123,9 @@ def query(args):
 
             #TODO: check we haven't come up against the max_target_seqs barrier
             query_length = len(query_sequences[index].replace('-',''))
-            subject = db.extract_sequence_by_sseqid(sseqid)
             divergence = int(mismatch) + int(gapopen) + (int(qstart)-1) + (query_length-int(qend))
             if divergence <= max_divergence:
+                subject = db.extract_sequence_by_sseqid(sseqid)
                 last_differences_and_names.append([divergence, subject])
 
         if last_index is not None:
