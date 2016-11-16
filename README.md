@@ -29,7 +29,7 @@ gene    sample  sequence        num_hits        coverage        taxonomy
 5. estimated coverage of a genome from this OTU
 6. "median" taxonomic classification of each of the reads in the OTU according to [pplacer](http://matsen.fhcrc.org/pplacer/)
 
-Currently SingleM concentrates on 15 single copy marker genes to provide fine-grained differentiation of species that is independent of the copy-number variation issues that hamper 16S analyses. SingleM is reasonably fast and is quite scalable, although there is much room for improvement. On average, each of the 15 genes differentiates closely related lineages than a 16S amplicon-based study.
+Currently SingleM concentrates on 15 single copy marker genes to provide fine-grained differentiation of species that is independent of the copy-number variation issues that hamper 16S analyses. SingleM is reasonably fast and is quite scalable, although there is much room for improvement. On average, each of the 15 genes better differentiates closely related lineages than a typical 16S amplicon-based study.
 
 ##Further processing of OTU tables
 ###Summarising OTU tables
