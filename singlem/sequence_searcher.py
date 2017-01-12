@@ -12,12 +12,17 @@ class SequenceSearcher:
         and subject are the relevant OtuTableEntry objects rather than
         strings. Or they are None if there are no hits, since
         --output_no_hits is used.
+
+        query_otu_table_collection: OtuTableCollection
+        subject_otu_table_collection: OtuTableCollection
+        cluster_identity: float or str
+            reject hits if have lower identity than this (implemented with vsearch --id).
         '''
         logging.info("Caching query OTUs")
         query_otus = list(query_otu_table_collection)
         logging.info("Caching target OTUs")
         subject_otus = list(subject_otu_table_collection)
-        
+
         def name_to_index(name):
             return int(string.split(name, ';')[0])
 
@@ -27,13 +32,13 @@ class SequenceSearcher:
                 query_f.write(">%i;size=%i\n" % (i, u.count))
                 query_f.write(u.sequence.replace('-','')+"\n")
             query_f.flush()
-            
+
             with tempfile.NamedTemporaryFile(prefix='singlem_db_for_vsearch') as db_f:
                 for i, u in enumerate(subject_otu_table_collection):
                     db_f.write(">%i;size=%i\n" % (i, u.count))
                     db_f.write(u.sequence.replace('-','')+"\n")
                 db_f.flush()
-            
+
                 with tempfile.NamedTemporaryFile(prefix='singlem_uc') as uc:
                     command = "vsearch --usearch_global %s --db %s --uc %s --id %s --output_no_hits" % (query_f.name,
                                                                                db_f.name,
