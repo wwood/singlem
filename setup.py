@@ -22,14 +22,17 @@ if 'sdist' in sys.argv:
                                gpkg, "--archive", archive, '--force'])
         # The CONTENTS file comes courtesy of the Python MANIFEST.in
         archive_list.append(archive)
-    
+
 if 'build' in sys.argv or 'bdist_wheel' in sys.argv:
     # Extract each of the GraftM gpkgs in 'db' into 'singlem/db'
-    os.mkdir('singlem/db')
+    output_db_dir = 'singlem/db'
+    if os.path.exists(output_db_dir):
+        raise Exception("Please delete or move '%s' as this is the staging area for building the databases." % output_db_dir)
+    os.mkdir(output_db_dir)
     spkgs = os.listdir('db')
     for spkg in spkgs:
         gpkg = spkg.replace('.gpkg.spkg','')
-        spkg_path = os.path.join('singlem','db',spkg)
+        spkg_path = os.path.join(output_db_dir,spkg)
         os.mkdir(spkg_path)
         subprocess.check_call(
             ["graftM", "archive", "--extract",
@@ -49,7 +52,7 @@ def recursive_find(directory):
             if len(file_list) > 300:
                 raise Exception("Too many files added to the recursive list")
     return file_list
-            
+
 spkg_data_files = list([f.replace('singlem/','') for f in recursive_find('singlem/db')])
 
 setup(
