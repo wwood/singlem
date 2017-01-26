@@ -2,3 +2,4 @@ recursive-include db *.tar.gz
 include README.md
 include db/*/CONTENTS.json
 recursive-include test/data *
+recursive-include *py
