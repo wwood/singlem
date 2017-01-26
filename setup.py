@@ -31,6 +31,7 @@ if 'build' in sys.argv or 'bdist_wheel' in sys.argv:
     os.mkdir(output_db_dir)
     spkgs = os.listdir('db')
     for spkg in spkgs:
+        if spkg in ('.gitattributes'): continue
         gpkg = spkg.replace('.gpkg.spkg','')
         spkg_path = os.path.join(output_db_dir,spkg)
         os.mkdir(spkg_path)
