@@ -16,9 +16,9 @@ from known_otu_table import KnownOtuTable
 from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
 from diamond_parser import DiamondResultParser
-from sequence_extractor import SequenceExtractor
 from graftm_result import GraftMResult
 
+from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
