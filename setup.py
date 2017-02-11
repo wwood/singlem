@@ -63,7 +63,6 @@ setup(
     long_description=readme,
     url="https://github.com/wwood/SingleM",
     author='Ben Woodcroft',
-    author_email='b.woodcroft near uq.edu.au',
     license='GPL3+',
     classifiers=[
         # How mature is this project? Common values are
@@ -75,7 +74,7 @@ setup(
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
         # Pick your license as you wish (should match "license" above)
-        'License :: OSI Approved :: GPL3+ License',
+        'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
         'Programming Language :: Python :: 2',
