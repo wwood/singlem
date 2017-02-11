@@ -2,7 +2,9 @@ Welcome to SingleM.
 
 SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data, without heavy reliance of reference sequence databases. It is able to differentiate closely related species even if those species are from lineages new to science.
 
-Where [GraftM](https://github.com/geronimp/graftM) can give a taxonomic overview of your community e.g. proportion of a community from a particular taxonomic family, SingleM gives you the ability to answer related but distinct questions such as:
+Where [GraftM](https://github.com/geronimp/graftM) can give a taxonomic overview of your community e.g. proportion of a community from a particular taxonomic family, SingleM finds sequence-based OTUs from raw, untrimmed metagenomic reads.
+
+This gives you the ability to answer questions such as:
 
 * How many different kinds of TM6 do I have?
 * What is the Chao 1 diversity of my sample?
@@ -82,18 +84,42 @@ singlem query --query_sequence TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGG
 ```
 
 
+### Appraising genome recovery efforts
+To assess how well a set of genomes (or population genomes) represent those present in a metagenome, first run `pipe` on both the genomes and the raw reads, and then use `appraise`:
+```
+singlem appraise --metagenome_otu_tables metagenome.otu_table.csv --genome_otu_tables genomes.otu_table.csv
+```
+One may also accommodate some sequence differences, with `--imperfect`, or output OTU tables of OTUs in the genomes or not in the genomes with `--accounted_for_otu_table` and `--unaccounted_for_otu_table`.
+
+
 
 ###Installation
-SingleM is not currently available on pip, though we anticipate this in future. To install, clone from the GitHub repository and run from the checked out respository:
+
+#### Installation via GNU Guix
+The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
 ```
-git clone https://github.com/wwood/singlem
-./singlem/bin/singlem -h
+git clone https://github.com/Ecogenomics/ace-guix
+guix package --install singlem
 ```
 
-SingleM also has the following dependencies:
-* [GraftM](https://github.com/geronimp/graftM), which in itself has several dependencies :( and worse, SingleM currently requires changes in GraftM introduced after 0.9.5. This will be fixed soon.
+#### Installation via PyPI
+To install the Python libraries required:
+```
+pip install graftm
+pip install singlem
+```
+
+SingleM also has the following non-Python dependencies:
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi)
 * [VSEARCH](https://github.com/torognes/vsearch)
+* Some dependencies of [GraftM](https://github.com/geronimp/graftM)
+** orfm v. >= 0.2.0 (https://github.com/wwood/OrfM)
+** hmmer v. >= 3.1b1 (http://hmmer.janelia.org/)
+** fxtract (https://github.com/ctSkennerton/fxtract)
+** pplacer v. >= 1.1.alpha17 (http://matsen.fhcrc.org/pplacer/)
+** krona v. >= 2.4 (http://sourceforge.net/p/krona/home/krona/)
+** mafft v. >= 7.22 (http://mafft.cbrc.jp/)
+** diamond v. >= 0.8 (https://github.com/bbuchfink/diamond)
 
 ##License
 SingleM is written by [Ben Woodcroft](http://ecogenomic.org/personnel/dr-ben-woodcroft) (@wwood) at the Australian Centre for Ecogenomics (UQ) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
