@@ -99,8 +99,9 @@ One may also accommodate some sequence differences, with `--imperfect`, or outpu
 The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
 ```
 git clone https://github.com/Ecogenomics/ace-guix
-guix package --install singlem
+GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
 ```
+Beyond installing GNU Guix, super-user privileges are not required.
 
 #### Installation via PyPI
 To install the Python libraries required:
@@ -108,18 +109,22 @@ To install the Python libraries required:
 pip install graftm
 pip install singlem
 ```
+You may need super-user privileges.
 
 SingleM also has the following non-Python dependencies:
 * [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi)
 * [VSEARCH](https://github.com/torognes/vsearch)
-* Some dependencies of [GraftM](https://github.com/geronimp/graftM)
-** orfm v. >= 0.2.0 (https://github.com/wwood/OrfM)
-** hmmer v. >= 3.1b1 (http://hmmer.janelia.org/)
-** fxtract (https://github.com/ctSkennerton/fxtract)
-** pplacer v. >= 1.1.alpha17 (http://matsen.fhcrc.org/pplacer/)
-** krona v. >= 2.4 (http://sourceforge.net/p/krona/home/krona/)
-** mafft v. >= 7.22 (http://mafft.cbrc.jp/)
-** diamond v. >= 0.8 (https://github.com/bbuchfink/diamond)
+
+Some dependencies of [GraftM](https://github.com/geronimp/graftM):
+* [OrfM](https://github.com/wwood/OrfM) >= 0.2.0 
+* [HMMER](http://hmmer.janelia.org/) >= 3.1b1 
+* [fxtract](https://github.com/ctSkennerton/fxtract)
+* [pplacer](http://matsen.fhcrc.org/pplacer/) >= 1.1.alpha17
+* [KronaTools](http://sourceforge.net/p/krona/home/krona/) >= 2.4
+* [diamond](https://github.com/bbuchfink/diamond) >= 0.8
+
+## Help
+If you have any questions or comments, send a message to the [SupportM mailing list](https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!forum/supportm) or raise a [GitHib issue](https://github.com/wwood/singlem/issues).
 
 ##License
 SingleM is written by [Ben Woodcroft](http://ecogenomic.org/personnel/dr-ben-woodcroft) (@wwood) at the Australian Centre for Ecogenomics (UQ) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
