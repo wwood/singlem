@@ -1,4 +1,5 @@
 recursive-include db *.tar.gz
+include README.rst
 include README.md
 include db/*/CONTENTS.json
 recursive-include test/data *
