@@ -103,6 +103,16 @@ GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
 ```
 Beyond installing GNU Guix, super-user privileges are not required.
 
+#### Installation via DockerHub
+A docker image generated from the Guix package is available on DockerHub. After installing Docker:
+```
+docker pull wwood/singlem
+```
+If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
+```
+docker run -v `pwd`:`pwd` wwood/singlem singlem pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 15
+```
+
 #### Installation via PyPI
 To install the Python libraries required:
 ```
