@@ -2,7 +2,7 @@
 #!/usr/bin/env python
 
 #=======================================================================
-# Authors: Ben Woodcroft
+# Authors: Ben Woodcroft, Tim Lamberton.
 #
 # Unit tests.
 #
@@ -390,6 +390,28 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             path_to_data,
             self.two_packages)
         self.assertEqualOtuTable(expected, extern.run(cmd))
+
+    def test_archive_otu_groopm_compatibility(self):
+        """This tests for API stability, where the API is used by GroopM 2.0"""
+        expected = [('contig_1', '4.11.22seqs', 'Root; d__Bacteria; p__Firmicutes')]
+
+        inseqs = '''>contig_1 abcd
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --archive_otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+
+            j = json.loads(extern.run(cmd))
+            fields = j['fields']
+            data = j['otus']
+            self.assertEqual(expected,
+                             [(name, row[fields.index('gene')], row[fields.index('taxonomy')]) for row in data for name in row[fields.index('read_names')]]
+                            )
+
 
 if __name__ == "__main__":
     unittest.main()
