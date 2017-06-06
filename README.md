@@ -138,4 +138,4 @@ Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 If you have any questions or comments, send a message to the [SupportM mailing list](https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!forum/supportm) or raise a [GitHib issue](https://github.com/wwood/singlem/issues).
 
 ## License
-SingleM is written by [Ben Woodcroft](http://ecogenomic.org/personnel/dr-ben-woodcroft) (@wwood) at the Australian Centre for Ecogenomics (UQ) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
+SingleM is written by [Ben Woodcroft](http://ecogenomic.org/personnel/dr-ben-woodcroft) (@wwood) at the [Australian Centre for Ecogenomics (UQ)](http://ecogenomic.org/) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
