@@ -13,7 +13,8 @@ This gives you the ability to answer questions such as:
 * How diverse are the Pelagibacteria relative to the Flavobacteria?
 * Has my genome been observed in any samples submitted to the [SRA](http://www.ncbi.nlm.nih.gov/sra)?
 
-##Generating an OTU table
+## Generating an OTU table
+
 An overview of your community can be obtained like so. Please use **raw** metagenome reads, not QC'd reads. QC'ing reads often makes them too short for SingleM to use.
 ```
 singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.csv --threads 24
@@ -33,8 +34,8 @@ gene    sample  sequence        num_hits        coverage        taxonomy
 
 Currently SingleM concentrates on 15 single copy marker genes to provide fine-grained differentiation of species that is independent of the copy-number variation issues that hamper 16S analyses. SingleM is reasonably fast and is quite scalable, although there is much room for improvement. On average, each of the 15 genes better differentiates closely related lineages than a typical 16S amplicon-based study.
 
-##Further processing of OTU tables
-###Summarising OTU tables
+## Further processing of OTU tables
+### Summarising OTU tables
 Once an OTU table has been generated with the `pipe` command, it can be further processed in various ways using `summarise`:
 
 Create a [Krona](https://sourceforge.net/p/krona/) plot of the community. The following command generates `my_krona*.html` files which can be viewed in a web browser:
@@ -52,7 +53,7 @@ Rarefy a set of OTU tables so that each sample contains the same number of OTU s
 singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv --rarefied_output_otu_table rarefied.otu_table.csv --number_to_choose 100
 ```
 
-###Calculating beta diversity between samples
+### Calculating beta diversity between samples
 As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac format using `singlem summarise`:
 ```
 singlem summarise --input_otu_table otu_table.csv --unifrac otu_table.unifrac
@@ -73,7 +74,7 @@ ExpressBetaDiversity -s otu_table.diamond_example.ebd -c Bray-Curtis -t `singlem
 ```
 
 
-###Creating and querying SingleM databases
+### Creating and querying SingleM databases
 It can be useful in some situations to search for sequences in OTU tables. For instance, you may ask "is the most abundant OTU or anything similar in samples B, C or D?" To answer this question make a SingleM database from sample B, C & D's OTU tables:
 ```
 singlem makedb --otu_tables sample_B.csv sample_C.csv sample_D.csv --db_path sample_BCD.sdb
@@ -93,7 +94,7 @@ One may also accommodate some sequence differences, with `--imperfect`, or outpu
 
 
 
-###Installation
+### Installation
 
 #### Installation via GNU Guix
 The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
@@ -136,5 +137,5 @@ Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 ## Help
 If you have any questions or comments, send a message to the [SupportM mailing list](https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!forum/supportm) or raise a [GitHib issue](https://github.com/wwood/singlem/issues).
 
-##License
+## License
 SingleM is written by [Ben Woodcroft](http://ecogenomic.org/personnel/dr-ben-woodcroft) (@wwood) at the Australian Centre for Ecogenomics (UQ) and is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
