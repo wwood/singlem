@@ -72,21 +72,21 @@ def query(args):
 
     if query_sequence:
         query_names = ['unnamed_sequence']
-        query_sequences = [query_sequence]
+        query_sequences = [query_sequence.replace('-','')]
     elif query_otu_table:
         query_names = []
         query_sequences = []
         otus = OtuTableCollection()
         otus.add_otu_table(open(query_otu_table))
         for e in otus:
-            query_sequences.append(e.sequence)
+            query_sequences.append(e.sequence.replace('-',''))
             query_names.append(';'.join([e.sample_name,e.marker]))
     elif query_fasta:
         query_names = []
         query_sequences = []
         for name, seq, _ in SeqReader().readfq(open(query_fasta)):
             query_names.append(name)
-            query_sequences.append(seq)
+            query_sequences.append(seq.replace('-',''))
     else:
         raise Exception("No query option specified, cannot continue")
 
