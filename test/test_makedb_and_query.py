@@ -125,11 +125,10 @@ class Tests(unittest.TestCase):
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
 
-    @unittest.skip("known failure")
     def test_query_with_gaps(self):
         with tempfile.NamedTemporaryFile() as f:
-            query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATCA',
-                               ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATCA',''])
+            query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC',
+                               ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
             f.write(query)
             f.flush()
 
@@ -138,8 +137,8 @@ class Tests(unittest.TestCase):
                                                             os.path.join(path_to_data,'a.sdb'))
 
             expected = [['query_name','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['seq1','4','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                        ['sseq4','2','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+                        ['seq1','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                        ['sseq4','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
             expected = ["\t".join(x) for x in expected]+['']
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
