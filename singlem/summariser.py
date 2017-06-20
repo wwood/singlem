@@ -1,3 +1,4 @@
+import itertools
 import tempfile
 import extern
 from collections import OrderedDict
@@ -6,6 +7,7 @@ from otu_table import OtuTable
 from rarefier import Rarefier
 import biom
 import pandas
+from ordered_set import OrderedSet
 
 class Summariser:
     @staticmethod
@@ -113,6 +115,51 @@ class Summariser:
                                    fields_to_print=table_collection.example_field_names())
         else:
             OtuTable.write_otus_to(table_collection, output_table_io)
+
+    @staticmethod
+    def write_wide_format_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if hasattr(output_table_io, 'name'):
+            logging.info("Writing %s" % output_table_io.name)
+        else:
+            logging.info("Writing an OTU table")
+
+        # Collect a hash of sequence to sample to num_seqs
+        gene_to_seq_to_sample_to_count = OrderedDict()
+        sequence_to_taxonomy = {}
+        samples = OrderedSet()
+        for otu in table_collection:
+            if otu.marker not in gene_to_seq_to_sample_to_count:
+                gene_to_seq_to_sample_to_count[otu.marker] = {}
+            if otu.sequence not in gene_to_seq_to_sample_to_count[otu.marker]:
+                gene_to_seq_to_sample_to_count[otu.marker][otu.sequence] = {}
+            if otu.sample_name in gene_to_seq_to_sample_to_count[otu.marker][otu.sequence]:
+                raise Exception("Unexpectedly found 2 of the same sequences for the same sample and marker")
+            gene_to_seq_to_sample_to_count[otu.marker][otu.sequence][otu.sample_name] = otu.count
+            samples.add(otu.sample_name)
+            # This isn't perfect, because the same sequence might have
+            # different taxonomies in different samples. But taxonomy might
+            # be of regular form, or as a diamond example etc, so eh.
+            sequence_to_taxonomy[otu.sequence] = otu.taxonomy
+
+        output_table_io.write("\t".join(itertools.chain( # header
+            ['marker','sequence'],
+            samples,
+            ['taxonomy\n'])))
+        for gene, seq_to_sample_to_count in gene_to_seq_to_sample_to_count.items():
+            for seq, sample_to_count in seq_to_sample_to_count.items():
+                row = [gene, seq]
+                for sample in samples:
+                    try:
+                        row.append(str(sample_to_count[sample]))
+                    except KeyError:
+                        row.append('0')
+                row.append(sequence_to_taxonomy[seq])
+                output_table_io.write("\t".join(row)+"\n")
 
     @staticmethod
     def write_clustered_otu_table(**kwargs):

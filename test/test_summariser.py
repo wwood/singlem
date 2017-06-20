@@ -114,5 +114,21 @@ class Tests(unittest.TestCase):
                     '# Constructed from biom file\n#OTU ID\tinsert\ttaxonomy\nRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG\t1.0\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG\t2.0\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
                     extern.run("biom convert -i '%s' -o /dev/stdout --to-tsv --header-key taxonomy" % os.path.join(tmp,'mybiom.4.12.ribosomal_protein_L11_rplK.biom')))
 
+    def test_wide_format(self):
+        e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
+            ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['4.11.ribosomal_protein_L10','maximal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        exp = "\n".join(["\t".join(x) for x in e]+[''])
+        output = StringIO()
+        table_collection = OtuTableCollection()
+        table_collection.add_otu_table(StringIO(exp))
+        Summariser().write_wide_format_otu_table(
+            table_collection = table_collection,
+            output_table_io = output)
+        self.assertEqual('marker\tsequence\tminimal\tmaximal\ttaxonomy\n4.11.ribosomal_protein_L10\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA\t2\t2\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus\n4.12.ribosomal_protein_L11_rplK\tCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG\t4\t0\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n',
+                         output.getvalue())
+
+
 if __name__ == "__main__":
     unittest.main()
