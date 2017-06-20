@@ -164,6 +164,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_parser.add_argument('--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
+    summarise_parser.add_argument('--wide_format_otu_table', help="Name of output species by site CSV file")
     summarise_parser.add_argument('--strain_overview_table', help="Name of output strains table to generate")
     summarise_parser.add_argument('--unifrac', help="Output UniFrac format file")
     summarise_parser.add_argument('--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
@@ -290,6 +291,7 @@ if __name__ == '__main__':
         if args.output_otu_table: num_output_types += 1
         if args.clustered_output_otu_table: num_output_types += 1
         if args.rarefied_output_otu_table: num_output_types += 1
+        if args.wide_format_otu_table: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_archive_otu_tables:
@@ -328,6 +330,10 @@ if __name__ == '__main__':
                 table_collection = otus,
                 output_table_io = open(args.output_otu_table,'w'),
                 output_extras = args.output_extras)
+        elif args.wide_format_otu_table:
+            Summariser.write_wide_format_otu_table(
+                table_collection = otus,
+                output_table_io = open(args.wide_format_otu_table,'w'))
         elif args.strain_overview_table:
             StrainSummariser().summarise_strains(
                 table_collection = otus,
