@@ -30,7 +30,7 @@ from singlem.appraiser import Appraiser
 from singlem.querier import Querier
 
 DEFAULT_WINDOW_SIZE=60
-ALMOST_90_PERCENT_ON_60BP = round(math.floor(0.97*60)/60, 3)
+GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
 
 def seqs(args):
     if args.alignment_type == 'aa':
@@ -160,7 +160,7 @@ if __name__ == '__main__':
     summarise_parser.add_argument('--input_archive_otu_tables', nargs='+', help="Summarise these tables")
     summarise_parser.add_argument('--input_otu_tables', nargs='+', help="Summarise these tables")
     summarise_parser.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
-    summarise_parser.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=ALMOST_90_PERCENT_ON_60BP)
+    summarise_parser.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     summarise_parser.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_parser.add_argument('--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
     summarise_parser.add_argument('--krona', help="Name of krona file to generate")
@@ -190,7 +190,7 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
     appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
-    appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=ALMOST_90_PERCENT_ON_60BP)
+    appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_parser.add_argument('--accounted_for_otu_table', help="output OTU table of accounted-for populations", default=None)
     appraise_parser.add_argument('--unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
 
