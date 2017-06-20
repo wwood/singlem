@@ -51,7 +51,7 @@ class SearchPipe:
         force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-        
+
         self._num_threads = num_threads
         self._evalue = evalue
         self._min_orf_length = min_orf_length
@@ -64,7 +64,7 @@ class SearchPipe:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
             graftm_assignment_method = singlem_assignment_method
-            
+
         if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
             self._graftm_verbosity = '5'
         else:
@@ -171,10 +171,10 @@ class SearchPipe:
                 False,
                 True)
             add_info(known_infos, otu_table_object, True)
-            
+
             if tmp_graft: # if any sequences were aligned (not just already known)
                 tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
-                
+
                 if assign_taxonomy:
                     is_known_taxonomy = False
                     aligned_seqs = self._get_windowed_sequences(
@@ -205,7 +205,7 @@ class SearchPipe:
                         else:
                             taxonomies = TaxonomyFile(tax_file)
                         use_first = False
-                        
+
                 else: # Taxonomy has not been assigned.
                     aligned_seqs = unknown_sequences
                     if known_sequence_taxonomy:
@@ -214,11 +214,11 @@ class SearchPipe:
                         taxonomies = {}
                     use_first = False # irrelevant
                     is_known_taxonomy = True
-                    
+
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, taxonomies, use_first, False))
                 add_info(new_infos, otu_table_object, is_known_taxonomy)
-                
+
                 if output_jplace:
                     base_dir = assignment_result._base_dir(
                         sample_name, singlem_package, tmpbase)
@@ -231,7 +231,7 @@ class SearchPipe:
                         self._write_jplace_from_infos(
                             open(input_jplace_file), new_infos, output_jplace_io)
 
-                            
+
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
                 if output_extras:
@@ -262,9 +262,9 @@ class SearchPipe:
     def _extract_relevant_reads(self, alignment_result, include_inserts, known_taxonomy):
         '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
         part of the singlem choppage process as tempfiles in a hash'''
-        
+
         extracted_reads = ExtractedReads(self._singlem_package_database)
-        
+
         for sample_name in alignment_result.sample_names():
             for singlem_package in self._singlem_package_database:
                 for prealigned_file in alignment_result.prealigned_sequence_files(
@@ -294,7 +294,7 @@ class SearchPipe:
                         singlem_package.base_directory(),
                         len(known_sequences),
                         len(unknown_sequences)))
-                            
+
                     if len(unknown_sequences) > 0:
                         tmp = tempfile.NamedTemporaryFile(
                             prefix='singlem.%s.' % sample_name,
@@ -323,7 +323,7 @@ class SearchPipe:
         '''given an array of UnalignedAlignedNucleotideSequence objects, and hash of
         taxonomy file, yield over 'Info' objects that contain e.g. the counts of
         the aggregated sequences and corresponding median taxonomies.
-        
+
         Parameters
         ----------
         use_first_taxonomy: boolean
@@ -412,18 +412,18 @@ class SearchPipe:
             else:
                 break
         return '; '.join(median_tax)
-    
+
     def _write_jplace_from_infos(self, input_jplace_io, infos, output_jplace_io):
-        
+
         jplace = json.load(input_jplace_io)
         if jplace['version'] != 3:
             raise Exception("SingleM currently only works with jplace version 3 files, sorry")
-        
+
         name_to_info = {}
         for info in infos:
             for name in info.names:
                 name_to_info[name] = info
-                
+
         # rewrite placements to be OTU-wise instead of sequence-wise
         orfm_utils = OrfMUtils()
         another_regex = re.compile(u'_\d+$')
@@ -439,21 +439,21 @@ class SearchPipe:
                 real_name = another_regex.sub('', orfm_utils.un_orfm_name(name))
                 info = name_to_info[real_name]
                 sequence = info.seq
-                
+
                 try:
                     sequence_to_count[sequence] += count
                 except KeyError:
                     sequence_to_count[sequence] = count
-                    
+
                 if real_name == info.names[0]:
                     sequence_to_example_p[sequence] = placement['p']
-            
+
         new_placements = {}
         for sequence, example_p in sequence_to_example_p.items():
             new_placements[sequence] = {}
             new_placements[sequence]['nm'] = [[sequence, sequence_to_count[sequence]]]
             new_placements[sequence]['p'] = example_p
-            
+
         jplace['placements'] = new_placements
         json.dump(jplace, output_jplace_io)
 
@@ -464,14 +464,14 @@ class SearchPipe:
               "--input_sequence_type nucleotide " % self._graftm_verbosity
         if self._evalue: cmd += ' --evalue %s' % self._evalue
         if self._restrict_read_length: cmd += ' --restrict_read_length %i' % self._restrict_read_length
-        
+
         if is_protein:
             cmd += " --min_orf_length %s " % self._min_orf_length
             if self._filter_minimum_protein:
                 cmd += "  --filter_minimum %i" % self._filter_minimum_protein
         elif self._filter_minimum_nucleotide:
             cmd += "  --filter_minimum %i" % self._filter_minimum_nucleotide
-            
+
         return cmd+' '
 
     def _search(self, singlem_package_database, forward_read_files):
@@ -510,7 +510,7 @@ class SearchPipe:
                       output_directory,
                       hmm_paths[0])
             extern.run(cmd)
-        
+
         # Run searches for proteins
         hmms = singlem_package_database.protein_search_hmm_paths()
         doing_proteins = False
@@ -526,7 +526,7 @@ class SearchPipe:
             doing_nucs = True
             logging.info("Searching for reads matching %i different nucleotide HMMs" % len(hmms))
             run(hmms, graftm_nucleotide_search_directory, False)
-            
+
         logging.info("Finished search phase")
         protein_graftm = GraftMResult(graftm_protein_search_directory, hmms) if \
                          doing_proteins else None
@@ -630,7 +630,7 @@ class SingleMPipeSearchResult:
                     else:
                         reverse_reads.add(hit[0])
             nucs = self._nucleotide_result.unaligned_sequences_path_from_sample_name(sample_name)
-            
+
             yieldme = os.path.join(self._nucleotide_result.output_directory,
                                    "%s_hits.fa" % sample_name)
             SequenceExtractor().extract_forward_and_reverse_complement(
@@ -690,7 +690,7 @@ class SingleMPipeTaxonomicAssignmentResult:
     def protein_orf_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             "%s_orf.fa" % tmpbase)
-    
+
     def prealigned_sequence_file(self, sample_name, singlem_package, tmpbase):
         '''path to the sequences that were aligned (ORF for proteins, regular seqs for
         nucleotide).
@@ -700,7 +700,7 @@ class SingleMPipeTaxonomicAssignmentResult:
             return self.protein_orf_file(sample_name, singlem_package, tmpbase)
         else:
             return self.nucleotide_hits_file(sample_name, singlem_package, tmpbase)
-    
+
     def nucleotide_hits_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             "%s_hits.fa" % tmpbase)
