@@ -50,8 +50,6 @@ class Querier:
 
         # blast the query against the database, output as csv
         found_distances_and_names = []
-        found_query_names = []
-        found_query_sequences = []
         with tempfile.NamedTemporaryFile(prefix='singlem_query') as infile:
             for i, sequence in enumerate(query_sequences):
                 infile.write(">%i\n" % i)
@@ -65,20 +63,10 @@ class Querier:
 
             last_index = None
             last_differences_and_names = []
+            results_to_gather = []
             for line in iter(proc.stdout.readline,''):
                 res = QueryResultLine(line)
                 index = int(res.qseqid)
-                if last_index is None:
-                    # first run through loop
-                    last_index = index
-                elif index != last_index:
-                    # changed query sequences, move to the next one
-                    found_query_names.append(query_names[last_index])
-                    found_query_sequences.append(query_sequences[last_index])
-                    found_distances_and_names.append(last_differences_and_names)
-                    last_index = index
-                    last_differences_and_names = []
-
                 #TODO: check we haven't come up against the max_target_seqs barrier
                 query_length = len(query_sequences[index].replace('-',''))
                 max_start = max([int(res.qstart),int(res.sstart)])-1
@@ -87,19 +75,33 @@ class Querier:
                 qtail_divergence = query_length-int(res.qend)
                 divergence1 = pre_divergence + qtail_divergence
                 if divergence1 <= max_divergence:
-                    subject = db.extract_sequence_by_sseqid(res.sseqid)
-                    # If the overhang on the subject sequence is greater than the overhang on the query sequence, use its length to calculate divergence.
-                    subject_length = len(subject.sequence.replace('-',''))
-                    stail_divergence = subject_length-int(res.send)
-                    divergence2 = pre_divergence + max([qtail_divergence,stail_divergence])
-                    if divergence2 <= max_divergence:
-                        last_differences_and_names.append([divergence2, subject])
+                    res.query_index = index
+                    res.pre_divergence = pre_divergence
+                    res.qtail_divergence = qtail_divergence
+                    results_to_gather.append(res)
 
-            if last_index is not None:
-                # finish off the last chunk
-                found_query_names.append(query_names[last_index])
-                found_query_sequences.append(query_sequences[last_index])
-                found_distances_and_names.append(last_differences_and_names)
+            # Extract all sequences in batch, to avoid repeated blastdbcmd calls.
+            dbseqs = db.extract_sequences_by_blast_ids([res.sseqid for res in results_to_gather])
+            # Calculate the final divergences with the extracted sequences.
+            found_query_names = []
+            found_query_sequences = []
+            last_query_index = None
+            divergences_and_subjects = []
+            for i, res in enumerate(results_to_gather):
+                subject = dbseqs[i]
+                # If the overhang on the subject sequence is greater than the overhang
+                # on the query sequence, use its length to calculate divergence.
+                subject_length = len(subject.sequence.replace('-',''))
+                stail_divergence = subject_length-int(res.send)
+                divergence2 = res.pre_divergence + max([res.qtail_divergence,stail_divergence])
+                if divergence2 <= max_divergence:
+                    if res.query_index != last_query_index:
+                        last_query_index = res.query_index
+                        found_query_names.append(query_names[res.query_index])
+                        found_query_sequences.append(query_sequences[res.query_index])
+                        divergences_and_subjects.append([[divergence2, subject]])
+                    else:
+                        divergences_and_subjects[-1].append([divergence2, subject])
 
         if query_fasta:
             namedef = NamedQueryDefinition(found_query_names)
@@ -107,9 +109,9 @@ class Querier:
             namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
 
         if output_style == 'sparse':
-            formatter = SparseResultFormatter(namedef, found_distances_and_names)
+            formatter = SparseResultFormatter(namedef, divergences_and_subjects)
         elif output_style == 'dense':
-            formatter = DenseResultFormatter(namedef, found_distances_and_names)
+            formatter = DenseResultFormatter(namedef, divergences_and_subjects)
         else:
             raise Exception()
         formatter.write(sys.stdout)
