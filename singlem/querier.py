@@ -66,8 +66,8 @@ class Querier:
             last_index = None
             last_differences_and_names = []
             for line in iter(proc.stdout.readline,''):
-                qseqid, sseqid, _, _, mismatch, gaps, qstart, qend, sstart, send = line.strip().split("\t")[:10]
-                index = int(qseqid)
+                res = QueryResultLine(line)
+                index = int(res.qseqid)
                 if last_index is None:
                     # first run through loop
                     last_index = index
@@ -81,16 +81,16 @@ class Querier:
 
                 #TODO: check we haven't come up against the max_target_seqs barrier
                 query_length = len(query_sequences[index].replace('-',''))
-                max_start = max([int(qstart),int(sstart)])-1
-                pre_divergence = int(mismatch) + int(gaps) + max_start
+                max_start = max([int(res.qstart),int(res.sstart)])-1
+                pre_divergence = int(res.mismatch) + int(res.gaps) + max_start
                 # At this point, we do not know the length of the subject sequence so we use only the query sequence length, since the final divergence can only increase when considering the subject sequence length.
-                qtail_divergence = query_length-int(qend)
+                qtail_divergence = query_length-int(res.qend)
                 divergence1 = pre_divergence + qtail_divergence
                 if divergence1 <= max_divergence:
-                    subject = db.extract_sequence_by_sseqid(sseqid)
+                    subject = db.extract_sequence_by_sseqid(res.sseqid)
                     # If the overhang on the subject sequence is greater than the overhang on the query sequence, use its length to calculate divergence.
                     subject_length = len(subject.sequence.replace('-',''))
-                    stail_divergence = subject_length-int(send)
+                    stail_divergence = subject_length-int(res.send)
                     divergence2 = pre_divergence + max([qtail_divergence,stail_divergence])
                     if divergence2 <= max_divergence:
                         last_differences_and_names.append([divergence2, subject])
@@ -113,3 +113,10 @@ class Querier:
         else:
             raise Exception()
         formatter.write(sys.stdout)
+
+
+class QueryResultLine:
+    def __init__(self, blast_output_line):
+        self.qseqid, self.sseqid, _, _, self.mismatch, self.gaps, self.qstart,\
+            self.qend, self.sstart, \
+            self.send = blast_output_line.strip().split("\t")[:10]
