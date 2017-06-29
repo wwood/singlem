@@ -1,4 +1,5 @@
 import os
+import tempfile
 import StringIO
 from Bio import SeqIO
 
@@ -83,3 +84,24 @@ class SequenceDatabase:
 
     def extract_sequence_by_sseqid(self, sseqid):
         return self.extract_sequence(sseqid.replace('lcl|',''))
+
+    def extract_sequences_by_blast_ids(self, blast_ids):
+        num_blast_ids = 0
+        with tempfile.NamedTemporaryFile(prefix='singlem_query_for_blastdbcmd') as batchfile:
+            for bid in blast_ids:
+                batchfile.write(bid)
+                batchfile.write("\n")
+                num_blast_ids += 1
+            batchfile.flush()
+            cmd = "blastdbcmd -db '%s' -entry_batch '%s'"\
+                   % (self.sequences_fasta_file, batchfile.name)
+            stdout = extern.run(cmd)
+            dbseqs = []
+            for s in SeqIO.parse(StringIO.StringIO(stdout), "fasta"):
+                dbseq = DBSequence()
+                dbseq.parse_from_fasta_define(s.description)
+                dbseq.sequence = str(s.seq)
+                dbseqs.append(dbseq)
+            if len(dbseqs) != num_blast_ids:
+                raise Exception("Unexpected number of returned sequences from blastdbcmd")
+        return dbseqs
