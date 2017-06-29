@@ -11,15 +11,18 @@ from query_formatters import SparseResultFormatter, DenseResultFormatter
 from otu_table_collection import OtuTableCollection
 
 class Querier:
-    def query(self, args):
-        db = SequenceDatabase.acquire(args.db)
-        query_sequence = args.query_sequence
-        max_target_seqs = args.max_hits
-        max_divergence = args.max_divergence
-        output_style = args.otu_table_type
-        query_otu_table = args.query_otu_table
-        query_fasta = args.query_fasta
-        num_threads = args.threads
+    def query(self, **kwargs):
+        db = SequenceDatabase.acquire(kwargs.pop('db'))
+        query_sequence = kwargs.pop('query_sequence')
+        max_target_seqs = kwargs.pop('max_target_seqs')
+        max_divergence = kwargs.pop('max_divergence')
+        output_style = kwargs.pop('output_style')
+        query_otu_table = kwargs.pop('query_otu_table')
+        query_fasta = kwargs.pop('query_fasta')
+        num_threads = kwargs.pop('num_threads')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
         if (query_otu_table and query_sequence) or \
             (query_otu_table and query_fasta) or \
             (query_sequence and query_fasta):
