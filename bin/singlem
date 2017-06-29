@@ -271,7 +271,15 @@ if __name__ == '__main__':
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\
             (args.db_path, otus)
     elif args.subparser_name=='query':
-        Querier().query(args)
+        Querier().query(
+            db = args.db,
+            query_sequence = args.query_sequence,
+            max_target_seqs = args.max_hits,
+            max_divergence = args.max_divergence,
+            output_style = args.otu_table_type,
+            query_otu_table = args.query_otu_table,
+            query_fasta = args.query_fasta,
+            num_threads = args.threads)
     elif args.subparser_name == 'summarise':
         num_output_types = 0
         if args.strain_overview_table: num_output_types += 1
