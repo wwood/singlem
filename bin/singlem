@@ -65,6 +65,7 @@ def query(args):
     output_style = args.otu_table_type
     query_otu_table = args.query_otu_table
     query_fasta = args.query_fasta
+    num_threads = args.threads
     if (query_otu_table and query_sequence) or \
         (query_otu_table and query_fasta) or \
         (query_sequence and query_fasta):
@@ -100,8 +101,8 @@ def query(args):
             infile.write(sequence+"\n")
         infile.flush()
 
-        cmd = "blastn -task blastn -query '%s' -db '%s' -outfmt '6 qseqid sseqid pident length mismatch gaps qstart qend sstart send' -max_target_seqs %i" %\
-            (infile.name, db.sequences_fasta_file, max_target_seqs)
+        cmd = "blastn -num_threads %i -task blastn -query '%s' -db '%s' -outfmt '6 qseqid sseqid pident length mismatch gaps qstart qend sstart send' -max_target_seqs %i" %\
+            (num_threads, infile.name, db.sequences_fasta_file, max_target_seqs)
         logging.debug("Running cmd %s" % cmd)
         proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
@@ -251,6 +252,7 @@ if __name__ == '__main__':
     query_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
     query_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     query_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
+    query_parser.add_argument('--threads', help="number of threads to search with", default=1, type=int)
 
     summarise_description = 'Summarise and transform OTU tables'
     summarise_parser = subparsers.add_parser('summarise',
