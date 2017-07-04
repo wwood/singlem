@@ -30,21 +30,21 @@ class Querier:
 
         if query_sequence:
             query_names = ['unnamed_sequence']
-            query_sequences = [query_sequence.replace('-','')]
+            query_sequences = [query_sequence]
         elif query_otu_table:
             query_names = []
             query_sequences = []
             otus = OtuTableCollection()
             otus.add_otu_table(open(query_otu_table))
             for e in otus:
-                query_sequences.append(e.sequence.replace('-',''))
+                query_sequences.append(e.sequence)
                 query_names.append(';'.join([e.sample_name,e.marker]))
         elif query_fasta:
             query_names = []
             query_sequences = []
             for name, seq, _ in SeqReader().readfq(open(query_fasta)):
                 query_names.append(name)
-                query_sequences.append(seq.replace('-',''))
+                query_sequences.append(seq)
         else:
             raise Exception("No query option specified, cannot continue")
 
@@ -53,7 +53,7 @@ class Querier:
         with tempfile.NamedTemporaryFile(prefix='singlem_query') as infile:
             for i, sequence in enumerate(query_sequences):
                 infile.write(">%i\n" % i)
-                infile.write(sequence+"\n")
+                infile.write(sequence.replace('-','')+"\n")
             infile.flush()
 
             cmd = "blastn -num_threads %i -task blastn -query '%s' -db '%s' -outfmt '6 qseqid sseqid pident length mismatch gaps qstart qend sstart send' -max_target_seqs %i" %\
@@ -68,9 +68,10 @@ class Querier:
                 res = QueryResultLine(line)
                 index = int(res.qseqid)
                 #TODO: check we haven't come up against the max_target_seqs barrier
+                query_length_original = len(query_sequences[index])
                 query_length = len(query_sequences[index].replace('-',''))
                 max_start = max([int(res.qstart),int(res.sstart)])-1
-                pre_divergence = int(res.mismatch) + int(res.gaps) + max_start
+                pre_divergence = int(res.mismatch) + max_start
                 # At this point, we do not know the length of the subject sequence so we use only the query sequence length, since the final divergence can only increase when considering the subject sequence length.
                 qtail_divergence = query_length-int(res.qend)
                 divergence1 = pre_divergence + qtail_divergence
@@ -89,19 +90,22 @@ class Querier:
             divergences_and_subjects = []
             for i, res in enumerate(results_to_gather):
                 subject = dbseqs[i]
-                # If the overhang on the subject sequence is greater than the overhang
-                # on the query sequence, use its length to calculate divergence.
-                subject_length = len(subject.sequence.replace('-',''))
-                stail_divergence = subject_length-int(res.send)
-                divergence2 = res.pre_divergence + max([res.qtail_divergence,stail_divergence])
-                if divergence2 <= max_divergence:
+                # Simply align the sequences to avoid corner cases
+                query_sequence = query_sequences[res.query_index]
+                if len(subject.sequence) != len(query_sequence):
+                    raise Exception("At least for the moment, querying can only be carried out with 60bp OTU sequences, including gap characters.")
+                divergence = 0
+                for i, query_char in enumerate(query_sequence):
+                    if query_char != subject.sequence[i]:
+                        divergence = divergence + 1
+                if divergence <= max_divergence:
                     if res.query_index != last_query_index:
                         last_query_index = res.query_index
                         found_query_names.append(query_names[res.query_index])
                         found_query_sequences.append(query_sequences[res.query_index])
-                        divergences_and_subjects.append([[divergence2, subject]])
+                        divergences_and_subjects.append([[divergence, subject]])
                     else:
-                        divergences_and_subjects[-1].append([divergence2, subject])
+                        divergences_and_subjects[-1].append([divergence, subject])
 
         if query_fasta:
             namedef = NamedQueryDefinition(found_query_names)
