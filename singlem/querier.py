@@ -90,13 +90,17 @@ class Querier:
             divergences_and_subjects = []
             for i, res in enumerate(results_to_gather):
                 subject = dbseqs[i]
+                # makeblastdb replaces '-' with 'N', so we use a replacement char
+                # to differentiate between and gap and a real N.
+                subject.sequence = subject.sequence.replace(SequenceDatabase.GAP_REPLACEMENT_CHARACTER, '-')
                 # Simply align the sequences to avoid corner cases
                 query_sequence = query_sequences[res.query_index]
                 if len(subject.sequence) != len(query_sequence):
                     raise Exception("At least for the moment, querying can only be carried out with 60bp OTU sequences, including gap characters.")
                 divergence = 0
                 for i, query_char in enumerate(query_sequence):
-                    if query_char != subject.sequence[i]:
+                    subject_char = subject.sequence[i]
+                    if query_char != subject_char:
                         divergence = divergence + 1
                 if divergence <= max_divergence:
                     if res.query_index != last_query_index:

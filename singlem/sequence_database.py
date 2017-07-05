@@ -34,6 +34,7 @@ class DBSequence(OtuTableEntry):
 
 class SequenceDatabase:
     version = 1
+    GAP_REPLACEMENT_CHARACTER = 'Y'
 
     @staticmethod
     def acquire(path):
@@ -64,7 +65,10 @@ class SequenceDatabase:
                 fasta.write(">")
                 fasta.write(dbseq.fasta_defline())
                 fasta.write("\n")
-                fasta.write(dbseq.sequence+"\n")
+                # Replace gaps with a replacement char so we can tell the difference between - and N.
+                if SequenceDatabase.GAP_REPLACEMENT_CHARACTER in dbseq.sequence:
+                    logging.warn("Attempting to create database with the reserved character %s, calculated divergences may be slightly incorrect" % SequenceDatabase.GAP_REPLACEMENT_CHARACTER)
+                fasta.write(dbseq.sequence.replace('-',SequenceDatabase.GAP_REPLACEMENT_CHARACTER)+"\n")
 
                 sequence_id += 1
 
