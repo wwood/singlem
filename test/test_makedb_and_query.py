@@ -143,5 +143,37 @@ class Tests(unittest.TestCase):
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
 
+    def test_n_vs_gap(self):
+        otu_table = [self.headers,
+                     # same as query
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                     # Ns instead of gaps, plus and A instead of C at end
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAANNNTATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(otu_table)
+            f.flush()
+
+            with tempdir.TempDir() as d:
+                #d = '/tmp/d'
+                cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
+                                                                d,
+                                                                f.name)
+                subprocess.check_call(cmd, shell=True)
+
+                cmd = "%s query --query_sequence %s --db %s/db" % (
+                    path_to_script,
+                    'CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC',
+                    d)
+
+                expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                            ['unnamed_sequence','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                            ['unnamed_sequence','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','4','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAANNNTATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes']]
+                expected = ["\t".join(x) for x in expected]+['']
+                self.assertEqual(expected,
+                                 subprocess.check_output(cmd, shell=True).split("\n"))
+
+
 if __name__ == "__main__":
     unittest.main()
