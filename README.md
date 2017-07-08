@@ -1,6 +1,6 @@
 Welcome to SingleM.
 
-SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data, without heavy reliance of reference sequence databases. It is able to differentiate closely related species even if those species are from lineages new to science.
+SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data, without heavy reliance on reference sequence databases. It is able to differentiate closely related species even if those species are from lineages new to science.
 
 Where [GraftM](https://github.com/geronimp/graftM) can give a taxonomic overview of your community e.g. proportion of a community from a particular taxonomic family, SingleM finds sequence-based OTUs from raw, untrimmed metagenomic reads.
 
@@ -12,13 +12,16 @@ This gives you the ability to answer questions such as:
 * Do I have population genomes for the main community members?
 * How diverse are the Pelagibacteria relative to the Flavobacteria?
 * Has my genome been observed in any samples submitted to the [SRA](http://www.ncbi.nlm.nih.gov/sra)?
+* Which community members are more likely to assemble?
 
 ## Generating an OTU table
 
-An overview of your community can be obtained like so. Please use **raw** metagenome reads, not QC'd reads. QC'ing reads often makes them too short for SingleM to use.
+An overview of your community can be obtained like so:
 ```
 singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.csv --threads 24
 ```
+Please use **raw** metagenome reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for SingleM to use. On the other hand, adapter trimming is unlikely to be detrimental.
+
 The output table consists of columns:
 ```
 gene    sample  sequence        num_hits        coverage        taxonomy
@@ -52,6 +55,12 @@ Rarefy a set of OTU tables so that each sample contains the same number of OTU s
 ```
 singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv --rarefied_output_otu_table rarefied.otu_table.csv --number_to_choose 100
 ```
+
+Conversion to [BIOM format](http://biom-format.org) for use with QIIME:
+```
+singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv --biom_prefix myprefix
+```
+This generates a BIOM table for each marker gene e.g. `myprefix.4.12.ribosomal_protein_L11_rplK.biom`.
 
 ### Calculating beta diversity between samples
 As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac format using `singlem summarise`:

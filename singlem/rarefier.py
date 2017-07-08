@@ -9,7 +9,7 @@ class Rarefier:
         '''Return an OtuTable rarefied so that only num_to_sample sequences
         are present in each sample. Samples not containing sufficient
         sequences are ignored with a warning.
-        
+
         This is not a true rarefaction technique because sequences not
         chosen in the rarefaction can still influence the output table
         through the LCA or arbitrary choice operation that has been
@@ -18,7 +18,7 @@ class Rarefier:
         Also, the rarefier operates on counts rather than predicted
         coverage, skeweing the results toward OTUs that lack
         inserts. But not by a lot, presumably.
-        
+
         otu_table_collection: OtuTableCollection
             OTU tables iterable
         num_to_sample: int
@@ -62,6 +62,3 @@ class Rarefier:
                     e.count = count
                     to_return.add([e])
         return to_return
-                        
-                        
-                        
