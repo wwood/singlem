@@ -4,6 +4,8 @@ from collections import OrderedDict
 import logging
 from otu_table import OtuTable
 from rarefier import Rarefier
+import biom
+import pandas
 
 class Summariser:
     @staticmethod
@@ -169,3 +171,36 @@ class Summariser:
         logging.info("Rarefying OTU table to max %i sequences per sample/gene combination and writing to %s" % (number_to_choose, output_table_io.name))
         OtuTable.write_otus_to(Rarefier().rarefy(table_collection, number_to_choose),
                                output_table_io)
+
+    @staticmethod
+    def write_biom_otu_tables(**kwargs):
+        biom_output_prefix = kwargs.pop('biom_output_prefix')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        df = pandas.DataFrame()
+        for otu in table_collection:
+            df = df.append(pandas.DataFrame({
+                'sample_name':[otu.sample_name],
+                'marker':[otu.marker],
+                'sequence':[otu.sequence],
+                'count':[otu.count],
+                'taxonomy':[otu.taxonomy]}))
+        for marker in df['marker'].unique():
+            biom_output = "%s.%s.biom" % (biom_output_prefix, marker)
+            logging.info("Writing BIOM table %s .." % biom_output)
+            df2 = pandas.pivot_table(
+                df[df.marker==marker],
+                index=['sequence','taxonomy'],
+                columns=['sample_name'],
+                values='count',
+                aggfunc=sum,
+                fill_value=0)
+            bt = biom.table.Table(
+                df2.as_matrix(),
+                ['%s; %s' % (ind[1],ind[0]) for ind in df2.index],
+                df2.columns,
+                [{'taxonomy': ind[1].split('; ')} for ind in df2.index])
+            with biom.util.biom_open(biom_output, 'w') as f:
+                bt.to_hdf5(f, "%s - %s" % (biom_output_prefix, marker))
