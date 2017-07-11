@@ -5,18 +5,37 @@ from otu_table_entry import OtuTableEntry
 
 class OtuTable:
     DEFAULT_OUTPUT_FIELDS = string.split('gene sample sequence num_hits coverage taxonomy')
-    
+
     def __init__(self):
         self.fields = self.DEFAULT_OUTPUT_FIELDS
         self.data = []
-        
+
     @staticmethod
     def each(otu_table_io):
-        '''yield an OtuTableEntry object for each entry in the OTU table'''
-        otus = OtuTable.read(otu_table_io)
-        for e in otus:
-            yield e
-            
+        '''yield an OtuTableEntry object for each entry in the OTU table.
+        This method is able to deal with streaming OTU tables.
+        '''
+        for i, d in enumerate(csv.reader(otu_table_io, delimiter="\t")):
+            if len(d) < 5:
+                raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
+            if i==0:
+                fields = d
+            else:
+                if len(d) != len(fields):
+                    raise Exception("Malformed OTU table detected, number of fields unexpected, on this line: %s" % str(d))
+                e = OtuTableEntry()
+                d[3] = int(d[3])
+                d[4] = float(d[4])
+                e.marker = d[0]
+                e.sample_name = d[1]
+                e.sequence = d[2]
+                e.count = d[3]
+                e.coverage = d[4]
+                e.taxonomy = d[5]
+                e.data = d
+                e.fields = fields
+                yield e
+
     def __iter__(self):
         for d in self.data:
             e = OtuTableEntry()
@@ -41,26 +60,17 @@ class OtuTable:
                 e.count,
                 e.coverage,
                 e.taxonomy])
-            
+
     @staticmethod
     def read(input_otu_table_io):
         otus = OtuTable()
-        for i, row in enumerate(csv.reader(input_otu_table_io, delimiter="\t")):
-            if len(row) < 5:
-                raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
-            if i==0:
-                otus.fields = row
-            else:
-                if len(row) != len(otus.fields):
-                    raise Exception("Malformed OTU table detected, number of fields unexpected, on this line: %s" % str(row))
-                row[3] = int(row[3])
-                row[4] = float(row[4])
-                otus.data.append(row)
+        for otu in OtuTable.each(input_otu_table_io):
+            otus.data.append(otu.data)
         return otus
-            
+
     def write_to(self, output_io, fields_to_print=DEFAULT_OUTPUT_FIELDS):
         '''Output as a CSV file to the (open) I/O object
-        
+
         Parameters
         ----------
         output_io: open io object
@@ -71,14 +81,14 @@ class OtuTable:
         if fields_to_print:
             field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
         output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
-        
+
         for d in self.data:
             output_io.write("\t".join([self._to_printable(d[i]) for i in field_indices_to_print])+"\n")
-            
+
     @staticmethod
     def write_otus_to(otu_table_entries, output_io, fields_to_print=None):
         '''Output as a CSV file to the (open) I/O object
-        
+
         Parameters
         ----------
         output_io: open io object
@@ -93,7 +103,7 @@ class OtuTable:
             field_indices_to_print = [o.fields.index(f) for f in fields_to_print]
             output_io.write("\t".join([OtuTable._to_printable(cell) for cell in [
                 o.data[i] for i in field_indices_to_print]])+"\n")
-         
+
     @staticmethod
     def _to_printable(e):
         '''For printing OtuTableEntry parts
@@ -105,14 +115,14 @@ class OtuTable:
             return "%.2f" % e
         else:
             return str(e)
-            
+
     def archive(self, singlem_packages):
         '''Return an archive object with the same data as this OTU table
-        
+
         Parameters
         ----------
         singlem_packages: array of SingleMPackage objects
-        
+
         Returns
         -------
         ArchiveOtuTable object
