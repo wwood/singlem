@@ -142,5 +142,5 @@ class StreamingOtuTableCollection:
             for otu in ArchiveOtuTable.read(open(file_path)):
                 yield otu
         for file_path in self._otu_table_file_paths:
-            for otu in OtuTable.read(open(file_path)):
+            for otu in OtuTable.each(open(file_path)):
                 yield otu
