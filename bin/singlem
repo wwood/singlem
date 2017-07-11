@@ -165,7 +165,7 @@ if __name__ == '__main__':
     summarise_transformation_args.add_argument('--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     summarise_transformation_args.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
     summarise_transformation_args.add_argument('--rarefied_output_otu_table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
-    summarise_transformation_args.add_argument('--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all are sufficient]")
+    summarise_transformation_args.add_argument('--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
     summarise_output_args = summarise_parser.add_argument_group('output')
     summarise_output_args.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_output_args.add_argument('--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
