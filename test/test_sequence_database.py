@@ -75,6 +75,22 @@ class Tests(unittest.TestCase):
 
             self.assertEqual(os.path.join(db_path,"sequences.fasta"), db2.sequences_fasta_file)
 
+    def test_disallowed_character(self):
+        otu_table = \
+        [['gene','sample','sequence','num_hits','coverage','taxonomy'],
+         ['ribosomal_protein_L11_rplK_gpkg','minimal~',
+          'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','14.4',
+          'Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+
+        with tempdir.TempDir() as tmp:
+            db_path = os.path.join(tmp, 'my.sdb')
+
+            collection = OtuTableCollection()
+            collection.add_otu_table(StringIO.StringIO(otu_table))
+            with self.assertRaises(Exception):
+                SequenceDatabase.create_from_otu_table(db_path, collection)
+
     def test_write_dereplicated_fasta_file(self):
         input_stream = StringIO.StringIO("AAA\tabc\nAAA\tabc_\nAAT\tabc2\nAAT\tyyy\nAAT\tabd")
         output_stream = StringIO.StringIO()
