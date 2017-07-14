@@ -97,7 +97,7 @@ class SequenceDatabase:
         sequences_fasta_file = os.path.join(db_path, "sequences.fasta")
         with open(sequences_fasta_file, 'w') as fasta:
             logging.info("Writing FASTA file to %s .." % sequences_fasta_file)
-            cmd = "sort"
+            cmd = "sort -S 20%" # The default sort buffer is too low IMO, use a larger one.
             sorter = subprocess.Popen(cmd, shell=True, stdin = subprocess.PIPE, stdout=subprocess.PIPE)
             fasta_writing_thread = Thread(target=SequenceDatabase.write_dereplicated_fasta_file,
                                           args=[sorter.stdout, fasta])
