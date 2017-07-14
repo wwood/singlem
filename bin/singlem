@@ -150,7 +150,8 @@ if __name__ == '__main__':
     query_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
     query_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     query_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
-    query_parser.add_argument('--threads', help="number of threads to search with", default=1, type=int)
+    # Do not use threads as it actually slows down BLAST.
+    #query_parser.add_argument('--threads', help="number of threads to search with", default=1, type=int)
 
     summarise_description = 'Summarise and transform OTU tables'
     summarise_parser = subparsers.add_parser('summarise',
@@ -276,6 +277,7 @@ if __name__ == '__main__':
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\
             (args.db_path, otus)
     elif args.subparser_name=='query':
+        args.threads = 1
         Querier().query(
             db = args.db,
             query_sequence = args.query_sequence,
