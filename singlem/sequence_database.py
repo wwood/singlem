@@ -65,6 +65,10 @@ class SequenceDatabase:
         num_printed = 0
         sequence_id = 1
         for d in csv.reader(input_stream, delimiter="\t"):
+            if SequenceDatabase.DEFLINE_DELIMITER_CHARACTER in d[1]:
+                raise Exception(
+                    "Taxonomy and sample names cannot have '%s' in them" % \
+                    SequenceDatabase.DEFLINE_DELIMITER_CHARACTER)
             if d[0] == last_sequence:
                 ids_to_print.append(d[1])
             else:
