@@ -126,6 +126,8 @@ class SequenceDatabase:
         cmd = "makeblastdb -in '%s' -dbtype nucl -parse_seqids" % sequences_fasta_file
         logging.info("Generating BLAST database ..")
         extern.run(cmd)
+        logging.info("Removing intermediate file ..")
+        os.remove(sequences_fasta_file)
         logging.info("Finished")
 
     def extract_sequences(self, sequence_id):
