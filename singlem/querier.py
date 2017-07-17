@@ -64,10 +64,19 @@ class Querier:
             last_index = None
             last_differences_and_names = []
             results_to_gather = []
+            hit_counts = []
             for line in iter(proc.stdout.readline,''):
                 res = QueryResultLine(line)
                 index = int(res.qseqid)
-                #TODO: check we haven't come up against the max_target_seqs barrier
+
+                # Check we haven't hit max_target_seqs
+                try:
+                    hit_counts[index] += 1
+                except IndexError:
+                    hit_counts.append(1)
+                if hit_counts[index] >= max_target_seqs:
+                    logging.warn("The maximum number of target sequences returned by BLAST has been reached. Consider rerunning SingleM with an increased --max_hits cutoff.")
+
                 query_length_original = len(query_sequences[index])
                 query_length = len(query_sequences[index].replace('-',''))
                 max_start = max([int(res.qstart),int(res.sstart)])-1
