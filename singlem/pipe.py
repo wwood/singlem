@@ -27,6 +27,10 @@ DIAMOND_ASSIGNMENT_METHOD = 'diamond'
 DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
 
 class SearchPipe:
+    def __init__(self):
+        self._extracted_reads = None
+        self._tempororary_directory = None
+
     def run(self, **kwargs):
         forward_read_files = kwargs.pop('sequences')
         output_otu_table = kwargs.pop('otu_table', None)
@@ -70,38 +74,7 @@ class SearchPipe:
         else:
             self._graftm_verbosity = '2'
 
-        using_temporary_working_directory = working_directory is None
-        if using_temporary_working_directory:
-            shared_mem_directory = '/dev/shm'
-            if os.path.exists(shared_mem_directory):
-                logging.debug("Using shared memory as a base directory")
-                tmp = tempdir.TempDir(basedir=shared_mem_directory)
-                tempfiles_path = os.path.join(tmp.name, 'tempfiles')
-                os.mkdir(tempfiles_path)
-                os.environ['TEMP'] = tempfiles_path
-            else:
-                logging.debug("Shared memory directory not detected, using default temporary directory instead")
-                tmp = tempdir.TempDir()
-            working_directory = tmp.name
-        else:
-            working_directory = working_directory
-            if os.path.exists(working_directory):
-                if force:
-                    logging.info("Overwriting directory %s" % working_directory)
-                    shutil.rmtree(working_directory)
-                    os.mkdir(working_directory)
-                else:
-                    raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
-            else:
-                os.mkdir(working_directory)
-        logging.debug("Using working directory %s" % working_directory)
-        self._working_directory = working_directory
-
-        extracted_reads = None
-        def return_cleanly():
-            if extracted_reads: extracted_reads.cleanup()
-            if using_temporary_working_directory: tmp.dissolve()
-            logging.info("Finished")
+        self._setup_working_directory(working_directory)
 
         #### Search
         self._singlem_package_database = hmms
@@ -109,7 +82,7 @@ class SearchPipe:
         sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
-            return_cleanly()
+            self._clean_up_after_running_pipe()
             return
         logging.debug("Recovered %i samples with at least one hit e.g. '%s'" \
                      % (len(sample_names), sample_names[0]))
@@ -241,7 +214,56 @@ class SearchPipe:
         if archive_otu_table:
             with open(archive_otu_table, 'w') as f:
                 otu_table_object.archive(hmms.singlem_packages).write_to(f)
-        return_cleanly()
+        self._clean_up_after_running_pipe()
+        logging.info("Finished")
+
+    def _setup_working_directory(self, working_directory):
+        '''Setup a working directory for this Pipe object, using a (int order of
+        preference) specified working directory path, a temporary directory in
+        /dev/shm or a temporary directory in the standard place.
+
+        Parameters
+        ----------
+        working_directory: str or None
+            path to the defined working directory
+
+        Returns
+        -------
+        Nothing. The instance variable self._working_directory is set.
+
+        '''
+        using_temporary_working_directory = working_directory is None
+        if using_temporary_working_directory:
+            shared_mem_directory = '/dev/shm'
+            if os.path.exists(shared_mem_directory):
+                logging.debug("Using shared memory as a base directory")
+                tmp = tempdir.TempDir(basedir=shared_mem_directory)
+                tempfiles_path = os.path.join(tmp.name, 'tempfiles')
+                os.mkdir(tempfiles_path)
+                os.environ['TEMP'] = tempfiles_path
+            else:
+                logging.debug("Shared memory directory not detected, using default temporary directory instead")
+                tmp = tempdir.TempDir()
+            self._temporary_directory = tmp
+            working_directory = tmp.name
+        else:
+            working_directory = working_directory
+            self._temporary_directory = None
+            if os.path.exists(working_directory):
+                if force:
+                    logging.info("Overwriting directory %s" % working_directory)
+                    shutil.rmtree(working_directory)
+                    os.mkdir(working_directory)
+                else:
+                    raise Exception("Working directory '%s' already exists, not continuing" % working_directory)
+            else:
+                os.mkdir(working_directory)
+        logging.debug("Using working directory %s" % working_directory)
+        self._working_directory = working_directory
+
+    def _clean_up_after_running_pipe(self):
+        if self._extracted_reads is not None: self._extracted_reads.cleanup()
+        if self._temporary_directory is not None: self._temporary_directory.dissolve()
 
     def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file,
                                 singlem_package, include_inserts):
