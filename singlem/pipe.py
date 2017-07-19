@@ -613,6 +613,74 @@ class SearchPipe:
         logging.info("Finished running taxonomic assignment with graftm")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
+    def reprofile(self, **kwargs):
+        replacement_graftm_package = kwargs.pop('replacement_graftm_package')
+        sample_path = kwargs.pop('sequences')
+        old_singlem_package_path = kwargs.pop('old_singlem_package_path')
+        input_otu_table = kwargs.pop('input_otu_table')
+        # Below are arguments common with pipe()
+        output_otu_table = kwargs.pop('otu_table', None)
+        archive_otu_table = kwargs.pop('archive_otu_table', None)
+        num_threads = kwargs.pop('threads')
+        known_otu_tables = kwargs.pop('known_otu_tables')
+        singlem_assignment_method = kwargs.pop('assignment_method')
+        output_jplace = kwargs.pop('output_jplace')
+        output_extras = kwargs.pop('output_extras')
+        evalue = kwargs.pop('evalue')
+        min_orf_length = kwargs.pop('min_orf_length')
+        restrict_read_length = kwargs.pop('restrict_read_length')
+        filter_minimum_protein = kwargs.pop('filter_minimum_protein')
+        filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide')
+        include_inserts = kwargs.pop('include_inserts')
+        singlem_packages = kwargs.pop('singlem_packages')
+        window_size = kwargs.pop('window_size')
+        assign_taxonomy = kwargs.pop('assign_taxonomy')
+        known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
+        working_directory = kwargs.pop('working_directory')
+        force = kwargs.pop('force')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        old_singlem_package = SingleMPackage.acquire(old_singlem_package_path)
+        # Generate a new singlem package, replacing the graftm package
+        logging.debug("Generating new SingleM package")
+        new_singlem_package = SingleMPackageVersion1.fill(replacement_graftm_package, old_singlem_package.singlem_position)
+
+        # Collect the read names to be reclassified
+        reads_to_extract = set()
+        for otu in otu_table:
+            for read in otu_table.get_space_separated_field('read_names'):
+                reads_to_extract.append(read)
+        logging.info("Collected %i reads names to focus on" % len(reads_to_extract))
+
+        # Extract reads from the sample
+        with tempfile.NamedTemporaryFile('singlem-extracted-reads') as tmp:
+            SequenceExtractor().extract(reads_to_extract, sample_path, tmp.name)
+
+            # Generate search result object
+            self.pipe(
+                sequences=tmp.name,
+                otu_table=output_otu_table,
+                archive_otu_table = archive_otu_table,
+                num_threads=num_threads,
+                known_otu_tables=known_otu_tables,
+                assignment_method=singlem_assignment_method,
+                output_jplace=output_jplace,
+                output_extras=output_extras,
+                evalue=evalue,
+                min_orf_length=min_orf_length,
+                restrict_read_length=restrict_read_length,
+                filter_minimum_protein=filter_minimum_protein,
+                filter_minimum_nucleotide=filter_minimum_nucleotide,
+                include_inserts=include_inserts,
+                singlem_packages=singlem_packages,
+                window_size=window_size,
+                assign_taxonomy=assign_taxonomy,
+                known_sequence_taxonomy=known_sequence_taxonomy,
+                working_directory=working_directory,
+                force=force)
+
+
 class SingleMPipeSearchResult:
     def __init__(self, graftm_protein_result, graftm_nucleotide_result):
         self._protein_result = graftm_protein_result
