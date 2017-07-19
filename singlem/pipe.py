@@ -31,6 +31,11 @@ class SearchPipe:
         self._extracted_reads = None
         self._tempororary_directory = None
 
+        if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
+            self._graftm_verbosity = '5'
+        else:
+            self._graftm_verbosity = '2'
+
     def run(self, **kwargs):
         forward_read_files = kwargs.pop('sequences')
         output_otu_table = kwargs.pop('otu_table', None)
@@ -68,11 +73,6 @@ class SearchPipe:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
             graftm_assignment_method = singlem_assignment_method
-
-        if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
-            self._graftm_verbosity = '5'
-        else:
-            self._graftm_verbosity = '2'
 
         self._setup_working_directory(working_directory)
 
