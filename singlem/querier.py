@@ -35,16 +35,18 @@ class Querier:
             query_names = []
             query_sequences = []
             otus = OtuTableCollection()
-            otus.add_otu_table(open(query_otu_table))
-            for e in otus:
-                query_sequences.append(e.sequence)
-                query_names.append(';'.join([e.sample_name,e.marker]))
+            with open(query_otu_table) as f:
+                otus.add_otu_table(f)
+                for e in otus:
+                    query_sequences.append(e.sequence)
+                    query_names.append(';'.join([e.sample_name,e.marker]))
         elif query_fasta:
             query_names = []
             query_sequences = []
-            for name, seq, _ in SeqReader().readfq(open(query_fasta)):
-                query_names.append(name)
-                query_sequences.append(seq)
+            with open(query_fasta) as f:
+                for name, seq, _ in SeqReader().readfq(f):
+                    query_names.append(name)
+                    query_sequences.append(seq)
         else:
             raise Exception("No query option specified, cannot continue")
 
