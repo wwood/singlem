@@ -57,8 +57,9 @@ class Tests(unittest.TestCase):
                                                                 f.name)
                 subprocess.check_call(cmd, shell=True)
 
-                cmd = "%s query --query_sequence %s --db %s/db --otu_table_type sparse" % (path_to_script,
-                                                                'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA', # second sequence with an extra A at the end
+                cmd = "%s query --query_sequence %s --db %s/db" % (
+                    path_to_script,
+                    'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA', # second sequence with an extra A at the end
                                                                 d)
 
                 expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
@@ -76,9 +77,10 @@ class Tests(unittest.TestCase):
             f.write(query)
             f.flush()
 
-            cmd = "%s query --query_otu_table %s --db %s --otu_table_type sparse" % (path_to_script,
-                                                            f.name,
-                                                            os.path.join(path_to_data,'a.sdb'))
+            cmd = "%s query --query_otu_table %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
 
             expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
                         ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
@@ -90,19 +92,22 @@ class Tests(unittest.TestCase):
         with tempfile.NamedTemporaryFile() as f:
             query = [self.headers,
                      # second sequence with an extra A at the end
-                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']] # converted A to T in the middle
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+                     ] # converted A to T in the middle
             query = "\n".join(["\t".join(x) for x in query])
             f.write(query)
             f.flush()
 
-            cmd = "%s query --query_otu_table %s --db %s --otu_table_type sparse" % (path_to_script,
-                                                            f.name,
-                                                            os.path.join(path_to_data,'a.sdb'))
+            cmd = "%s query --query_otu_table %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
 
             expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                        ['maximal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','2','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+                        ['maximal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','2','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                        ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']
+                        ]
             expected = ["\t".join(x) for x in expected]+['']
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
@@ -114,13 +119,14 @@ class Tests(unittest.TestCase):
             f.write(query)
             f.flush()
 
-            cmd = "%s query --query_fasta %s --db %s --otu_table_type sparse" % (path_to_script,
-                                                            f.name,
-                                                            os.path.join(path_to_data,'a.sdb'))
+            cmd = "%s query --query_fasta %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
 
-            expected = [['query_name','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['seq1','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                        ['sseq4','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+            expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                        ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                        ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
             expected = ["\t".join(x) for x in expected]+['']
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
@@ -132,13 +138,14 @@ class Tests(unittest.TestCase):
             f.write(query)
             f.flush()
 
-            cmd = "%s query --query_fasta %s --db %s --otu_table_type sparse" % (path_to_script,
-                                                            f.name,
-                                                            os.path.join(path_to_data,'a.sdb'))
+            cmd = "%s query --query_fasta %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
 
-            expected = [['query_name','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['seq1','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                        ['sseq4','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+            expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                        ['seq1','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                        ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
             expected = ["\t".join(x) for x in expected]+['']
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
@@ -170,6 +177,47 @@ class Tests(unittest.TestCase):
                 expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
                             ['unnamed_sequence','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
                             ['unnamed_sequence','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','4','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAANNNTATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes']]
+                expected = ["\t".join(x) for x in expected]+['']
+                self.assertEqual(expected,
+                                 subprocess.check_output(cmd, shell=True).split("\n"))
+
+    def test_duplicate_seqs_then_another(self):
+        '''This tests when a two samples have the same OTU, and then there's another separate OTU after that'''
+        otu_table = [self.headers,
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                     ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(otu_table)
+            f.flush()
+
+            with tempdir.TempDir() as d:
+                #d = '/tmp/d'
+                cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
+                                                                d,
+                                                                f.name)
+                subprocess.check_call(cmd, shell=True)
+
+                fasta_path = 'in.fasta'
+                with open('in.fasta','w') as fasta:
+                    fasta.write(">1_\n") # same as the first sequence
+                    fasta.write("GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
+                    fasta.write(">2_\n") # third sequence with an replacement A at the end
+                    fasta.write("CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\n")
+
+                cmd = "%s query --query_fasta %s --db %s/db" % (
+                    path_to_script,
+                    fasta_path,
+                    d)
+
+                expected = [
+                    ['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                    ['1_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['1_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','9','maximal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['2_','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                 expected = ["\t".join(x) for x in expected]+['']
                 self.assertEqual(expected,
                                  subprocess.check_output(cmd, shell=True).split("\n"))
