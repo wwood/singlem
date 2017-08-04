@@ -137,7 +137,8 @@ class SequenceDatabase:
         for s in SeqIO.parse(StringIO.StringIO(stdout), "fasta"):
             if dbseq.sequence: raise Exception("Extracted multiple hits from sequence database, for sequence id %s" % sequence_id)
             dbseq.parse_from_fasta_define(s.description)
-            dbseq.sequence = str(s.seq)
+            dbseq.sequence = str(s.seq).replace(
+                SequenceDatabase.GAP_REPLACEMENT_CHARACTER,'-')
         return dbseq
 
     def extract_sequences_by_blast_ids(self, blast_ids):
@@ -155,7 +156,8 @@ class SequenceDatabase:
             for s in SeqIO.parse(StringIO.StringIO(stdout), "fasta"):
                 new_seqs = DBSequence.parse_from_fasta_define(s.description)
                 for single_dbseq in new_seqs:
-                    single_dbseq.sequence = str(s.seq)
+                    single_dbseq.sequence = str(s.seq).replace(
+                        SequenceDatabase.GAP_REPLACEMENT_CHARACTER,'-')
                 dbseqs.append(new_seqs)
             if len(dbseqs) != num_blast_ids:
                 raise Exception("Unexpected number of returned sequences from blastdbcmd")

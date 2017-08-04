@@ -6,8 +6,7 @@ import sys
 
 from sequence_database import SequenceDatabase
 from sequence_classes import SeqReader
-from query_formatters import NameSequenceQueryDefinition, NamedQueryDefinition
-from query_formatters import SparseResultFormatter, DenseResultFormatter
+from query_formatters import SparseResultFormatter#, DenseResultFormatter
 from otu_table_collection import OtuTableCollection
 
 class Querier:
@@ -29,106 +28,124 @@ class Querier:
             raise Exception("Only one of --query_fasta, --query_otu_table and --query_sequence is allowable")
 
         if query_sequence:
-            query_names = ['unnamed_sequence']
-            query_sequences = [query_sequence]
+            queries = [QueryInputSequence('unnamed_sequence',query_sequence)]
         elif query_otu_table:
-            query_names = []
-            query_sequences = []
+            queries = []
             otus = OtuTableCollection()
             with open(query_otu_table) as f:
                 otus.add_otu_table(f)
                 for e in otus:
-                    query_sequences.append(e.sequence)
-                    query_names.append(';'.join([e.sample_name,e.marker]))
+                    queries.append(QueryInputSequence(
+                        ';'.join([e.sample_name,e.marker]),
+                        e.sequence))
         elif query_fasta:
-            query_names = []
-            query_sequences = []
+            queries = []
             with open(query_fasta) as f:
                 for name, seq, _ in SeqReader().readfq(f):
-                    query_names.append(name)
-                    query_sequences.append(seq)
+                    queries.append(QueryInputSequence(
+                        name, seq))
         else:
             raise Exception("No query option specified, cannot continue")
 
         # blast the query against the database, output as csv
         found_distances_and_names = []
         with tempfile.NamedTemporaryFile(prefix='singlem_query') as infile:
-            for i, sequence in enumerate(query_sequences):
+            for i, query in enumerate(queries):
                 infile.write(">%i\n" % i)
-                infile.write(sequence.replace('-','')+"\n")
+                infile.write(query.sequence.replace('-','')+"\n")
             infile.flush()
-
             cmd = "blastn -num_threads %i -task blastn -query '%s' -db '%s' -outfmt '6 qseqid sseqid pident length mismatch gaps qstart qend sstart send' -max_target_seqs %i" %\
                 (num_threads, infile.name, db.sequences_fasta_file, max_target_seqs)
             logging.debug("Running cmd %s" % cmd)
+            #cmd = 'cat blastn.out'
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
-            last_index = None
-            last_differences_and_names = []
             results_to_gather = []
             for line in iter(proc.stdout.readline,''):
-                res = QueryResultLine(line)
-                index = int(res.qseqid)
+                res = BlastQueryResultLine(line)
+                query = queries[int(res.qseqid)]
                 #TODO: check we haven't come up against the max_target_seqs barrier
-                query_length_original = len(query_sequences[index])
-                query_length = len(query_sequences[index].replace('-',''))
+                query_length_original = len(query.sequence)
+                query_length = len(query.sequence.replace('-',''))
                 max_start = max([int(res.qstart),int(res.sstart)])-1
                 pre_divergence = int(res.mismatch) + max_start
                 # At this point, we do not know the length of the subject sequence so we use only the query sequence length, since the final divergence can only increase when considering the subject sequence length.
                 qtail_divergence = query_length-int(res.qend)
                 divergence1 = pre_divergence + qtail_divergence
+                logging.debug("Query %s hit of divergence1 %i" % (
+                    res.qseqid, divergence1))
                 if divergence1 <= max_divergence:
-                    res.query_index = index
+                    res.query = query
                     res.pre_divergence = pre_divergence
                     res.qtail_divergence = qtail_divergence
                     results_to_gather.append(res)
 
+            logging.debug("Extracting %i sequences with blastdbcmd" % len(results_to_gather))
             # Extract all sequences in batch, to avoid repeated blastdbcmd calls.
-            dbseqs = db.extract_sequences_by_blast_ids([res.sseqid for res in results_to_gather])
+            # Only extract one each result once
+            dbseqs = db.extract_sequences_by_blast_ids(set([res.sseqid for res in results_to_gather]))
+            sseqid_to_hits = {}
+            for dbs in dbseqs:
+                try:
+                    sseqid_to_hits[dbs.sequence_id].add(dbs)
+                except KeyError:
+                    # It should be a set because two queries can hit the same subject
+                    sseqid_to_hits[dbs.sequence_id] = set([dbs])
+
             # Calculate the final divergences with the extracted sequences.
-            found_query_names = []
-            found_query_sequences = []
-            last_query_index = None
-            divergences_and_subjects = []
-            for i, res in enumerate(results_to_gather):
-                subject = dbseqs[i]
-                # makeblastdb replaces '-' with 'N', so we use a replacement char
-                # to differentiate between and gap and a real N.
-                subject.sequence = subject.sequence.replace(SequenceDatabase.GAP_REPLACEMENT_CHARACTER, '-')
+            queries_subjects_divergences = []
+            for res in results_to_gather:
+                # All hits have the same sequence, so same divergence.
+                subject_eg = next(iter(sseqid_to_hits[int(res.sseqid)]))
+                subject_sequence = subject_eg.sequence
                 # Simply align the sequences to avoid corner cases
-                query_sequence = query_sequences[res.query_index]
-                if len(subject.sequence) != len(query_sequence):
+                query_sequence = res.query.sequence
+                if len(subject_sequence) != len(query_sequence):
                     raise Exception("At least for the moment, querying can only be carried out with 60bp OTU sequences, including gap characters.")
                 divergence = 0
                 for i, query_char in enumerate(query_sequence):
-                    subject_char = subject.sequence[i]
+                    subject_char = subject_sequence[i]
                     if query_char != subject_char:
                         divergence = divergence + 1
+                logging.debug("Query %s with subject '%s' had divergence2 %i" % (res.query.name, subject_eg.sequence_id, divergence))
                 if divergence <= max_divergence:
-                    if res.query_index != last_query_index:
-                        last_query_index = res.query_index
-                        found_query_names.append(query_names[res.query_index])
-                        found_query_sequences.append(query_sequences[res.query_index])
-                        divergences_and_subjects.append([[divergence, subject]])
-                    else:
-                        divergences_and_subjects[-1].append([divergence, subject])
-
-        if query_fasta:
-            namedef = NamedQueryDefinition(found_query_names)
-        else:
-            namedef = NameSequenceQueryDefinition(found_query_names, found_query_sequences)
+                    queries_subjects_divergences.append([
+                        res.query,
+                        int(res.sseqid),
+                        divergence])
+            query_results = QueryResults(queries_subjects_divergences, sseqid_to_hits)
 
         if output_style == 'sparse':
-            formatter = SparseResultFormatter(namedef, divergences_and_subjects)
-        elif output_style == 'dense':
-            formatter = DenseResultFormatter(namedef, divergences_and_subjects)
+            SparseResultFormatter().write(query_results, sys.stdout)
+        elif output_style == None:
+            return query_results
         else:
             raise Exception()
-        formatter.write(sys.stdout)
 
+class QueryInputSequence:
+    def __init__(self, name, sequence):
+        self.name = name
+        self.sequence = sequence
 
-class QueryResultLine:
+class BlastQueryResultLine:
     def __init__(self, blast_output_line):
         self.qseqid, self.sseqid, _, _, self.mismatch, self.gaps, self.qstart,\
             self.qend, self.sstart, \
             self.send = blast_output_line.strip().split("\t")[:10]
+
+class QueryResult:
+    def __init__(self, query, subject, divergence):
+        self.query = query
+        self.subject = subject
+        self.divergence = divergence
+
+class QueryResults:
+    def __init__(self, queries_subjects_divergences, sseqid_to_hits):
+        self._queries_subjects_divergences = queries_subjects_divergences
+        self._sseqid_to_hits = sseqid_to_hits
+
+    def __iter__(self):
+        '''Iterate over results, yielding QueryResult objects'''
+        for qsd in self._queries_subjects_divergences:
+            for subject in self._sseqid_to_hits[qsd[1]]:
+                yield QueryResult(qsd[0], subject, qsd[2])
