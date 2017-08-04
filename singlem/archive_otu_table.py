@@ -10,7 +10,7 @@ class ArchiveOtuTable:
         self.singlem_packages = singlem_packages
         self.fields = self.FIELDS
         self.data = []
-        
+
     def write_to(self, output_io):
         json.dump({"version": self.version,
              "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
@@ -18,21 +18,21 @@ class ArchiveOtuTable:
              'fields': self.fields,
              "otus": self.data},
                   output_io)
-        
+
     @staticmethod
     def read(input_io):
         otus = ArchiveOtuTable()
         j = json.loads(input_io.read())
         if j['version'] != ArchiveOtuTable.version:
             raise Exception("Wrong OTU table version detected")
-        
+
         otus.fields = j['fields']
         if otus.fields != ArchiveOtuTable.FIELDS:
             raise Exception("Unexpected archive OTU table format detected")
-        
+
         otus.data = j['otus']
         return otus
-        
+
     def __iter__(self):
         for d in self.data:
             e = OtuTableEntry()
@@ -45,4 +45,3 @@ class ArchiveOtuTable:
             e.data = d
             e.fields = self.fields
             yield e
-        
