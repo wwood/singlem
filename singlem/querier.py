@@ -57,7 +57,6 @@ class Querier:
             cmd = "blastn -num_threads %i -task blastn -query '%s' -db '%s' -outfmt '6 qseqid sseqid pident length mismatch gaps qstart qend sstart send' -max_target_seqs %i" %\
                 (num_threads, infile.name, db.sequences_fasta_file, max_target_seqs)
             logging.debug("Running cmd %s" % cmd)
-            #cmd = 'cat blastn.out'
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
 
             results_to_gather = []
@@ -78,7 +77,11 @@ class Querier:
                 query_length = len(query.sequence.replace('-',''))
                 max_start = max([int(res.qstart),int(res.sstart)])-1
                 pre_divergence = int(res.mismatch) + max_start
-                # At this point, we do not know the length of the subject sequence so we use only the query sequence length, since the final divergence can only increase when considering the subject sequence length.
+
+                # At this point, we do not know the length of the
+                # subject sequence so we use only the query sequence
+                # length, since the final divergence can only increase
+                # when considering the subject sequence length.
                 qtail_divergence = query_length-int(res.qend)
                 divergence1 = pre_divergence + qtail_divergence
                 logging.debug("Query %s hit of divergence1 %i" % (
