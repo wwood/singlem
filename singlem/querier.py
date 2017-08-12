@@ -47,6 +47,21 @@ class Querier:
         else:
             raise Exception("No query option specified, cannot continue")
 
+        if max_divergence == -1:
+            query_results = self.query_by_sqlite(queries, db)
+        else:
+            query_results = self.query_by_blast(
+                queries, db, max_target_seqs, max_divergence, num_threads)
+
+        if output_style == 'sparse':
+            SparseResultFormatter().write(query_results, sys.stdout)
+        elif output_style == None:
+            return query_results
+        else:
+            raise Exception()
+
+
+    def query_by_blast(self, queries, db, max_target_seqs, max_divergence, num_threads):
         # blast the query against the database, output as csv
         found_distances_and_names = []
         with tempfile.NamedTemporaryFile(prefix='singlem_query') as infile:
@@ -125,14 +140,10 @@ class Querier:
                         res.query,
                         int(res.sseqid),
                         divergence])
-            query_results = QueryResults(queries_subjects_divergences, sseqid_to_hits)
+            return QueryResults(queries_subjects_divergences, sseqid_to_hits)
 
-        if output_style == 'sparse':
-            SparseResultFormatter().write(query_results, sys.stdout)
-        elif output_style == None:
-            return query_results
-        else:
-            raise Exception()
+    def query_by_sqlite(self, queries, db_path):
+        raise Exception("Not yet implemented.")
 
 class QueryInputSequence:
     def __init__(self, name, sequence):
