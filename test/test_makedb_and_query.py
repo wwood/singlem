@@ -51,7 +51,6 @@ class Tests(unittest.TestCase):
             f.flush()
 
             with tempdir.TempDir() as d:
-                #d = '/tmp/d'
                 cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
                                                                 d,
                                                                 f.name)

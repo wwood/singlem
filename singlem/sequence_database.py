@@ -5,6 +5,8 @@ import StringIO
 import logging
 import subprocess
 import itertools
+import sqlite3
+from itertools import izip_longest
 from threading import Thread
 from Bio import SeqIO
 
@@ -91,11 +93,25 @@ class SequenceDatabase:
         logging.debug("Finished writing fasta in thread")
 
     @staticmethod
+    def grouper(iterable, n):
+        args = [iter(iterable)] * n
+        return izip_longest(*args, fillvalue=None)
+
+    @staticmethod
     def create_from_otu_table(db_path, otu_table_collection):
         # ensure db does not already exist
         if os.path.exists(db_path):
             raise Exception("Cowardly refusing to overwrite already-existing database file '%s'" % db_path)
         os.makedirs(db_path)
+
+        # setup sqlite DB
+        sqlite_db_path = os.path.join(db_path, "otus.sqlite3")
+        logging.debug("Connecting to db %s" % sqlite_db_path)
+        db = sqlite3.connect(sqlite_db_path)
+        c = db.cursor()
+        c.execute("CREATE TABLE otus (marker text, sample_name text,"
+                  " sequence text, num_hits int, coverage float, taxonomy text)")
+        db.commit()
 
         # 100% cluster the database.
         sequences_fasta_file = os.path.join(db_path, "sequences.fasta")
@@ -106,20 +122,34 @@ class SequenceDatabase:
             fasta_writing_thread = Thread(target=SequenceDatabase.write_dereplicated_fasta_file,
                                           args=[sorter.stdout, fasta])
             fasta_writing_thread.start()
-            for entry in otu_table_collection:
-                dbseq = DBSequence()
-                dbseq.marker = entry.marker
-                dbseq.sample_name = entry.sample_name
-                dbseq.sequence = entry.sequence
-                dbseq.count = entry.count
-                dbseq.taxonomy = entry.taxonomy
+            chunksize = 10000 # Run in chunks for sqlite insert performance.
+            for chunk in SequenceDatabase.grouper(otu_table_collection, chunksize):
+                chunk_list = []
+                for entry in chunk:
+                    if entry is not None: # Is None when padded in last chunk.
+                        chunk_list.append((entry.marker, entry.sample_name, entry.sequence, entry.count,
+                            entry.coverage, entry.taxonomy))
+                        dbseq = DBSequence()
+                        dbseq.marker = entry.marker
+                        dbseq.sample_name = entry.sample_name
+                        dbseq.sequence = entry.sequence
+                        dbseq.count = entry.count
+                        dbseq.taxonomy = entry.taxonomy
 
-                # Replace gaps with a replacement char so we can tell the difference between - and N.
-                if SequenceDatabase.GAP_REPLACEMENT_CHARACTER in dbseq.sequence:
-                    logging.warn("Attempting to create database with the reserved character %s, calculated divergences may be slightly incorrect" % SequenceDatabase.GAP_REPLACEMENT_CHARACTER)
-                sorter.stdin.write(dbseq.sequence.replace('-',SequenceDatabase.GAP_REPLACEMENT_CHARACTER)+"\t")
-                sorter.stdin.write(dbseq.fasta_defline() + "\n")
+                        # Replace gaps with a replacement char so we can tell the difference between - and N.
+                        if SequenceDatabase.GAP_REPLACEMENT_CHARACTER in dbseq.sequence:
+                            logging.warn("Attempting to create database with the reserved character %s, calculated divergences may be slightly incorrect" % SequenceDatabase.GAP_REPLACEMENT_CHARACTER)
+                        sorter.stdin.write(dbseq.sequence.replace('-',SequenceDatabase.GAP_REPLACEMENT_CHARACTER)+"\t")
+                        sorter.stdin.write(dbseq.fasta_defline() + "\n")
 
+                c.executemany("INSERT INTO otus(marker, sample_name, sequence, num_hits, "
+                              "coverage, taxonomy) VALUES(?,?,?,?,?,?)",
+                              chunk_list)
+
+            logging.info("Creating SQLite indices")
+            c.execute("CREATE INDEX otu_sequence on otus (sequence)")
+            c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
+            db.commit()
             sorter.stdin.close()
             fasta_writing_thread.join()
 
