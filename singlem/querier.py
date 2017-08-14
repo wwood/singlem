@@ -3,6 +3,8 @@ import extern
 import logging
 import subprocess
 import sys
+import os
+from orator import DatabaseManager, Model
 
 from sequence_database import SequenceDatabase
 from sequence_classes import SeqReader
@@ -47,8 +49,11 @@ class Querier:
         else:
             raise Exception("No query option specified, cannot continue")
 
-        if max_divergence == -1:
-            query_results = self.query_by_sqlite(queries, db)
+        if max_divergence == 0:
+            sqlite_db_path = db.sqlite_file
+            if not os.path.exists(sqlite_db_path):
+                raise Exception("Sqlite database not found at '%s', indicating that either the SingleM database was built with an out-dated SingleM version, or that the database is corrupt. Please generate a new database with the current version of SingleM.")
+            query_results = self.query_by_sqlite(queries, sqlite_db_path)
         else:
             query_results = self.query_by_blast(
                 queries, db, max_target_seqs, max_divergence, num_threads)
@@ -140,10 +145,29 @@ class Querier:
                         res.query,
                         int(res.sseqid),
                         divergence])
-            return QueryResults(queries_subjects_divergences, sseqid_to_hits)
+            return BlastQueryResults(queries_subjects_divergences, sseqid_to_hits)
 
     def query_by_sqlite(self, queries, db_path):
-        raise Exception("Not yet implemented.")
+        logging.info("Connecting to %s" % db_path)
+        db = DatabaseManager({
+        'sqlite3': {
+            'driver': 'sqlite',
+            'database': db_path
+        }})
+        Model.set_connection_resolver(db)
+
+        results = []
+        for query in queries:
+            for entry in db.table('otus').where('sequence',seq).get():
+                otu = OtuEntry()
+                otu.marker = entry.marker
+                otu.sample_name = entry.sample_name
+                otu.sequence = entry.sequence
+                otu.count = entry.count
+                otu.coverage = entry.coverage
+                otu.taxonomy = entry.taxonomy
+                results.append(query, otu, 0)
+        return results
 
 class QueryInputSequence:
     def __init__(self, name, sequence):
@@ -162,7 +186,7 @@ class QueryResult:
         self.subject = subject
         self.divergence = divergence
 
-class QueryResults:
+class BlastQueryResults:
     def __init__(self, queries_subjects_divergences, sseqid_to_hits):
         self._queries_subjects_divergences = queries_subjects_divergences
         self._sseqid_to_hits = sseqid_to_hits

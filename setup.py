@@ -55,7 +55,9 @@ setup(
                       'seqmagick >= 0.5.0',
                       'dendropy >=0.4.0',
                       'pandas >= 0.19.2',
-                      'biom-format >= 2.1.6'),
+                      'biom-format >= 2.1.6',
+                      'orator >= 0.9.7'
+    ),
     setup_requires=['nose >= 1.0'],
     test_suite='nose.collector',
     scripts=['bin/singlem'],

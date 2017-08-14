@@ -222,5 +222,54 @@ class Tests(unittest.TestCase):
                                  subprocess.check_output(cmd, shell=True).split("\n"))
 
 
+    def test_divergence0(self):
+        '''Zero divergence is special because it uses the sqlite DB to query, not blast'''
+        otu_table = [self.headers,
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+
+
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(otu_table)
+            f.flush()
+
+            with tempdir.TempDir() as d:
+
+                cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
+                                                                d,
+                                                                f.name)
+                subprocess.check_call(cmd, shell=True)
+
+                fasta_path = 'in.fasta'
+                with open('in.fasta','w') as fasta:
+                    fasta.write(">1_\n") # same as the first sequence
+                    fasta.write("GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
+                    fasta.write(">2_\n") # same as first
+                    fasta.write("GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
+                    fasta.write(">3_\n") # same as third in OTU table
+                    fasta.write("CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC\n")
+
+                import IPython; IPython.embed()
+
+                cmd = "%s query --query_fasta %s --db %s/db --max_divergence 0" % (
+                    path_to_script,
+                    fasta_path,
+                    d)
+
+                expected = [
+                    ['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                    ['1_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['1_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','9','maximal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['2_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['2_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','9','maximal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['3_','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+                expected = ["\t".join(x) for x in expected]+['']
+                self.assertEqual(expected,
+                                 subprocess.check_output(cmd, shell=True).split("\n"))
+
+
 if __name__ == "__main__":
     unittest.main()
