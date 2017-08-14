@@ -52,11 +52,13 @@ class SequenceDatabase:
     version = 1
     GAP_REPLACEMENT_CHARACTER = 'Y'
     DEFLINE_DELIMITER_CHARACTER = '~'
+    SQLITE_DB_NAME = 'otus.sqlite3'
 
     @staticmethod
     def acquire(path):
         db = SequenceDatabase()
         db.sequences_fasta_file = os.path.join(path, "sequences.fasta")
+        db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
         return db
 
     @staticmethod
@@ -105,7 +107,7 @@ class SequenceDatabase:
         os.makedirs(db_path)
 
         # setup sqlite DB
-        sqlite_db_path = os.path.join(db_path, "otus.sqlite3")
+        sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
         logging.debug("Connecting to db %s" % sqlite_db_path)
         db = sqlite3.connect(sqlite_db_path)
         c = db.cursor()
