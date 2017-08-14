@@ -252,8 +252,6 @@ class Tests(unittest.TestCase):
                     fasta.write(">3_\n") # same as third in OTU table
                     fasta.write("CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC\n")
 
-                import IPython; IPython.embed()
-
                 cmd = "%s query --query_fasta %s --db %s/db --max_divergence 0" % (
                     path_to_script,
                     fasta_path,
