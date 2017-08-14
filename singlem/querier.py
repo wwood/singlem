@@ -8,8 +8,9 @@ from orator import DatabaseManager, Model
 
 from sequence_database import SequenceDatabase
 from sequence_classes import SeqReader
-from query_formatters import SparseResultFormatter#, DenseResultFormatter
+from query_formatters import SparseResultFormatter
 from otu_table_collection import OtuTableCollection
+from otu_table_entry import OtuTableEntry
 
 class Querier:
     def query(self, **kwargs):
@@ -158,15 +159,15 @@ class Querier:
 
         results = []
         for query in queries:
-            for entry in db.table('otus').where('sequence',seq).get():
-                otu = OtuEntry()
+            for entry in db.table('otus').where('sequence',query.sequence).get():
+                otu = OtuTableEntry()
                 otu.marker = entry.marker
                 otu.sample_name = entry.sample_name
                 otu.sequence = entry.sequence
-                otu.count = entry.count
+                otu.count = entry.num_hits
                 otu.coverage = entry.coverage
                 otu.taxonomy = entry.taxonomy
-                results.append(query, otu, 0)
+                results.append(QueryResult(query, otu, 0))
         return results
 
 class QueryInputSequence:
