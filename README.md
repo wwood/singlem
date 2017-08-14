@@ -114,9 +114,9 @@ GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
 Beyond installing GNU Guix, super-user privileges are not required for installation.
 
 #### Installation via DockerHub
-A docker image generated from the Guix package is available on DockerHub. After installing Docker:
+A docker image generated from the Guix package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
 ```
-docker pull wwood/singlem
+docker pull wwood/singlem:[RELEASE_TAG]
 ```
 If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
 ```
