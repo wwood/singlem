@@ -161,17 +161,31 @@ class Querier:
         }})
         Model.set_connection_resolver(db)
 
+        max_set_size = 999 # Cannot query sqlite with > 999 '?' entries, so
+                           # query in batches.
+        sequence_to_query_id = {}
+        queries_list = list(queries)
+        seqs = set()
+        for i, query in enumerate(queries_list):
+            seqs.add(query.sequence)
+            try:
+                sequence_to_query_id[query.sequence].append(i)
+            except KeyError:
+                sequence_to_query_id[query.sequence] = [i]
+
         results = []
-        for query in queries:
-            for entry in db.table('otus').where('sequence',query.sequence).get():
-                otu = OtuTableEntry()
-                otu.marker = entry.marker
-                otu.sample_name = entry.sample_name
-                otu.sequence = entry.sequence
-                otu.count = entry.num_hits
-                otu.coverage = entry.coverage
-                otu.taxonomy = entry.taxonomy
-                results.append(QueryResult(query, otu, 0))
+        for chunk in SequenceDatabase.grouper(seqs, max_set_size):
+            for entry in db.table('otus').where_in(
+                    'sequence', [seq for seq in chunk if seq is not None]).get():
+                for qid in sequence_to_query_id[entry.sequence]:
+                    otu = OtuTableEntry()
+                    otu.marker = entry.marker
+                    otu.sample_name = entry.sample_name
+                    otu.sequence = entry.sequence
+                    otu.count = entry.num_hits
+                    otu.coverage = entry.coverage
+                    otu.taxonomy = entry.taxonomy
+                    results.append(QueryResult(queries_list[qid], otu, 0))
         return results
 
 class QueryInputSequence:

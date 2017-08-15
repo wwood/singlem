@@ -30,6 +30,7 @@ from string import split
 import extern
 import sys
 import json
+import itertools
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -265,8 +266,8 @@ class Tests(unittest.TestCase):
                     ['2_','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','0','9','maximal','ribosomal_protein_L11_rplK_gpkg','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                     ['3_','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                 expected = ["\t".join(x) for x in expected]+['']
-                self.assertEqual(expected,
-                                 subprocess.check_output(cmd, shell=True).split("\n"))
+                self.assertEqual(sorted(expected),
+                                 sorted(subprocess.check_output(cmd, shell=True).split("\n")))
 
 
 if __name__ == "__main__":
