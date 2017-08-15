@@ -50,14 +50,8 @@ class Querier:
         else:
             raise Exception("No query option specified, cannot continue")
 
-        if max_divergence == 0:
-            sqlite_db_path = db.sqlite_file
-            if not os.path.exists(sqlite_db_path):
-                raise Exception("Sqlite database not found at '%s', indicating that either the SingleM database was built with an out-dated SingleM version, or that the database is corrupt. Please generate a new database with the current version of SingleM.")
-            query_results = self.query_by_sqlite(queries, sqlite_db_path)
-        else:
-            query_results = self.query_by_blast(
-                queries, db, max_target_seqs, max_divergence, num_threads)
+        query_results = self.query_with_queries(
+            queries, db, max_target_seqs, max_divergence, num_threads)
 
         if output_style == 'sparse':
             SparseResultFormatter().write(query_results, sys.stdout)
@@ -66,6 +60,16 @@ class Querier:
         else:
             raise Exception()
 
+    def query_with_queries(self, queries, db, max_target_seqs, max_divergence,
+                           num_threads):
+        if max_divergence == 0:
+            sqlite_db_path = db.sqlite_file
+            if not os.path.exists(sqlite_db_path):
+                raise Exception("Sqlite database not found at '%s', indicating that either the SingleM database was built with an out-dated SingleM version, or that the database is corrupt. Please generate a new database with the current version of SingleM.")
+            return self.query_by_sqlite(queries, sqlite_db_path)
+        else:
+            return self.query_by_blast(
+                queries, db, max_target_seqs, max_divergence, num_threads)
 
     def query_by_blast(self, queries, db, max_target_seqs, max_divergence, num_threads):
         # blast the query against the database, output as csv
