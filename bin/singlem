@@ -199,7 +199,8 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
-    appraise_parser.add_argument('--accounted_for_otu_table', help="output OTU table of accounted-for populations", default=None)
+    appraise_parser.add_argument('--binned_otu_table', help="output OTU table of binned populations", default=None)
+    appraise_parser.add_argument('--assembled_otu_table', help="output OTU table of assembled populations", default=None)
     appraise_parser.add_argument('--unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
 
     chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
@@ -399,19 +400,26 @@ if __name__ == '__main__':
                                  assembly_otu_table_collection=assemblies,
                                  sequence_identity=(args.sequence_identity if args.imperfect else None))
 
-        if args.accounted_for_otu_table:
-            accounted_for_otu_table_io = open(args.accounted_for_otu_table,'w')
+        if args.binned_otu_table:
+            binned_otu_table_io = open(args.binned_otu_table,'w')
         else:
-            accounted_for_otu_table_io = None
+            binned_otu_table_io = None
+        if args.assembled_otu_table:
+            assembled_otu_table_io = open(args.assembled_otu_table,'w')
+        else:
+            assembled_otu_table_io = None
         if args.unaccounted_for_otu_table:
             unaccounted_for_otu_table_io = open(args.unaccounted_for_otu_table,'w')
         else:
             unaccounted_for_otu_table_io = None
 
         appraiser.print_appraisal(app,
-                                  accounted_for_otu_table_io=accounted_for_otu_table_io,
+                                  doing_assembly = args.assembly_otu_tables is not None,
+                                  binned_otu_table_io=binned_otu_table_io,
+                                  assembled_otu_table_io=assembled_otu_table_io,
                                   unaccounted_for_otu_table_io=unaccounted_for_otu_table_io)
-        if args.accounted_for_otu_table: accounted_for_otu_table_io.close()
+        if args.binned_otu_table: binned_otu_table_io.close()
+        if args.assembled_otu_table: assembled_otu_table_io.close()
         if args.unaccounted_for_otu_table: unaccounted_for_otu_table_io.close()
     elif args.subparser_name == 'chance':
         chancer = Chancer()
