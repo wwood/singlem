@@ -64,5 +64,22 @@ class Tests(unittest.TestCase):
                 extern.run(cmd)
             )
 
+    # def test_target_taxonomy(self):
+    #     metagenome_otu_table = [
+    #         self.headers,
+    #         ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+    #         ['4.11.ribosomal_protein_L10','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+    #         ['4.11.ribosomal_protein_L10','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTA','5','10.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+    #     ]
+    #     metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+
+    #     table_collection = OtuTableCollection()
+    #     table_collection.add_otu_table(StringIO(exp))
+    #     Chancer().
+    #     self.assert_equal(
+    #         ["minimal\t7.0\t7.0","minimal\t8.0\t5"],
+    #         [str(rp) for rp in preds]
+    #     )
+
 if __name__ == "__main__":
     unittest.main()
