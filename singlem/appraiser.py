@@ -72,8 +72,8 @@ class Appraiser:
 
                 count = otu.count
                 if otu.sequence in genome_otu_sequences:
-                    appraisal.num_found += count
-                    appraisal.found_otus.append(otu)
+                    appraisal.num_binned += count
+                    appraisal.binned_otus.append(otu)
                 else:
                     appraisal.num_not_found += count
                     appraisal.not_found_otus.append(otu)
@@ -109,8 +109,8 @@ class Appraiser:
                     appraisal.num_not_found += q.count
                     appraisal.not_found_otus.append(q)
                 else:
-                    appraisal.num_found += q.count
-                    appraisal.found_otus.append(q)
+                    appraisal.num_binned += q.count
+                    appraisal.binned_otus.append(q)
 
             app = Appraisal()
             app.appraisal_results = sample_name_to_appraisal.values()
@@ -146,13 +146,13 @@ class Appraiser:
             unaccounted_for_table = OtuTable()
 
         for appraisal_result in appraisal.appraisal_results:
-            print_sample(appraisal_result.num_found,
+            print_sample(appraisal_result.num_binned,
                          appraisal_result.num_not_found,
                          appraisal_result.metagenome_sample_name)
-            founds.append(appraisal_result.num_found)
+            founds.append(appraisal_result.num_binned)
             not_founds.append(appraisal_result.num_not_found)
             if accounted_for_otu_table_io:
-                accounted_for_table.add(appraisal_result.found_otus)
+                accounted_for_table.add(appraisal_result.binned_otus)
             if accounted_for_otu_table_io:
                 unaccounted_for_table.add(appraisal_result.not_found_otus)
 
@@ -172,12 +172,12 @@ class Appraiser:
 
 
 class AppraisalResult:
-    num_found = 0
+    num_binned = 0
     num_not_found = 0
     metagenome_sample_name = None
 
     def __init__(self):
-        self.found_otus = []
+        self.binned_otus = []
         self.not_found_otus = []
 
 class Appraisal:

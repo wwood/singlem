@@ -57,12 +57,12 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(7, a.num_found)
+        self.assertEqual(7, a.num_binned)
         self.assertEqual(4, a.num_not_found)
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(1, len(a.found_otus))
+        self.assertEqual(1, len(a.binned_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                         a.found_otus[0].sequence)
+                         a.binned_otus[0].sequence)
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
                          a.not_found_otus[0].sequence)
@@ -88,11 +88,11 @@ class Tests(unittest.TestCase):
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_found)
+        self.assertEqual(7, a.num_binned)
         self.assertEqual(0, a.num_not_found)
         a = app.appraisal_results[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(4, a.num_not_found)
 
     def test_clusterer_all_cluster_all_good(self):
@@ -117,7 +117,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(11, a.num_found)
+        self.assertEqual(11, a.num_binned)
         self.assertEqual(0, a.num_not_found)
 
 
@@ -143,7 +143,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_found)
+        self.assertEqual(7, a.num_binned)
         self.assertEqual(4, a.num_not_found)
 
 
@@ -169,20 +169,20 @@ class Tests(unittest.TestCase):
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_found)
+        self.assertEqual(7, a.num_binned)
         self.assertEqual(0, a.num_not_found)
-        self.assertEqual(1, len(a.found_otus))
+        self.assertEqual(1, len(a.binned_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                         a.found_otus[0].sequence)
+                         a.binned_otus[0].sequence)
         self.assertEqual(0, len(a.not_found_otus))
         a = app.appraisal_results[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(4, a.num_not_found)
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
                          a.not_found_otus[0].sequence)
-        self.assertEqual(0, len(a.found_otus))
+        self.assertEqual(0, len(a.binned_otus))
 
 
     def test_clusterer_all_cluster_two_samples_some_cluster(self):
@@ -211,14 +211,14 @@ class Tests(unittest.TestCase):
 
         a = app.appraisal_results[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_found)
+        self.assertEqual(7, a.num_binned)
         self.assertEqual(12, a.num_not_found)
-        self.assertEqual(1, len(a.found_otus))
+        self.assertEqual(1, len(a.binned_otus))
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                         a.found_otus[0].sequence)
+                         a.binned_otus[0].sequence)
         self.assertEqual('minimal',
-                         a.found_otus[0].sample_name)
+                         a.binned_otus[0].sample_name)
         self.assertEqual('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
                          a.not_found_otus[0].sequence)
         self.assertEqual('minimal',
@@ -226,14 +226,14 @@ class Tests(unittest.TestCase):
 
         a = app.appraisal_results[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
-        self.assertEqual(1, a.num_found)
+        self.assertEqual(1, a.num_binned)
         self.assertEqual(4, a.num_not_found)
-        self.assertEqual(1, len(a.found_otus))
+        self.assertEqual(1, len(a.binned_otus))
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATG',
-                         a.found_otus[0].sequence)
+                         a.binned_otus[0].sequence)
         self.assertEqual('maximal',
-                         a.found_otus[0].sample_name)
+                         a.binned_otus[0].sample_name)
         self.assertEqual('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
                          a.not_found_otus[0].sequence)
         self.assertEqual('maximal',
@@ -260,11 +260,11 @@ class Tests(unittest.TestCase):
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_found)
+        self.assertEqual(7, a.num_binned)
         self.assertEqual(0, a.num_not_found)
         a = app.appraisal_results[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(4, a.num_not_found)
 
         to_print = StringIO()
@@ -328,7 +328,7 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(8, a.num_found)
+        self.assertEqual(8, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
 
@@ -373,10 +373,10 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(8, a.num_not_found)
         a = app.appraisal_results[1]
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
@@ -384,10 +384,10 @@ class Tests(unittest.TestCase):
                                  sequence_identity=0.9)
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(8, a.num_found)
+        self.assertEqual(8, a.num_binned)
         self.assertEqual(0, a.num_not_found)
         a = app.appraisal_results[1]
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
     def test_for_concatenated_genomes(self):
@@ -436,10 +436,10 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(2, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(8, a.num_not_found)
         a = app.appraisal_results[1]
-        self.assertEqual(0, a.num_found)
+        self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
 
