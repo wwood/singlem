@@ -22,6 +22,7 @@ class Appraiser:
         '''
         genome_otu_table_collection = kwargs.pop('genome_otu_table_collection')
         metagenome_otu_table_collection = kwargs.pop('metagenome_otu_table_collection')
+        assembly_otu_table_collection = kwargs.pop('assembly_otu_table_collection', None)
         sequence_identity = kwargs.pop('sequence_identity', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -33,23 +34,12 @@ class Appraiser:
         logging.info("After excluding duplicate markers that may indicate "
                      "contamination, found %i markers" % len(filtered_genome_otus))
         if len(filtered_genome_otus) == 0:
-            logging.warning("No markers suitable for appraisal found. This may because all found markers"
-                        "have been excluded. To run 'appraise', the source genome name should be"
-                        "reflected in the 'sample' column of the OTU table, i.e. singlem 'pipe' should"
+            logging.warning("No markers suitable for appraisal found. This may because all found markers "
+                        "have been excluded. To run 'appraise', the source genome name should be "
+                        "reflected in the 'sample' column of the OTU table, i.e. singlem 'pipe' should "
                         "be run on several FASTA files, not a concatenation of genomes.")
-            app = Appraisal()
-            app.appraisal_results = {}
-            for otu in metagenome_otu_table_collection:
-                if otu.sample_name not in app.appraisal_results:
-                    appraisal = AppraisalResult()
-                    appraisal.metagenome_sample_name = otu.sample_name
-                    app.appraisal_results[otu.sample_name] = appraisal
 
-                appraisal.num_not_found += otu.count
-                appraisal.not_found_otus.append(otu)
-
-            app.appraisal_results = app.appraisal_results.values()
-            return app
+        appraising_assembly = assembly_otu_table_collection is not None
 
         if sequence_identity is None:
             genome_otu_sequences = set()
@@ -57,6 +47,10 @@ class Appraiser:
             for otu in filtered_genome_otus:
                 genome_otu_sequences.add(otu.sequence)
                 genome_names.add(otu.sample_name)
+            if appraising_assembly:
+                assembly_sequences = set()
+                for otu in assembly_otu_table_collection:
+                    assembly_sequences.add(otu.sequence)
             logging.info("Read in %i unique sequences from the %i reference genomes" %\
                          (len(genome_otu_sequences), len(genome_names)))
 
@@ -74,6 +68,13 @@ class Appraiser:
                 if otu.sequence in genome_otu_sequences:
                     appraisal.num_binned += count
                     appraisal.binned_otus.append(otu)
+                    # Probably this 'if' condition is not necessary, but just to check.
+                    if appraising_assembly and otu.sequence in assembly_sequences:
+                        appraisal.num_assembled += count
+                        appraisal.assembled_otus.append(otu)
+                elif appraising_assembly and otu.sequence in assembly_sequences:
+                    appraisal.num_assembled += count
+                    appraisal.assembled_otus.append(otu)
                 else:
                     appraisal.num_not_found += count
                     appraisal.not_found_otus.append(otu)
@@ -83,6 +84,8 @@ class Appraiser:
             return app
 
         else:
+            if assembly_otu_table_collection:
+                raise Exception("Non-exact assembly OTU appraisal has not yet been implemented.")
             sample_name_to_appraisal = {}
             seen_otus = set()
             genome_otu_table = OtuTable()
@@ -173,11 +176,13 @@ class Appraiser:
 
 class AppraisalResult:
     num_binned = 0
+    num_assembled = 0
     num_not_found = 0
     metagenome_sample_name = None
 
     def __init__(self):
         self.binned_otus = []
+        self.assembled_otus = []
         self.not_found_otus = []
 
 class Appraisal:

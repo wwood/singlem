@@ -442,6 +442,50 @@ class Tests(unittest.TestCase):
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
+    def test_assembly_input(self):
+        metagenome_otu_table = [
+            self.headers,
+            ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['4.11.ribosomal_protein_L10','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','CAAAAAAAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','5','10.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+        assembly_otu_table = [
+            self.headers,
+            ['4.12.ribosomal_protein_L11_rplK','assembly','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.007','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['4.11.ribosomal_protein_L10','assembly','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','1.01','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        assemblies = "\n".join(["\t".join(x) for x in assembly_otu_table])
+
+        genomes_otu_table = [
+            self.headers,
+            ['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        assembly_collection = OtuTableCollection()
+        assembly_collection.add_otu_table(StringIO(assemblies))
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 assembly_otu_table_collection=assembly_collection)
+        self.assertEqual(1, len(app.appraisal_results))
+        a = app.appraisal_results[0]
+        self.assertEqual(7, a.num_binned)
+        self.assertEqual(11, a.num_assembled)
+        self.assertEqual(5, a.num_not_found)
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual(1, len(a.binned_otus))
+        self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                         a.binned_otus[0].sequence)
+        self.assertEqual(2, len(a.assembled_otus))
+        self.assertEqual(sorted(['GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                                 'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG']),
+                         sorted([o.sequence for o in a.assembled_otus]))
+        self.assertEqual(1, len(a.not_found_otus))
+        self.assertEqual('CAAAAAAAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                         a.not_found_otus[0].sequence)
 
 if __name__ == "__main__":
     unittest.main()
