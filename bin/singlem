@@ -196,6 +196,7 @@ if __name__ == '__main__':
                                         epilog=__author__)
     appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
     appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
+    appraise_parser.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_parser.add_argument('--accounted_for_otu_table', help="output OTU table of accounted-for populations", default=None)
@@ -385,9 +386,17 @@ if __name__ == '__main__':
         metagenomes = OtuTableCollection()
         for table in args.metagenome_otu_tables:
             metagenomes.add_otu_table(open(table))
+        if args.assembly_otu_tables:
+            assemblies = OtuTableCollection()
+            for table in args.assembly_otu_tables:
+                with open(table) as f:
+                    assemblies.add_otu_table(f)
+        else:
+            assemblies = None
 
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                  metagenome_otu_table_collection=metagenomes,
+                                 assembly_otu_table_collection=assemblies,
                                  sequence_identity=(args.sequence_identity if args.imperfect else None))
 
         if args.accounted_for_otu_table:
