@@ -123,53 +123,85 @@ class Appraiser:
 
     def print_appraisal(self, appraisal,
                         output_io=sys.stdout,
-                        accounted_for_otu_table_io=None,
+                        doing_assembly=False,
+                        binned_otu_table_io=None,
+                        assembled_otu_table_io=None,
                         unaccounted_for_otu_table_io=None):
         '''print the Appraisal object overview to STDOUT'''
 
-        output_io.write("\t".join(['sample','num_found','num_not_found','percent_found'])+"\n")
-        founds = []
+        headers = ['sample','num_binned']
+        if doing_assembly: headers.append('num_assembled')
+        headers.append('num_not_found')
+        headers.append('percent_binned')
+        output_io.write("\t".join(headers)+"\n")
+
+        binned = []
+        assembled = []
         not_founds = []
 
-        def print_sample(num_found, num_not_found, sample, mypercent=None):
-            if mypercent:
+        def print_sample(num_binned, num_assembled, num_not_found, sample, mypercent=None):
+            if mypercent is not None:
                 percent = mypercent
-            elif num_found + num_not_found == 0:
-                percent = 0.0
             else:
-                percent = float(num_found)/(num_found+num_not_found) * 100
-            output_io.write("\t".join([sample, str(num_found), str(num_not_found), "%2.1f" % percent])+"\n")
+                total = num_binned + num_not_found
+                if num_assembled is not None: total += num_assembled
+                if total == 0:
+                    percent = 0.0
+                else:
+                    percent = float(num_binned)/total * 100
+            if num_assembled is None:
+                output_io.write("\t".join([sample, str(num_binned), str(num_not_found), "%2.1f" % percent])+"\n")
+            else:
+                output_io.write("\t".join([sample, str(num_binned), str(num_assembled), str(num_not_found), "%2.1f" % percent])+"\n")
 
         def mean(l):
             return float(sum(l))/len(l) if len(l) > 0 else float('nan')
 
-        if accounted_for_otu_table_io:
-            accounted_for_table = OtuTable()
+        if binned_otu_table_io:
+            binned_table = OtuTable()
+        if assembled_otu_table_io:
+            assembled_table = OtuTable()
         if unaccounted_for_otu_table_io:
             unaccounted_for_table = OtuTable()
 
         for appraisal_result in appraisal.appraisal_results:
             print_sample(appraisal_result.num_binned,
+                         appraisal_result.num_assembled if doing_assembly else None,
                          appraisal_result.num_not_found,
                          appraisal_result.metagenome_sample_name)
-            founds.append(appraisal_result.num_binned)
+            binned.append(appraisal_result.num_binned)
+            if doing_assembly:
+                assembled.append(appraisal_result.num_assembled)
             not_founds.append(appraisal_result.num_not_found)
-            if accounted_for_otu_table_io:
-                accounted_for_table.add(appraisal_result.binned_otus)
-            if accounted_for_otu_table_io:
+            if binned_otu_table_io:
+                binned_table.add(appraisal_result.binned_otus)
+            if assembled_otu_table_io:
+                assembled_table.add(appraisal_result.assembled_otus)
+            if unaccounted_for_otu_table_io:
                 unaccounted_for_table.add(appraisal_result.not_found_otus)
 
-        print_sample(sum(founds), sum(not_founds), 'total')
+        print_sample(sum(binned),
+                     sum(assembled) if doing_assembly else None,
+                     sum(not_founds),
+                     'total')
 
-        means = []
-        for i, num_found in enumerate(founds):
+        binned_means = []
+        assembled_means = []
+        for i, num_binned in enumerate(binned):
+            num_assembled = assembled[i] if doing_assembly else 0
             num_not_found = not_founds[i]
-            means.append(float(num_found)/(num_found+num_not_found))
-        print_sample("%2.1f" % mean(founds), "%2.1f" % mean(not_founds), 'average',
-                     mypercent=mean(means)*100)
+            binned_means.append(float(num_binned)/(num_binned+num_assembled+num_not_found))
+            if doing_assembly:
+                assembled_means.append(float(num_assembled)/(num_binned+num_assembled+num_not_found))
+        print_sample("%2.1f" % mean(binned),
+                     "%2.1f" % mean(assembled) if doing_assembly else None,
+                     "%2.1f" % mean(not_founds), 'average',
+                     mypercent=mean(binned_means)*100)
 
-        if accounted_for_otu_table_io:
-            accounted_for_table.write_to(accounted_for_otu_table_io)
+        if binned_otu_table_io:
+            binned_table.write_to(binned_otu_table_io)
+        if assembled_otu_table_io:
+            assembled_table.write_to(assembled_otu_table_io)
         if unaccounted_for_otu_table_io:
             unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
 
