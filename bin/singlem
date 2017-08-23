@@ -214,7 +214,6 @@ if __name__ == '__main__':
         print '\n  General usage:'
         print '    pipe         -> %s' % pipe_description
         print '    summarise    -> %s' % summarise_description
-        print '    appraise     -> %s' % appraise_description
 
         print '\n  Databases:'
         print '    makedb       -> %s' % makedb_description
@@ -222,6 +221,7 @@ if __name__ == '__main__':
 
         print '\n  Assembly and binning:'
         print '    chance       -> %s' % chance_description
+        print '    appraise     -> %s' % appraise_description
 
         print '\n  Package creation:'
         print '    seqs         -> %s' % seqs_description
