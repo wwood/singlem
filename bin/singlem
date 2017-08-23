@@ -205,7 +205,7 @@ if __name__ == '__main__':
                                         description=chance_description,
                                         help=chance_description,
                                         epilog=__author__)
-    chance_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    chance_parser.add_argument('--otu_tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
     chance_parser.add_argument('--taxonomy', nargs=1, help="target taxonomy", required=True)
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv == '--help'):
@@ -406,7 +406,7 @@ if __name__ == '__main__':
     elif args.subparser_name == 'chance':
         chancer = Chancer()
         metagenomes = OtuTableCollection()
-        for table in args.metagenome_otu_tables:
+        for table in args.otu_tables:
             with open(table) as f:
                 metagenomes.add_otu_table(f)
         chancer.run(
