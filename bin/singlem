@@ -410,7 +410,7 @@ if __name__ == '__main__':
         for table in args.otu_tables:
             with open(table) as f:
                 metagenomes.add_otu_table(f)
-        chancer.run(
+        chancer.run_and_print(
             metagenomes = metagenomes,
             target_taxonomy = Taxonomy.split_taxonomy(args.taxonomy))
     else:

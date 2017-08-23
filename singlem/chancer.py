@@ -2,14 +2,19 @@ import logging
 from singlem import HmmDatabase
 
 class Chancer:
-    def run(self, **kwargs):
+    def run_and_print(self, **kwargs):
+        print "\t".join(['sample', 'total_seqs', 'homogeneity_index'])
+        for sample_prediction in self.predict_samples(**kwargs):
+            print sample_prediction
+
+    def predict_samples(self, **kwargs):
+        '''Yield a RecoveryPrediction for each sample'''
         metagenomes = kwargs.pop('metagenomes')
         target_taxonomy = kwargs.pop('target_taxonomy') # A list
         hmmdb = kwargs.pop('hmm_database', HmmDatabase())
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        print "\t".join(['sample', 'total_seqs', 'homogeneity_index'])
         marker_to_counts = {}
         metagenomes.target_taxonomy = target_taxonomy
         last_sample = None
@@ -25,7 +30,7 @@ class Chancer:
                     raise Exception("All OTUs from a particular sample must occur consecutively, found at least one OTU from '%s' that was separate." % current_sample)
                 else:
                     previous_samples.add(current_sample)
-                    print self.chance_a_sample(last_sample, hmmdb, marker_to_counts)
+                    yield self.chance_a_sample(last_sample, hmmdb, marker_to_counts)
                     last_sample = current_sample
                     marker_to_counts = {}
 
@@ -33,7 +38,8 @@ class Chancer:
                 marker_to_counts[otu.marker].append(otu.count)
             else:
                 marker_to_counts[otu.marker] = [otu.count]
-        if last_sample is not None: print self.chance_a_sample(last_sample, hmmdb, marker_to_counts)
+        if last_sample is not None:
+            yield self.chance_a_sample(last_sample, hmmdb, marker_to_counts)
 
     def chance_a_sample(self, sample_name, hmmdb, marker_to_counts):
         # Check if every marker gene was detected, warn otherwise
