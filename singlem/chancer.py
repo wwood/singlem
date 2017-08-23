@@ -4,7 +4,7 @@ from singlem import HmmDatabase
 class Chancer:
     def run(self, **kwargs):
         metagenomes = kwargs.pop('metagenomes')
-        target_taxonomy = kwargs.pop('target_taxonomy')
+        target_taxonomy = kwargs.pop('target_taxonomy') # A list
         hmmdb = kwargs.pop('hmm_database', HmmDatabase())
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)

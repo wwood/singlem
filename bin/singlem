@@ -29,6 +29,7 @@ from singlem.clusterer import Clusterer
 from singlem.appraiser import Appraiser
 from singlem.querier import Querier
 from singlem.chancer import Chancer
+from singlem.taxonomy import Taxonomy
 
 DEFAULT_WINDOW_SIZE=60
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
@@ -206,7 +207,7 @@ if __name__ == '__main__':
                                         help=chance_description,
                                         epilog=__author__)
     chance_parser.add_argument('--otu_tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
-    chance_parser.add_argument('--taxonomy', nargs=1, help="target taxonomy", required=True)
+    chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv == '--help'):
         print ''
@@ -411,6 +412,6 @@ if __name__ == '__main__':
                 metagenomes.add_otu_table(f)
         chancer.run(
             metagenomes = metagenomes,
-            target_taxonomy = args.taxonomy)
+            target_taxonomy = Taxonomy.split_taxonomy(args.taxonomy))
     else:
         raise Exception("Programming error")
