@@ -1,8 +1,11 @@
 import logging
+import re
+from collections import OrderedDict
 
 from archive_otu_table import ArchiveOtuTable
 from otu_table import OtuTable
 from taxonomy import Taxonomy
+from otu_table_entry import OtuTableEntry
 
 class OtuTableCollection:
     def __init__(self):
@@ -97,6 +100,40 @@ class OtuTableCollection:
                     len(otus), gene, otus[0].marker))
                 if len(otus) == 1:
                     yield otus[0]
+
+    def collapse_coupled(self):
+        '''Return an OTU table that is collapsed in 2 ways: duplicate sequences are
+        collapsed together, and samples names are modified, removing r'.1$' and
+        r'.2$'.
+
+        '''
+        sample_to_sequence_to_otus = OrderedDict()
+        reg = re.compile(r'.[12]$')
+        for otu in self:
+            new_sample = reg.sub('',otu.sample_name)
+            otu.sample_name = new_sample
+            if new_sample not in sample_to_sequence_to_otus:
+                sample_to_sequence_to_otus[new_sample] = OrderedDict()
+            if otu.sequence not in sample_to_sequence_to_otus[new_sample]:
+                sample_to_sequence_to_otus[new_sample][otu.sequence] = []
+            sample_to_sequence_to_otus[new_sample][otu.sequence].append(otu)
+
+        otu_table = OtuTable()
+        for sample, seq_otus in sample_to_sequence_to_otus.items():
+            for seq, otus in seq_otus.items():
+                if len(otus) == 1:
+                    otu_table.add(otus)
+                else:
+                    o = OtuTableEntry()
+                    o.marker = otus[0].marker
+                    o.sample_name = sample
+                    o.sequence = seq
+                    o.count = sum([otu.count for otu in otus])
+                    o.coverage = sum([otu.coverage for otu in otus])
+                    o.taxonomy = otus[0].taxonomy #TODO: Make this more of a 'median' taxonomy.
+                    otu_table.add([o])
+        return otu_table
+
 
 class StreamingOtuTableCollection:
     def __init__(self):
