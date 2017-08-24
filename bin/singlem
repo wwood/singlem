@@ -169,6 +169,7 @@ if __name__ == '__main__':
     summarise_transformation_args.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
     summarise_transformation_args.add_argument('--rarefied_output_otu_table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
     summarise_transformation_args.add_argument('--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
+    summarise_transformation_args.add_argument('--collapse_coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table.")
     summarise_output_args = summarise_parser.add_argument_group('output')
     summarise_output_args.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_output_args.add_argument('--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
@@ -333,6 +334,14 @@ if __name__ == '__main__':
             otus = o2
             logging.info("Finished clustering")
 
+        if args.collapse_coupled:
+            if not args.output_otu_table:
+                raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
+            logging.info("Collapsing forward and reverse read OTU tables")
+            o2 = OtuTableCollection()
+            o2.otu_table_objects.append(otus.collapse_coupled())
+            otus = o2
+
         if args.krona:
             Summariser.summarise(
                 table_collection = otus,
@@ -421,6 +430,7 @@ if __name__ == '__main__':
         if args.binned_otu_table: binned_otu_table_io.close()
         if args.assembled_otu_table: assembled_otu_table_io.close()
         if args.unaccounted_for_otu_table: unaccounted_for_otu_table_io.close()
+
     elif args.subparser_name == 'chance':
         chancer = Chancer()
         metagenomes = OtuTableCollection()
