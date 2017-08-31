@@ -95,8 +95,8 @@ class Querier:
                     hit_counts[res.qseqid] += 1
                 except KeyError:
                     hit_counts[res.qseqid] = 1
-                if hit_counts[res.qseqid] >= max_target_seqs:
-                    logging.warn("The maximum number of target sequences returned by BLAST has been reached. Consider rerunning SingleM with an increased --max_hits cutoff.")
+                if hit_counts[res.qseqid] == max_target_seqs+1:
+                    logging.warn("The maximum number of target sequences returned by BLAST has been reached for query %s. Consider rerunning SingleM with an increased --max_hits cutoff." % query.sequence)
 
                 query_length_original = len(query.sequence)
                 query_length = len(query.sequence.replace('-',''))
