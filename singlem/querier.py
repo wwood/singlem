@@ -90,14 +90,6 @@ class Querier:
                 res = BlastQueryResultLine(line)
                 query = queries[int(res.qseqid)]
 
-                # Check we haven't hit max_target_seqs
-                try:
-                    hit_counts[res.qseqid] += 1
-                except KeyError:
-                    hit_counts[res.qseqid] = 1
-                if hit_counts[res.qseqid] == max_target_seqs+1:
-                    logging.warn("The maximum number of target sequences returned by BLAST has been reached for query %s. Consider rerunning SingleM with an increased --max_hits cutoff." % query.sequence)
-
                 query_length_original = len(query.sequence)
                 query_length = len(query.sequence.replace('-',''))
                 max_start = max([int(res.qstart),int(res.sstart)])-1
@@ -111,6 +103,21 @@ class Querier:
                 divergence1 = pre_divergence + qtail_divergence
                 logging.debug("Query %s hit of divergence1 %i" % (
                     res.qseqid, divergence1))
+
+                if divergence1 <= max_divergence + 2:
+                    # Check we haven't hit max_target_seqs. Here we make the
+                    # assumption that the hits are roughly in order of descending
+                    # order of divergence (roughly = +2 above in the if)
+                    try:
+                        hit_counts[res.qseqid] += 1
+                    except KeyError:
+                        hit_counts[res.qseqid] = 1
+                    if hit_counts[res.qseqid] == max_target_seqs+1:
+                        logging.warn("The maximum number of target sequences "
+                        "returned by BLAST has been reached for query %s. "
+                        " Consider rerunning SingleM with an increased "
+                        "--max_hits cutoff." % query.sequence)
+
                 if divergence1 <= max_divergence:
                     res.query = query
                     res.pre_divergence = pre_divergence
