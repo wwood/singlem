@@ -106,7 +106,7 @@ One may also accommodate some sequence differences, with `--imperfect`, or outpu
 ### Installation
 
 #### Installation via GNU Guix
-The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
+The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well, except smafa. Once you have installed Guix, clone the ACE collection and install:
 ```
 git clone https://github.com/Ecogenomics/ace-guix
 GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
@@ -132,7 +132,7 @@ pip install singlem
 You may need super-user privileges.
 
 SingleM also has the following non-Python dependencies:
-* [BLAST+](http://blast.ncbi.nlm.nih.gov/Blast.cgi)
+* [smafa](https://github.com/wwood/smafa)
 * [VSEARCH](https://github.com/torognes/vsearch)
 
 Some dependencies of [GraftM](https://github.com/geronimp/graftM):
