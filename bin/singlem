@@ -151,7 +151,6 @@ if __name__ == '__main__':
     query_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
     #query_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
     query_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
-    query_parser.add_argument('--max_hits', help="--max_target_seqs parameter for blast", default=500, type=int)
     # Do not use threads as it actually slows down BLAST.
     #query_parser.add_argument('--threads', help="number of threads to search with", default=1, type=int)
 
@@ -297,7 +296,6 @@ if __name__ == '__main__':
         Querier().query(
             db = args.db,
             query_sequence = args.query_sequence,
-            max_target_seqs = args.max_hits,
             max_divergence = args.max_divergence,
             output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
             query_otu_table = args.query_otu_table,
