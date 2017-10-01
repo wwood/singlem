@@ -17,7 +17,7 @@ class OtuTable:
         '''
         for i, d in enumerate(csv.reader(otu_table_io, delimiter="\t")):
             if len(d) < 5:
-                raise Exception("Parse issue parsing line of OTU table: '%s'" % row)
+                raise Exception("Parse issue parsing line of OTU table: '%s'" % d)
             if i==0:
                 fields = d
             else:
