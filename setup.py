@@ -56,7 +56,8 @@ setup(
                       'dendropy >=0.4.0',
                       'pandas >= 0.19.2',
                       'biom-format >= 2.1.6',
-                      'orator >= 0.9.7'
+                      'orator >= 0.9.7',
+                      'squarify >= 0.3.0'
     ),
     setup_requires=['nose >= 1.0'],
     test_suite='nose.collector',
