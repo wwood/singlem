@@ -4,6 +4,7 @@ import sys
 from otu_table import OtuTable
 from otu_table_collection import OtuTableCollection
 from sequence_searcher import SequenceSearcher
+from appraisal_result import Appraisal, AppraisalResult
 
 class Appraiser:
     def appraise(self, **kwargs):
@@ -204,18 +205,3 @@ class Appraiser:
             assembled_table.write_to(assembled_otu_table_io)
         if unaccounted_for_otu_table_io:
             unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
-
-
-class AppraisalResult:
-    num_binned = 0
-    num_assembled = 0
-    num_not_found = 0
-    metagenome_sample_name = None
-
-    def __init__(self):
-        self.binned_otus = []
-        self.assembled_otus = []
-        self.not_found_otus = []
-
-class Appraisal:
-    appraisal_results = None

@@ -27,6 +27,7 @@ import os.path
 from string import split
 import sys
 from StringIO import StringIO
+import tempfile
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -552,56 +553,20 @@ class Tests(unittest.TestCase):
         """Not a real test, just developing the code"""
         appraiser = Appraiser()
         metagenome_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example', 'ERR1700920.reads.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.reads.otu_table.csv')) as f:
             metagenome_collection.add_otu_table(f)
         genome_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example', 'ERR1700920.binned.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.binned.otu_table.csv')) as f:
             genome_collection.add_otu_table(f)
         assembly_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example', 'ERR1700920.assembly.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.assembly.otu_table.csv')) as f:
             assembly_collection.add_otu_table(f)
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection)
 
-        import math
-        import squarify
-
-        binned_values = [o.count for o in
-                         app.appraisal_results[0].binned_otus if
-                         o.marker=='4.15.ribosomal_protein_S2_rpsB']
-        binned_values.sort(reverse=True)
-        assembled_values = [o.count for o in
-                            app.appraisal_results[0].assembled_otus if
-                            o.marker=='4.15.ribosomal_protein_S2_rpsB']
-        assembled_values.sort(reverse=True)
-        not_found_values = [o.count for o in
-                            app.appraisal_results[0].not_found_otus if
-                            o.marker=='4.15.ribosomal_protein_S2_rpsB']
-        not_found_values.sort(reverse=True)
-        max_count = max([len(binned_values), len(assembled_values), len(not_found_values)])
-        norm = matplotlib.colors.Normalize(vmin=0, vmax=max_count)
-        colors = [cmap(norm(value)) for value in range(max_count)]
-        max_area = float(max([sum(binned_values),sum(assembled_values),sum(not_found_values)]))
-        fig, axes = plt.subplots(figsize=(12, 10), nrows=3, sharey=True, sharex=True)
-        for a in axes:
-            a.set_aspect('equal')
-            a.set_ylim(0,10)
-            a.set_xlim(0,10)
-        width_and_height = math.sqrt(sum(binned_values)/max_area*100)
-        squarify.plot(binned_values, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[0])
-        width_and_height = math.sqrt(sum(assembled_values)/max_area*100)
-        squarify.plot(assembled_values, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[1])
-        width_and_height = math.sqrt(sum(not_found_values)/max_area*100)
-        squarify.plot(not_found_values, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[2])
-        for a in axes:
-            a.set_aspect('equal')
-            a.set_ylim(0,10)
-            a.set_xlim(0,10)
-        fig.show()
-
-
-
+        with tempfile.NamedTemporaryFile(suffix='.svg',prefix='single_test_appraisal.') as f:
+            app.plot(output_svg=f.name)
 
 if __name__ == "__main__":
     unittest.main()
