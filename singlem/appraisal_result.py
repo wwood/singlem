@@ -6,6 +6,8 @@ import matplotlib
 import matplotlib.cm
 import matplotlib.pyplot as plt
 
+from clusterer import Clusterer
+from otu_table_collection import OtuTableCollection
 
 class Appraisal:
     appraisal_results = None
@@ -18,50 +20,97 @@ class Appraisal:
         ----------
         kwargs:
             output_svg: Filename of SVG to save it to.
-
+            cluster_identity: Clusters of OTU calculated threshold (float)
         Returns
         -------
         None.
         '''
         output_svg = kwargs.pop('output_svg')
+        cluster_identity = kwargs.pop('cluster_identity')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        binned_values = [o.count for o in
-                         self.appraisal_results[0].binned_otus if
-                         o.marker=='4.15.ribosomal_protein_S2_rpsB']
-        binned_values.sort(reverse=True)
-        assembled_values = [o.count for o in
-                            self.appraisal_results[0].assembled_not_binned_otus() if
-                            o.marker=='4.15.ribosomal_protein_S2_rpsB']
-        assembled_values.sort(reverse=True)
-        not_found_values = [o.count for o in
-                            self.appraisal_results[0].not_found_otus if
-                            o.marker=='4.15.ribosomal_protein_S2_rpsB']
-        not_found_values.sort(reverse=True)
+        # Collect OTUs for plotting
+        binned_otus = [o for o in
+                       self.appraisal_results[0].binned_otus if
+                       o.marker=='4.15.ribosomal_protein_S2_rpsB']
+        assembled_otus = [o for o in
+                          self.appraisal_results[0].assembled_not_binned_otus() if
+                          o.marker=='4.15.ribosomal_protein_S2_rpsB']
+        not_found_otus = [o for o in
+                          self.appraisal_results[0].not_found_otus if
+                          o.marker=='4.15.ribosomal_protein_S2_rpsB']
+
+        # Cluster OTUs, making a dict of sequence to cluster object
+        sequence_to_cluster = {}
+        cluster_rep_and_count = []
+        collection = OtuTableCollection()
+        collection.otu_table_objects = [
+            not_found_otus, assembled_otus, binned_otus
+        ]
+        for cotu in Clusterer().cluster(collection, cluster_identity):
+            cluster_rep_and_count.append([cotu.sequence, cotu.count])
+            for otu in cotu.otus:
+                sequence_to_cluster[otu.sequence] = cotu
+
+        # Sort the OTUs by descending order of counts, so that more abundant
+        # OTUs get colour.
+        sorted_cluster_rep_and_count = sorted(
+            cluster_rep_and_count, key=lambda x: x[1], reverse=True)
+        cluster_sequence_to_order = {}
+        i = 0
+        for pair in sorted_cluster_rep_and_count:
+            cluster_sequence_to_order[pair[0]] = i
+            i += 1
+
+        # Sort OTUs by decreasing count (squarify requires this), then by
+        # cluster.
+        def sort_otus(otus):
+            return sorted(
+                otus,
+                key=lambda x: (
+                    x.count,
+                    # Use minus so more abundant clusters are first
+                    -cluster_sequence_to_order[sequence_to_cluster[x.sequence].sequence]),
+                reverse=True)
+        binned_otus = sort_otus(binned_otus)
+        assembled_otus = sort_otus(assembled_otus)
+        not_found_otus = sort_otus(not_found_otus)
+
+        # Calculate counts
+        binned_values = [o.count for o in binned_otus]
+        assembled_values = [o.count for o in assembled_otus]
+        not_found_values = [o.count for o in not_found_otus]
+
+        # Calculate colours
+        def colours(otus):
+            colours = []
+            for otu in otus:
+                cluster = sequence_to_cluster[otu.sequence]
+                colour_index = cluster_sequence_to_order[cluster.sequence]
+                colours.append(matplotlib.cm.Pastel1(colour_index))
+            return colours
+        binned_colors = colours(binned_otus)
+        assembled_colors = colours(assembled_otus)
+        not_found_colors = colours(not_found_otus)
+
         max_count = max([len(binned_values), len(assembled_values), len(not_found_values)])
-        colors = [matplotlib.cm.Pastel1(i) for i in range(max_count)]
         max_area = float(max([sum(binned_values),sum(assembled_values),sum(not_found_values)]))
         fig, axes = plt.subplots(figsize=(12, 10), nrows=3, sharey=True, sharex=True)
+        fig.suptitle(self.appraisal_results[0].metagenome_sample_name)
         width_and_height = math.sqrt(sum(binned_values)/max_area*100)
-        offset = (10 - width_and_height)/2
-        axes[0].set_ylim(-offset,10-offset)
-        axes[0].set_xlim(-offset,10-offset)
-        squarify.plot(binned_values, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[0])
+        squarify.plot(binned_values, color=binned_colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[0])
         width_and_height = math.sqrt(sum(assembled_values)/max_area*100)
-        offset = (10 - width_and_height)/2
-        axes[1].set_ylim(-offset,10-offset)
-        axes[1].set_xlim(-offset,10-offset)
-        squarify.plot(assembled_values, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[1])
+        squarify.plot(assembled_values, color=assembled_colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[1])
         width_and_height = math.sqrt(sum(not_found_values)/max_area*100)
-        offset = (10 - width_and_height)/2
-        axes[2].set_ylim(-offset,10-offset)
-        axes[2].set_xlim(-offset,10-offset)
-        squarify.plot(not_found_values, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[2])
+        squarify.plot(not_found_values, color=not_found_colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[2])
         for a in axes:
             a.set_aspect('equal')
             a.set_ylim(0,10)
             a.set_xlim(0,10)
+            a.set_xticks([])
+            a.set_yticks([])
+            a.set_axis_off()
         #fig.show()
 
         fig.savefig(output_svg, format='svg')
