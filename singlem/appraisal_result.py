@@ -98,12 +98,11 @@ class Appraisal:
         max_area = float(max([sum(binned_values),sum(assembled_values),sum(not_found_values)]))
         fig, axes = plt.subplots(figsize=(12, 10), nrows=3, sharey=True, sharex=True)
         fig.suptitle(self.appraisal_results[0].metagenome_sample_name)
-        width_and_height = math.sqrt(sum(binned_values)/max_area*100)
-        squarify.plot(binned_values, color=binned_colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[0])
-        width_and_height = math.sqrt(sum(assembled_values)/max_area*100)
-        squarify.plot(assembled_values, color=assembled_colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[1])
-        width_and_height = math.sqrt(sum(not_found_values)/max_area*100)
-        squarify.plot(not_found_values, color=not_found_colors, norm_x=width_and_height, norm_y=width_and_height, ax=axes[2])
+
+        self._plot_otu(axes[0], binned_values, binned_colors, max_area)
+        self._plot_otu(axes[1], assembled_values, assembled_colors, max_area)
+        self._plot_otu(axes[2], not_found_values, not_found_colors, max_area)
+
         for a in axes:
             a.set_aspect('equal')
             a.set_ylim(0,10)
@@ -115,6 +114,10 @@ class Appraisal:
 
         fig.savefig(output_svg, format='svg')
         #import IPython; IPython.embed()
+
+    def _plot_otu(self, axis, sizes, colors, max_area):
+        width_and_height = math.sqrt(sum(sizes)/max_area*100)
+        squarify.plot(sizes, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axis)
 
 
 class AppraisalResult:
