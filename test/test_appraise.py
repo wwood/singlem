@@ -566,7 +566,10 @@ class Tests(unittest.TestCase):
                                  assembly_otu_table_collection=assembly_collection)
 
         with tempfile.NamedTemporaryFile(suffix='.svg',prefix='single_test_appraisal.') as f:
-            app.plot(output_svg=f.name)
+            app.plot(
+                output_svg=f.name,
+                cluster_identity = 0.89
+            )
 
 if __name__ == "__main__":
     unittest.main()
