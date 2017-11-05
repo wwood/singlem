@@ -105,19 +105,29 @@ class Appraisal:
 
         for a in axes:
             a.set_aspect('equal')
-            a.set_ylim(0,10)
-            a.set_xlim(0,10)
+            a.set_ylim(-0.1,10.1)
+            a.set_xlim(-0.1,10.1)
             a.set_xticks([])
             a.set_yticks([])
             a.set_axis_off()
-        #fig.show()
 
         fig.savefig(output_svg, format='svg')
+        #fig.show()
         #import IPython; IPython.embed()
 
     def _plot_otu(self, axis, sizes, colors, max_area):
         width_and_height = math.sqrt(sum(sizes)/max_area*100)
-        squarify.plot(sizes, color=colors, norm_x=width_and_height, norm_y=width_and_height, ax=axis)
+        offset = (10 - width_and_height)/2
+
+        normed = squarify.normalize_sizes(sizes, width_and_height, width_and_height)
+        rects = squarify.squarify(normed, offset, offset , width_and_height, width_and_height)
+
+        x = [rect['x'] for rect in rects]
+        y = [rect['y'] for rect in rects]
+        dx = [rect['dx'] for rect in rects]
+        dy = [rect['dy'] for rect in rects]
+
+        axis.bar(x, dy, width=dx, bottom=y, color=colors, align='edge', edgecolor='black')
 
 
 class AppraisalResult:
