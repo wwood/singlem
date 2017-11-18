@@ -5,6 +5,7 @@ import squarify
 import matplotlib
 import matplotlib.cm
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 from clusterer import Clusterer
 from otu_table_collection import OtuTableCollection
@@ -96,26 +97,28 @@ class Appraisal:
 
         max_count = max([len(binned_values), len(assembled_values), len(not_found_values)])
         max_area = float(max([sum(binned_values),sum(assembled_values),sum(not_found_values)]))
-        fig, axes = plt.subplots(figsize=(12, 10), nrows=3, sharey=True, sharex=True)
-        fig.suptitle(self.appraisal_results[0].metagenome_sample_name)
 
-        self._plot_otu(axes[0], binned_values, binned_colors, max_area)
-        self._plot_otu(axes[1], assembled_values, assembled_colors, max_area)
-        self._plot_otu(axes[2], not_found_values, not_found_colors, max_area)
+        fig = plt.figure(figsize=(9,5))
+        fig.suptitle("Appraisal plot for %s" %\
+                     self.appraisal_results[0].metagenome_sample_name)
+        gs = gridspec.GridSpec(3,5)
 
-        for a in axes:
-            a.set_aspect('equal')
-            a.set_ylim(-0.1,10.1)
-            a.set_xlim(-0.1,10.1)
-            a.set_xticks([])
-            a.set_yticks([])
-            a.set_axis_off()
+        binning_axis = fig.add_subplot(gs[0,0])
+        assembled_axis = fig.add_subplot(gs[1,0])
+        reads_axis = fig.add_subplot(gs[2,0])
+        legend_axis = fig.add_subplot(gs[:,1:])
 
+        self._plot_otu(binning_axis, binned_values, binned_colors, max_area, 'Binned')
+        self._plot_otu(assembled_axis, assembled_values, assembled_colors, max_area, 'Unbinned')
+        self._plot_otu(reads_axis, not_found_values, not_found_colors, max_area, 'Unassembled')
+
+        self._plot_legend(legend_axis, sorted_cluster_rep_and_count, sequence_to_cluster)
+
+        fig.tight_layout()
         fig.savefig(output_svg, format='svg')
-        #fig.show()
-        #import IPython; IPython.embed()
 
-    def _plot_otu(self, axis, sizes, colors, max_area):
+
+    def _plot_otu(self, axis, sizes, colors, max_area, name):
         width_and_height = math.sqrt(sum(sizes)/max_area*100)
         offset = (10 - width_and_height)/2
 
@@ -128,6 +131,46 @@ class Appraisal:
         dy = [rect['dy'] for rect in rects]
 
         axis.bar(x, dy, width=dx, bottom=y, color=colors, align='edge', edgecolor='black')
+
+        axis.set_aspect('equal')
+        axis.set_ylim(-0.3,10.3) # Add 0.1 so the edges are not truncated.
+        axis.set_xlim(-0.3,10.3)
+        axis.set_xticks([])
+        axis.set_yticks([])
+        axis.set_axis_off()
+
+        fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
+        axis.text(-1, width_and_height/2,name,font_properties=fp,rotation='vertical',horizontalalignment='center',
+                  verticalalignment='center')
+
+    def _plot_legend(self, axis, sorted_cluster_rep_and_count, sequence_to_cluster):
+        # Setup global legend properties
+        axis.set_xlim([0,10])
+        axis.set_ylim([0,14])
+        axis.set_axis_off()
+        fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
+        axis.text(0.2, 13, 'Taxonomy', font_properties=fp)
+        fp = matplotlib.font_manager.FontProperties(size=6)
+
+        # Plot each legend member
+        # Plot the 5 clusters with the highest counts
+        next_y_offset = 0
+        num_to_print = 5
+        top=12.6
+        last_index=9 # From Pastel1
+        box_height = 0.6
+        space=0.2
+        for i in range(last_index):
+            bottom = top-next_y_offset-box_height
+            axis.bar(0.1, bottom=bottom, height=box_height, width=0.5,
+                     color=matplotlib.cm.Pastel1(i), align='edge', edgecolor='black')
+            if i==last_index-1:
+                t = 'Other'
+            else:
+                t = sequence_to_cluster[sorted_cluster_rep_and_count[i][0]].taxonomy.replace('Root; ','')
+            axis.text(0.75, top-next_y_offset-box_height*0.6, t, font_properties=fp)
+            next_y_offset += box_height + space
+
 
 
 class AppraisalResult:
