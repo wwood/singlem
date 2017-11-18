@@ -57,7 +57,8 @@ setup(
                       'pandas >= 0.19.2',
                       'biom-format >= 2.1.6',
                       'orator >= 0.9.7',
-                      'squarify >= 0.3.0'
+                      'squarify >= 0.3.0',
+                      'matplotlib >= 2.0.2'
     ),
     setup_requires=['nose >= 1.0'],
     test_suite='nose.collector',
