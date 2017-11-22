@@ -20,27 +20,42 @@ class Appraisal:
         Parameters
         ----------
         kwargs:
-            output_svg: Filename of SVG to save it to.
+            output_svg_base: Basename of SVGs (one SVG per gene is generated)
             cluster_identity: Clusters of OTU calculated threshold (float)
         Returns
         -------
         None.
         '''
-        output_svg = kwargs.pop('output_svg')
+        output_svg_base = kwargs.pop('output_svg_base')
         cluster_identity = kwargs.pop('cluster_identity')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
+        genes = set()
+        for r in self.appraisal_results:
+            for o in r.binned_otus:
+                genes.add(o.marker)
+            for o in r.assembled_not_binned_otus():
+                genes.add(o.marker)
+            for o in r.not_found_otus:
+                genes.add(o.marker)
+        for gene in genes:
+            self._plot_gene(
+                "%s%s.svg" % (output_svg_base, gene),
+                cluster_identity,
+                gene)
+
+    def _plot_gene(self, output_svg, cluster_identity, gene):
         # Collect OTUs for plotting
         binned_otus = [o for o in
                        self.appraisal_results[0].binned_otus if
-                       o.marker=='4.15.ribosomal_protein_S2_rpsB']
+                       o.marker==gene]
         assembled_otus = [o for o in
                           self.appraisal_results[0].assembled_not_binned_otus() if
-                          o.marker=='4.15.ribosomal_protein_S2_rpsB']
+                          o.marker==gene]
         not_found_otus = [o for o in
                           self.appraisal_results[0].not_found_otus if
-                          o.marker=='4.15.ribosomal_protein_S2_rpsB']
+                          o.marker==gene]
 
         # Cluster OTUs, making a dict of sequence to cluster object
         sequence_to_cluster = {}

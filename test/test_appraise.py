@@ -567,7 +567,7 @@ class Tests(unittest.TestCase):
 
         with tempfile.NamedTemporaryFile(suffix='.svg',prefix='single_test_appraisal.') as f:
             app.plot(
-                output_svg='/tmp/a.svg',#f.name,
+                output_svg_base='/tmp/a.svg',#f.name,
                 cluster_identity = 0.89
             )
 
