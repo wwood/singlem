@@ -46,95 +46,55 @@ class Appraisal:
                 gene)
 
     def _plot_gene(self, output_svg, cluster_identity, gene):
-        # Collect OTUs for plotting
-        binned_otus = [o for o in
-                       self.appraisal_results[0].binned_otus if
-                       o.marker==gene]
-        assembled_otus = [o for o in
-                          self.appraisal_results[0].assembled_not_binned_otus() if
-                          o.marker==gene]
-        not_found_otus = [o for o in
-                          self.appraisal_results[0].not_found_otus if
-                          o.marker==gene]
-
         # Cluster OTUs, making a dict of sequence to cluster object
-        sequence_to_cluster = {}
-        cluster_rep_and_count = []
-        collection = OtuTableCollection()
-        collection.otu_table_objects = [
-            not_found_otus, assembled_otus, binned_otus
-        ]
-        for cotu in Clusterer().cluster(collection, cluster_identity):
-            cluster_rep_and_count.append([cotu.sequence, cotu.count])
-            for otu in cotu.otus:
-                sequence_to_cluster[otu.sequence] = cotu
+        plot_info = AppraisalPlotInfo(self, cluster_identity, gene)
 
-        # Sort the OTUs by descending order of counts, so that more abundant
-        # OTUs get colour.
-        sorted_cluster_rep_and_count = sorted(
-            cluster_rep_and_count, key=lambda x: x[1], reverse=True)
-        cluster_sequence_to_order = {}
-        i = 0
-        for pair in sorted_cluster_rep_and_count:
-            cluster_sequence_to_order[pair[0]] = i
-            i += 1
+        num_samples = len(self.appraisal_results)
+        if num_samples == 0:
+            raise Exception("Cannot plot an appraisal when there are no samples to appraise")
 
-        # Sort OTUs by decreasing count (squarify requires this), then by
-        # cluster.
-        def sort_otus(otus):
-            return sorted(
-                otus,
-                key=lambda x: (
-                    x.count,
-                    # Use minus so more abundant clusters are first
-                    -cluster_sequence_to_order[sequence_to_cluster[x.sequence].sequence]),
-                reverse=True)
-        binned_otus = sort_otus(binned_otus)
-        assembled_otus = sort_otus(assembled_otus)
-        not_found_otus = sort_otus(not_found_otus)
-
-        # Calculate counts
-        binned_values = [o.count for o in binned_otus]
-        assembled_values = [o.count for o in assembled_otus]
-        not_found_values = [o.count for o in not_found_otus]
-
-        # Calculate colours
-        def colours(otus):
-            colours = []
-            for otu in otus:
-                cluster = sequence_to_cluster[otu.sequence]
-                colour_index = cluster_sequence_to_order[cluster.sequence]
-                colours.append(matplotlib.cm.Pastel1(colour_index))
-            return colours
-        binned_colors = colours(binned_otus)
-        assembled_colors = colours(assembled_otus)
-        not_found_colors = colours(not_found_otus)
-
-        max_count = max([len(binned_values), len(assembled_values), len(not_found_values)])
-        max_area = float(max([sum(binned_values),sum(assembled_values),sum(not_found_values)]))
-
-        fig = plt.figure(figsize=(9,5))
+        fig = plt.figure(figsize=(4.0/5*9 + num_samples*1.0/5*9,5))
         fig.suptitle("Appraisal plot for %s" %\
-                     self.appraisal_results[0].metagenome_sample_name)
-        gs = gridspec.GridSpec(3,5)
+                     ', '.join(
+                         [r.metagenome_sample_name for r in self.appraisal_results]))
+        gs = gridspec.GridSpec(3, 4+num_samples)
 
-        binning_axis = fig.add_subplot(gs[0,0])
-        assembled_axis = fig.add_subplot(gs[1,0])
-        reads_axis = fig.add_subplot(gs[2,0])
-        legend_axis = fig.add_subplot(gs[:,1:])
+        legend_axis = fig.add_subplot(gs[:,num_samples:])
+        self._plot_legend(legend_axis, plot_info)
 
-        self._plot_otu(binning_axis, binned_values, binned_colors, max_area, 'Binned')
-        self._plot_otu(assembled_axis, assembled_values, assembled_colors, max_area, 'Unbinned')
-        self._plot_otu(reads_axis, not_found_values, not_found_colors, max_area, 'Unassembled')
+        max_count = plot_info.max_count
+        for sample_number in range(num_samples):
+            binning_axis = fig.add_subplot(gs[0,sample_number])
+            assembled_axis = fig.add_subplot(gs[1,sample_number])
+            reads_axis = fig.add_subplot(gs[2,sample_number])
 
-        self._plot_legend(legend_axis, sorted_cluster_rep_and_count, sequence_to_cluster)
+            sample_appraisal = self.appraisal_results[sample_number]
+            binned_otus = plot_info.sort([o for o in sample_appraisal.binned_otus if o.marker == gene])
+            assembled_otus = plot_info.sort([o for o in sample_appraisal.assembled_not_binned_otus() if o.marker == gene])
+            not_found_otus = plot_info.sort([o for o in sample_appraisal.not_found_otus if o.marker == gene])
+
+            binned_values = plot_info.values(binned_otus)
+            assembled_values = plot_info.values(assembled_otus)
+            not_found_values = plot_info.values(not_found_otus)
+
+            binned_colours = plot_info.colours(binned_otus)
+            assembled_colours = plot_info.colours(assembled_otus)
+            not_found_colours = plot_info.colours(not_found_otus)
+
+            self._plot_otu(binning_axis, binned_values, binned_colours, max_count,
+                           'Binned' if sample_number==0 else None)
+            self._plot_otu(assembled_axis, assembled_values, assembled_colours, max_count,
+                           'Unbinned' if sample_number==0 else None)
+            self._plot_otu(reads_axis, not_found_values, not_found_colours, max_count,
+                           'Unassembled' if sample_number==0 else None)
 
         fig.tight_layout()
         fig.savefig(output_svg, format='svg')
 
 
-    def _plot_otu(self, axis, sizes, colors, max_area, name):
-        width_and_height = math.sqrt(sum(sizes)/max_area*100)
+
+    def _plot_otu(self, axis, sizes, colors, max_count, name):
+        width_and_height = math.sqrt(float(sum(sizes))/max_count*100)
         offset = (10 - width_and_height)/2
 
         normed = squarify.normalize_sizes(sizes, width_and_height, width_and_height)
@@ -154,11 +114,16 @@ class Appraisal:
         axis.set_yticks([])
         axis.set_axis_off()
 
-        fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
-        axis.text(-1, width_and_height/2,name,font_properties=fp,rotation='vertical',horizontalalignment='center',
-                  verticalalignment='center')
+        if name is not None:
+            fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
+            axis.text(-1, width_and_height/2,
+                      name,
+                      font_properties=fp,
+                      rotation='vertical',
+                      horizontalalignment='center',
+                      verticalalignment='center')
 
-    def _plot_legend(self, axis, sorted_cluster_rep_and_count, sequence_to_cluster):
+    def _plot_legend(self, axis, plot_info):
         # Setup global legend properties
         axis.set_xlim([0,10])
         axis.set_ylim([0,14])
@@ -175,14 +140,15 @@ class Appraisal:
         last_index=9 # From Pastel1
         box_height = 0.6
         space=0.2
-        for i in range(last_index):
+        for i, sequence in enumerate(plot_info.ordered_sequences()):
+            if i >= last_index: break
             bottom = top-next_y_offset-box_height
             axis.bar(0.1, bottom=bottom, height=box_height, width=0.5,
                      color=matplotlib.cm.Pastel1(i), align='edge', edgecolor='black')
             if i==last_index-1:
                 t = 'Other'
             else:
-                t = sequence_to_cluster[sorted_cluster_rep_and_count[i][0]].taxonomy.replace('Root; ','')
+                t = plot_info.cluster(sequence).representative_otu.taxonomy.replace('Root; ','')
             axis.text(0.75, top-next_y_offset-box_height*0.6, t, font_properties=fp)
             next_y_offset += box_height + space
 
@@ -208,3 +174,95 @@ class AppraisalResult:
         for otu in self.assembled_otus:
             if otu.sequence not in binned_otu_sequences:
                 yield otu
+
+
+class AppraisalPlotInfo:
+    def __init__(self, appraisal, cluster_identity, marker):
+        '''
+        appraisal: Appraisal
+        cluster_identity: float, as in Clusterer
+        marker: str
+            the marker being plotted
+        '''
+        logging.debug("Generating plot info for %s" % marker)
+        # Collect all OTUs from all samples so that they can be processed
+        # together.
+        all_binned_otus = []
+        all_assembled_not_binned_otus = []
+        all_not_found_otus = []
+        max_count = 0
+        # yuck. Sloppy scope in Python, but not in lambdas when I need it..
+        def add_to_totality(otus, totality, max_count):
+            count = 0
+            for otu in otus:
+                if otu.marker==marker:
+                    totality.append(otu)
+                    count += otu.count
+            if count > max_count:
+                return count
+            else:
+                return max_count
+        for sample_appraisal in appraisal.appraisal_results:
+            max_count = add_to_totality(sample_appraisal.binned_otus, all_binned_otus, max_count)
+            max_count = add_to_totality(sample_appraisal.assembled_not_binned_otus(),
+                                        all_assembled_not_binned_otus, max_count)
+            max_count = add_to_totality(sample_appraisal.not_found_otus, all_not_found_otus, max_count)
+        logging.debug("Found maximal count of seqs as %i" % max_count)
+
+        sequence_to_cluster = {}
+        cluster_rep_and_count = []
+        collection = OtuTableCollection()
+        collection.otu_table_objects = [
+            all_not_found_otus, all_assembled_not_binned_otus, all_binned_otus
+        ]
+        for cotu in Clusterer().cluster(collection, cluster_identity):
+            cluster_rep_and_count.append([cotu.sequence, cotu.count])
+            for otu in cotu.otus:
+                sequence_to_cluster[otu.sequence] = cotu
+
+        # Sort the OTUs by descending order of counts, so that more abundant
+        # OTUs get colour.
+        sorted_cluster_rep_and_count = sorted(
+            cluster_rep_and_count, key=lambda x: x[1], reverse=True)
+        cluster_sequence_to_order = {}
+        i = 0
+        for pair in sorted_cluster_rep_and_count:
+            cluster_sequence_to_order[pair[0]] = i
+            i += 1
+
+        self._sequence_to_cluster = sequence_to_cluster
+        self._sorted_cluster_rep_and_count = sorted_cluster_rep_and_count
+        self._cluster_sequence_to_order = cluster_sequence_to_order
+        self.max_count = max_count
+
+    def sort(self, otus):
+        '''Sort OTUs by decreasing count (squarify requires this), then by cluster.
+        '''
+        return sorted(
+            otus,
+            key=lambda x: (
+                x.count,
+                # Use minus so more abundant clusters are first
+                -self._cluster_sequence_to_order[self._sequence_to_cluster[x.sequence].sequence]),
+            reverse=True)
+
+    def values(self, otus):
+        return [otu.count for otu in otus]
+
+    def colours(self, otus):
+        '''Return a list of colours in which correspond to the OTUs in the same order
+        as self.values().'''
+        colours = []
+        for otu in otus:
+            cluster = self._sequence_to_cluster[otu.sequence]
+            colour_index = self._cluster_sequence_to_order[cluster.sequence]
+            colours.append(matplotlib.cm.Pastel1(colour_index))
+        return colours
+
+    def cluster(self, sequence):
+        return self._sequence_to_cluster[sequence]
+
+    def ordered_sequences(self):
+        '''Return representative sequences in same order as the colours'''
+        for pair in self._sorted_cluster_rep_and_count:
+            yield pair[0]
