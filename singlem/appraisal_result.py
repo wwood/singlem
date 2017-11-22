@@ -104,7 +104,7 @@ class Appraisal:
         dx = [rect['dx'] for rect in rects]
         dy = [rect['dy'] for rect in rects]
 
-        axis.bar(x, dy, width=dx, bottom=y, color=colors, align='edge', edgecolor='black')
+        axis.bar(x, dy, width=dx, bottom=y, color=colors, align='edge', edgecolor='black', linewidth=0.5)
 
         axis.set_aspect('equal')
         axis.set_ylim(-0.3,10.3) # Add 0.1 so the edges are not truncated.
@@ -143,7 +143,7 @@ class Appraisal:
             if i >= last_index: break
             bottom = top-next_y_offset-box_height
             axis.bar(0.1, bottom=bottom, height=box_height, width=0.5,
-                     color=matplotlib.cm.Pastel1(i), align='edge', edgecolor='black')
+                     color=matplotlib.cm.Pastel1(i), align='edge', edgecolor='black', linewidth=0.5)
             if i==last_index-1:
                 t = 'Other'
             else:
