@@ -54,9 +54,7 @@ class Appraisal:
             raise Exception("Cannot plot an appraisal when there are no samples to appraise")
 
         fig = plt.figure(figsize=(4.0/5*9 + num_samples*1.0/5*9,5))
-        fig.suptitle("Appraisal plot for %s" %\
-                     ', '.join(
-                         [r.metagenome_sample_name for r in self.appraisal_results]))
+        fig.suptitle("SingleM appraisal plot")
         gs = gridspec.GridSpec(3, 4+num_samples)
 
         legend_axis = fig.add_subplot(gs[:,num_samples:])
@@ -88,7 +86,8 @@ class Appraisal:
             self._plot_otu(reads_axis, not_found_values, not_found_colours, max_count,
                            'Unassembled' if sample_number==0 else None)
 
-        fig.tight_layout()
+            binning_axis.set_title(sample_appraisal.metagenome_sample_name)
+
         fig.savefig(output_svg, format='svg')
 
 
