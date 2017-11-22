@@ -189,7 +189,7 @@ if __name__ == '__main__':
     create_parser.add_argument('--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
 
-    appraise_description = 'How much of the metagenome do the genomes account for?'
+    appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = subparsers.add_parser('appraise',
                                         description=appraise_description,
                                         help=appraise_description,
@@ -202,6 +202,7 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--binned_otu_table', help="output OTU table of binned populations", default=None)
     appraise_parser.add_argument('--assembled_otu_table', help="output OTU table of assembled populations", default=None)
     appraise_parser.add_argument('--unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
+    appraise_parser.add_argument('--plot_basename', help="Plot visualisation of appraisal results to this basename (one SVG per marker)", default=None)
 
     chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
     chance_parser = subparsers.add_parser('chance',
@@ -419,6 +420,15 @@ if __name__ == '__main__':
             unaccounted_for_otu_table_io = open(args.unaccounted_for_otu_table,'w')
         else:
             unaccounted_for_otu_table_io = None
+
+        if args.plot_basename:
+            if genomes is None or\
+               metagenomes is None or\
+               assemblies is None:
+                raise Exception("Plotting requires bins, assembly and the metagenome to be specified")
+            app.plot(
+                output_svg_base=args.plot_basename,
+                cluster_identity=args.sequence_identity)
 
         appraiser.print_appraisal(app,
                                   doing_assembly = args.assembly_otu_tables is not None,
