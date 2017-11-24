@@ -172,9 +172,10 @@ class Appraiser:
 
         binned = []
         assembled = []
+        assembled_not_binned = []
         not_founds = []
 
-        def print_sample(num_binned, num_assembled, num_not_found, sample,
+        def print_sample(num_binned, num_assembled, num_assembled_not_binned, num_not_found, sample,
                          mypercent_binned=None, mypercent_assembled=None):
             if mypercent_binned is not None:
                 percent_binned = mypercent_binned
@@ -182,7 +183,7 @@ class Appraiser:
                     percent_assembled = mypercent_assembled
             else:
                 total = num_binned + num_not_found
-                if num_assembled is not None: total += num_assembled
+                if num_assembled is not None: total += num_assembled_not_binned
                 if total == 0:
                     percent_binned = 0.0
                     if doing_assembly: percent_assembled = 0.0
@@ -190,7 +191,7 @@ class Appraiser:
                     percent_binned = float(num_binned)/total * 100
                     if doing_assembly:
                         percent_assembled = float(num_assembled)/total * 100
-            to_write = [sample, str(num_binned), str(num_not_found)]
+            to_write = [sample, str(num_binned)]
             if doing_assembly: to_write.append(str(num_assembled))
             to_write.append(str(num_not_found))
             to_write.append("%2.1f" % percent_binned)
@@ -209,13 +210,17 @@ class Appraiser:
             unaccounted_for_table = OtuTable()
 
         for appraisal_result in appraisal.appraisal_results:
+            if doing_assembly:
+                num_assembled_not_binned = appraisal_result.num_assembled_not_binned()
             print_sample(appraisal_result.num_binned,
                          appraisal_result.num_assembled if doing_assembly else None,
+                         num_assembled_not_binned if doing_assembly else None,
                          appraisal_result.num_not_found,
                          appraisal_result.metagenome_sample_name)
             binned.append(appraisal_result.num_binned)
             if doing_assembly:
                 assembled.append(appraisal_result.num_assembled)
+                assembled_not_binned.append(num_assembled_not_binned)
             not_founds.append(appraisal_result.num_not_found)
             if binned_otu_table_io:
                 binned_table.add(appraisal_result.binned_otus)
@@ -226,6 +231,7 @@ class Appraiser:
 
         print_sample(sum(binned),
                      sum(assembled) if doing_assembly else None,
+                     sum(assembled_not_binned) if doing_assembly else None,
                      sum(not_founds),
                      'total')
 
@@ -233,12 +239,15 @@ class Appraiser:
         assembled_means = []
         for i, num_binned in enumerate(binned):
             num_assembled = assembled[i] if doing_assembly else 0
+            num_assembled_not_binned = assembled_not_binned[i] if doing_assembly else 0
             num_not_found = not_founds[i]
-            binned_means.append(float(num_binned)/(num_binned+num_assembled+num_not_found))
+            total = num_binned+num_assembled_not_binned+num_not_found
+            binned_means.append(float(num_binned)/total)
             if doing_assembly:
-                assembled_means.append(float(num_assembled)/(num_binned+num_assembled+num_not_found))
+                assembled_means.append(float(num_assembled)/total)
         print_sample("%2.1f" % mean(binned),
                      "%2.1f" % mean(assembled) if doing_assembly else None,
+                     None,
                      "%2.1f" % mean(not_founds), 'average',
                      mypercent_binned=mean(binned_means)*100,
                      mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
