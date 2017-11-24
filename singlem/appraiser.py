@@ -113,7 +113,7 @@ class Appraiser:
                         seen_otu_sequences.add(otu.sequence)
                 not_seen_otus = []
                 for otu in metagenome_otu_table_collection:
-                    if otu.sequence not in seen_otu_sequences:
+                    if otu.sample_name == sample and otu.sequence not in seen_otu_sequences:
                         not_seen_otus.append(otu)
                 res.not_found_otus = not_seen_otus
                 for otu in not_seen_otus:
