@@ -422,19 +422,20 @@ if __name__ == '__main__':
             unaccounted_for_otu_table_io = None
 
         if args.plot_basename:
-            if genomes is None or\
-               metagenomes is None or\
-               assemblies is None:
-                raise Exception("Plotting requires bins, assembly and the metagenome to be specified")
+            if metagenomes is None:
+                raise Exception("Plotting requires a metagenome table to be specified")
             app.plot(
                 output_svg_base=args.plot_basename,
-                cluster_identity=args.sequence_identity)
+                cluster_identity=args.sequence_identity,
+                doing_assembly=assemblies is not None,
+                doing_binning=genomes is not None)
 
-        appraiser.print_appraisal(app,
-                                  doing_assembly = args.assembly_otu_tables is not None,
-                                  binned_otu_table_io=binned_otu_table_io,
-                                  assembled_otu_table_io=assembled_otu_table_io,
-                                  unaccounted_for_otu_table_io=unaccounted_for_otu_table_io)
+        appraiser.print_appraisal(
+            app,
+            doing_assembly = args.assembly_otu_tables is not None,
+            binned_otu_table_io=binned_otu_table_io if args.binned_otu_table else None,
+            assembled_otu_table_io=assembled_otu_table_io if args.assembled_otu_table else None,
+            unaccounted_for_otu_table_io=unaccounted_for_otu_table_io)
         if args.binned_otu_table: binned_otu_table_io.close()
         if args.assembled_otu_table: assembled_otu_table_io.close()
         if args.unaccounted_for_otu_table: unaccounted_for_otu_table_io.close()
