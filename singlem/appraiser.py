@@ -167,26 +167,36 @@ class Appraiser:
         if doing_assembly: headers.append('num_assembled')
         headers.append('num_not_found')
         headers.append('percent_binned')
+        if doing_assembly: headers.append('percent_assembled')
         output_io.write("\t".join(headers)+"\n")
 
         binned = []
         assembled = []
         not_founds = []
 
-        def print_sample(num_binned, num_assembled, num_not_found, sample, mypercent=None):
-            if mypercent is not None:
-                percent = mypercent
+        def print_sample(num_binned, num_assembled, num_not_found, sample,
+                         mypercent_binned=None, mypercent_assembled=None):
+            if mypercent_binned is not None:
+                percent_binned = mypercent_binned
+                if doing_assembly:
+                    percent_assembled = mypercent_assembled
             else:
                 total = num_binned + num_not_found
                 if num_assembled is not None: total += num_assembled
                 if total == 0:
-                    percent = 0.0
+                    percent_binned = 0.0
+                    if doing_assembly: percent_assembled = 0.0
                 else:
-                    percent = float(num_binned)/total * 100
-            if num_assembled is None:
-                output_io.write("\t".join([sample, str(num_binned), str(num_not_found), "%2.1f" % percent])+"\n")
-            else:
-                output_io.write("\t".join([sample, str(num_binned), str(num_assembled), str(num_not_found), "%2.1f" % percent])+"\n")
+                    percent_binned = float(num_binned)/total * 100
+                    if doing_assembly:
+                        percent_assembled = float(num_assembled)/total * 100
+            to_write = [sample, str(num_binned), str(num_not_found)]
+            if doing_assembly: to_write.append(str(num_assembled))
+            to_write.append(str(num_not_found))
+            to_write.append("%2.1f" % percent_binned)
+            if doing_assembly:
+                to_write.append("%2.1f" % percent_assembled)
+            output_io.write("\t".join(to_write)+"\n")
 
         def mean(l):
             return float(sum(l))/len(l) if len(l) > 0 else float('nan')
@@ -230,7 +240,8 @@ class Appraiser:
         print_sample("%2.1f" % mean(binned),
                      "%2.1f" % mean(assembled) if doing_assembly else None,
                      "%2.1f" % mean(not_founds), 'average',
-                     mypercent=mean(binned_means)*100)
+                     mypercent_binned=mean(binned_means)*100,
+                     mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
 
         if binned_otu_table_io:
             binned_table.write_to(binned_otu_table_io)
