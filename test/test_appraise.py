@@ -328,7 +328,7 @@ class Tests(unittest.TestCase):
 
         to_print = StringIO()
         appraiser.print_appraisal(app, to_print, doing_assembly=True)
-        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\nanother\t0\t0\t4\t0.0\nminimal\t0\t7\t0\t0.0\ntotal\t0\t7\t4\t0.0\naverage\t0.0\t3.5\t2.0\t0.0\n", to_print.getvalue())
+        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nanother\t0\t0\t4\t0.0\t0.0\nminimal\t0\t7\t0\t0.0\t100.0\ntotal\t0\t7\t4\t0.0\t63.6\naverage\t0.0\t3.5\t2.0\t0.0\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
