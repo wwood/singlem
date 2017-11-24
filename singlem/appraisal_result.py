@@ -154,9 +154,9 @@ class Appraisal:
 
 
 class AppraisalResult:
-    num_binned = 0
-    num_assembled = 0
-    num_not_found = 0
+    num_binned = 0 # binned
+    num_assembled = 0 # assembled and/or binned
+    num_not_found = 0 # neither assembled nor binned
     metagenome_sample_name = None
 
     def __init__(self):
@@ -173,6 +173,12 @@ class AppraisalResult:
         for otu in self.assembled_otus:
             if otu.sequence not in binned_otu_sequences:
                 yield otu
+
+    def num_assembled_not_binned(self):
+        count = 0
+        for otu in self.assembled_not_binned_otus():
+            count += otu.count
+        return count
 
 
 class AppraisalPlotInfo:
