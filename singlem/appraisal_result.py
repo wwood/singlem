@@ -22,30 +22,38 @@ class Appraisal:
         kwargs:
             output_svg_base: Basename of SVGs (one SVG per gene is generated)
             cluster_identity: Clusters of OTU calculated threshold (float)
+            doing_assembly: True or False
+            doing_binning: True or False
         Returns
         -------
         None.
         '''
         output_svg_base = kwargs.pop('output_svg_base')
         cluster_identity = kwargs.pop('cluster_identity')
+        doing_assembly = kwargs.pop('doing_assembly')
+        doing_binning = kwargs.pop('doing_binning')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         genes = set()
         for r in self.appraisal_results:
-            for o in r.binned_otus:
-                genes.add(o.marker)
-            for o in r.assembled_not_binned_otus():
-                genes.add(o.marker)
+            if doing_binning:
+                for o in r.binned_otus:
+                    genes.add(o.marker)
+            if doing_assembly:
+                for o in r.assembled_not_binned_otus():
+                    genes.add(o.marker)
             for o in r.not_found_otus:
                 genes.add(o.marker)
         for gene in genes:
             self._plot_gene(
                 "%s%s.svg" % (output_svg_base, gene),
                 cluster_identity,
-                gene)
+                gene,
+                doing_assembly,
+                doing_binning)
 
-    def _plot_gene(self, output_svg, cluster_identity, gene):
+    def _plot_gene(self, output_svg, cluster_identity, gene, doing_assembly, doing_binning):
         # Cluster OTUs, making a dict of sequence to cluster object
         plot_info = AppraisalPlotInfo(self, cluster_identity, gene)
 
@@ -55,38 +63,68 @@ class Appraisal:
 
         fig = plt.figure(figsize=(4.0/5*9 + num_samples*1.0/5*9,5))
         fig.suptitle("SingleM appraisal plot")
-        gs = gridspec.GridSpec(3, 4+num_samples)
+        num_panels = 1
+        if doing_assembly: num_panels += 1
+        if doing_binning: num_panels += 1
+        gs = gridspec.GridSpec(num_panels, 4+num_samples)
 
         legend_axis = fig.add_subplot(gs[:,num_samples:])
         self._plot_legend(legend_axis, plot_info)
 
         max_count = plot_info.max_count
         for sample_number in range(num_samples):
-            binning_axis = fig.add_subplot(gs[0,sample_number])
-            assembled_axis = fig.add_subplot(gs[1,sample_number])
-            reads_axis = fig.add_subplot(gs[2,sample_number])
+            # Create a different number of panels depending on what is being
+            # plotted.
+            axis_index = 0
+            if doing_binning:
+                binning_axis = fig.add_subplot(gs[axis_index,sample_number])
+                axis_index += 1
+            if doing_assembly:
+                assembled_axis = fig.add_subplot(gs[axis_index,sample_number])
+                axis_index += 1
+            reads_axis = fig.add_subplot(gs[axis_index,sample_number])
 
             sample_appraisal = self.appraisal_results[sample_number]
-            binned_otus = plot_info.sort([o for o in sample_appraisal.binned_otus if o.marker == gene])
-            assembled_otus = plot_info.sort([o for o in sample_appraisal.assembled_not_binned_otus() if o.marker == gene])
+            if doing_binning:
+                binned_otus = plot_info.sort([o for o in sample_appraisal.binned_otus if o.marker == gene])
+            if doing_assembly:
+                assembled_otus = plot_info.sort([o for o in sample_appraisal.assembled_not_binned_otus() if o.marker == gene])
             not_found_otus = plot_info.sort([o for o in sample_appraisal.not_found_otus if o.marker == gene])
 
-            binned_values = plot_info.values(binned_otus)
-            assembled_values = plot_info.values(assembled_otus)
+            if doing_binning:
+                binned_values = plot_info.values(binned_otus)
+            if doing_assembly:
+                assembled_values = plot_info.values(assembled_otus)
             not_found_values = plot_info.values(not_found_otus)
 
-            binned_colours = plot_info.colours(binned_otus)
-            assembled_colours = plot_info.colours(assembled_otus)
+            if doing_binning:
+                binned_colours = plot_info.colours(binned_otus)
+            if doing_assembly:
+                assembled_colours = plot_info.colours(assembled_otus)
             not_found_colours = plot_info.colours(not_found_otus)
 
-            self._plot_otu(binning_axis, binned_values, binned_colours, max_count,
-                           'Binned' if sample_number==0 else None)
-            self._plot_otu(assembled_axis, assembled_values, assembled_colours, max_count,
-                           'Unbinned' if sample_number==0 else None)
+            if doing_binning:
+                self._plot_otu(binning_axis, binned_values, binned_colours, max_count,
+                               'Binned' if sample_number==0 else None)
+            if doing_assembly:
+                self._plot_otu(assembled_axis, assembled_values, assembled_colours, max_count,
+                               'Unbinned' if sample_number==0 else None)
+            unassembled_title = 'Reads' if sample_number==0 else None
+            if unassembled_title:
+                if unassembled_title and doing_assembly:
+                    unassembled_title = 'Unassembled'
+                elif doing_binning:
+                    unassembled_title = 'Unrecovered'
             self._plot_otu(reads_axis, not_found_values, not_found_colours, max_count,
-                           'Unassembled' if sample_number==0 else None)
+                           unassembled_title)
 
-            binning_axis.set_title(sample_appraisal.metagenome_sample_name)
+            title = sample_appraisal.metagenome_sample_name
+            if doing_binning:
+                binning_axis.set_title(title)
+            elif doing_assembly:
+                assembled_axis.set_title(title)
+            else:
+                reads_axis.set_title(title)
 
         fig.savefig(output_svg, format='svg')
 
@@ -115,7 +153,7 @@ class Appraisal:
 
         if name is not None:
             fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
-            axis.text(-1, width_and_height/2,
+            axis.text(-1, 5,
                       name,
                       font_properties=fp,
                       rotation='vertical',
