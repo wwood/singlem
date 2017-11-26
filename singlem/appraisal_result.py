@@ -68,10 +68,11 @@ class Appraisal:
         if doing_binning: num_panels += 1
         gs = gridspec.GridSpec(num_panels, 4+num_samples)
 
-        legend_axis = fig.add_subplot(gs[:,num_samples:])
+        legend_axis = fig.add_subplot(gs[:-1,num_samples:])
         self._plot_legend(legend_axis, plot_info)
 
         max_count = plot_info.max_count
+        max_total_count = 0
         for sample_number in range(num_samples):
             # Create a different number of panels depending on what is being
             # plotted.
@@ -93,9 +94,15 @@ class Appraisal:
 
             if doing_binning:
                 binned_values = plot_info.values(binned_otus)
+                total = sum(binned_values)
+                if total > max_total_count: max_total_count = total
             if doing_assembly:
                 assembled_values = plot_info.values(assembled_otus)
+                total = sum(assembled_values)
+                if total > max_total_count: max_total_count = total
             not_found_values = plot_info.values(not_found_otus)
+            total = sum(not_found_values)
+            if total > max_total_count: max_total_count = total
 
             if doing_binning:
                 binned_colours = plot_info.colours(binned_otus)
@@ -125,6 +132,21 @@ class Appraisal:
                 assembled_axis.set_title(title)
             else:
                 reads_axis.set_title(title)
+
+        # Plot the area guide part of the legend
+        axis = fig.add_subplot(gs[-1,num_samples])
+        axis.set_aspect('equal')
+        axis.set_ylim(-0.3,10.3) # Add 0.1 so the edges are not truncated.
+        axis.set_xlim(-0.3,10.3)
+        axis.set_xticks([])
+        axis.set_yticks([])
+        axis.set_axis_off()
+        side = math.sqrt(1.0/max_total_count*100)
+        axis.bar(5,bottom=0,height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
+        side = math.sqrt(10.0/max_total_count*100)
+        axis.bar(5,bottom=2,height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
+        side = math.sqrt(100.0/max_total_count*100)
+        axis.bar(5,bottom=5,height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
 
         fig.savefig(output_svg, format='svg')
 
