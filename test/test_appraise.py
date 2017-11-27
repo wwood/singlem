@@ -41,6 +41,12 @@ class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
+    def _sort_appraisal_results(self, appraisal_results):
+        sorted_appraisal_results = list(sorted(
+            appraisal_results,
+            key=lambda x: (x.metagenome_sample_name, x.num_binned, x.num_assembled, x.num_not_found)))
+        return sorted_appraisal_results
+
     def test_hello_world(self):
         metagenome_otu_table = [self.headers,['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                     ['4.11.ribosomal_protein_L10','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
@@ -640,11 +646,12 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[0]
+        res = self._sort_appraisal_results(app.appraisal_results)
+        a = res[0]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(0, a.num_assembled)
         self.assertEqual(8+9, a.num_not_found)
-        a = app.appraisal_results[1]
+        a = res[1]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_assembled)
         self.assertEqual(0, a.num_not_found)
@@ -654,12 +661,13 @@ class Tests(unittest.TestCase):
                                  assembly_otu_table_collection=assembly_collection,
                                  sequence_identity=0.9)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[0]
-        self.assertEqual('another', app.appraisal_results[0].metagenome_sample_name)
+        res = self._sort_appraisal_results(app.appraisal_results)
+        a = res[0]
+        self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(8, a.num_binned)
         self.assertEqual(8, a.num_assembled)
         self.assertEqual(9, a.num_not_found)
-        a = app.appraisal_results[1]
+        a = res[1]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_assembled)
         self.assertEqual(0, a.num_not_found)
