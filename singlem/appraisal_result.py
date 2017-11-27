@@ -135,18 +135,7 @@ class Appraisal:
 
         # Plot the area guide part of the legend
         axis = fig.add_subplot(gs[-1,num_samples])
-        axis.set_aspect('equal')
-        axis.set_ylim(-0.3,10.3) # Add 0.1 so the edges are not truncated.
-        axis.set_xlim(-0.3,10.3)
-        axis.set_xticks([])
-        axis.set_yticks([])
-        axis.set_axis_off()
-        side = math.sqrt(1.0/max_total_count*100)
-        axis.bar(5,bottom=0,height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
-        side = math.sqrt(10.0/max_total_count*100)
-        axis.bar(5,bottom=2,height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
-        side = math.sqrt(100.0/max_total_count*100)
-        axis.bar(5,bottom=5,height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
+        self._plot_scale(axis, max_total_count)
 
         fig.savefig(output_svg, format='svg')
 
@@ -211,6 +200,24 @@ class Appraisal:
             axis.text(0.75, top-next_y_offset-box_height*0.6, t, font_properties=fp)
             next_y_offset += box_height + space
 
+    def _plot_scale(self, axis, max_total_count):
+        axis.set_aspect('equal')
+        axis.set_ylim(-0.3,10.3) # Add 0.1 so the edges are not truncated.
+        axis.set_xlim(-0.3,10.3)
+        axis.set_xticks([])
+        axis.set_yticks([])
+        axis.set_axis_off()
+        scale_values = [1, 10, 100] #TODO: Pick scale values so that 111 < max_count
+        to_normalise = scale_values + [max_total_count-sum(scale_values)]
+        normalised = squarify.normalize_sizes(to_normalise, 10, 10)
+        offsets = [9.2, 6.8, 0]
+        for i, value in enumerate(scale_values):
+            side = math.sqrt(float(value)/max_total_count*100)
+            axis.bar(5,bottom=offsets[i],height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
+
+            # Add text
+            axis.text(10, offsets[i]+side/2, value, verticalalignment='center')
+        axis.set_title('OTU count')
 
 
 class AppraisalResult:
