@@ -569,7 +569,9 @@ class Tests(unittest.TestCase):
         with tempfile.NamedTemporaryFile(suffix='.svg',prefix='single_test_appraisal.') as f:
             app.plot(
                 output_svg_base='/tmp/a.svg',#f.name,
-                cluster_identity = 0.89
+                cluster_identity = 0.89,
+                doing_assembly=True,
+                doing_binning=True
             )
 
     def test_appraise_assembly_imperfectly(self):
