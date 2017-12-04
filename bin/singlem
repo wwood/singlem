@@ -195,7 +195,7 @@ if __name__ == '__main__':
                                         help=appraise_description,
                                         epilog=__author__)
     appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
-    appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes", required=True)
+    appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes")
     appraise_parser.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -389,12 +389,18 @@ if __name__ == '__main__':
     elif args.subparser_name == 'appraise':
         appraiser = Appraiser()
 
-        genomes = OtuTableCollection()
-        for table in args.genome_otu_tables:
-            genomes.add_otu_table(open(table))
         metagenomes = OtuTableCollection()
         for table in args.metagenome_otu_tables:
-            metagenomes.add_otu_table(open(table))
+            with open(table) as f:
+                metagenomes.add_otu_table(f)
+
+        if args.genome_otu_tables:
+            genomes = OtuTableCollection()
+            for table in args.genome_otu_tables:
+                with open(table) as f:
+                    genomes.add_otu_table(f)
+        else:
+            genomes = None
         if args.assembly_otu_tables:
             assemblies = OtuTableCollection()
             for table in args.assembly_otu_tables:
@@ -402,6 +408,9 @@ if __name__ == '__main__':
                     assemblies.add_otu_table(f)
         else:
             assemblies = None
+
+        if genomes is None and assemblies is None:
+            raise Exception("Appraise must be run with genomes and/or assemblies.")
 
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                  metagenome_otu_table_collection=metagenomes,
@@ -432,7 +441,8 @@ if __name__ == '__main__':
 
         appraiser.print_appraisal(
             app,
-            doing_assembly = args.assembly_otu_tables is not None,
+            doing_binning = genomes is not None,
+            doing_assembly = assemblies is not None,
             binned_otu_table_io=binned_otu_table_io if args.binned_otu_table else None,
             assembled_otu_table_io=assembled_otu_table_io if args.assembled_otu_table else None,
             unaccounted_for_otu_table_io=unaccounted_for_otu_table_io)
