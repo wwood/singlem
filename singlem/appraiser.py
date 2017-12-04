@@ -28,32 +28,36 @@ class Appraiser:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        logging.info("Read in %i markers from the different genomes" %\
-                     len(genome_otu_table_collection))
-        filtered_genome_otus = \
-            list(genome_otu_table_collection.excluded_duplicate_distinct_genes())
-        logging.info("After excluding duplicate markers that may indicate "
-                     "contamination, found %i markers" % len(filtered_genome_otus))
-        if len(filtered_genome_otus) == 0:
-            logging.warning("No markers suitable for appraisal found. This may because all found markers "
-                        "have been excluded. To run 'appraise', the source genome name should be "
-                        "reflected in the 'sample' column of the OTU table, i.e. singlem 'pipe' should "
-                        "be run on several FASTA files, not a concatenation of genomes.")
+        appraising_binning = genome_otu_table_collection is not None
+        if appraising_binning:
+            logging.info("Read in %i markers from the different genomes" %\
+                         len(genome_otu_table_collection))
+            filtered_genome_otus = \
+                list(genome_otu_table_collection.excluded_duplicate_distinct_genes())
+            logging.info("After excluding duplicate markers that may indicate "
+                         "contamination, found %i markers" % len(filtered_genome_otus))
+            if len(filtered_genome_otus) == 0:
+                logging.warning("No markers suitable for appraisal found. This may because all found markers "
+                            "have been excluded. To run 'appraise', the source genome name should be "
+                            "reflected in the 'sample' column of the OTU table, i.e. singlem 'pipe' should "
+                            "be run on several FASTA files, not a concatenation of genomes.")
 
         appraising_assembly = assembly_otu_table_collection is not None
 
         if sequence_identity is None:
             genome_otu_sequences = set()
             genome_names = set()
-            for otu in filtered_genome_otus:
-                genome_otu_sequences.add(otu.sequence)
-                genome_names.add(otu.sample_name)
+            if appraising_binning:
+                for otu in filtered_genome_otus:
+                    genome_otu_sequences.add(otu.sequence)
+                    genome_names.add(otu.sample_name)
             if appraising_assembly:
                 assembly_sequences = set()
                 for otu in assembly_otu_table_collection:
                     assembly_sequences.add(otu.sequence)
-            logging.info("Read in %i unique sequences from the %i reference genomes" %\
-                         (len(genome_otu_sequences), len(genome_names)))
+            if appraising_binning:
+                logging.info("Read in %i unique sequences from the %i reference genomes" %\
+                             (len(genome_otu_sequences), len(genome_names)))
 
             # read in metagenome OTU sequences
             sample_name_to_appraisal = {}
@@ -66,7 +70,7 @@ class Appraiser:
                     sample_name_to_appraisal[otu.sample_name] = appraisal
 
                 count = otu.count
-                if otu.sequence in genome_otu_sequences:
+                if appraising_binning and otu.sequence in genome_otu_sequences:
                     appraisal.num_binned += count
                     appraisal.binned_otus.append(otu)
                     # Probably this 'if' condition is not necessary, but just to check.
@@ -85,10 +89,11 @@ class Appraiser:
             return app
 
         else:
-            sample_to_binned = self._appraise_inexactly(
-                metagenome_otu_table_collection,
-                filtered_genome_otus,
-                sequence_identity)
+            if appraising_binning:
+                sample_to_binned = self._appraise_inexactly(
+                    metagenome_otu_table_collection,
+                    filtered_genome_otus,
+                    sequence_identity)
             if assembly_otu_table_collection:
                 sample_to_assembled = self._appraise_inexactly(
                     metagenome_otu_table_collection,
@@ -100,12 +105,13 @@ class Appraiser:
             for sample, appraisal_building_block in sample_to_binned.items():
                 res = AppraisalResult()
                 res.metagenome_sample_name = sample
-                res.num_binned = appraisal_building_block.num_found
-                res.binned_otus = appraisal_building_block.found_otus
                 seen_otu_sequences = set()
-                for otu in res.binned_otus:
-                    seen_otu_sequences.add(otu.sequence)
-                if assembly_otu_table_collection:
+                if appraising_binning:
+                    res.num_binned = appraisal_building_block.num_found
+                    res.binned_otus = appraisal_building_block.found_otus
+                    for otu in res.binned_otus:
+                        seen_otu_sequences.add(otu.sequence)
+                if appraising_assembly:
                     assembled_building_block = sample_to_assembled[sample]
                     res.num_assembled = assembled_building_block.num_found
                     res.assembled_otus = assembled_building_block.found_otus
@@ -156,6 +162,7 @@ class Appraiser:
 
 
     def print_appraisal(self, appraisal,
+                        doing_binning,
                         output_io=sys.stdout,
                         doing_assembly=False,
                         binned_otu_table_io=None,
@@ -163,10 +170,11 @@ class Appraiser:
                         unaccounted_for_otu_table_io=None):
         '''print the Appraisal object overview to STDOUT'''
 
-        headers = ['sample','num_binned']
+        headers = ['sample']
+        if doing_binning: headers.append('num_binned')
         if doing_assembly: headers.append('num_assembled')
         headers.append('num_not_found')
-        headers.append('percent_binned')
+        if doing_binning: headers.append('percent_binned')
         if doing_assembly: headers.append('percent_assembled')
         output_io.write("\t".join(headers)+"\n")
 
@@ -177,24 +185,29 @@ class Appraiser:
 
         def print_sample(num_binned, num_assembled, num_assembled_not_binned, num_not_found, sample,
                          mypercent_binned=None, mypercent_assembled=None):
-            if mypercent_binned is not None:
-                percent_binned = mypercent_binned
+            if mypercent_binned is not None or mypercent_assembled is not None:
+                if doing_binning:
+                    percent_binned = mypercent_binned
                 if doing_assembly:
                     percent_assembled = mypercent_assembled
             else:
-                total = num_binned + num_not_found
-                if num_assembled is not None: total += num_assembled_not_binned
+                total = num_not_found
+                if doing_binning: total += num_binned
+                if doing_assembly: total += num_assembled_not_binned
                 if total == 0:
-                    percent_binned = 0.0
+                    if doing_binning: percent_binned = 0.0
                     if doing_assembly: percent_assembled = 0.0
                 else:
-                    percent_binned = float(num_binned)/total * 100
+                    if doing_binning:
+                        percent_binned = float(num_binned)/total * 100
                     if doing_assembly:
                         percent_assembled = float(num_assembled)/total * 100
-            to_write = [sample, str(num_binned)]
+            to_write = [sample]
+            if doing_binning: to_write.append(str(num_binned))
             if doing_assembly: to_write.append(str(num_assembled))
             to_write.append(str(num_not_found))
-            to_write.append("%2.1f" % percent_binned)
+            if doing_binning:
+                to_write.append("%2.1f" % percent_binned)
             if doing_assembly:
                 to_write.append("%2.1f" % percent_assembled)
             output_io.write("\t".join(to_write)+"\n")
@@ -212,12 +225,13 @@ class Appraiser:
         for appraisal_result in appraisal.appraisal_results:
             if doing_assembly:
                 num_assembled_not_binned = appraisal_result.num_assembled_not_binned()
-            print_sample(appraisal_result.num_binned,
+            print_sample(appraisal_result.num_binned if doing_binning else None,
                          appraisal_result.num_assembled if doing_assembly else None,
                          num_assembled_not_binned if doing_assembly else None,
                          appraisal_result.num_not_found,
                          appraisal_result.metagenome_sample_name)
-            binned.append(appraisal_result.num_binned)
+            if doing_binning:
+                binned.append(appraisal_result.num_binned)
             if doing_assembly:
                 assembled.append(appraisal_result.num_assembled)
                 assembled_not_binned.append(num_assembled_not_binned)
@@ -229,7 +243,7 @@ class Appraiser:
             if unaccounted_for_otu_table_io:
                 unaccounted_for_table.add(appraisal_result.not_found_otus)
 
-        print_sample(sum(binned),
+        print_sample(sum(binned) if doing_binning else None,
                      sum(assembled) if doing_assembly else None,
                      sum(assembled_not_binned) if doing_assembly else None,
                      sum(not_founds),
@@ -241,15 +255,19 @@ class Appraiser:
             num_assembled = assembled[i] if doing_assembly else 0
             num_assembled_not_binned = assembled_not_binned[i] if doing_assembly else 0
             num_not_found = not_founds[i]
-            total = num_binned+num_assembled_not_binned+num_not_found
-            binned_means.append(float(num_binned)/total)
+            if not doing_binning: num_binned = 0
+            total = num_assembled_not_binned+num_not_found
+            if doing_binning:
+                total += num_binned
+                binned_means.append(float(num_binned)/total)
             if doing_assembly:
                 assembled_means.append(float(num_assembled)/total)
-        print_sample("%2.1f" % mean(binned),
+        print_sample("%2.1f" % mean(binned) if doing_binning else None,
                      "%2.1f" % mean(assembled) if doing_assembly else None,
                      None,
-                     "%2.1f" % mean(not_founds), 'average',
-                     mypercent_binned=mean(binned_means)*100,
+                     "%2.1f" % mean(not_founds),
+                     'average',
+                     mypercent_binned=mean(binned_means)*100 if doing_binning else None,
                      mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
 
         if binned_otu_table_io:
