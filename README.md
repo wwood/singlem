@@ -94,8 +94,8 @@ singlem query --query_sequence TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGG
 ```
 
 
-### Appraising assembly and genome recovery efforts SingleM can be used to
-determine how much of a community is represented in an assembly or represented
+### Appraising assembly and genome recovery efforts 
+SingleM can be used to determine how much of a community is represented in an assembly or represented
 by a set of genomes.
 
 The assessment is carried out by comparing the set of OTU sequences in the
@@ -112,7 +112,7 @@ To assess how well a set of sequences represent a metagenome, first run `pipe`
 on both the genomes and the raw reads, and then use `appraise`:
 ```
 singlem pipe --sequences raw.fq.gz --otu_table metagenome.otu_table.csv
-singlem pipe --sequences genome_store/*.fasta --otu_table genomes.otu_table.csv
+singlem pipe --sequences my_genomes/*.fasta --otu_table genomes.otu_table.csv
 singlem appraise --metagenome_otu_tables metagenome.otu_table.csv --genome_otu_tables genomes.otu_table.csv
 ```
 One may also accommodate some sequence differences, with `--imperfect`, or
