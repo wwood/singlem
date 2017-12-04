@@ -94,13 +94,43 @@ singlem query --query_sequence TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGG
 ```
 
 
-### Appraising genome recovery efforts
-To assess how well a set of genomes (or population genomes) represent those present in a metagenome, first run `pipe` on both the genomes and the raw reads, and then use `appraise`:
+### Appraising assembly and genome recovery efforts SingleM can be used to
+determine how much of a community is represented in an assembly or represented
+by a set of genomes.
+
+The assessment is carried out by comparing the set of OTU sequences in the
+assembly/genomes to those found from the raw metagenome reads. A similar metric
+can be estimated by the fraction of reads mapping to either the assembly or the
+genome, but the approach here is more flexible and has several advantages:
+
+1. We can determine which specific lineages are missing
+2. We can match OTU sequences imperfectly, so we can e.g. make statements about whether a genus level representative genome has been recovered
+3. Since the metric assesses only single copy marker genes, the appraisal is on a per-cell basis, not per-read
+4. Some care must be taken, but we can prevent Eukaryotic DNA from skewing the estimate
+
+To assess how well a set of sequences represent a metagenome, first run `pipe`
+on both the genomes and the raw reads, and then use `appraise`:
 ```
+singlem pipe --sequences raw.fq.gz --otu_table metagenome.otu_table.csv
+singlem pipe --sequences genome_store/*.fasta --otu_table genomes.otu_table.csv
 singlem appraise --metagenome_otu_tables metagenome.otu_table.csv --genome_otu_tables genomes.otu_table.csv
 ```
-One may also accommodate some sequence differences, with `--imperfect`, or output OTU tables of OTUs in the genomes or not in the genomes with `--accounted_for_otu_table` and `--unaccounted_for_otu_table`.
+One may also accommodate some sequence differences, with `--imperfect`, or
+output OTU tables of those sequences that match and those that do not (see
+`singlem appraise -h`). Assessing assemblies is similar to assessing genomes,
+except that when assessing bins duplicate markers from the same genome are
+excluded as likely contamination.
 
+An appraisal can also be represented visually, using `appraise --plot_basename`:
+![Image of
+appraise](https://raw.githubusercontent.com/wwood/singlem/master/appraise_plot.svg)
+Each rectangle represents a single OTU sequence where its size represents its
+abundance (the number of reads that OTU represents in the metagenome). Colours
+represent 89% OTU clustering of these sequences (~genus level), with the
+taxonomy of the most common sequence written out. Here we see that highly
+abundant OTUs in SRR5040536 were assembled, but only 1 of the 3 abundant
+betaproteobacterial OTUs has an associated bin. As is common, the highest
+abundance lineages did not necessarily assemble and bin successfully.
 
 
 ### Installation
