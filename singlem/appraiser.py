@@ -94,21 +94,24 @@ class Appraiser:
                     metagenome_otu_table_collection,
                     filtered_genome_otus,
                     sequence_identity)
+                sample_to_building_block = sample_to_binned
             if assembly_otu_table_collection:
                 sample_to_assembled = self._appraise_inexactly(
                     metagenome_otu_table_collection,
                     assembly_otu_table_collection,
                     sequence_identity)
+                sample_to_building_block = sample_to_assembled
 
             app = Appraisal()
             app.appraisal_results = []
-            for sample, appraisal_building_block in sample_to_binned.items():
+            for sample in sample_to_building_block.keys():
                 res = AppraisalResult()
                 res.metagenome_sample_name = sample
                 seen_otu_sequences = set()
                 if appraising_binning:
-                    res.num_binned = appraisal_building_block.num_found
-                    res.binned_otus = appraisal_building_block.found_otus
+                    binning_building_block = sample_to_binned[sample]
+                    res.num_binned = binning_building_block.num_found
+                    res.binned_otus = binning_building_block.found_otus
                     for otu in res.binned_otus:
                         seen_otu_sequences.add(otu.sequence)
                 if appraising_assembly:
@@ -251,11 +254,15 @@ class Appraiser:
 
         binned_means = []
         assembled_means = []
-        for i, num_binned in enumerate(binned):
+        if doing_binning:
+            to_enumerate = binned
+        else:
+            to_enumerate = assembled
+        for i, _ in enumerate(to_enumerate):
+            num_binned = binned[i] if doing_binning else 0
             num_assembled = assembled[i] if doing_assembly else 0
             num_assembled_not_binned = assembled_not_binned[i] if doing_assembly else 0
             num_not_found = not_founds[i]
-            if not doing_binning: num_binned = 0
             total = num_assembled_not_binned+num_not_found
             if doing_binning:
                 total += num_binned
