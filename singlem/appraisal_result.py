@@ -3,6 +3,7 @@ import sys
 import math
 import squarify
 import matplotlib
+matplotlib.use('Agg') # Must be run the first time matplotlib is imported.
 import matplotlib.cm
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
