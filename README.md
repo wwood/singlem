@@ -122,8 +122,9 @@ except that when assessing bins duplicate markers from the same genome are
 excluded as likely contamination.
 
 An appraisal can also be represented visually, using `appraise --plot_basename`:
-![Image of
-appraise](https://raw.githubusercontent.com/wwood/singlem/master/appraise_plot.svg)
+
+![Image of appraise](https://raw.githubusercontent.com/wwood/singlem/master/appraise_plot.png)
+
 Each rectangle represents a single OTU sequence where its size represents its
 abundance (the number of reads that OTU represents in the metagenome). Colours
 represent 89% OTU clustering of these sequences (~genus level), with the
