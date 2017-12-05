@@ -97,6 +97,34 @@ To cluster and OTU table based on 89 percent sequence identity:
 %s
 ''' % detail_str
             return help
+
+        elif prog == 'singlem appraise':
+            help = '\n'+prog+': '+self.description+'''
+
+Determine how much of a metagenome is represented by some genomes:
+
+  singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
+            --genome_otu_tables otu_table.from_pipe_on_genomes.tsv
+
+Determine how much of a metagenome is represented by an assembly:
+
+  singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
+            --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv
+
+Visualise which OTUs have been assembled or binned. An SVG is generated for
+each gene. To interpret these visualisations, see the description in the
+README, which is available at
+https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
+
+  singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
+            --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv \\
+            --genome_otu_tables otu_table.from_pipe_on_genomes.tsv \\
+            --plot_basename singlem_appraise
+
+%s
+''' % detail_str
+            return help
+
         else:
             return argparse.ArgumentParser.format_help(self)
 
