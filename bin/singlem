@@ -56,6 +56,34 @@ def seqs(args):
     logging.info("Found best start position %i" % best_position)
 
 
+class MyParser(argparse.ArgumentParser):
+    FULL_HELP_FLAG = 'full_help'
+
+    PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.PPLACER_ASSIGNMENT_METHOD
+
+    def format_help(self):
+        prog = self.prog
+        if prog == 'singlem pipe':
+            help = '\n'+self.description+'''.
+
+Common usage: singlem pipe --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
+
+Popular options:
+--threads N: Use N threads.
+--output_extras: Output more detailed information in the OTU table.
+--assignment_method {%s,%s,%s}: Specify taxonomic assignment method [default: %s].
+
+See %s --%s for a full and more detailed description of options.
+''' % (pipe.PPLACER_ASSIGNMENT_METHOD,
+       pipe.DIAMOND_ASSIGNMENT_METHOD,
+       pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+       self.PIPE_DEFAULT_ASSIGNMENT_METHOD,
+       prog,
+       self.FULL_HELP_FLAG)
+            return help
+        else:
+            return argparse.ArgumentParser.format_help(self)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -63,13 +91,17 @@ if __name__ == '__main__':
     parser.add_argument('--debug', help='output debug information', action="store_true")
     parser.add_argument('--version', help='output version information and quit',  action='version', version=singlem.__version__)
     parser.add_argument('--quiet', help='only output errors', action="store_true")
-    subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name')
+    subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name', parser_class=MyParser)
 
-    pipe_description = 'Generate an OTU table from raw sequence data'
+    subparser_name_to_parser = {}
+
+    pipe_description = 'Generate an OTU table from raw sequences.'
     pipe_parser = subparsers.add_parser('pipe',
                                         description=pipe_description,
                                         help=pipe_description,
                                         epilog=__author__)
+    subparser_name_to_parser['pipe'] = pipe_parser
+    pipe_parser.add_argument('--%s' % MyParser.FULL_HELP_FLAG, action='store_true', default=False, help='display all help options')
     common_pipe_options = pipe_parser.add_argument_group('Common options')
     common_pipe_options.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
     common_pipe_options.add_argument('--otu_table', metavar='filename', help='output OTU table')
@@ -234,7 +266,14 @@ if __name__ == '__main__':
         print '\n  Use: singlem <command> -h for command-specific help\n'
         sys.exit(0)
     else:
-        args = parser.parse_args()
+        partial_args = parser.parse_known_args()
+        ok_args = partial_args[0]
+        if ok_args.full_help and ok_args.subparser_name:
+            subparser = subparser_name_to_parser[ok_args.subparser_name]
+            print(argparse.ArgumentParser.format_help(pipe_parser))
+            sys.exit(0)
+        else:
+            args = parser.parse_args()
 
     if args.debug:
         loglevel = logging.DEBUG
@@ -461,3 +500,5 @@ if __name__ == '__main__':
             target_taxonomy = Taxonomy.split_taxonomy(args.taxonomy))
     else:
         raise Exception("Programming error")
+
+
