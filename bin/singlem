@@ -86,24 +86,26 @@ See %s --%s for a full and more detailed description of options.
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--debug', help='output debug information', action="store_true")
+    parent_parser.add_argument('--version', help='output version information and quit',  action='version', version=singlem.__version__)
+    parent_parser.add_argument('--quiet', help='only output errors', action="store_true")
 
-    parser.add_argument('--debug', help='output debug information', action="store_true")
-    parser.add_argument('--version', help='output version information and quit',  action='version', version=singlem.__version__)
-    parser.add_argument('--quiet', help='only output errors', action="store_true")
+    parser = argparse.ArgumentParser(parents=[parent_parser])
     subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name', parser_class=MyParser)
-
     subparser_name_to_parser = {}
 
     def new_subparser(subparsers, parser_name, parser_description):
         subpar = subparsers.add_parser(parser_name,
-                                        description=parser_description,
-                                        help=parser_description,
-                                        epilog=__author__)
+                                       description=parser_description,
+                                       help=parser_description,
+                                       epilog=__author__,
+                                       parents=[parent_parser])
         subpar.add_argument('--%s' % MyParser.FULL_HELP_FLAG, action='store_true', default=False, help='display all help options')
         subparser_name_to_parser[parser_name] = subpar
         return subpar
 
+    pipe_description = 'Generate an OTU table from raw sequences.'
     pipe_parser = new_subparser(subparsers, 'pipe', 'Generate an OTU table from raw sequences.')
     common_pipe_options = pipe_parser.add_argument_group('Common options')
     common_pipe_options.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
