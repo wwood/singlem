@@ -95,13 +95,16 @@ if __name__ == '__main__':
 
     subparser_name_to_parser = {}
 
-    pipe_description = 'Generate an OTU table from raw sequences.'
-    pipe_parser = subparsers.add_parser('pipe',
-                                        description=pipe_description,
-                                        help=pipe_description,
+    def new_subparser(subparsers, parser_name, parser_description):
+        subpar = subparsers.add_parser(parser_name,
+                                        description=parser_description,
+                                        help=parser_description,
                                         epilog=__author__)
-    subparser_name_to_parser['pipe'] = pipe_parser
-    pipe_parser.add_argument('--%s' % MyParser.FULL_HELP_FLAG, action='store_true', default=False, help='display all help options')
+        subpar.add_argument('--%s' % MyParser.FULL_HELP_FLAG, action='store_true', default=False, help='display all help options')
+        subparser_name_to_parser[parser_name] = subpar
+        return subpar
+
+    pipe_parser = new_subparser(subparsers, 'pipe', 'Generate an OTU table from raw sequences.')
     common_pipe_options = pipe_parser.add_argument_group('Common options')
     common_pipe_options.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
     common_pipe_options.add_argument('--otu_table', metavar='filename', help='output OTU table')
