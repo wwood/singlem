@@ -63,23 +63,39 @@ class MyParser(argparse.ArgumentParser):
 
     def format_help(self):
         prog = self.prog
+        detail_str = 'See %s --%s for further options and further detail.\n' % (
+            prog,
+            self.FULL_HELP_FLAG)
         if prog == 'singlem pipe':
-            help = '\n'+self.description+'''.
+            help = '\n'+prog+': '+self.description+'''
 
 Common usage: singlem pipe --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
 
 Popular options:
---threads N: Use N threads.
---output_extras: Output more detailed information in the OTU table.
---assignment_method {%s,%s,%s}: Specify taxonomic assignment method [default: %s].
+  --threads N\t\tUse N threads.
+  --output_extras\tOutput more detailed information in the OTU table.
+  --assignment_method {%s,%s,%s}\t
+\t\t\tSpecify taxonomic assignment method [default: %s].
 
-See %s --%s for a full detailed description of all options.
+%s
 ''' % (pipe.PPLACER_ASSIGNMENT_METHOD,
        pipe.DIAMOND_ASSIGNMENT_METHOD,
        pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
        self.PIPE_DEFAULT_ASSIGNMENT_METHOD,
-       prog,
-       self.FULL_HELP_FLAG)
+       detail_str)
+            return help
+
+        elif prog == 'singlem summarise':
+            help = '\n'+prog+': '+self.description+'''
+
+To convert an OTU table into a Krona HTML visualisation:
+  singlem summarise --input_otu_tables otu_table.from_pipe.tsv --krona singlem.krona.html
+
+To cluster and OTU table based on 89 percent sequence identity:
+  singlem summarise --input_otu_tables otu_table.from_pipe.tsv --cluster --cluster_id 0.89 --output_otu_table clustered.otu_table.tsv
+
+%s
+''' % detail_str
             return help
         else:
             return argparse.ArgumentParser.format_help(self)
@@ -228,7 +244,7 @@ if __name__ == '__main__':
     chance_parser.add_argument('--otu_tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
     chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
 
-    if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv == '--help'):
+    if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
         print ''
         print '                ...::: SingleM v' + singlem.__version__ + ' :::...'''
         print '\n  General usage:'
@@ -250,11 +266,12 @@ if __name__ == '__main__':
         print '\n  Use: singlem <command> -h for command-specific help\n'
         sys.exit(0)
     else:
-        partial_args = parser.parse_known_args()
-        ok_args = partial_args[0]
-        if ok_args.full_help and ok_args.subparser_name:
-            subparser = subparser_name_to_parser[ok_args.subparser_name]
-            print(argparse.ArgumentParser.format_help(pipe_parser))
+        # Determine whether --full_help was specified before argument parsing.
+        if '--%s' % MyParser.FULL_HELP_FLAG in sys.argv and \
+           sys.argv[1] in subparser_name_to_parser:
+            subcommand = sys.argv[1]
+            subparser = subparser_name_to_parser[subcommand]
+            print(argparse.ArgumentParser.format_help(subparser))
             sys.exit(0)
         else:
             args = parser.parse_args()
