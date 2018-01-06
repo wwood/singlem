@@ -4,6 +4,7 @@ import csv
 import logging
 from singlem_package import SingleMPackage
 import itertools
+import pkg_resources
 
 class OrfMUtils:
     def un_orfm_name(self, name):
@@ -32,17 +33,18 @@ class HmmDatabase:
             logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
         else:
             # Prefer production DB directory
-            db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'db')
-            if not os.path.exists(db_directory):
-                # If no production DB directory exists, use the dev DB directory
-                db_directory = os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                                            '..','db')
-            pkg_paths = [d for d in os.listdir(db_directory) if d[-5:]=='.spkg']
+            pkg_resources_db_directory = 'data'
+
+            pkg_paths = pkg_resources.resource_listdir('singlem',pkg_resources_db_directory)
+            basedir = pkg_resources.resource_filename('singlem',pkg_resources_db_directory)
+            logging.debug("Searching for SingleM packages via pkg_resources in %s .." % basedir)
+            pkg_paths = [os.path.join(basedir,d) for d in pkg_paths if d[-5:]=='.spkg']
+            if len(pkg_paths) == 0:
+                raise Exception("Unable to find any SingleM packages using pkg_resources")
+
             logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
                                                         ', '.join(pkg_paths)))
-            if len(pkg_paths) == 0:
-                raise Exception("Unable to find any SingleM packages in %s" % db_directory)
-            self.singlem_packages = [SingleMPackage.acquire(os.path.join(db_directory, path)) for path in pkg_paths]
+            self.singlem_packages = [SingleMPackage.acquire(path) for path in pkg_paths]
 
         for pkg in self.singlem_packages:
             self._hmms_and_positions[pkg.base_directory()] = pkg
