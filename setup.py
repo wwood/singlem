@@ -8,42 +8,6 @@ with open('README.md') as readme_file:
 
 exec(open('singlem/version.py').read()) # loads __version__
 
-# create archives during build
-if 'sdist' in sys.argv:
-    # Get a list of the DBs that are in 'db' of the root directory.
-    from singlem.singlem import HmmDatabase # import here so it is not needed during install
-    pkgs = HmmDatabase()
-    archive_list = []
-    for pkg in itertools.chain(*[pkgs.protein_packages(), pkgs.nucleotide_packages()]):
-        # Archive the GraftM gpkg
-        gpkg = pkg.graftm_package_path()
-        archive = gpkg+".tar.gz"
-        subprocess.check_call(["graftM", "archive", "--create", "--graftm_package",
-                               gpkg, "--archive", archive, '--force'])
-        # The CONTENTS file comes courtesy of the Python MANIFEST.in
-        archive_list.append(archive)
-
-if 'build' in sys.argv or 'bdist_wheel' in sys.argv:
-    # Extract each of the GraftM gpkgs in 'db' into 'singlem/db'
-    output_db_dir = 'singlem/db'
-    if os.path.exists(output_db_dir):
-        raise Exception("Please delete or move '%s' as this is the staging area for building the databases." % output_db_dir)
-    os.mkdir(output_db_dir)
-    spkgs = os.listdir('db')
-    for spkg in spkgs:
-        if spkg in ('.gitattributes'): continue
-        gpkg = spkg.replace('.gpkg.spkg','')
-        spkg_path = os.path.join(output_db_dir,spkg)
-        os.mkdir(spkg_path)
-        subprocess.check_call(
-            ["graftM", "archive", "--extract",
-             "--graftm_package", os.path.join(spkg_path,gpkg),
-             "--archive", os.path.join(
-                 'db', spkg, gpkg+".tar.gz"),
-             "--force"])
-        shutil.copyfile(os.path.join('db',spkg,'CONTENTS.json'),
-                        os.path.join('singlem','db',spkg,'CONTENTS.json'))
-
 def recursive_find(directory):
     """List the files in a directory recursively, sort of like Unix 'find'"""
     file_list = []
@@ -54,7 +18,9 @@ def recursive_find(directory):
                 raise Exception("Too many files added to the recursive list")
     return file_list
 
-spkg_data_files = list([f.replace('singlem/','') for f in recursive_find('singlem/db')])
+# See https://stackoverflow.com/questions/20298729/pip-installing-data-files-to-the-wrong-place
+# for details on how to get them working.
+spkg_data_files = list([f.replace('singlem/data/','') for f in recursive_find('singlem/data')])
 
 setup(
     name='singlem',
@@ -93,5 +59,5 @@ setup(
     setup_requires=['nose >= 1.0'],
     test_suite='nose.collector',
     scripts=['bin/singlem'],
-    package_data = {'singlem': spkg_data_files}
+    package_data = {'singlem.data': spkg_data_files}
 )
