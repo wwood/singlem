@@ -151,31 +151,13 @@ class Querier:
                     results.append(QueryResult(queries_list[qid], otu, 0))
         return results
 
-
 class QueryInputSequence:
     def __init__(self, name, sequence):
         self.name = name
         self.sequence = sequence
-
-class BlastQueryResultLine:
-    def __init__(self, blast_output_line):
-        self.qseqid, self.sseqid, _, _, self.mismatch, self.gaps, self.qstart,\
-            self.qend, self.sstart, \
-            self.send = blast_output_line.strip().split("\t")[:10]
 
 class QueryResult:
     def __init__(self, query, subject, divergence):
         self.query = query
         self.subject = subject
         self.divergence = divergence
-
-class BlastQueryResults:
-    def __init__(self, queries_subjects_divergences, sseqid_to_hits):
-        self._queries_subjects_divergences = queries_subjects_divergences
-        self._sseqid_to_hits = sseqid_to_hits
-
-    def __iter__(self):
-        '''Iterate over results, yielding QueryResult objects'''
-        for qsd in self._queries_subjects_divergences:
-            for subject in self._sseqid_to_hits[qsd[1]]:
-                yield QueryResult(qsd[0], subject, qsd[2])
