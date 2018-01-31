@@ -260,10 +260,12 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
-    appraise_parser.add_argument('--output_binned_otu_table', help="output OTU table of binned populations", default=None)
-    appraise_parser.add_argument('--output_assembled_otu_table', help="output OTU table of assembled populations", default=None)
-    appraise_parser.add_argument('--output_unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
     appraise_parser.add_argument('--plot_basename', help="Plot visualisation of appraisal results to this basename (one SVG per marker)", default=None)
+    appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
+    appraise_otu_table_group.add_argument('--output_binned_otu_table', help="output OTU table of binned populations", default=None)
+    appraise_otu_table_group.add_argument('--output_unbinned_otu_table', help="output OTU table of assembled but not binned populations", default=None)
+    appraise_otu_table_group.add_argument('--output_assembled_otu_table', help="output OTU table of all assembled populations", default=None)
+    appraise_otu_table_group.add_argument('--output_unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
 
     chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
     chance_parser = new_subparser(subparsers, 'chance', chance_description)
@@ -485,16 +487,12 @@ if __name__ == '__main__':
 
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
-        else:
-            output_binned_otu_table_io = None
+        if args.output_unbinned_otu_table:
+            output_unbinned_otu_table_io = open(args.output_unbinned_otu_table,'w')
         if args.output_assembled_otu_table:
             output_assembled_otu_table_io = open(args.output_assembled_otu_table,'w')
-        else:
-            output_assembled_otu_table_io = None
         if args.output_unaccounted_for_otu_table:
             output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
-        else:
-            output_unaccounted_for_otu_table_io = None
 
         if args.plot_basename:
             if metagenomes is None:
@@ -510,6 +508,7 @@ if __name__ == '__main__':
             doing_binning = genomes is not None,
             doing_assembly = assemblies is not None,
             binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
+            unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
             assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
             unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io)
         if args.output_binned_otu_table: output_binned_otu_table_io.close()

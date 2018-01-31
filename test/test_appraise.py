@@ -353,6 +353,96 @@ class Tests(unittest.TestCase):
                           "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'])])+"\n",
                          not_found_otu_table_io.getvalue())
 
+        # Check that unbinned is the same as assembled OTUs when no binning is done
+        to_print = StringIO()
+        assembled_otu_table_io = StringIO()
+        unbinned_otu_table_io = StringIO()
+        not_found_otu_table_io = StringIO()
+        appraiser.print_appraisal(app, True, to_print,
+                                  doing_assembly=True,
+                                  assembled_otu_table_io=assembled_otu_table_io,
+                                  unbinned_otu_table_io=unbinned_otu_table_io,
+                                  unaccounted_for_otu_table_io=not_found_otu_table_io)
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'])
+                          ])+"\n",
+                         assembled_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'])
+                          ])+"\n",
+                         unbinned_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'])])+"\n",
+                         not_found_otu_table_io.getvalue())
+
+
+    def test_print_assembly_appraise_all_binned(self):
+        metagenome_otu_table = [self.headers,
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+                    ]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+
+        assembly_otu_table = [self.headers,['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+                    ]
+        assemblies = "\n".join(["\t".join(x) for x in assembly_otu_table])
+
+        genomes = assemblies
+
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        assembly_collection = OtuTableCollection()
+        assembly_collection.add_otu_table(StringIO(assemblies))
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 assembly_otu_table_collection=assembly_collection)
+        self.assertEqual(2, len(app.appraisal_results))
+        a = app.appraisal_results[1]
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual(7, a.num_binned)
+        self.assertEqual(7, a.num_assembled)
+        self.assertEqual(0, a.num_not_found)
+        a = app.appraisal_results[0]
+        self.assertEqual('another', a.metagenome_sample_name)
+        self.assertEqual(0, a.num_binned)
+        self.assertEqual(0, a.num_assembled)
+        self.assertEqual(4, a.num_not_found)
+
+        to_print = StringIO()
+        appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
+        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nanother\t0\t0\t4\t0.0\t0.0\nminimal\t7\t7\t0\t100.0\t100.0\ntotal\t7\t7\t4\t63.6\t63.6\naverage\t3.5\t3.5\t2.0\t50.0\t50.0\n", to_print.getvalue())
+
+        # Check that unbinned is the same as assembled OTUs when no binning is done
+        to_print = StringIO()
+        assembled_otu_table_io = StringIO()
+        unbinned_otu_table_io = StringIO()
+        not_found_otu_table_io = StringIO()
+        appraiser.print_appraisal(app, True, to_print,
+                                  doing_assembly=True,
+                                  assembled_otu_table_io=assembled_otu_table_io,
+                                  unbinned_otu_table_io=unbinned_otu_table_io,
+                                  unaccounted_for_otu_table_io=not_found_otu_table_io)
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'])
+                          ])+"\n",
+                         assembled_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          ])+"\n",
+                         unbinned_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers),
+                          "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'])])+"\n",
+                         not_found_otu_table_io.getvalue())
+
+
 
     def test_contamination(self):
         metagenome_otu_table = [

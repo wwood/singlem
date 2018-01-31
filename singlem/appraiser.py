@@ -37,7 +37,7 @@ class Appraiser:
             logging.info("After excluding duplicate markers that may indicate "
                          "contamination, found %i markers" % len(filtered_genome_otus))
             if len(filtered_genome_otus) == 0:
-                logging.warning("No markers suitable for appraisal found. This may because all found markers "
+                logging.warning("No markers suitable for appraisal found. This may be because all found markers "
                             "have been excluded. To run 'appraise', the source genome name should be "
                             "reflected in the 'sample' column of the OTU table, i.e. singlem 'pipe' should "
                             "be run on several FASTA files, not a concatenation of genomes.")
@@ -169,6 +169,7 @@ class Appraiser:
                         output_io=sys.stdout,
                         doing_assembly=False,
                         binned_otu_table_io=None,
+                        unbinned_otu_table_io=None,
                         assembled_otu_table_io=None,
                         unaccounted_for_otu_table_io=None):
         '''print the Appraisal object overview to STDOUT'''
@@ -220,6 +221,8 @@ class Appraiser:
 
         if binned_otu_table_io:
             binned_table = OtuTable()
+        if unbinned_otu_table_io:
+            unbinned_table = OtuTable()
         if assembled_otu_table_io:
             assembled_table = OtuTable()
         if unaccounted_for_otu_table_io:
@@ -241,6 +244,8 @@ class Appraiser:
             not_founds.append(appraisal_result.num_not_found)
             if binned_otu_table_io:
                 binned_table.add(appraisal_result.binned_otus)
+            if unbinned_otu_table_io:
+                unbinned_table.add(appraisal_result.assembled_not_binned_otus())
             if assembled_otu_table_io:
                 assembled_table.add(appraisal_result.assembled_otus)
             if unaccounted_for_otu_table_io:
@@ -279,6 +284,8 @@ class Appraiser:
 
         if binned_otu_table_io:
             binned_table.write_to(binned_otu_table_io)
+        if unbinned_otu_table_io:
+            unbinned_table.write_to(unbinned_otu_table_io)
         if assembled_otu_table_io:
             assembled_table.write_to(assembled_otu_table_io)
         if unaccounted_for_otu_table_io:
