@@ -17,10 +17,12 @@ from metagenome_otu_finder import MetagenomeOtuFinder
 from sequence_classes import SeqReader
 from diamond_parser import DiamondResultParser
 from graftm_result import GraftMResult
+import sequence_extractor as singlem_sequence_extractor
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
+from graftm.sequence_io import SequenceIO
 
 PPLACER_ASSIGNMENT_METHOD = 'pplacer'
 DIAMOND_ASSIGNMENT_METHOD = 'diamond'
@@ -96,10 +98,8 @@ class SearchPipe:
                 os.mkdir(working_directory)
         logging.debug("Using working directory %s" % working_directory)
         self._working_directory = working_directory
-
         extracted_reads = None
         def return_cleanly():
-            if extracted_reads: extracted_reads.cleanup()
             if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
 
@@ -151,7 +151,10 @@ class SearchPipe:
         otu_table_object.fields = regular_output_fields + \
                                   split('read_names nucleotides_aligned taxonomy_by_known?')
 
-        for sample_name, singlem_package, tmp_graft, known_sequences, unknown_sequences in extracted_reads:
+        for readset in extracted_reads:
+            sample_name = readset.sample_name
+            singlem_package = readset.singlem_package
+            known_sequences = readset.known_sequences
             def add_info(infos, otu_table_object, known_tax):
                 for info in infos:
                     to_print = [
@@ -172,8 +175,8 @@ class SearchPipe:
                 True)
             add_info(known_infos, otu_table_object, True)
 
-            if tmp_graft: # if any sequences were aligned (not just already known)
-                tmpbase = os.path.basename(tmp_graft.name[:-6])#remove .fasta
+            if len(readset.unknown_sequences) > 0: # if any sequences were aligned (not just already known)
+                tmpbase = readset.tmpfile_basename
 
                 if assign_taxonomy:
                     is_known_taxonomy = False
@@ -207,7 +210,7 @@ class SearchPipe:
                         use_first = False
 
                 else: # Taxonomy has not been assigned.
-                    aligned_seqs = unknown_sequences
+                    aligned_seqs = readset.unknown_sequences
                     if known_sequence_taxonomy:
                         taxonomies = known_sequence_tax
                     else:
@@ -230,7 +233,6 @@ class SearchPipe:
                     with open(output_jplace_file, 'w') as output_jplace_io:
                         self._write_jplace_from_infos(
                             open(input_jplace_file), new_infos, output_jplace_io)
-
 
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
@@ -263,7 +265,7 @@ class SearchPipe:
         '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
         part of the singlem choppage process as tempfiles in a hash'''
 
-        extracted_reads = ExtractedReads(self._singlem_package_database)
+        extracted_reads = ExtractedReads()
 
         for sample_name in alignment_result.sample_names():
             for singlem_package in self._singlem_package_database:
@@ -296,15 +298,15 @@ class SearchPipe:
                         len(unknown_sequences)))
 
                     if len(unknown_sequences) > 0:
-                        tmp = tempfile.NamedTemporaryFile(
-                            prefix='singlem.%s.' % sample_name,
-                            suffix='.fasta')
-                        SequenceExtractor().extract([s.name for s in unknown_sequences],
-                                                    nucleotide_sequence_fasta_file,
-                                                    tmp.name)
+                        extractor = singlem_sequence_extractor.SequenceExtractor()
+                        seqs = extractor.extract_and_read(
+                            [s.name for s in unknown_sequences],
+                            nucleotide_sequence_fasta_file)
                     else:
-                        tmp = None
-                    extracted_reads.add(sample_name, singlem_package, tmp, known_sequences, unknown_sequences)
+                        seqs = []
+                    readset = ExtractedReadSet(sample_name, singlem_package,
+                                               seqs, known_sequences, unknown_sequences)
+                    extracted_reads.add(readset)
 
         return extracted_reads
 
@@ -569,9 +571,28 @@ class SearchPipe:
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
-        for singlem_package, sample_names, tmp_grafts in extracted_reads.each_package_wise():
-            tmpnames = list([tg.name for tg in tmp_grafts if tg])
-            if len(tmpnames) > 0:
+        all_tmp_files = []
+        # Run each one at a time serially so that the number of threads is
+        # respected, to save RAM as one DB needs to be loaded at once, and so
+        # fewer open files are needed, so that the open file count limit is
+        # eased.
+        for singlem_package, readsets in extracted_reads.each_package_wise():
+            tmp_files = []
+            for readset in readsets:
+                if len(readset.sequences) > 0:
+                    tmp = tempfile.NamedTemporaryFile(
+                        prefix='singlem.%s' % readset.sample_name, suffix=".fasta")
+                    # Record basename (remove .fasta) so that the graftm output
+                    # file is recorded for later on in pipe.
+                    tmpbase = os.path.basename(tmp.name[:-6])
+                    readset.tmpfile_basename = tmpbase
+                    seqio = SequenceIO()
+                    seqio.write_fasta(readset.sequences, tmp)
+                    tmp.flush()
+                    tmp_files.append(tmp)
+
+            if len(tmp_files) > 0:
+                tmpnames = list([tg.name for tg in tmp_files])
                 cmd = "%s "\
                       "--threads %i "\
                       "--forward %s "\
@@ -587,7 +608,10 @@ class SearchPipe:
                           singlem_package.graftm_package_basename(),
                           assignment_method)
                 commands.append(cmd)
+                all_tmp_files.append(tmp_files)
+
         extern.run_many(commands, num_threads=1)
+        for tmp_files in all_tmp_files: [t.close() for t in tmp_files]
         logging.info("Finished running taxonomic assignment with graftm")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
@@ -714,45 +738,51 @@ class SingleMPipeTaxonomicAssignmentResult:
                             '%s_read_tax.tsv' % tmpbase)
 
 class ExtractedReads:
-    def __init__(self, singlem_packages):
-        self._singlem_packages = singlem_packages
-        self._sample_to_array = {}
+    '''Collection class for ExtractedReadSet objects'''
+    def __init__(self):
+        self._sample_to_extracted_read_objects = {}
 
-    def add(self, sample_name, singlem_package, tmp_file, known_sequences, unknown_sequences):
-        arr = [singlem_package, tmp_file, known_sequences, unknown_sequences]
-        if sample_name in self._sample_to_array:
-            self._sample_to_array[sample_name].append(arr)
+    def add(self, extracted_read_set):
+        sample_name = extracted_read_set.sample_name
+        if sample_name in self._sample_to_extracted_read_objects:
+            self._sample_to_extracted_read_objects[sample_name].append(extracted_read_set)
         else:
-            self._sample_to_array[sample_name] = [arr]
+            self._sample_to_extracted_read_objects[sample_name] = [extracted_read_set]
 
     def __iter__(self):
-        '''yield sample, single_package, tmp_file, known_sequences, unknown_sequences'''
-        for sample, arrs in self._sample_to_array.items():
-            for arr in arrs:
-                yield sample, arr[0], arr[1], arr[2], arr[3]
+        '''yield sample, extracted_read_sets'''
+        for readsets in self._sample_to_extracted_read_objects.values():
+            for readset in readsets:
+                yield readset
 
     def each_package_wise(self):
-        '''yield once per pkg: [singlem_package, list of samples, list of tmp_files]'''
-        pkg_basename_to_pkg_samples_tmp_files = {}
-        for sample, arrs in self._sample_to_array.items():
-            for arr in arrs:
-                pkg_base = arr[0].base_directory()
-                if pkg_base in pkg_basename_to_pkg_samples_tmp_files:
-                    pkg_basename_to_pkg_samples_tmp_files[pkg_base][1].append(sample)
-                    pkg_basename_to_pkg_samples_tmp_files[pkg_base][2].append(arr[1])
+        '''yield once per pkg: [singlem_package, ExtractedReadSet objects with all
+        samples / sequences that have extracted sequences from it]
+
+        '''
+        pkg_basename_to_readsets = {}
+        for sample, readsets in self._sample_to_extracted_read_objects.items():
+            for readset in readsets:
+                pkg_base = readset.singlem_package.base_directory()
+                if pkg_base in pkg_basename_to_readsets:
+                    pkg_basename_to_readsets[pkg_base].append(readset)
                 else:
-                    pkg_basename_to_pkg_samples_tmp_files[pkg_base] = \
-                        [arr[0], [sample], [arr[1]]]
-        for arr in pkg_basename_to_pkg_samples_tmp_files.values():
-            yield arr
+                    pkg_basename_to_readsets[pkg_base] = [readset]
+        for readsets in pkg_basename_to_readsets.values():
+            yield readsets[0].singlem_package, readsets
 
     def each_sample(self):
-        for sample in self._sample_to_array.keys():
-            yield sample
+        return self._sample_to_array.keys()
 
-    def cleanup(self):
-        # remove these tempfiles because otherwise errors are spewed
-        # when they are cleaned up after the tempdir is gone
-        for sample, arrs in self._sample_to_array.items():
-            for arr in arrs:
-                if arr[1] is not None: arr[1].close()
+class ExtractedReadSet:
+    def __init__(self, sample_name, singlem_package, sequences,
+                 known_sequences, unknown_sequences):
+        self.sample_name = sample_name
+        self.singlem_package = singlem_package
+        self.sequences = sequences
+        self.known_sequences = known_sequences
+        self.unknown_sequences = unknown_sequences
+        self.tmpfile_basename = None # Used as part of pipe, making this object
+                                     # not suitable for use outside that
+                                     # setting.
+
