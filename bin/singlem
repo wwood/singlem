@@ -66,7 +66,12 @@ class MyParser(argparse.ArgumentParser):
         detail_str = 'See %s --%s for further options and further detail.\n' % (
             prog,
             self.FULL_HELP_FLAG)
-        if prog == 'singlem pipe':
+        splits = prog.split()
+        if len(splits) == 2:
+            subcommand = splits[1]
+        else:
+            subcommand = None
+        if subcommand == 'pipe':
             help = '\n'+prog+': '+self.description+'''
 
 Common usage: singlem pipe --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
@@ -85,7 +90,7 @@ Popular options:
        detail_str)
             return help
 
-        elif prog == 'singlem summarise':
+        elif subcommand == 'summarise':
             help = '\n'+prog+': '+self.description+'''
 
 To convert an OTU table into a Krona HTML visualisation:
@@ -98,7 +103,7 @@ To cluster and OTU table based on 89 percent sequence identity:
 ''' % detail_str
             return help
 
-        elif prog == 'singlem appraise':
+        elif subcommand == 'appraise':
             help = '\n'+prog+': '+self.description+'''
 
 Determine how much of a metagenome is represented by some genomes:
