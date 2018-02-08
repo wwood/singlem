@@ -412,6 +412,24 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                              [(name, row[fields.index('gene')], row[fields.index('taxonomy')]) for row in data for name in row[fields.index('read_names')]]
                             )
 
+    def test__align_proteins_to_hmm(self):
+        proteins = path_to_data+'/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorq4droc.fasta'
+        hmm = path_to_data+'/4.12.22seqs.spkg/4.12.22seqs/graftmgyqgXl_search.hmm'
+
+        alignment = SearchPipe()._align_proteins_to_hmm(proteins, hmm)
+        self.assertEqual(22, len(alignment))
+        a = alignment[0]
+        self.assertEqual('2512564006', a.name)
+        self.assertEqual(
+            '-------MAKKVAGTMKLQVAAGKANPSPPVGPALGQRGINIMEFCKAFNAKTaDLEP-----GAPCPTVITYYQDKSFSMEIKTPPASYFLKKAAKV-----K--------SGSKTPSRDTVG---------TVTTKQVREIAEAKMKDLNANDIEGAMKIILGSARSMGIEVK---------',
+            a.seq)
+        a2 = alignment[21]
+        self.assertEqual('2519103189', a2.name)
+        self.assertEqual(
+            '-------VAKKVDSVVKLQIPAGKANPAPPVGPALGQAGINIMGFCKEFNAQT-QDQA-----GMIIPVEITVYEDRSFTFITKTPPAAVLLKKAAGI-----E--------TASGEPNRNKVA---------TLNRDKVKEIAELKMPDLNAADVEAAMRMVEGTARSMGIVIED--------',
+            a2.seq)
+
+
 
 if __name__ == "__main__":
     unittest.main()
