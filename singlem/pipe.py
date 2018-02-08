@@ -180,13 +180,8 @@ class SearchPipe:
 
                 if assign_taxonomy:
                     is_known_taxonomy = False
-                    aligned_seqs = self._get_windowed_sequences(
-                        assignment_result.prealigned_sequence_file(
-                            sample_name, singlem_package, tmpbase),
-                        assignment_result.nucleotide_hits_file(
-                            sample_name, singlem_package, tmpbase),
-                        singlem_package,
-                        include_inserts)
+                    aligned_seqs = list(itertools.chain(
+                        readset.unknown_sequences, readset.known_sequences))
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         tax_file = assignment_result.diamond_assignment_file(
                             sample_name, singlem_package, tmpbase)
@@ -263,7 +258,12 @@ class SearchPipe:
 
     def _extract_relevant_reads(self, alignment_result, include_inserts, known_taxonomy):
         '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
-        part of the singlem choppage process as tempfiles in a hash'''
+        part of the singlem choppage process.
+
+        Returns
+        -------
+        ExtractedReads object
+        '''
 
         extracted_reads = ExtractedReads()
 
@@ -277,7 +277,6 @@ class SearchPipe:
                     else:
                         nucleotide_sequence_fasta_file = prealigned_file
 
-                    logging.debug("Aligning %s to the HMM" % prealigned_file)
                     aligned_seqs = self._get_windowed_sequences(
                         prealigned_file,
                         nucleotide_sequence_fasta_file,
@@ -681,9 +680,7 @@ class SingleMPipeAlignSearchResult:
             '%s_hits' % sample_name)
 
     def prealigned_sequence_files(self, sample_name, singlem_package):
-        '''Yield a path to the sequences that were aligned to the HMM. In the nucleotide
-        case, this is a temporary file(name) which is a concatenation of forward
-        and reverse.
+        '''Yield a path to the sequences that were aligned to the HMM.
 
         '''
         if singlem_package.is_protein_package():
@@ -785,4 +782,3 @@ class ExtractedReadSet:
         self.tmpfile_basename = None # Used as part of pipe, making this object
                                      # not suitable for use outside that
                                      # setting.
-
