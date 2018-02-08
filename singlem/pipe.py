@@ -9,12 +9,14 @@ import subprocess
 import json
 import re
 from string import split
+from Bio import SeqIO
+from StringIO import StringIO
 
 from singlem import HmmDatabase, TaxonomyFile, OrfMUtils
 from otu_table import OtuTable
 from known_otu_table import KnownOtuTable
 from metagenome_otu_finder import MetagenomeOtuFinder
-from sequence_classes import SeqReader
+from sequence_classes import SeqReader, AlignedProteinSequence
 from diamond_parser import DiamondResultParser
 from graftm_result import GraftMResult
 import sequence_extractor as singlem_sequence_extractor
@@ -311,13 +313,20 @@ class SearchPipe:
 
     def _align_proteins_to_hmm(self, proteins_file, hmm_file):
         '''hmmalign proteins to hmm, and return an alignment object'''
-
-        with tempfile.NamedTemporaryFile(prefix="singlem", suffix=".fasta") as f:
-            cmd = "hmmalign %s %s |seqmagick convert --input-format stockholm - %s" % (hmm_file,
-                                                              proteins_file,
-                                                              f.name)
-            extern.run(cmd)
-            return SeqReader().alignment_from_alignment_file(f.name)
+        cmd = "hmmalign '%s' '%s'" % (hmm_file, proteins_file)
+        process = subprocess.Popen(['bash','-c',cmd], stdout=subprocess.PIPE)
+        output, error = process.communicate()
+        protein_alignment = []
+        for record in SeqIO.parse(StringIO(output), 'stockholm'):
+            protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
+        if len(protein_alignment) > 0:
+            logging.debug("Read in %i aligned sequences e.g. %s %s" % (
+                len(protein_alignment),
+                protein_alignment[0].name,
+                protein_alignment[0].seq))
+        else:
+            logging.debug("No aligned sequences found for this HMM")
+        return protein_alignment
 
     def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies, use_first_taxonomy=False,
                                      taxonomy_is_known_taxonomy=False):
