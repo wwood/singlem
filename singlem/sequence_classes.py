@@ -58,8 +58,8 @@ class UnalignedAlignedNucleotideSequence:
         observation of this aligned sequence indicate?'''
         return float(len(self.unaligned_sequence))/\
             (len(self.unaligned_sequence)-self.aligned_length+1)
-            
-            
+
+
 class SeqReader:
     # Stolen from https://github.com/lh3/readfq/blob/master/readfq.py
     def readfq(self, fp): # this is a generator function
@@ -92,13 +92,13 @@ class SeqReader:
                 if last: # reach EOF before reading enough quality
                     yield name, seq, None # yield a fasta record instead
                     break
-                
+
     def read_nucleotide_sequences(self, nucleotide_file):
         nucleotide_sequences = {}
         for name, seq, _ in self.readfq(open(nucleotide_file)):
             nucleotide_sequences[name] = seq
         return nucleotide_sequences
-    
+
     def alignment_from_alignment_file(self, alignment_file):
         protein_alignment = []
         for name, seq, _ in self.readfq(open(alignment_file)):
@@ -111,5 +111,3 @@ class SeqReader:
         else:
             logging.debug("No aligned sequences found for this HMM")
         return protein_alignment
-        
-        

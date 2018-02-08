@@ -99,7 +99,7 @@ class MetagenomeOtuFinder:
             window size, measured in nucleotides (ie 60 not 20)
         is_protein_alignment: boolean
             True for a protein alignment, False for a nucleotide one
-        
+
         Returns
         -------
         int
@@ -131,7 +131,7 @@ class MetagenomeOtuFinder:
             num_bases_covered_here = 0
             end_index = positions[-1]
             #if ignored char is within stretch length of end of aln
-            if end_index >= len(binary_alignment[0]): continue 
+            if end_index >= len(binary_alignment[0]): continue
             for s in binary_alignment:
                 if not s[i] or not s[end_index]: continue #ignore reads that don't cover the entirety
                 for pos in positions:
@@ -185,7 +185,7 @@ class MetagenomeOtuFinder:
 
         Assumes the chosen positions are ascending monotonically and have length
         >0
-        
+
         Parameters
         ----------
         protein_sequence: AlignedProteinSequence
@@ -197,9 +197,9 @@ class MetagenomeOtuFinder:
         is_protein_alignment: boolean
             True for proteins, False for nucleotide alignments
         include_inserts: boolean
-            if False, remove inserts in nucleotide sequence relative to the 
+            if False, remove inserts in nucleotide sequence relative to the
             alignment. If True, include them
-            
+
         Returns
         -------
         list of 2: the nucleotides string, and the length of nucleotide sequence
@@ -211,7 +211,7 @@ class MetagenomeOtuFinder:
         else:
             length_ratio = 1
             empty_codon = '-'
-            
+
         codons = []
         # For each position in the amino acid sequence
         # If non-dash character, take 3 nucleotides off the nucleotide sequence and
