@@ -52,7 +52,6 @@ setup(
                       'extern >= 0.0.4',
                       'tempdir >= 0.6',
                       'biopython >= 1.64',
-                      'seqmagick >= 0.5.0',
                       'dendropy >=0.4.0',
                       'pandas >= 0.19.2',
                       'biom-format >= 2.1.6',
