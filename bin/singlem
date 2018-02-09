@@ -296,7 +296,8 @@ if __name__ == '__main__':
         print '    seqs         -> %s' % seqs_description
         print '    create       -> %s' % create_description
 
-        print '\n  Use: singlem <command> -h for command-specific help\n'
+        print '\n  Use singlem <command> -h for command-specific help.\n'\
+            '  Some commands also have an extended --full_help flag.\n'
         sys.exit(0)
     else:
         # Determine whether --full_help was specified before argument parsing.
