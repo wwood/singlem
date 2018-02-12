@@ -186,14 +186,15 @@ class Appraisal:
         next_y_offset = 0
         num_to_print = 5
         top=12.6
-        last_index=9 # From Pastel1
+        mycolours = matplotlib.cm.Dark2
+        last_index=len(mycolours.colors)
         box_height = 0.6
         space=0.2
         for i, sequence in enumerate(plot_info.ordered_sequences()):
             if i >= last_index: break
             bottom = top-next_y_offset-box_height
             axis.bar(0.1, bottom=bottom, height=box_height, width=0.5,
-                     color=matplotlib.cm.Pastel1(i), align='edge', edgecolor='black', linewidth=0.5)
+                     color=mycolours(i), align='edge', edgecolor='black', linewidth=0.5)
             if i==last_index-1:
                 t = 'Other'
             else:
@@ -329,7 +330,7 @@ class AppraisalPlotInfo:
         for otu in otus:
             cluster = self._sequence_to_cluster[otu.sequence]
             colour_index = self._cluster_sequence_to_order[cluster.sequence]
-            colours.append(matplotlib.cm.Pastel1(colour_index))
+            colours.append(matplotlib.cm.Dark2(colour_index))
         return colours
 
     def cluster(self, sequence):
