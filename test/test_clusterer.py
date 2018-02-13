@@ -67,6 +67,9 @@ class Tests(unittest.TestCase):
         self.assertEqual(2, len(clusters))
         self.assertIsInstance(clusters[0], SampleWiseClusteredOtu)
         c = clusters[0]
+        self.assertEqual(2, c.count)
+        self.assertEqual(4.88, c.coverage)
+        c = clusters[1]
         self.assertEqual(4, c.count)
         self.assertEqual(9.76, c.coverage)
 

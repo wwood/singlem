@@ -5,6 +5,7 @@ from uc_file import UCFile
 from otu_table_entry import OtuTableEntry
 from otu_table import OtuTable
 from itertools import chain
+from StringIO import StringIO
 
 class Clusterer:
     def each_cluster(self, otu_table_collection, cluster_identity):
@@ -18,7 +19,7 @@ class Clusterer:
         otu_table_collection: OtuTableCollection
             OTUs to cluster
         cluster_identity: float
-            clustering fraction identity to pass to vsearch e.g. 0.967
+            clustering fraction identity to cluster on e.g. 0.967
 
         Returns
         -------
@@ -29,65 +30,69 @@ class Clusterer:
         Iterates over ClusteredOtu instances, one per sample per cluster,
         in arbitrary order.
         '''
-        otus = [o for o in otu_table_collection]
+
+        # Sort in descending OTU count order so smafa picks OTUs with large
+        # counts as the cluster rep.
+        otus = sorted([o for o in otu_table_collection], reverse=True, key=lambda x: x.count)
 
         def name_to_index(name):
-            return int(string.split(name, ';')[0])
+            return int(name)
 
-        # write out fasta file numbered to corresponding to the OTU info
+        divergence = int((1.0-cluster_identity) * 60)
+
+        # smafa cluster does not accept data streamed in via /dev/stdin, so we
+        # make a temporary file.
         with tempfile.NamedTemporaryFile(prefix='singlem_for_cluster') as f:
             for i, u in enumerate(otus):
-                f.write(">%i;size=%i\n" % (i, u.count))
-                f.write(u.sequence.replace('-','')+"\n")
+                f.write(">%i\n" % i)
+                f.write(u.sequence+"\n")
             f.flush()
+            uc_contents = extern.run(
+                "smafa cluster -d %i '%s'" % (divergence, f.name))
 
-            with tempfile.NamedTemporaryFile(prefix='singlem_uc') as uc:
-                command = "vsearch --sizein --cluster_size %s --uc %s --id %s" % (f.name, uc.name, str(cluster_identity))
-                extern.run(command)
-
-                cluster_name_to_sample_to_otus = {}
-                for unit in UCFile(open(uc.name)):
-                    if unit.target:
-                        centre = unit.target
+            cluster_name_to_sample_to_otus = {}
+            for unit in UCFile(StringIO(uc_contents)):
+                if unit.target:
+                    centre = unit.target
+                else:
+                    centre = unit.query
+                query_otu = otus[name_to_index(unit.query)]
+                sample = query_otu.sample_name
+                if centre in cluster_name_to_sample_to_otus:
+                    if sample in cluster_name_to_sample_to_otus[centre]:
+                        cluster_name_to_sample_to_otus[centre][sample].append(query_otu)
                     else:
-                        centre = unit.query
-                    query_otu = otus[name_to_index(unit.query)]
-                    sample = query_otu.sample_name
-                    if centre in cluster_name_to_sample_to_otus:
-                        if sample in cluster_name_to_sample_to_otus[centre]:
-                            cluster_name_to_sample_to_otus[centre][sample].append(query_otu)
-                        else:
-                            cluster_name_to_sample_to_otus[centre][sample] = [query_otu]
-                    else:
-                        cluster_name_to_sample_to_otus[centre] = {}
                         cluster_name_to_sample_to_otus[centre][sample] = [query_otu]
+                else:
+                    cluster_name_to_sample_to_otus[centre] = {}
+                    cluster_name_to_sample_to_otus[centre][sample] = [query_otu]
 
-                for centre_name, sample_to_otus in cluster_name_to_sample_to_otus.items():
-                    centre = otus[name_to_index(centre_name)]
-                    ratio = centre.coverage / centre.count
+            for centre_name, sample_to_otus in cluster_name_to_sample_to_otus.items():
+                centre = otus[name_to_index(centre_name)]
+                ratio = centre.coverage / centre.count
 
-                    for sample, sample_otus in sample_to_otus.items():
-                        c2 = SampleWiseClusteredOtu()
-                        c2.marker = centre.marker
-                        c2.sample_name = sample
-                        c2.sequence = centre.sequence
-                        c2.count = sum([o.count for o in sample_otus])
-                        c2.taxonomy = centre.taxonomy
-                        c2.coverage = ratio * c2.count
+                for sample, sample_otus in sample_to_otus.items():
+                    c2 = SampleWiseClusteredOtu()
+                    c2.marker = centre.marker
+                    c2.sample_name = sample
+                    c2.sequence = centre.sequence
+                    c2.count = sum([o.count for o in sample_otus])
+                    c2.taxonomy = centre.taxonomy
+                    c2.coverage = ratio * c2.count
 
-                        c2.data = [
-                            c2.marker,
-                            c2.sample_name,
-                            c2.sequence,
-                            c2.count,
-                            c2.coverage,
-                            c2.taxonomy
-                        ]
-                        c2.fields = OtuTable.DEFAULT_OUTPUT_FIELDS
+                    c2.data = [
+                        c2.marker,
+                        c2.sample_name,
+                        c2.sequence,
+                        c2.count,
+                        c2.coverage,
+                        c2.taxonomy
+                    ]
+                    c2.fields = OtuTable.DEFAULT_OUTPUT_FIELDS
 
-                        c2.otus = sample_otus
-                        c2.representative_otu = centre
-                        yield c2
+                    c2.otus = sample_otus
+                    c2.representative_otu = centre
+                    yield c2
 
     def cluster(self, otu_table_collection, cluster_identity):
         '''As per each_cluster(), except that clusters are returned
