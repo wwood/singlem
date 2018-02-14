@@ -1,6 +1,7 @@
 import tempfile
 import extern
 import string
+import logging
 from uc_file import UCFile
 from otu_table_entry import OtuTableEntry
 from otu_table import OtuTable
@@ -49,6 +50,7 @@ class Clusterer:
             f.flush()
             uc_contents = extern.run(
                 "smafa cluster -d %i '%s'" % (divergence, f.name))
+            logging.debug("Found UC file contents from clustering:\n%s" % uc_contents)
 
             cluster_name_to_sample_to_otus = {}
             for unit in UCFile(StringIO(uc_contents)):

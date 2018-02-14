@@ -25,4 +25,5 @@ class OtuTableEntry:
         return (self.taxonomy_array()[:len(target_taxonomy)] == target_taxonomy)
 
     def __str__(self):
-        return [self.marker, self.sample_name, self.sequence, self.count, self.coverage, self.taxonomy]
+        return "\t".join([self.marker, self.sample_name, self.sequence,
+                          str(self.count), str(self.coverage), self.taxonomy])
