@@ -1,6 +1,7 @@
 import logging
 import sys
 import math
+from textwrap import wrap
 import squarify
 import matplotlib
 matplotlib.use('Agg') # Must be run the first time matplotlib is imported.
@@ -126,13 +127,14 @@ class Appraisal:
             self._plot_otu(reads_axis, not_found_values, not_found_colours, max_count,
                            unassembled_title)
 
+            # Set title
             title = sample_appraisal.metagenome_sample_name
-            if doing_binning:
-                binning_axis.set_title(title)
-            elif doing_assembly:
-                assembled_axis.set_title(title)
-            else:
-                reads_axis.set_title(title)
+            axis_for_title = None
+            if doing_binning: axis_for_title = binning_axis
+            elif doing_assembly: axis_for_title = assembled_axis
+            else: axis_for_title = reads_axis
+            # Wrap so that long titles do not overlap so much
+            axis_for_title.set_title("\n".join(wrap(title, 15)))
 
         # Plot the area guide part of the legend
         axis = fig.add_subplot(gs[-1,num_samples])
