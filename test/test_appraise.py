@@ -650,7 +650,7 @@ class Tests(unittest.TestCase):
         """Not a real test, just developing the code"""
         appraiser = Appraiser()
         metagenome_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.reads.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.reads.long_sample_names.otu_table.csv')) as f:
             metagenome_collection.add_otu_table(f)
         genome_collection = OtuTableCollection()
         with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.binned.otu_table.csv')) as f:
