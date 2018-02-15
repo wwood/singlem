@@ -504,13 +504,9 @@ if __name__ == '__main__':
             output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
 
         if args.plot_basename or args.plot:
-            if metagenomes is None:
-                raise Exception("Plotting requires a metagenome table to be specified")
             if args.plot and args.plot_basename:
                 raise Exception("Cannot specify both --plot and --plot_basename")
             if args.plot:
-                if args.plot_marker is None:
-                    raise Exception("Cannot output a single plot unless a single plot_marker is specified")
                 app.plot(
                     cluster_identity=args.sequence_identity,
                     doing_assembly=assemblies is not None,
