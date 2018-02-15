@@ -26,16 +26,22 @@ class Appraisal:
             cluster_identity: Clusters of OTU calculated threshold (float)
             doing_assembly: True or False
             doing_binning: True or False
+            gene_to_plot: str name of marker to plot as it appears in the OTU table.
         Returns
         -------
         None.
         '''
-        output_svg_base = kwargs.pop('output_svg_base')
+        output_svg_base = kwargs.pop('output_svg_base', None)
         cluster_identity = kwargs.pop('cluster_identity')
         doing_assembly = kwargs.pop('doing_assembly')
         doing_binning = kwargs.pop('doing_binning')
+        target_gene = kwargs.pop('gene_to_plot', None)
+        single_output_svg = kwargs.pop('output_svg', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if single_output_svg and not target_gene:
+            raise Exception("Programming error")
 
         genes = set()
         for r in self.appraisal_results:
@@ -47,9 +53,21 @@ class Appraisal:
                     genes.add(o.marker)
             for o in r.not_found_otus:
                 genes.add(o.marker)
-        for gene in genes:
+
+        genes_to_plot = []
+        if target_gene is not None:
+            if target_gene in genes:
+                genes_to_plot = [target_gene]
+            else:
+                raise Exception("No instances of the marker '%s' found "
+                                "in any OTU tables for plotting." % target_gene)
+        else:
+            genes_to_plot = genes
+
+        for gene in genes_to_plot:
             self._plot_gene(
-                "%s%s.svg" % (output_svg_base, gene),
+                "%s%s.svg" % (output_svg_base, gene) if single_output_svg is None \
+                else single_output_svg,
                 cluster_identity,
                 gene,
                 doing_assembly,
