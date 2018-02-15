@@ -228,8 +228,11 @@ class Appraisal:
                 self._plot_otu(binning_axis, binned_values, binned_colours, max_count,
                                'Binned' if sample_number==0 else None)
             if doing_assembly:
-                self._plot_otu(assembled_axis, assembled_values, assembled_colours, max_count,
-                               'Unbinned' if sample_number==0 else None)
+                subtitle = None
+                if sample_number == 0:
+                    subtitle = 'Unbinned' if doing_binning else 'Assembled'
+                self._plot_otu(assembled_axis, assembled_values,
+                               assembled_colours, max_count, subtitle)
             unassembled_title = 'Reads' if sample_number==0 else None
             if unassembled_title:
                 if unassembled_title and doing_assembly:
