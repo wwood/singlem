@@ -519,6 +519,7 @@ if __name__ == '__main__':
             unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
             if args.output_unaccounted_for_otu_table else None)
         if args.output_binned_otu_table: output_binned_otu_table_io.close()
+        if args.output_unbinned_otu_table: output_unbinned_otu_table_io.close()
         if args.output_assembled_otu_table: output_assembled_otu_table_io.close()
         if args.output_unaccounted_for_otu_table: output_unaccounted_for_otu_table_io.close()
 
