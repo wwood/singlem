@@ -326,16 +326,24 @@ class Appraisal:
         axis.set_xticks([])
         axis.set_yticks([])
         axis.set_axis_off()
-        scale_values = [1, 10, 100] #TODO: Pick scale values so that 111 < max_count
+        scale_values = [100, 10, 1] #TODO: Pick scale values so that 111 < max_count
         to_normalise = scale_values + [max_total_count-sum(scale_values)]
         normalised = squarify.normalize_sizes(to_normalise, 10, 10)
-        offsets = [9.2, 6.8, 0]
+        ylim = [0.,10.]
+        sides = list([math.sqrt(normalised[i]) for i, value in enumerate(scale_values)])
+        overlap = (ylim[1]-ylim[0]-sum(sides))/(len(sides)-1)
+        next_bottom = ylim[0]
         for i, value in enumerate(scale_values):
-            side = math.sqrt(float(value)/max_total_count*100)
-            axis.bar(5,bottom=offsets[i],height=side,width=side, color='0.7',edgecolor='black',linewidth=0.5)
+            side = sides[i]
+            axis.bar(5,
+                     bottom=next_bottom,
+                     height=side,width=side,
+                     color='0.7',edgecolor='black',linewidth=0.5)
 
             # Add text
-            axis.text(10, offsets[i]+side/2, value, verticalalignment='center')
+            axis.text(10, next_bottom+side/2, value, verticalalignment='center')
+            # Setup for next loop iter
+            next_bottom += overlap + side
         axis.set_title('OTU count')
 
 
