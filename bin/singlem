@@ -265,7 +265,10 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
-    appraise_parser.add_argument('--plot_basename', help="Plot visualisation of appraisal results to this basename (one SVG per marker)", default=None)
+    appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
+    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (--plot_marker must also be specified)', default=None)
+    appraise_plot_group.add_argument('--plot_marker', help='Marker gene to plot OTUs from', default=None)
+    appraise_plot_group.add_argument('--plot_basename', help="Plot visualisation of appraisal results to this basename (one SVG per marker)", default=None)
     appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
     appraise_otu_table_group.add_argument('--output_binned_otu_table', help="output OTU table of binned populations", default=None)
     appraise_otu_table_group.add_argument('--output_unbinned_otu_table', help="output OTU table of assembled but not binned populations", default=None)
@@ -500,14 +503,26 @@ if __name__ == '__main__':
         if args.output_unaccounted_for_otu_table:
             output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
 
-        if args.plot_basename:
+        if args.plot_basename or args.plot:
             if metagenomes is None:
                 raise Exception("Plotting requires a metagenome table to be specified")
-            app.plot(
-                output_svg_base=args.plot_basename,
-                cluster_identity=args.sequence_identity,
-                doing_assembly=assemblies is not None,
-                doing_binning=genomes is not None)
+            if args.plot and args.plot_basename:
+                raise Exception("Cannot specify both --plot and --plot_basename")
+            if args.plot:
+                if args.plot_marker is None:
+                    raise Exception("Cannot output a single plot unless a single plot_marker is specified")
+                app.plot(
+                    cluster_identity=args.sequence_identity,
+                    doing_assembly=assemblies is not None,
+                    doing_binning=genomes is not None,
+                    gene_to_plot=args.plot_marker,
+                    output_svg=args.plot)
+            else:
+                app.plot(
+                    output_svg_base=args.plot_basename,
+                    cluster_identity=args.sequence_identity,
+                    doing_assembly=assemblies is not None,
+                    doing_binning=genomes is not None)
 
         appraiser.print_appraisal(
             app,
