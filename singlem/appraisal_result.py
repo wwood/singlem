@@ -326,7 +326,9 @@ class Appraisal:
         axis.set_xticks([])
         axis.set_yticks([])
         axis.set_axis_off()
-        scale_values = [100, 10, 1] #TODO: Pick scale values so that 111 < max_count
+        scale_values = [1]
+        while sum(scale_values)+scale_values[0]*10 < max_total_count:
+            scale_values = [scale_values[0]*10] + scale_values
         to_normalise = scale_values + [max_total_count-sum(scale_values)]
         normalised = squarify.normalize_sizes(to_normalise, 10, 10)
         ylim = [0.,10.]
