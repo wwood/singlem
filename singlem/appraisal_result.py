@@ -176,7 +176,7 @@ class Appraisal:
             raise Exception("Cannot plot an appraisal when there are no samples to appraise")
 
         fig = plt.figure(figsize=(4.0/5*9 + num_samples*1.0/5*9,5))
-        fig.suptitle("SingleM appraisal plot")
+        fig.suptitle("SingleM appraisal plot (%s)" % gene)
         num_panels = 1
         if doing_assembly: num_panels += 1
         if doing_binning: num_panels += 1
