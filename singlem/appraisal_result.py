@@ -8,6 +8,7 @@ matplotlib.use('Agg') # Must be run the first time matplotlib is imported.
 import matplotlib.cm
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import numpy
 
 from clusterer import Clusterer
 from otu_table_collection import OtuTableCollection
@@ -26,7 +27,9 @@ class Appraisal:
             cluster_identity: Clusters of OTU calculated threshold (float)
             doing_assembly: True or False
             doing_binning: True or False
-            gene_to_plot: str name of marker to plot as it appears in the OTU table.
+            gene_to_plot: str name of marker to plot as it appears in the OTU table, or None
+                to pick a best representative when single_output_svg is given
+            single_output_svg: single output SVG path (not compatible with output_svg_base)
         Returns
         -------
         None.
@@ -40,7 +43,7 @@ class Appraisal:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        if single_output_svg and not target_gene:
+        if single_output_svg and output_svg_base:
             raise Exception("Programming error")
 
         genes = set()
@@ -55,15 +58,19 @@ class Appraisal:
                 genes.add(o.marker)
 
         genes_to_plot = []
-        if target_gene is not None:
-            if target_gene in genes:
-                genes_to_plot = [target_gene]
+        if single_output_svg is not None:
+            if target_gene is not None:
+                if target_gene in genes:
+                    genes_to_plot = [target_gene]
+                else:
+                    raise Exception("No instances of the marker '%s' found "
+                                    "in any OTU tables for plotting." % target_gene)
             else:
-                raise Exception("No instances of the marker '%s' found "
-                                "in any OTU tables for plotting." % target_gene)
+                genes_to_plot = [self._pick_representative_marker(doing_assembly, doing_binning)]
         else:
             genes_to_plot = genes
 
+        logging.info("Generating plots for markers: %s" % genes_to_plot)
         for gene in genes_to_plot:
             self._plot_gene(
                 "%s%s.svg" % (output_svg_base, gene) if single_output_svg is None \
@@ -72,6 +79,93 @@ class Appraisal:
                 gene,
                 doing_assembly,
                 doing_binning)
+
+    def _pick_representative_marker(self, doing_assembly, doing_binning):
+        '''Pick the marker which has least euclidean distance to the mean
+        assembled / binned / metagenome fractions across all the samples.
+
+        '''
+        # First collect sample names
+        markers = set()
+        for result in self.appraisal_results:
+            if doing_binning:
+                for otu in result.binned_otus: markers.add(otu.marker)
+            if doing_assembly:
+                for otu in result.assembled_not_binned_otus(): markers.add(otu.marker)
+            for otu in result.not_found_otus: markers.add(otu.marker)
+
+        # Calculate geometric mean of each marker for each sample
+        marker_to_distances = {}
+        for result in self.appraisal_results:
+            marker_to_binned = {}
+            marker_to_assembled = {}
+            marker_to_not_found = {}
+            if doing_binning:
+                for otu in result.binned_otus:
+                    try:
+                        marker_to_binned[otu.marker] += otu.count
+                    except KeyError:
+                        marker_to_binned[otu.marker] = otu.count
+            if doing_assembly:
+                for otu in result.assembled_not_binned_otus():
+                    try:
+                        marker_to_assembled[otu.marker] += otu.count
+                    except KeyError:
+                        marker_to_assembled[otu.marker] = otu.count
+            for otu in result.not_found_otus:
+                try:
+                    marker_to_not_found[otu.marker] += otu.count
+                except KeyError:
+                    marker_to_not_found[otu.marker] = otu.count
+            marker_to_fractions = {}
+            for marker in markers:
+                numbers = []
+                if doing_binning:
+                    try:
+                        numbers.append(marker_to_binned[marker])
+                    except KeyError:
+                        numbers.append(0)
+                if doing_assembly:
+                    try:
+                        numbers.append(marker_to_assembled[marker])
+                    except KeyError:
+                        numbers.append(0)
+                try:
+                    numbers.append(marker_to_not_found[marker])
+                except KeyError:
+                    numbers.append(0)
+                total = float(sum(numbers))
+                marker_to_fractions[marker] = list([float(n)/total for n in numbers])
+                logging.debug("Got numbers %s for marker %s in sample %s" % (
+                    marker_to_fractions[marker], marker, result.metagenome_sample_name))
+            ## Rank markers by distance to the trimmed mean of each of the
+            ## numbers as a point in some dimensional space where the dimension
+            ## depends on doing_binning etc.
+            dimension_means = []
+            for i in range(len(marker_to_fractions.values()[0])): # for each dimension
+                dimension_means.append(
+                    self._trimmean([f for f in marker_to_fractions.values()], 10))
+            logging.debug("Found trimmed mean of sample %s as %s" % (
+                result.metagenome_sample_name, dimension_means))
+            dimension_mean_array = numpy.array(dimension_means)
+            for marker in markers:
+                distance = numpy.linalg.norm(
+                    dimension_mean_array-numpy.array(marker_to_fractions[marker]))
+                try:
+                    marker_to_distances[marker].append(distance)
+                except KeyError:
+                    marker_to_distances[marker] = [distance]
+        # The best marker is the one with the minimum mean (or equivalently
+        # sum) of distances.
+        logging.debug("Found overall distances %s" % marker_to_distances)
+        return min(marker_to_distances,
+                   key = lambda marker: sum(marker_to_distances[marker]))
+
+    def _trimmean(self, arr, percent):
+        n = len(arr)
+        k = int(round(n*(float(percent)/100)/2))
+        return numpy.mean(arr[k+1:n-k])
+
 
     def _plot_gene(self, output_svg, cluster_identity, gene, doing_assembly, doing_binning):
         # Cluster OTUs, making a dict of sequence to cluster object
