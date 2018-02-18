@@ -269,6 +269,20 @@ class Tests(unittest.TestCase):
                 self.assertEqual(sorted(expected),
                                  sorted(subprocess.check_output(cmd, shell=True).split("\n")))
 
+    def test_query_by_sample(self):
+        expected = [
+            self.headers,
+            ['ribosomal_protein_L11_rplK_gpkg','m2','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.10','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['ribosomal_protein_S2_rpsB_gpkg','m2','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','12.40','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+            ['ribosomal_protein_S17_gpkg','m2','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGA','9','20.50','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['ribosomal_protein_L11_rplK_gpkg','m3','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.10','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['ribosomal_protein_S2_rpsB_gpkg','m3','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','12.40','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+            ['ribosomal_protein_S17_gpkg','m3','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','19.50','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        expected = ["\t".join(x) for x in expected]+['']
+
+        cmd = "%s query --db %s/b.sdb --sample_names m2 m3" %(path_to_script,
+                                                              path_to_data)
+        self.assertEqual(expected, extern.run(cmd).split('\n'))
 
 if __name__ == "__main__":
     unittest.main()
