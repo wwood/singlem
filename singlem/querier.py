@@ -11,6 +11,7 @@ from sequence_classes import SeqReader
 from query_formatters import SparseResultFormatter
 from otu_table_collection import OtuTableCollection
 from otu_table_entry import OtuTableEntry
+from otu_table import OtuTable
 
 class Querier:
     def query(self, **kwargs):
@@ -69,8 +70,7 @@ class Querier:
             raise Exception("No query option specified, cannot continue")
         return queries
 
-
-    def query_with_queries(self, queries, db, max_divergence):
+    def _connect_to_sqlite(self, db):
         sqlite_db_path = db.sqlite_file
         if not os.path.exists(sqlite_db_path):
             raise Exception("Sqlite database not found at '%s', indicating that either the SingleM database was built with an out-dated SingleM version, or that the database is corrupt. Please generate a new database with the current version of SingleM.")
@@ -81,7 +81,10 @@ class Querier:
             'database': sqlite_db_path
         }})
         Model.set_connection_resolver(dbm)
+        return dbm
 
+    def query_with_queries(self, queries, db, max_divergence):
+        dbm = self._connect_to_sqlite(db)
         if max_divergence == 0:
             return self.query_by_sqlite(queries, dbm)
         else:
@@ -150,6 +153,33 @@ class Querier:
                     otu.taxonomy = entry.taxonomy
                     results.append(QueryResult(queries_list[qid], otu, 0))
         return results
+
+    def print_samples(self, **kwargs):
+        db = SequenceDatabase.acquire(kwargs.pop('db'))
+        sample_names = kwargs.pop('sample_names')
+        output_io = kwargs.pop('output_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        dbm = self._connect_to_sqlite(db)
+
+        max_set_size = 999 # Cannot query sqlite with > 999 '?' entries, so
+                           # query in batches.
+        samples = set(sample_names)
+        otus = OtuTable()
+        for chunk in SequenceDatabase.grouper(samples, max_set_size):
+            for entry in dbm.table('otus').where_in(
+                    'sample_name', [sample for sample in chunk if sample is not None]).get():
+                otu = OtuTableEntry()
+                otu.marker = entry.marker
+                otu.sample_name = entry.sample_name
+                otu.sequence = entry.sequence
+                otu.count = entry.num_hits
+                otu.coverage = entry.coverage
+                otu.taxonomy = entry.taxonomy
+                otus.add([otu])
+        otus.write_to(output_io)
+
 
 class QueryInputSequence:
     def __init__(self, name, sequence):
