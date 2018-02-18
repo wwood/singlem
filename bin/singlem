@@ -222,12 +222,15 @@ if __name__ == '__main__':
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
-    query_parser.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
-    query_parser.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
-    query_parser.add_argument('--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
-    query_parser.add_argument('--db', help="Output from 'makedb' mode", required=True)
-    #query_parser.add_argument('--otu_table_type', help="Style of output table", default='sparse', choices=['dense','sparse'])
-    query_parser.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
+    query_required_args = query_parser.add_argument_group('Required arguments')
+    query_required_args.add_argument('--db', help="Output from 'makedb' mode", required=True)
+    query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
+    query_otu_args.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
+    query_otu_args.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
+    query_otu_args.add_argument('--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
+    query_otu_args.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
+    query_other_args = query_parser.add_argument_group('Other database extraction methods')
+    query_other_args.add_argument('--sample_names', metavar='name', help='Print all OTUs from these samples', nargs='+')
 
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
@@ -370,15 +373,22 @@ if __name__ == '__main__':
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\
             (args.db_path, otus)
     elif args.subparser_name=='query':
-        args.threads = 1
-        Querier().query(
-            db = args.db,
-            query_sequence = args.query_sequence,
-            max_divergence = args.max_divergence,
-            output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
-            query_otu_table = args.query_otu_table,
-            query_fasta = args.query_fasta,
-            num_threads = args.threads)
+        querier = Querier()
+        if args.sample_names:
+            querier.print_samples(
+                db=args.db,
+                sample_names = args.sample_names,
+                output_io=sys.stdout)
+        else:
+            args.threads = 1
+            querier.query(
+                db = args.db,
+                query_sequence = args.query_sequence,
+                max_divergence = args.max_divergence,
+                output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
+                query_otu_table = args.query_otu_table,
+                query_fasta = args.query_fasta,
+                num_threads = args.threads)
     elif args.subparser_name == 'summarise':
         num_output_types = 0
         if args.strain_overview_table: num_output_types += 1
