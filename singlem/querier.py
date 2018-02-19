@@ -171,6 +171,7 @@ class Querier:
         else:
             query_chunks = [taxonomy]
         otus = OtuTable()
+        total_printed = 0
         for chunk in SequenceDatabase.grouper(query_chunks, max_set_size):
             if sample_names:
                 it = dbm.table('otus').where_in(
@@ -190,7 +191,9 @@ class Querier:
                 otu.coverage = entry.coverage
                 otu.taxonomy = entry.taxonomy
                 otus.add([otu])
+                total_printed += 1
         otus.write_to(output_io)
+        logging.info("Printed %i OTU table entries" % total_printed)
 
 
 class QueryInputSequence:
