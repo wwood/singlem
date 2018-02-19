@@ -176,7 +176,7 @@ if __name__ == '__main__':
     less_common_pipe_options.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc. [default: unused]')
     less_common_pipe_options.add_argument('--working_directory', metavar='directory', help='work in this directory [default: a temporary directory]')
     less_common_pipe_options.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
-    less_common_pipe_options.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: no used]' % pipe.PPLACER_ASSIGNMENT_METHOD)
+    less_common_pipe_options.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
     less_common_pipe_options.add_argument('--evalue', help='GraftM e-value cutoff [default: the GraftM default]')
     current_default = 96
     less_common_pipe_options.add_argument('--min_orf_length',
