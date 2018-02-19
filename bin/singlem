@@ -124,19 +124,52 @@ Determine how much of a metagenome is represented by an assembly:
   singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
             --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv
 
-Visualise which OTUs have been assembled or binned. An SVG is generated for
-each gene. To interpret these visualisations, see the description in the
-README, which is available at
+Visualise which OTUs have been assembled or binned. One marker gene is chosen
+for visualisation, the one best represents the fraction binned, assembled or
+otherwise. To interpret these visualisations, see the description in the
+README at
 https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
   singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
             --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv \\
             --genome_otu_tables otu_table.from_pipe_on_genomes.tsv \\
-            --plot_basename singlem_appraise
+            --plot singlem_appraise.svg
 
 %s
 ''' % detail_str
             return help
+
+        elif subcommand == 'makedb':
+            help = '\n'+prog+': '+self.description+'''
+
+Generate a queryable database from an OTU table:
+
+  singlem makedb --db my.sdb --otu_table otu_table.from_pipe.tsv
+
+%s
+''' % detail_str
+            return help
+
+        elif subcommand == 'query':
+            help = '\n'+prog+': '+self.description+'''
+
+Query a database via an OTU sequence:
+
+  singlem query --db my.sdb --query_sequence \\
+            AAAGACAATCACAGCCGGCGTGGCCTGCTGATGTTGGTTGGCCAACGCAAGAAACTCCTC
+
+Query a database with all entries in an OTU table:
+
+  singlem query --db my.sdb --query_otu_table another.otu_table.tsv
+
+Extract all OTUs assigned to Firmicutes:
+
+  singlem query --db my.db --taxonomy Firmicutes
+
+%s
+''' % detail_str
+            return help
+
 
         else:
             return argparse.ArgumentParser.format_help(self)
@@ -278,9 +311,9 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
-    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (--plot_marker must also be specified)', default=None)
+    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also be specified)', default=None)
     appraise_plot_group.add_argument('--plot_marker', help='Marker gene to plot OTUs from', default=None)
-    appraise_plot_group.add_argument('--plot_basename', help="Plot visualisation of appraisal results to this basename (one SVG per marker)", default=None)
+    appraise_plot_group.add_argument('--plot_basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
     appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
     appraise_otu_table_group.add_argument('--output_binned_otu_table', help="output OTU table of binned populations", default=None)
     appraise_otu_table_group.add_argument('--output_unbinned_otu_table', help="output OTU table of assembled but not binned populations", default=None)
