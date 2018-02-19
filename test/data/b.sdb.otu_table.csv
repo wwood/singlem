@@ -1,0 +1,10 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+ribosomal_protein_L11_rplK_gpkg	minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	15.1	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+ribosomal_protein_S2_rpsB_gpkg	minimal	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	6	12.4	Root; k__Bacteria; p__Firmicutes; c__Bacilli
+ribosomal_protein_S17_gpkg	minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	9	19.5	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+ribosomal_protein_L11_rplK_gpkg	m2	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	15.1	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+ribosomal_protein_S2_rpsB_gpkg	m2	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	6	12.4	Root; k__Bacteria; p__Firmicutes; c__Bacilli
+ribosomal_protein_S17_gpkg	m2	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGA	9	20.5	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+ribosomal_protein_L11_rplK_gpkg	m3	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	15.1	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+ribosomal_protein_S2_rpsB_gpkg	m3	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	6	12.4	Root; k__Bacteria; p__Firmicutes; c__Bacilli
+ribosomal_protein_S17_gpkg	m3	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	9	19.5	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus

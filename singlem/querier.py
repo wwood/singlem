@@ -157,6 +157,7 @@ class Querier:
     def print_samples(self, **kwargs):
         db = SequenceDatabase.acquire(kwargs.pop('db'))
         sample_names = kwargs.pop('sample_names')
+        taxonomy = kwargs.pop('taxonomy')
         output_io = kwargs.pop('output_io')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -165,11 +166,22 @@ class Querier:
 
         max_set_size = 999 # Cannot query sqlite with > 999 '?' entries, so
                            # query in batches.
-        samples = set(sample_names)
+        if sample_names:
+            query_chunks = set(sample_names)
+        else:
+            query_chunks = [taxonomy]
         otus = OtuTable()
-        for chunk in SequenceDatabase.grouper(samples, max_set_size):
-            for entry in dbm.table('otus').where_in(
-                    'sample_name', [sample for sample in chunk if sample is not None]).get():
+        for chunk in SequenceDatabase.grouper(query_chunks, max_set_size):
+            if sample_names:
+                it = dbm.table('otus').where_in(
+                    'sample_name', [sample for sample in chunk if sample is not None]).get()
+            elif taxonomy:
+                it = dbm.table('otus').where(
+                    'taxonomy', 'like', "%%%s%%" % taxonomy).get()
+            else:
+                raise Exception("Programming error")
+
+            for entry in it:
                 otu = OtuTableEntry()
                 otu.marker = entry.marker
                 otu.sample_name = entry.sample_name

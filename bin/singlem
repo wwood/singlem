@@ -231,6 +231,7 @@ if __name__ == '__main__':
     query_otu_args.add_argument('--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
     query_other_args.add_argument('--sample_names', metavar='name', help='Print all OTUs from these samples', nargs='+')
+    query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
 
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
@@ -373,10 +374,13 @@ if __name__ == '__main__':
             (args.db_path, otus)
     elif args.subparser_name=='query':
         querier = Querier()
-        if args.sample_names:
+        if args.sample_names or args.taxonomy:
+            if args.taxonomy and args.sample_names:
+                raise Exception("Cannot specify both sample names and taxonomy")
             querier.print_samples(
                 db=args.db,
                 sample_names = args.sample_names,
+                taxonomy = args.taxonomy,
                 output_io=sys.stdout)
         else:
             args.threads = 1
