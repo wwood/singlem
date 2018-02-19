@@ -327,11 +327,13 @@ if __name__ == '__main__':
 
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
-    appraise_parser.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
-    appraise_parser.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes")
-    appraise_parser.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
-    appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
-    appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
+    appraise_otu_table_options.add_argument('--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    appraise_otu_table_options.add_argument('--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes")
+    appraise_otu_table_options.add_argument('--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
+    appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
+    appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
+    appraise_inexact_options.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
     appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also specified)', default=None)
     appraise_plot_group.add_argument('--plot_marker', help='Marker gene to plot OTUs from', default=None)
