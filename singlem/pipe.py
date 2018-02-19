@@ -408,16 +408,15 @@ class SearchPipe:
                 except KeyError:
                     levels_to_counts[i][tax] = 1
 
-
         median_tax = []
         for level_counts in levels_to_counts:
             max_count = 0
             max_tax = None
-            for tax, count in level_counts.iteritems():
+            for tax, count in level_counts.items():
                 if count > max_count:
                     max_count = count
                     max_tax = tax
-            if float(max_count) / len(taxonomies) >= 0.5:
+            if float(max_count) / len(taxonomies) > 0.5:
                 median_tax.append(max_tax)
             else:
                 break
