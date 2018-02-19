@@ -55,6 +55,21 @@ def seqs(args):
         is_protein_alignment)
     logging.info("Found best start position %i" % best_position)
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+
+    # def disable(self):
+    #     self.HEADER = ''
+    #     self.OKBLUE = ''
+    #     self.OKGREEN = ''
+    #     self.WARNING = ''
+    #     self.FAIL = ''
+    #     self.ENDC = ''
 
 class MyParser(argparse.ArgumentParser):
     FULL_HELP_FLAG = 'full_help'
@@ -72,11 +87,13 @@ class MyParser(argparse.ArgumentParser):
         else:
             subcommand = None
         if subcommand == 'pipe':
-            help = '\n'+prog+': '+self.description+'''
+            help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
 
-Common usage: singlem pipe --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
+'''+bcolors.HEADER+'Common usage:'+bcolors.ENDC+'''
 
-Popular options:
+  singlem pipe --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
+
+'''+bcolors.HEADER+'Popular options:'+bcolors.ENDC+'''
   --threads N\t\tUse N threads.
   --output_extras\tOutput more detailed information in the OTU table.
   --assignment_method {%s,%s,%s}\t
@@ -91,18 +108,21 @@ Popular options:
             return help
 
         elif subcommand == 'summarise':
-            help = '\n'+prog+': '+self.description+'''
+            help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
 
-To convert an OTU table into a Krona HTML visualisation:
+'''+bcolors.HEADER+'To convert an OTU table into a Krona HTML visualisation:'+bcolors.ENDC+'''
+
   singlem summarise --input_otu_tables otu_table.from_pipe.tsv \\
             --krona singlem.krona.html
 
-To cluster and OTU table based on 89 percent sequence identity:
+'''+bcolors.HEADER+'To cluster an OTU table based on 89 percent sequence identity:'+bcolors.ENDC+'''
+
   singlem summarise --input_otu_tables otu_table.from_pipe.tsv \\
             --cluster --cluster_id 0.89 \\
             --output_otu_table clustered.otu_table.tsv
 
-To concatenate several OTU tables together:
+'''+bcolors.HEADER+'To concatenate several OTU tables together:'+bcolors.ENDC+'''
+
   singlem summarise --input_otu_tables \\
             otu_table1.from_pipe.tsv otu_table2.from_pipe.tsv \\
             --output_otu_table concatenated.otu_table.tsv
@@ -112,22 +132,24 @@ To concatenate several OTU tables together:
             return help
 
         elif subcommand == 'appraise':
-            help = '\n'+prog+': '+self.description+'''
+            help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
 
-Determine how much of a metagenome is represented by some genomes:
+'''+bcolors.HEADER+'Determine how much of a metagenome is represented by some genomes:'+bcolors.ENDC+'''
 
   singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
             --genome_otu_tables otu_table.from_pipe_on_genomes.tsv
 
-Determine how much of a metagenome is represented by an assembly:
+'''+bcolors.HEADER+'Determine how much of a metagenome is represented by an assembly:'+bcolors.ENDC+'''
 
   singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
             --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv
 
-Visualise which OTUs have been assembled or binned. One marker gene is chosen
+'''+bcolors.HEADER+\
+    'Visualise which OTUs have been assembled or binned.'+bcolors.ENDC+ \
+''' One marker gene is chosen
 for visualisation, the one best represents the fraction binned, assembled or
-otherwise. To interpret these visualisations, see the description in the
-README at
+otherwise. To interpret these visualisations, see the description in the README
+at
 https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
   singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
@@ -140,9 +162,9 @@ https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
             return help
 
         elif subcommand == 'makedb':
-            help = '\n'+prog+': '+self.description+'''
+            help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
 
-Generate a queryable database from an OTU table:
+'''+bcolors.HEADER+'Generate a queryable database from an OTU table:'+bcolors.ENDC+'''
 
   singlem makedb --db my.sdb --otu_table otu_table.from_pipe.tsv
 
@@ -151,18 +173,18 @@ Generate a queryable database from an OTU table:
             return help
 
         elif subcommand == 'query':
-            help = '\n'+prog+': '+self.description+'''
+            help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
 
-Query a database via an OTU sequence:
+'''+bcolors.HEADER+'Query a database via an OTU sequence:'+bcolors.ENDC+'''
 
   singlem query --db my.sdb --query_sequence \\
             AAAGACAATCACAGCCGGCGTGGCCTGCTGATGTTGGTTGGCCAACGCAAGAAACTCCTC
 
-Query a database with all entries in an OTU table:
+'''+bcolors.HEADER+'Query a database with all entries in an OTU table:'+bcolors.ENDC+'''
 
   singlem query --db my.sdb --query_otu_table another.otu_table.tsv
 
-Extract all OTUs assigned to Firmicutes:
+'''+bcolors.HEADER+'Extract all OTUs assigned to Firmicutes:'+bcolors.ENDC+'''
 
   singlem query --db my.db --taxonomy Firmicutes
 
@@ -311,7 +333,7 @@ if __name__ == '__main__':
     appraise_parser.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_parser.add_argument('--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
-    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also be specified)', default=None)
+    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also specified)', default=None)
     appraise_plot_group.add_argument('--plot_marker', help='Marker gene to plot OTUs from', default=None)
     appraise_plot_group.add_argument('--plot_basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
     appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
