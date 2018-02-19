@@ -295,7 +295,6 @@ if __name__ == '__main__':
         print '    query        -> %s' % query_description
 
         print '\n  Assembly and binning:'
-        print '    chance       -> %s' % chance_description
         print '    appraise     -> %s' % appraise_description
 
         print '\n  Package creation:'
