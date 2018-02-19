@@ -94,10 +94,18 @@ Popular options:
             help = '\n'+prog+': '+self.description+'''
 
 To convert an OTU table into a Krona HTML visualisation:
-  singlem summarise --input_otu_tables otu_table.from_pipe.tsv --krona singlem.krona.html
+  singlem summarise --input_otu_tables otu_table.from_pipe.tsv \\
+            --krona singlem.krona.html
 
 To cluster and OTU table based on 89 percent sequence identity:
-  singlem summarise --input_otu_tables otu_table.from_pipe.tsv --cluster --cluster_id 0.89 --output_otu_table clustered.otu_table.tsv
+  singlem summarise --input_otu_tables otu_table.from_pipe.tsv \\
+            --cluster --cluster_id 0.89 \\
+            --output_otu_table clustered.otu_table.tsv
+
+To concatenate several OTU tables together:
+  singlem summarise --input_otu_tables \\
+            otu_table1.from_pipe.tsv otu_table2.from_pipe.tsv \\
+            --output_otu_table concatenated.otu_table.tsv
 
 %s
 ''' % detail_str
