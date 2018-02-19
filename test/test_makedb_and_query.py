@@ -284,5 +284,17 @@ class Tests(unittest.TestCase):
                                                               path_to_data)
         self.assertEqual(expected, extern.run(cmd).split('\n'))
 
+    def test_query_by_taxonomy(self):
+        expected = [
+            self.headers,
+            ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.10','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','19.50','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        expected = ["\t".join(x) for x in expected]+['']
+
+        cmd = "%s query --db %s/a.sdb --taxonomy o__Bacillales" %(path_to_script,
+                                                                  path_to_data)
+        self.assertEqual(expected, extern.run(cmd).split('\n'))
+
+
 if __name__ == "__main__":
     unittest.main()
