@@ -1,6 +1,7 @@
 import logging
 import sys
 import math
+import re
 from textwrap import wrap
 import squarify
 import matplotlib
@@ -316,6 +317,7 @@ class Appraisal:
                 t = 'Other'
             else:
                 t = plot_info.cluster(sequence).representative_otu.taxonomy.replace('Root; ','')
+                t = re.sub(r'.__','',t)
             axis.text(0.75, top-next_y_offset-box_height*0.6, t, font_properties=fp)
             next_y_offset += box_height + space
 
