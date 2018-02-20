@@ -169,7 +169,8 @@ class Appraisal:
 
     def _plot_gene(self, output_svg, cluster_identity, gene, doing_assembly, doing_binning):
         # Cluster OTUs, making a dict of sequence to cluster object
-        plot_info = AppraisalPlotInfo(self, cluster_identity, gene)
+        appraisal_colours = AppraisalPlotColourSet(matplotlib.cm.Dark2)
+        plot_info = AppraisalPlotInfo(self, cluster_identity, gene, appraisal_colours)
 
         num_samples = len(self.appraisal_results)
         if num_samples == 0:
@@ -183,7 +184,7 @@ class Appraisal:
         gs = gridspec.GridSpec(num_panels, 4+num_samples)
 
         legend_axis = fig.add_subplot(gs[:-1,num_samples:])
-        self._plot_legend(legend_axis, plot_info)
+        self._plot_legend(legend_axis, plot_info, appraisal_colours)
 
         max_count = plot_info.max_count
         max_total_count = 0
@@ -289,7 +290,7 @@ class Appraisal:
                       horizontalalignment='center',
                       verticalalignment='center')
 
-    def _plot_legend(self, axis, plot_info):
+    def _plot_legend(self, axis, plot_info, appraise_colours):
         # Setup global legend properties
         axis.set_xlim([0,10])
         axis.set_ylim([0,14])
@@ -303,15 +304,14 @@ class Appraisal:
         next_y_offset = 0
         num_to_print = 5
         top=12.6
-        mycolours = matplotlib.cm.Dark2
-        last_index=len(mycolours.colors)
+        last_index=len(appraise_colours)
         box_height = 0.6
         space=0.2
         for i, sequence in enumerate(plot_info.ordered_sequences()):
             if i >= last_index: break
             bottom = top-next_y_offset-box_height
             axis.bar(0.1, bottom=bottom, height=box_height, width=0.5,
-                     color=mycolours(i), align='edge', edgecolor='black', linewidth=0.5)
+                     color=appraise_colours.colour(i), align='edge', edgecolor='black', linewidth=0.5)
             if i==last_index-1:
                 t = 'Other'
             else:
@@ -378,13 +378,14 @@ class AppraisalResult:
 
 
 class AppraisalPlotInfo:
-    def __init__(self, appraisal, cluster_identity, marker):
+    def __init__(self, appraisal, cluster_identity, marker, appraisal_colours):
         '''
         appraisal: Appraisal
         cluster_identity: float, as in Clusterer
         marker: str
             the marker being plotted
         '''
+        self.appraisal_colours = appraisal_colours
         logging.debug("Generating plot info for %s" % marker)
         # Collect all OTUs from all samples so that they can be processed
         # together.
@@ -457,7 +458,7 @@ class AppraisalPlotInfo:
         for otu in otus:
             cluster = self._sequence_to_cluster[otu.sequence]
             colour_index = self._cluster_sequence_to_order[cluster.sequence]
-            colours.append(matplotlib.cm.Dark2(colour_index))
+            colours.append(self.appraisal_colours.colour(colour_index))
         return colours
 
     def cluster(self, sequence):
@@ -467,3 +468,18 @@ class AppraisalPlotInfo:
         '''Return representative sequences in same order as the colours'''
         for pair in self._sorted_cluster_rep_and_count:
             yield pair[0]
+
+class AppraisalPlotColourSet:
+    '''like colours in matplotlib.cm but have an extra white colour for 'Other'
+    OTUs.'''
+    def __init__(self, base_colour_scale):
+        self.base_colours = base_colour_scale
+
+    def __len__(self):
+        return len(self.base_colours.colors)+1
+
+    def colour(self, index):
+        if index < len(self.base_colours.colors):
+            return self.base_colours(index)
+        else:
+            return (1.0, 1.0, 1.0, 1.0)
