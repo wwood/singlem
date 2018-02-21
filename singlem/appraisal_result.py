@@ -8,6 +8,7 @@ import matplotlib
 matplotlib.use('Agg') # Must be run the first time matplotlib is imported.
 import matplotlib.cm
 import matplotlib.pyplot as plt
+plt.rcParams['svg.fonttype'] = 'none' # Export text as text, not paths
 import matplotlib.gridspec as gridspec
 import numpy
 
@@ -71,7 +72,10 @@ class Appraisal:
         else:
             genes_to_plot = genes
 
-        logging.info("Generating plots for markers: %s" % genes_to_plot)
+        if len(genes_to_plot) == 1:
+            logging.info("Generating plot for marker: %s" % genes_to_plot[0])
+        else:
+            logging.info("Generating plots for markers: %s" % genes_to_plot)
         for gene in genes_to_plot:
             self._plot_gene(
                 "%s%s.svg" % (output_svg_base, gene) if single_output_svg is None \
@@ -177,14 +181,21 @@ class Appraisal:
         if num_samples == 0:
             raise Exception("Cannot plot an appraisal when there are no samples to appraise")
 
-        fig = plt.figure(figsize=(4.0/5*9 + num_samples*1.0/5*9,5))
+        # margins of figure:
+        # 4 + num_samples is the number of x panels
+        # 2 or 3 is the number of y panels
+        # y needs an extra size for title
+        panel_side_length = 1.9
+        num_y_panels = 1
+        if doing_assembly: num_y_panels += 1
+        if doing_binning: num_y_panels += 1
+        fig = plt.figure(figsize=(
+            (4 + num_samples)*panel_side_length,
+            num_y_panels*panel_side_length + 0.5))
         fig.suptitle("SingleM appraisal plot (%s)" % gene)
-        num_panels = 1
-        if doing_assembly: num_panels += 1
-        if doing_binning: num_panels += 1
-        gs = gridspec.GridSpec(num_panels, 4+num_samples)
+        gs = gridspec.GridSpec(num_y_panels, 4+num_samples)
 
-        legend_axis = fig.add_subplot(gs[:-1,num_samples:])
+        legend_axis = fig.add_subplot(gs[-2,-4])
         self._plot_legend(legend_axis, plot_info, appraisal_colours)
 
         max_count = plot_info.max_count
@@ -257,6 +268,7 @@ class Appraisal:
         axis = fig.add_subplot(gs[-1,num_samples])
         self._plot_scale(axis, max_total_count)
 
+        logging.info("Writing output plot to %s" % output_svg)
         fig.savefig(output_svg, format='svg')
 
 
@@ -273,7 +285,7 @@ class Appraisal:
         dx = [rect['dx'] for rect in rects]
         dy = [rect['dy'] for rect in rects]
 
-        axis.bar(x, dy, width=dx, bottom=y, color=colors, align='edge', edgecolor='black', linewidth=0.5)
+        axis.bar(x, dy, width=dx, bottom=y, color=colors, align='edge', edgecolor='black', linewidth=0.2)
 
         axis.set_aspect('equal')
         axis.set_ylim(-0.3,10.3) # Add 0.1 so the edges are not truncated.
@@ -283,7 +295,7 @@ class Appraisal:
         axis.set_axis_off()
 
         if name is not None:
-            fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
+            fp = matplotlib.font_manager.FontProperties(size=9)
             axis.text(-1, 5,
                       name,
                       font_properties=fp,
@@ -292,33 +304,35 @@ class Appraisal:
                       verticalalignment='center')
 
     def _plot_legend(self, axis, plot_info, appraise_colours):
+        axis.set_aspect('equal')
         # Setup global legend properties
-        axis.set_xlim([0,10])
-        axis.set_ylim([0,14])
+        xlim=[-0.3,10.3]
+        ylim=xlim
+        axis.set_xlim(xlim)
+        axis.set_ylim(ylim)
         axis.set_axis_off()
-        fp = matplotlib.font_manager.FontProperties(size=9,weight='bold')
-        axis.text(0.2, 13, 'Taxonomy', font_properties=fp)
+        fp = matplotlib.font_manager.FontProperties(size=9)
+        axis.text(0.2, 10.6, 'Cluster taxonomy', font_properties=fp)
         fp = matplotlib.font_manager.FontProperties(size=6)
 
         # Plot each legend member
         # Plot the 5 clusters with the highest counts
         next_y_offset = 0
-        num_to_print = 5
-        top=12.6
+        top=10.1
         last_index=len(appraise_colours)
-        box_height = 0.6
-        space=0.2
+        box_height = 0.8
+        space=(top - next_y_offset-len(appraise_colours)*box_height)/(last_index-1)
         for i, sequence in enumerate(plot_info.ordered_sequences()):
             if i >= last_index: break
             bottom = top-next_y_offset-box_height
-            axis.bar(0.1, bottom=bottom, height=box_height, width=0.5,
-                     color=appraise_colours.colour(i), align='edge', edgecolor='black', linewidth=0.5)
+            axis.bar(0.1, bottom=bottom, height=box_height, width=box_height,
+                     color=appraise_colours.colour(i), align='edge', edgecolor='black', linewidth=0.2)
             if i==last_index-1:
                 t = 'Other'
             else:
                 t = plot_info.cluster(sequence).representative_otu.taxonomy.replace('Root; ','')
                 t = re.sub(r'.__','',t)
-            axis.text(0.75, top-next_y_offset-box_height*0.6, t, font_properties=fp)
+            axis.text(box_height+0.1+0.2+0.1, top-next_y_offset-box_height*0.6-0.2, t, font_properties=fp)
             next_y_offset += box_height + space
 
     def _plot_scale(self, axis, max_total_count):
@@ -337,18 +351,26 @@ class Appraisal:
         sides = list([math.sqrt(normalised[i]) for i, value in enumerate(scale_values)])
         overlap = (ylim[1]-ylim[0]-sum(sides))/(len(sides)-1)
         next_bottom = ylim[0]
+        xoffset = ylim[1]-ylim[0]-sides[0]
+        fp = matplotlib.font_manager.FontProperties(size=6)
         for i, value in enumerate(scale_values):
             side = sides[i]
-            axis.bar(5,
+            axis.bar(10-side/2-0.1-xoffset,
                      bottom=next_bottom,
                      height=side,width=side,
-                     color='0.7',edgecolor='black',linewidth=0.5)
+                     color='0.7',edgecolor='black',linewidth=0.2)
 
             # Add text
-            axis.text(10, next_bottom+side/2, value, verticalalignment='center')
+            if value == 1:
+                text = "1 read"
+            else:
+                text = "%i reads" % value
+            axis.text(10.2-xoffset, next_bottom+side/2, text,
+                      verticalalignment='center', font_properties=fp)
             # Setup for next loop iter
             next_bottom += overlap + side
-        axis.set_title('OTU count')
+        fp = matplotlib.font_manager.FontProperties(size=9)
+        axis.text(0.2, 10.6, 'OTU count', font_properties=fp)
 
 
 class AppraisalResult:
