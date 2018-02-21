@@ -121,7 +121,7 @@ output OTU tables of those sequences that match and those that do not (see
 except that when assessing bins duplicate markers from the same genome are
 excluded as likely contamination.
 
-An appraisal can also be represented visually, using `appraise --plot_basename`:
+An appraisal can also be represented visually, using `appraise --plot`:
 
 ![Image of appraise](https://raw.githubusercontent.com/wwood/singlem/master/appraise_plot.png)
 
@@ -130,8 +130,11 @@ abundance (the number of reads that OTU represents in the metagenome). Colours
 represent 89% OTU clustering of these sequences (~genus level), with the
 taxonomy of the most common sequence written out. Here we see that highly
 abundant OTUs in SRR5040536 were assembled, but only 1 of the 3 abundant
-betaproteobacterial OTUs has an associated bin. As is common, the highest
-abundance lineages did not necessarily assemble and bin successfully.
+Gallionellales OTUs has an associated bin. As is common, the highest abundance
+lineages did not necessarily assemble and bin successfully. The marker
+`4.20.ribosomal_protein_S15P_S13e` was chosen as the representative marker
+because it has a representative fraction of OTUs binned, assembled and
+unassembled.
 
 
 ### Installation
