@@ -176,7 +176,7 @@ docker pull wwood/singlem:[RELEASE_TAG]
 ```
 If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
 ```
-docker run -v `pwd`:`pwd` wwood/singlem singlem pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 15
+docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 15
 ```
 
 #### Installation via PyPI
