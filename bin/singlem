@@ -29,6 +29,7 @@ from singlem.clusterer import Clusterer
 from singlem.appraiser import Appraiser
 from singlem.querier import Querier
 from singlem.chancer import Chancer
+from singlem.regenerator import Regenerator
 from singlem.taxonomy import Taxonomy
 
 DEFAULT_WINDOW_SIZE=60
@@ -325,6 +326,18 @@ if __name__ == '__main__':
     create_parser.add_argument('--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
 
+    regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
+    regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
+    regenerate_parser.add_argument('--input_singlem_package', metavar="PATH", help="input package", required=True)
+    regenerate_parser.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
+    regenerate_parser.add_argument('--working_directory', required=True)
+    regenerate_parser.add_argument('--euk_sequences', required=True)
+    regenerate_parser.add_argument('--euk_taxonomy', required=True)
+    regenerate_parser.add_argument('--intermediate_archaea_graftm_package', required=True)
+    regenerate_parser.add_argument('--intermediate_bacteria_graftm_package', required=True)
+    regenerate_parser.add_argument('--intermediate_sequences_for_inclusion', required=True)
+    regenerate_parser.add_argument('--input_taxonomy', required=True)
+
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
     appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
@@ -366,6 +379,7 @@ if __name__ == '__main__':
         print '\n  Package creation:'
         print '    seqs         -> %s' % seqs_description
         print '    create       -> %s' % create_description
+        print '    regenerate   -> %s' % regenerate_description
 
         print '\n  Use singlem <command> -h for command-specific help.\n'\
             '  Some commands also have an extended --full_help flag.\n'
@@ -611,6 +625,18 @@ if __name__ == '__main__':
         if args.output_unbinned_otu_table: output_unbinned_otu_table_io.close()
         if args.output_assembled_otu_table: output_assembled_otu_table_io.close()
         if args.output_unaccounted_for_otu_table: output_unaccounted_for_otu_table_io.close()
+
+    elif args.subparser_name == 'regenerate':
+        Regenerator.regenerate(
+            input_singlem_package = args.input_singlem_package,
+            output_singlem_package = args.output_singlem_package,
+            working_directory = args.working_directory,
+            euk_sequences = args.euk_sequences,
+            euk_taxonomy = args.euk_taxonomy,
+            intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
+            intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
+            intermediate_sequences_for_inclusion = args.intermediate_sequences_for_inclusion,
+            input_taxonomy = args.input_taxonomy)
 
     elif args.subparser_name == 'chance':
         chancer = Chancer()
