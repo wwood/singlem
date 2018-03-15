@@ -49,7 +49,7 @@ class SingleMPackage:
         singlem_package_path: str
             path to base directory of singlem package
         '''
-        
+
         contents_hash = json.load(
                                    open(
                                         os.path.join(
@@ -58,15 +58,15 @@ class SingleMPackage:
                                                      ),
                                          )
                                    )
-        
-        
+
+
         v=contents_hash[SingleMPackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM package: %s" % (v, singlem_package_path))
         if v == 1:
             pkg = SingleMPackageVersion1()
         else:
             raise InsufficientSingleMPackageException("Bad SingleM package version: %s" % str(v))
-        
+
         pkg._contents_hash = contents_hash
         pkg._base_directory = singlem_package_path
         # check we are at current version otherwise choke
@@ -94,7 +94,7 @@ class SingleMPackage:
     def __getitem__(self, key):
         '''Return the value of the given key from the contents file'''
         return self.contents_hash[key]
-    
+
     def contents_path(self):
         return os.path.join(self._base_directory, SingleMPackage._CONTENTS_FILE_NAME)
 
@@ -103,40 +103,40 @@ class SingleMPackage:
 
 class SingleMPackageVersion1(SingleMPackage):
     version = 1 # don't change me bro
-    
+
     def __init__(self):
         self.graftm_package_cache = None
 
     def graftm_package_path(self):
         return os.path.join(self._base_directory,
                             self._contents_hash[SingleMPackage.GRAFTM_PACKAGE_KEY])
-        
+
     def graftm_package(self):
         if self.graftm_package_cache is None:
             self.graftm_package_cache = GraftMPackage.acquire(self.graftm_package_path())
         return self.graftm_package_cache
-    
+
     def graftm_package_basename(self):
         return os.path.basename(self.graftm_package_path())
-    
+
     def singlem_position(self):
         return self._contents_hash[SingleMPackage.SINGLEM_POSITION_KEY]
-    
+
     def alignment_hmm_sha256(self):
         return self._contents_hash[SingleMPackage.ALIGNMENT_HMM_SHA256_KEY]
-    
+
     def singlem_package_sha256(self):
         return self._contents_hash[SingleMPackage.SINGLEM_PACKAGE_SHA256_KEY]
-        
+
     def hmm_path(self):
         return self.graftm_package().alignment_hmm_path()
-        
+
     def hmm_basename(self):
         return os.path.basename(self.hmm_path())
-    
+
     def calculate_alignment_hmm_sha256(self):
         return hashlib.sha256(open(self.graftm_package().alignment_hmm_path()).read()).hexdigest()
-    
+
     def calculate_singlem_package_sha256(self):
         h = hashlib.sha256()
         # Maybe the reference package contents should be cached instead
@@ -182,7 +182,7 @@ class SingleMPackageVersion1(SingleMPackage):
             path to graftm package internal to the singlem package
         singlem_position: int
             the position in the HMM where the SingleM window starts
-            
+
         Returns
         -------
         Nothing
@@ -191,7 +191,7 @@ class SingleMPackageVersion1(SingleMPackage):
         if os.path.exists(output_package_path):
             raise Exception("Not writing new SingleM package to already existing file/directory with name %s" % output_package_path)
         os.mkdir(output_package_path)
-        
+
         graftm_package = GraftMPackage.acquire(graftm_package_path)
         if graftm_package.version != 3:
             raise Exception("SingleM packages can only be created from version 3 GraftM packages at this point.")
@@ -199,20 +199,20 @@ class SingleMPackageVersion1(SingleMPackage):
         if graftm_package_basename == SingleMPackage._CONTENTS_FILE_NAME:
             raise Exception("Name of GraftM package cannot be %s" % SingleMPackage._CONTENTS_FILE_NAME)
         shutil.copytree(graftm_package_path, os.path.join(output_package_path, graftm_package_basename))
-        
+
         singlem_package = SingleMPackageVersion1()
         singlem_package._contents_hash = {SingleMPackage.VERSION_KEY: singlem_package.version,
                                           SingleMPackage.GRAFTM_PACKAGE_KEY: graftm_package_basename,
                                           SingleMPackage.SINGLEM_POSITION_KEY: singlem_position
                                           }
         singlem_package._base_directory = output_package_path
-        
+
         # calculate the sha256 values
         singlem_package._contents_hash[SingleMPackage.ALIGNMENT_HMM_SHA256_KEY] = \
             singlem_package.calculate_alignment_hmm_sha256()
         singlem_package._contents_hash[SingleMPackage.SINGLEM_PACKAGE_SHA256_KEY] = \
             singlem_package.calculate_singlem_package_sha256()
-        
+
         # save contents file
         json.dump(singlem_package._contents_hash,
                   open(os.path.join(output_package_path, SingleMPackage._CONTENTS_FILE_NAME), 'w'))
