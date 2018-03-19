@@ -33,13 +33,15 @@ print "\t".join([
     'num_lineages',
     'num_lineages_in_mrca',
     'num_disagree_no_taxonomy',
+    'euk_count',
     'domain',
     'phylum',
     'class_name',
     'order_name',
     'family',
     'genus',
-    'species'
+    'species',
+    'eg_bad',
 ])
 
 label_to_node = {}
@@ -51,7 +53,7 @@ num_printed = 0
 for taxonomy, leaves in taxonomy_to_leaves.items():
     if len(leaves) == 1: continue #single member taxonomies are meaningless.
     num_printed += 1
-    if num_printed > 10: break
+    #if num_printed > 10: break
 
     leaf_nodes_with_taxonomy = []
     for l in leaves:
@@ -64,14 +66,21 @@ for taxonomy, leaves in taxonomy_to_leaves.items():
         mrca = tree.mrca(taxon_labels=list([l.replace('_',' ') for l in leaf_nodes_with_taxonomy]))
 
         # Calculate how wrong the wrong ones are
-        non_belonging_lineages = [l for l in mrca.leaf_iter() if l.taxon.label.replace('_',' ') not in leaf_nodes_with_taxonomy]
+        non_belonging_lineages = [l for l in mrca.leaf_iter() if l.taxon.label.replace(' ','_') not in leaf_nodes_with_taxonomy]
         tax_split = taxonomy.split('; ')
+        eg_bad = ''
+        euks = 0
         for non in non_belonging_lineages:
             num_agreeing_levels = -2
             non_split = taxonomy_hash[non.taxon.label.replace(' ','_')]
+            eg_bad = '; '.join(non_split)
+            if non_split[1] == 'd__Euryarchaeota':
+                euks += 1
+            # if eg_bad == 'r__Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Acetobacterales; f__Acetobacteraceae; g__70-18':
+            #     import IPython; IPython.embed()
             for i in range(min([len(tax_split),len(non_split)])):
                 if tax_split[i] != non_split[i]:
-                    num_agreeing_levels = i-1
+                    num_agreeing_levels = i-2
                     break
             if num_agreeing_levels == len(tax_split) or \
                num_agreeing_levels == len(non_split):
@@ -80,11 +89,15 @@ for taxonomy, leaves in taxonomy_to_leaves.items():
             level_to_num_wrong[num_agreeing_levels] += 1
 
 
-        print "\t".join(itertools.chain([
-            taxonomy,
-            str(len(leaf_nodes_with_taxonomy)),
-            str(len(mrca.leaf_nodes()))],
-                                        [str(n) for n in level_to_num_wrong]
+        print "\t".join(itertools.chain(
+            [
+                taxonomy,
+                str(len(leaf_nodes_with_taxonomy)),
+                str(len(mrca.leaf_nodes())),
+                str(euks)
+            ],
+            [str(n) for n in level_to_num_wrong],
+            [eg_bad]
         ))
 
 
