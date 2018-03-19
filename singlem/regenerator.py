@@ -110,6 +110,33 @@ class Regenerator:
             final_gpkg)
         extern.run(cmd)
 
+        ##############################################################################
+        # Remove sequences from the diamond DB that are not in the tree i.e.
+        # those that are exact duplicates, so that the diamond_example hits are
+        # always in the tree.
+        # Read the list of IDs in the tree with dendropy
+        final_gpkg_object = GraftMPackage.acquire(final_gpkg)
+        unaligned_seqs = final_gpkg_object.unaligned_sequence_database_path()
+        tree = dendropy.Tree.get(final_gpkg_object.reference_package_tree_path(),
+                                 schema='newick')
+        leaf_names = [l.taxon.label for l in tree.leaf_node_iter()]
+        logging.debug("Read in final tree with %i leaves" % len(leaf_names))
+
+        # Extract out of the sequences file in the graftm package
+        final_seqs = SequenceExtractor().extract_and_read(
+            leaf_names, unaligned_seqs)
+
+        # Write the reads into sequences file in place
+        with open(unaligned_seqs, 'w') as f:
+            for s in final_seqs:
+                f.write(">%s\n" % s.name)
+                f.write(s.seq)
+                f.write("\n")
+
+        # Regenerate the diamond DB
+        final_gpkg_object.create_diamond_db()
+
+        ##############################################################################
         # Run singlem create to put the final package together
         SingleMPackageVersion1.compile(
             output_singlem_package,
