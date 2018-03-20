@@ -2,12 +2,14 @@ import logging
 import os
 
 import extern
+import dendropy
 from graftm.graftm_package import GraftMPackage
 
 from graftm_result import GraftMResult
 from singlem_package import SingleMPackageVersion1, SingleMPackage
 from sequence_classes import SeqReader
 from dereplicator import Dereplicator
+from sequence_extractor import SequenceExtractor
 
 class Regenerator:
     def regenerate(self, **kwargs):
@@ -117,14 +119,16 @@ class Regenerator:
         # Read the list of IDs in the tree with dendropy
         final_gpkg_object = GraftMPackage.acquire(final_gpkg)
         unaligned_seqs = final_gpkg_object.unaligned_sequence_database_path()
-        tree = dendropy.Tree.get(final_gpkg_object.reference_package_tree_path(),
+        tree = dendropy.Tree.get(path=final_gpkg_object.reference_package_tree_path(),
                                  schema='newick')
-        leaf_names = [l.taxon.label for l in tree.leaf_node_iter()]
+        leaf_names = [l.taxon.label.replace(' ','_') for l in tree.leaf_node_iter()]
         logging.debug("Read in final tree with %i leaves" % len(leaf_names))
 
         # Extract out of the sequences file in the graftm package
         final_seqs = SequenceExtractor().extract_and_read(
             leaf_names, unaligned_seqs)
+        if len(final_seqs) != len(leaf_names):
+            raise Exception("Do not appear to have extracted the expected number of sequences from the unaligned fastat file")
 
         # Write the reads into sequences file in place
         with open(unaligned_seqs, 'w') as f:
