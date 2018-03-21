@@ -282,12 +282,12 @@ if __name__ == '__main__':
     makedb_parser = new_subparser(subparsers, 'makedb', makedb_description)
     makedb_parser.add_argument('--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
     makedb_parser.add_argument('--otu_tables', nargs='+', help="Make a db from these OTU tables")
-    makedb_parser.add_argument('--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
+    makedb_parser.add_argument('--db', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
     query_required_args = query_parser.add_argument_group('Required arguments')
-    query_required_args.add_argument('--db', help="Output from 'makedb' mode", required=True)
+    query_required_args.add_argument('--db', '--db_path', help="Output from 'makedb' mode", required=True)
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
     query_otu_args.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
     query_otu_args.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
