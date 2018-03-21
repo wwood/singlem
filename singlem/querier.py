@@ -32,8 +32,10 @@ class Querier:
 
         queries = self.prepare_query_sequences(
             query_sequence, query_otu_table, query_fasta)
+        logging.info("Read in %i queries" % len(queries))
 
         query_results = self.query_with_queries(queries, db, max_divergence)
+        logging.info("Printing %i hits" % len(query_results))
 
         if output_style == 'sparse':
             SparseResultFormatter().write(query_results, sys.stdout)
@@ -74,7 +76,7 @@ class Querier:
         sqlite_db_path = db.sqlite_file
         if not os.path.exists(sqlite_db_path):
             raise Exception("Sqlite database not found at '%s', indicating that either the SingleM database was built with an out-dated SingleM version, or that the database is corrupt. Please generate a new database with the current version of SingleM.")
-        logging.info("Connecting to %s" % sqlite_db_path)
+        logging.debug("Connecting to %s" % sqlite_db_path)
         dbm = DatabaseManager({
         'sqlite3': {
             'driver': 'sqlite',
