@@ -74,7 +74,7 @@ for taxonomy, leaves in taxonomy_to_leaves.items():
             num_agreeing_levels = -2
             non_split = taxonomy_hash[non.taxon.label.replace(' ','_')]
             eg_bad = '; '.join(non_split)
-            if non_split[1] == 'd__Euryarchaeota':
+            if 'd__Eukaryota' in non_split:
                 euks += 1
             # if eg_bad == 'r__Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Acetobacterales; f__Acetobacteraceae; g__70-18':
             #     import IPython; IPython.embed()
