@@ -221,8 +221,9 @@ class SearchPipe:
                     base_dir = assignment_result._base_dir(
                         sample_name, singlem_package, tmpbase)
                     input_jplace_file = os.path.join(base_dir, "placements.jplace")
-                    output_jplace_file = os.path.join(base_dir, "%s_%s_%s.jplace" % (
-                        output_jplace, sample_name, singlem_package.graftm_package_basename()))
+                    output_jplace_file = "%s_%s_%s.jplace" % (
+                        output_jplace, sample_name, singlem_package.graftm_package_basename())
+                    logging.info("Writing jplace file '%s'" % output_jplace_file)
                     logging.debug("Converting jplace file %s to singlem jplace file %s" % (
                         input_jplace_file, output_jplace_file))
                     with open(output_jplace_file, 'w') as output_jplace_io:
