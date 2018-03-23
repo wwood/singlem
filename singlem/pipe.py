@@ -481,7 +481,7 @@ class SearchPipe:
             new_placements[sequence]['nm'] = [[sequence, sequence_to_count[sequence]]]
             new_placements[sequence]['p'] = example_p
 
-        jplace['placements'] = new_placements
+        jplace['placements'] = new_placements.values()
         json.dump(jplace, output_jplace_io)
 
     def _graftm_command_prefix(self, is_protein):

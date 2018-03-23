@@ -198,8 +198,8 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                                       u'pendant_length'],
                           u'metadata': 'the_metadata',
                           u'placements':
-                          {u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG':
-                           {u'nm': [[u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                          [{
+                           u'nm': [[u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
                                      2]],
                             u'p': [[u'o__Bacillales',
                                     0.0874346630859,
@@ -218,7 +218,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                                     15,
                                     0.333322166804,
                                     -631.301771907,
-                                    0.150839131805]]}},
+                                    0.150839131805]]}],
                           u'tree': 'tree_thanks',
                           u'version': 3}
 
@@ -230,11 +230,14 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                       os.path.join(d, "my_jplace"),
                       os.path.join(path_to_data,'4.12.22seqs.spkg'))
             extern.run(cmd)
-            j = json.load(open(
-                os.path.join(d, 'my_jplace_jplace_test_4.12.22seqs.jplace')))
+            jplace_path = os.path.join(d, 'my_jplace_jplace_test_4.12.22seqs.jplace')
+            j = json.load(open(jplace_path))
             j['tree'] = 'tree_thanks'
             j['metadata'] = 'the_metadata'
             self.assertEqual(expected_jpace, j)
+
+            # Make sure the guppy sing does not croak
+            extern.run("guppy sing -o /dev/null '%s'" % jplace_path)
 
     def test_nucleotide_package(self):
         expected = [
