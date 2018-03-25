@@ -166,6 +166,11 @@ o__Clostridiales,c__Clostridia,order,o__Clostridiales,Root,d__Bacteria,p__Firmic
                 'HWI-ST1243:156:D1K83ACXX:7:1105:19152:28331_1_4_1',
                 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482_2_2_1',
                 ], 0.5))
+        self.assertEqual(
+            ["Root",'d__Bacteria','p__Firmicutes','c__Bacilli'],
+            parser.otu_placement([
+                'HWI-ST1243:156:D1K83ACXX:7:1105:19152:28331_1_4_1',
+                ], 0.5))
 
 if __name__ == "__main__":
     unittest.main()
