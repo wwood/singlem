@@ -184,16 +184,14 @@ class SearchPipe:
                     is_known_taxonomy = False
                     aligned_seqs = list(itertools.chain(
                         readset.unknown_sequences, readset.known_sequences))
-                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                        tax_file = assignment_result.diamond_assignment_file(
-                            sample_name, singlem_package, tmpbase)
-                    else:
-                        tax_file = assignment_result.read_tax_file(
-                            sample_name, singlem_package, tmpbase)
-                    logging.debug("Reading taxonomy from %s" % tax_file)
+
+
 
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         taxonomies = DiamondResultParser(tax_file)
+                        use_first = True
+                    elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                        taxonomies = PlacementParser(tax_file)
                         use_first = True
                     else:
                         if not os.path.isfile(tax_file):
@@ -328,18 +326,33 @@ class SearchPipe:
             logging.debug("No aligned sequences found for this HMM")
         return protein_alignment
 
-    def _seqs_to_counts_and_taxonomy(self, sequences, taxonomies, use_first_taxonomy=False,
-                                     taxonomy_is_known_taxonomy=False):
+    def _seqs_to_counts_and_taxonomy(self, sequences,
+                                     assignment_method,
+                                     otu_sequence_assigned_taxonomies,
+                                     graftm_result):
         '''given an array of UnalignedAlignedNucleotideSequence objects, and hash of
         taxonomy file, yield over 'Info' objects that contain e.g. the counts of
         the aggregated sequences and corresponding median taxonomies.
 
         Parameters
         ----------
-        use_first_taxonomy: boolean
-            False: get a median taxonomy. True: use the taxonomy of the first encountered sequence
 
         '''
+
+        if assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+            tax_file = assignment_result.diamond_assignment_file(
+                sample_name, singlem_package, tmpbase)
+        elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
+            tax_file = assignment_result.jplace_file(
+                sample_name, singlem_package, tmpbase)
+        elif assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+            tax_file = assignment_result.read_tax_file(
+                sample_name, singlem_package, tmpbase)
+        else:
+            raise Exception("Programming error")
+        logging.debug("Reading taxonomy from %s" % tax_file)
+
+
         class CollectedInfo:
             def __init__(self):
                 self.count = 0
@@ -351,6 +364,10 @@ class SearchPipe:
         seq_to_collected_info = {}
         for s in sequences:
             try:
+                if s.aligned_sequence in otu_sequence_assigned_taxonomies:
+                    tax = otu_sequence_assigned_taxonomies[s.aligned_sequence]
+                elif:
+
                 if taxonomy_is_known_taxonomy:
                     tax = taxonomies[s.aligned_sequence].taxonomy
                 else:
@@ -381,7 +398,7 @@ class SearchPipe:
                 self.coverage = coverage
                 self.aligned_lengths = aligned_lengths
 
-        for seq, collected_info in seq_to_collected_info.iteritems():
+        for seq, collected_info in seq_to_collected_info.items():
             if use_first_taxonomy:
                 tax = collected_info.taxonomies[0]
                 if tax is None: tax = ''
