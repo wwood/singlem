@@ -33,12 +33,14 @@ class UnalignedAlignedNucleotideSequence:
 
     '''
 
-    def __init__(self, name, aligned_sequence, unaligned_sequence, aligned_length):
+    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length):
         '''
         Parameters
         ---------
         name: str
             name of the sequence
+        orf_name: str
+            name of the ORF
         aligned_sequence: str
             aligned nucleotide sequence
         unaligned_sequence: str
@@ -48,6 +50,7 @@ class UnalignedAlignedNucleotideSequence:
             that were removed as not aligned
         '''
         self.name = name
+        self.orf_name = orf_name
         self.aligned_sequence = aligned_sequence
         self.unaligned_sequence = unaligned_sequence
         self.aligned_length = aligned_length

@@ -73,7 +73,7 @@ class MetagenomeOtuFinder:
                     include_inserts=include_inserts)
 
                 windowed_sequences.append(
-                    UnalignedAlignedNucleotideSequence(name, align, nuc, aligned_length))
+                    UnalignedAlignedNucleotideSequence(name, s.name, align, nuc, aligned_length))
         return windowed_sequences
 
     def _find_lower_case_columns(self, protein_alignment):

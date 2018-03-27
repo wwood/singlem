@@ -20,6 +20,8 @@ from sequence_classes import SeqReader, AlignedProteinSequence
 from diamond_parser import DiamondResultParser
 from graftm_result import GraftMResult
 import sequence_extractor as singlem_sequence_extractor
+from placement_parser import PlacementParser
+from taxonomy_bihash import TaxonomyBihash
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -29,6 +31,7 @@ from graftm.sequence_io import SequenceIO
 PPLACER_ASSIGNMENT_METHOD = 'pplacer'
 DIAMOND_ASSIGNMENT_METHOD = 'diamond'
 DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
+NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 
 class SearchPipe:
     def run(self, **kwargs):
@@ -73,6 +76,9 @@ class SearchPipe:
             self._graftm_verbosity = '5'
         else:
             self._graftm_verbosity = '2'
+
+        if not assign_taxonomy:
+            singlem_assignment_method = NO_ASSIGNMENT_METHOD
 
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
@@ -152,6 +158,8 @@ class SearchPipe:
         regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
                                   split('read_names nucleotides_aligned taxonomy_by_known?')
+        if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
+            package_to_taxonomy_bihash = {}
 
         for readset in extracted_reads:
             sample_name = readset.sample_name
@@ -172,9 +180,10 @@ class SearchPipe:
                     otu_table_object.data.append(to_print)
             known_infos = self._seqs_to_counts_and_taxonomy(
                 known_sequences,
+                NO_ASSIGNMENT_METHOD,
                 known_taxes,
-                False,
-                True)
+                known_sequence_taxonomy,
+                None)
             add_info(known_infos, otu_table_object, True)
 
             if len(readset.unknown_sequences) > 0: # if any sequences were aligned (not just already known)
@@ -185,15 +194,13 @@ class SearchPipe:
                     aligned_seqs = list(itertools.chain(
                         readset.unknown_sequences, readset.known_sequences))
 
-
-
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                        tax_file = assignment_result.diamond_assignment_file(
+                            sample_name, singlem_package, tmpbase)
                         taxonomies = DiamondResultParser(tax_file)
-                        use_first = True
-                    elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
-                        taxonomies = PlacementParser(tax_file)
-                        use_first = True
-                    else:
+                    elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                        tax_file = assignment_result.read_tax_file(
+                            sample_name, singlem_package, tmpbase)
                         if not os.path.isfile(tax_file):
                             logging.warn("Unable to find tax file for gene %s from sample %s "
                                          "(likely do to min length filtering), skipping" % (
@@ -202,7 +209,29 @@ class SearchPipe:
                             taxonomies = {}
                         else:
                             taxonomies = TaxonomyFile(tax_file)
-                        use_first = False
+
+                    elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                        bihash_key = singlem_package.base_directory()
+                        if bihash_key in package_to_taxonomy_bihash:
+                            taxonomy_bihash = package_to_taxonomy_bihash[bihash_key]
+                        else:
+                            taxtastic_taxonomy = singlem_package.graftm_package().taxtastic_taxonomy_path()
+                            logging.debug("Reading taxtastic taxonomy from %s" % taxtastic_taxonomy)
+                            with open(taxtastic_taxonomy) as f:
+                                taxonomy_bihash = TaxonomyBihash.parse_taxtastic_taxonomy(f)
+                            package_to_taxonomy_bihash[bihash_key] = taxonomy_bihash
+                        base_dir = assignment_result._base_dir(
+                            sample_name, singlem_package, tmpbase)
+                        jplace_file = os.path.join(base_dir, "placements.jplace")
+                        logging.debug("Reading jplace output from %s" % jplace_file)
+                        with open(jplace_file) as f:
+                            jplace_json = json.loads(f.read())
+                        placement_parser = PlacementParser(jplace_json, taxonomy_bihash)
+                        taxonomies = {}
+                    elif singlem_assignment_method == NO_ASSIGNMENT_METHOD:
+                        taxonomies = {}
+                    else:
+                        raise Exception("Programming error")
 
                 else: # Taxonomy has not been assigned.
                     aligned_seqs = readset.unknown_sequences
@@ -210,11 +239,13 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
-                    use_first = False # irrelevant
                     is_known_taxonomy = True
 
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
-                    aligned_seqs, taxonomies, use_first, False))
+                    aligned_seqs, singlem_assignment_method,
+                    known_sequence_tax if known_sequence_taxonomy else {},
+                    taxonomies,
+                    placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None))
                 add_info(new_infos, otu_table_object, is_known_taxonomy)
 
                 if output_jplace:
@@ -330,30 +361,24 @@ class SearchPipe:
     def _seqs_to_counts_and_taxonomy(self, sequences,
                                      assignment_method,
                                      otu_sequence_assigned_taxonomies,
-                                     graftm_result):
-        '''given an array of UnalignedAlignedNucleotideSequence objects, and hash of
-        taxonomy file, yield over 'Info' objects that contain e.g. the counts of
-        the aggregated sequences and corresponding median taxonomies.
+                                     per_read_taxonomies,
+                                     placement_parser):
+        '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
+        assignment-related results, yield over 'Info' objects that contain e.g.
+        the counts of the aggregated sequences and corresponding median
+        taxonomies.
 
         Parameters
         ----------
-
+        sequences: iterable of UnalignedAlignedNucleotideSequence
+        assignment_method: str
+            e.g. DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD
+        otu_sequence_assigned_taxonomies: dict of str to str
+            assignments known based on the OTU sequence alone
+        per_read_taxonomies: dict-like of read name to taxonomy
+        placement_parser: PlacementParser
+            Used only if assignment_method is PPLACER_ASSIGNMENT_METHOD.
         '''
-
-        if assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-            tax_file = assignment_result.diamond_assignment_file(
-                sample_name, singlem_package, tmpbase)
-        elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
-            tax_file = assignment_result.jplace_file(
-                sample_name, singlem_package, tmpbase)
-        elif assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-            tax_file = assignment_result.read_tax_file(
-                sample_name, singlem_package, tmpbase)
-        else:
-            raise Exception("Programming error")
-        logging.debug("Reading taxonomy from %s" % tax_file)
-
-
         class CollectedInfo:
             def __init__(self):
                 self.count = 0
@@ -361,23 +386,25 @@ class SearchPipe:
                 self.names = []
                 self.coverage = 0.0
                 self.aligned_lengths = []
+                self.orf_names = []
+                self.known_sequence_taxonomies = []
 
         seq_to_collected_info = {}
         for s in sequences:
-            try:
-                if s.aligned_sequence in otu_sequence_assigned_taxonomies:
-                    tax = otu_sequence_assigned_taxonomies[s.aligned_sequence]
-                elif:
-
-                if taxonomy_is_known_taxonomy:
-                    tax = taxonomies[s.aligned_sequence].taxonomy
-                else:
-                    tax = taxonomies[s.name]
-            except KeyError:
-                # happens sometimes when HMMER picks up something where
-                # diamond does not, or when --no_assign_taxonomy is specified.
-                logging.debug("Did not find any taxonomy information for %s" % s.name)
-                tax = ''
+            if s.aligned_sequence in otu_sequence_assigned_taxonomies:
+                tax = None
+            else:
+                try:
+                    if assignment_method == PPLACER_ASSIGNMENT_METHOD or \
+                         assignment_method == NO_ASSIGNMENT_METHOD:
+                        tax = None
+                    else:
+                        tax = per_read_taxonomies[s.name]
+                except KeyError:
+                    # happens sometimes when HMMER picks up something where
+                    # diamond does not, or when --no_assign_taxonomy is specified.
+                    logging.debug("Did not find any taxonomy information for %s" % s.name)
+                    tax = ''
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
             except KeyError:
@@ -385,10 +412,11 @@ class SearchPipe:
                 seq_to_collected_info[s.aligned_sequence] = collected_info
 
             collected_info.count += 1
-            if taxonomies: collected_info.taxonomies.append(tax)
+            if per_read_taxonomies: collected_info.taxonomies.append(tax)
             collected_info.names.append(s.name)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
+            collected_info.orf_names.append(s.orf_name)
 
         class Info:
             def __init__(self, seq, count, taxonomy, names, coverage, aligned_lengths):
@@ -400,11 +428,19 @@ class SearchPipe:
                 self.aligned_lengths = aligned_lengths
 
         for seq, collected_info in seq_to_collected_info.items():
-            if use_first_taxonomy:
+            if s.aligned_sequence in otu_sequence_assigned_taxonomies:
+                tax = otu_sequence_assigned_taxonomies[s.aligned_sequence].taxonomy
+            elif assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                 tax = collected_info.taxonomies[0]
                 if tax is None: tax = ''
+            elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                tax = '; '.join(
+                    placement_parser.otu_placement(collected_info.orf_names, 0.5))
+            elif assignment_method == NO_ASSIGNMENT_METHOD:
+                tax = ''
             else:
                 tax = self._median_taxonomy(collected_info.taxonomies)
+
             yield Info(seq,
                        collected_info.count,
                        tax,
@@ -759,6 +795,10 @@ class SingleMPipeTaxonomicAssignmentResult:
     def read_tax_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             '%s_read_tax.tsv' % tmpbase)
+
+    def jplace_file(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
+                            'placements.jplace')
 
 class ExtractedReads:
     '''Collection class for ExtractedReadSet objects'''

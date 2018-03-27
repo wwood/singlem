@@ -450,7 +450,7 @@ if __name__ == '__main__':
             for o in args.archive_otu_tables:
                 otus.add_archive_otu_table_file(o)
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-            (args.db_path, otus)
+            (args.db, otus)
     elif args.subparser_name=='query':
         querier = Querier()
         if args.sample_names or args.taxonomy:
