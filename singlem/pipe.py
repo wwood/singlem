@@ -148,7 +148,7 @@ class SearchPipe:
 
         #### Taxonomic assignment
         if assign_taxonomy:
-            logging.info("Running taxonomic assignment with graftm..")
+            logging.info("Running taxonomic assignment with GraftM..")
             assignment_result = self._assign_taxonomy(
                 extracted_reads, graftm_assignment_method)
 
@@ -574,12 +574,16 @@ class SearchPipe:
                       hmm_paths[0])
             extern.run(cmd)
 
+        num_singlem_packages = len(singlem_package_database.protein_packages())+\
+                               len(singlem_package_database.nucleotide_packages())
+        logging.info("Searching with %i SingleM package(s)" % num_singlem_packages)
+
         # Run searches for proteins
         hmms = singlem_package_database.protein_search_hmm_paths()
         doing_proteins = False
         if len(hmms) > 0:
             doing_proteins = True
-            logging.info("Searching for reads matching %i different protein HMMs" % len(hmms))
+            logging.info("Searching for reads matching %i different protein HMM(s)" % len(hmms))
             run(hmms, graftm_protein_search_directory, True)
 
         # Run searches for nucleotides
@@ -587,7 +591,7 @@ class SearchPipe:
         doing_nucs = False
         if len(hmms) > 0:
             doing_nucs = True
-            logging.info("Searching for reads matching %i different nucleotide HMMs" % len(hmms))
+            logging.info("Searching for reads matching %i different nucleotide HMM(s)" % len(hmms))
             run(hmms, graftm_nucleotide_search_directory, False)
 
         logging.info("Finished search phase")
@@ -673,7 +677,7 @@ class SearchPipe:
 
         extern.run_many(commands, num_threads=1)
         for tmp_files in all_tmp_files: [t.close() for t in tmp_files]
-        logging.info("Finished running taxonomic assignment with graftm")
+        logging.info("Finished running taxonomic assignment with GraftM")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
 class SingleMPipeSearchResult:
