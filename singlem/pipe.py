@@ -391,20 +391,20 @@ class SearchPipe:
 
         seq_to_collected_info = {}
         for s in sequences:
-            if s.aligned_sequence in otu_sequence_assigned_taxonomies:
+            if s.aligned_sequence in otu_sequence_assigned_taxonomies or \
+               per_read_taxonomies is None:
                 tax = None
             else:
                 try:
-                    if assignment_method == PPLACER_ASSIGNMENT_METHOD or \
-                         assignment_method == NO_ASSIGNMENT_METHOD:
-                        tax = None
-                    else:
-                        tax = per_read_taxonomies[s.name]
+                    tax = per_read_taxonomies[s.name]
                 except KeyError:
-                    # happens sometimes when HMMER picks up something where
-                    # diamond does not, or when --no_assign_taxonomy is specified.
-                    logging.debug("Did not find any taxonomy information for %s" % s.name)
-                    tax = ''
+                    if assignment_method != NO_ASSIGNMENT_METHOD and \
+                       assignment_method != PPLACER_ASSIGNMENT_METHOD:
+                        # happens sometimes when HMMER picks up something where
+                        # diamond does not, or when --no_assign_taxonomy is specified.
+                        logging.debug("Did not find any taxonomy information for %s" % s.name)
+                        tax = ''
+
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
             except KeyError:
@@ -436,7 +436,7 @@ class SearchPipe:
             elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
                 tax = '; '.join(
                     placement_parser.otu_placement(collected_info.orf_names, 0.5))
-            elif assignment_method == NO_ASSIGNMENT_METHOD:
+            elif per_read_taxonomies is None:
                 tax = ''
             else:
                 tax = self._median_taxonomy(collected_info.taxonomies)
