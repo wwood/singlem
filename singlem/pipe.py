@@ -434,8 +434,12 @@ class SearchPipe:
                 tax = collected_info.taxonomies[0]
                 if tax is None: tax = ''
             elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
-                tax = '; '.join(
-                    placement_parser.otu_placement(collected_info.orf_names, 0.5))
+                placed_tax = placement_parser.otu_placement(
+                    collected_info.orf_names, 0.5)
+                if placed_tax is None:
+                    tax = ''
+                else:
+                    tax = '; '.join(placed_tax)
             elif per_read_taxonomies is None:
                 tax = ''
             else:

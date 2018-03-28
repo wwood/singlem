@@ -1,4 +1,4 @@
-
+import logging
 
 class PlacementParser:
     def __init__(self, json, taxonomy_bihash):
@@ -21,6 +21,9 @@ class PlacementParser:
         taxonomy whose placement probability sum is > len(sequence_names) *
         threshold.
 
+        Sequences not in the jplace are ignored. If a group is made up
+        exclusively of sequences not in the jplace, None is returned.
+
         '''
 
         observed_parent_to_children = {}
@@ -33,47 +36,52 @@ class PlacementParser:
 
         # For each placement for each sequence
         for name in sequence_names:
-            for p in self._sequence_to_placement[name]['p']:
-                # Get list of taxonomies from placed to root of tree
-                prob = p[likelihood_index]
-                tax = p[classification_index]
-                full_tax = []
-                while tax is not None:
-                    full_tax.append(tax)
-                    tax = self._taxonomy_bihash.child_to_parent[tax]
-                # Add that probability in the total hash
-                last_parent = None
-                for i, tax in enumerate(reversed(full_tax)):
-                    if i == 0:
-                        if root_tax is None:
-                            root_tax = tax
-                        elif tax != root_tax:
-                            raise Exception(
-                                "Programming error - seem to have encountered 2 different roots")
-                    if tax in tax_probabilities:
-                        tax_probabilities[tax] += prob
-                    else:
-                        tax_probabilities[tax] = prob
-                    if i != 0:
-                        if last_parent in observed_parent_to_children:
-                            if tax not in observed_parent_to_children[last_parent]:
-                                observed_parent_to_children[last_parent].append(tax)
+            if name in self._sequence_to_placement:
+                for p in self._sequence_to_placement[name]['p']:
+                    # Get list of taxonomies from placed to root of tree
+                    prob = p[likelihood_index]
+                    tax = p[classification_index]
+                    full_tax = []
+                    while tax is not None:
+                        full_tax.append(tax)
+                        tax = self._taxonomy_bihash.child_to_parent[tax]
+                    # Add that probability in the total hash
+                    last_parent = None
+                    for i, tax in enumerate(reversed(full_tax)):
+                        if i == 0:
+                            if root_tax is None:
+                                root_tax = tax
+                            elif tax != root_tax:
+                                raise Exception(
+                                    "Programming error - seem to have encountered 2 different roots")
+                        if tax in tax_probabilities:
+                            tax_probabilities[tax] += prob
                         else:
-                            observed_parent_to_children[last_parent] = [tax]
-                    last_parent = tax
+                            tax_probabilities[tax] = prob
+                        if i != 0:
+                            if last_parent in observed_parent_to_children:
+                                if tax not in observed_parent_to_children[last_parent]:
+                                    observed_parent_to_children[last_parent].append(tax)
+                            else:
+                                observed_parent_to_children[last_parent] = [tax]
+                        last_parent = tax
+            else:
+                logging.debug("Skipping ORF %s as it does not seem to have been placed" % name)
+
+        if root_tax is None:
+            return None
 
         # Descend down the tree, picking the highest probability amongst the
-        # childrens, or break if the probability is not greater than the
+        # children, or break if the probability is not greater than the
         # threshold.
         next_children = [root_tax]
         final_tax = []
-        next_probability = 1.
         while True:
             # Find the max child and it's probability
             def get_prob(tax): return tax_probabilities[tax]
             max_child = max(next_children, key=get_prob)
             # Add it to the final tax if it is above the threshold
-            if tax_probabilities[max_child] >= threshold * len(sequence_names):
+            if tax_probabilities[max_child] > threshold * len(sequence_names):
                 final_tax.append(max_child)
                 if max_child in observed_parent_to_children:
                     next_children = observed_parent_to_children[max_child]
