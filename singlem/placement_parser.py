@@ -1,10 +1,11 @@
 import logging
 
 class PlacementParser:
-    def __init__(self, json, taxonomy_bihash):
+    def __init__(self, json, taxonomy_bihash, probability_threshold):
         self._json = json
         self._taxonomy_bihash = taxonomy_bihash
         self._sequence_to_placement = {}
+        self._probability_threshold = probability_threshold
         for placement in json['placements']:
             for nm in placement['nm']:
                 if nm[1] != 1:
@@ -15,11 +16,11 @@ class PlacementParser:
                         "There appears to be duplicate names amongst placed sequences")
                 self._sequence_to_placement[sequence] = placement
 
-    def otu_placement(self, sequence_names, threshold):
+    def otu_placement(self, sequence_names):
         '''Return the most fully resolved taxonomy of the set of reads, pooling the
         placement confidences of each sequence. The returned taxonomy is the
         taxonomy whose placement probability sum is > len(sequence_names) *
-        threshold.
+        probability_threshold.
 
         Sequences not in the jplace are ignored. If a group is made up
         exclusively of sequences not in the jplace, None is returned.
@@ -76,6 +77,7 @@ class PlacementParser:
         # threshold.
         next_children = [root_tax]
         final_tax = []
+        threshold = self._probability_threshold
         while True:
             # Find the max child and it's probability
             def get_prob(tax): return tax_probabilities[tax]

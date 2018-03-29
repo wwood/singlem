@@ -226,7 +226,7 @@ class SearchPipe:
                         logging.debug("Reading jplace output from %s" % jplace_file)
                         with open(jplace_file) as f:
                             jplace_json = json.loads(f.read())
-                        placement_parser = PlacementParser(jplace_json, taxonomy_bihash)
+                        placement_parser = PlacementParser(jplace_json, taxonomy_bihash, 0.5)
                         taxonomies = {}
                     elif singlem_assignment_method == NO_ASSIGNMENT_METHOD:
                         taxonomies = {}
@@ -435,7 +435,7 @@ class SearchPipe:
                 if tax is None: tax = ''
             elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
                 placed_tax = placement_parser.otu_placement(
-                    collected_info.orf_names, 0.5)
+                    collected_info.orf_names)
                 if placed_tax is None:
                     tax = ''
                 else:
