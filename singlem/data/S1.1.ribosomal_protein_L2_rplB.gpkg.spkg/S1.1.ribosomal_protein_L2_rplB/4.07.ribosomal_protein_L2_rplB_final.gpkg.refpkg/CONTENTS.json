@@ -1,0 +1,53 @@
+{
+    "files": {
+        "phylo_model": "phylo_modelvo2lKI.json", 
+        "taxonomy": "4_taxonomy.csv", 
+        "tree": "treeStoZnD.tre", 
+        "aln_fasta": "4_deduplicated_aligned.fasta", 
+        "seq_info": "4_seqinfo.csv", 
+        "tree_stats": "4.tre.log"
+    }, 
+    "rollback": {
+        "files": {
+            "phylo_model": "phylo_modelvo2lKI.json", 
+            "taxonomy": "4_taxonomy.csv", 
+            "tree": "4.tre", 
+            "aln_fasta": "4_deduplicated_aligned.fasta", 
+            "seq_info": "4_seqinfo.csv", 
+            "tree_stats": "4.tre.log"
+        }, 
+        "rollback": null, 
+        "metadata": {
+            "create_date": "2018-03-20 15:01:05", 
+            "format_version": "1.1", 
+            "locus": "/tmp/tmppSq21J/4"
+        }, 
+        "md5": {
+            "phylo_model": "ed4b52436deae9dc66b61ecab8f0fb81", 
+            "taxonomy": "60d179d8f1dff79fefca276f6a475aa9", 
+            "tree": "b6ccb2a2ddd4fe53ab2267a34a663e59", 
+            "aln_fasta": "e4ac373e93eae33c9515e1b4504cfba4", 
+            "seq_info": "cc70f3e5a7968836a60427250bfa1c97", 
+            "tree_stats": "80e35d133e35ce530950c95242a3d4a5"
+        }
+    }, 
+    "log": [
+        "Rerooted", 
+        "Stripped refpkg (removed 0 files)", 
+        "Loaded initial files into empty refpkg"
+    ], 
+    "metadata": {
+        "create_date": "2018-03-20 15:01:05", 
+        "format_version": "1.1", 
+        "locus": "/tmp/tmppSq21J/4"
+    }, 
+    "rollforward": null, 
+    "md5": {
+        "phylo_model": "ed4b52436deae9dc66b61ecab8f0fb81", 
+        "taxonomy": "60d179d8f1dff79fefca276f6a475aa9", 
+        "tree": "292fcc44311eef2022848dbebf40f9ae", 
+        "aln_fasta": "e4ac373e93eae33c9515e1b4504cfba4", 
+        "seq_info": "cc70f3e5a7968836a60427250bfa1c97", 
+        "tree_stats": "80e35d133e35ce530950c95242a3d4a5"
+    }
+}

@@ -1,0 +1,1 @@
+{"unaligned_sequence_database": "graftmB1NpQZ.faa", "align_hmm": "DNGNGWU00014_mingle_output_good_seqs.hmm", "range": 183.0, "refpkg": "4.13.ribosomal_protein_L14b_L23e_rplN_final.gpkg.refpkg", "trusted_cutoff": false, "diamond_database": "4.dmnd", "graftm_package_version": 3, "search_hmms": ["graftmAiWqW8_search.hmm", "graftmIkMbHN_search.hmm"]}

@@ -1,1 +1,0 @@
-{"unaligned_sequence_database": "singlem_package_creatorJiuaiN.fasta", "align_hmm": "DNGNGWU00010_mingle_output_good_seqs.hmm", "range": 411.0, "refpkg": "2.07.ribosomal_protein_L2_rplB.gpkg.refpkg", "trusted_cutoff": false, "diamond_database": "singlem_package_creatorTGdSUe.dmnd", "graftm_package_version": 3, "search_hmms": ["graftmIi9ipp_search.hmm", "graftmbdiWA2_search.hmm"]}
