@@ -1,0 +1,1 @@
+{"unaligned_sequence_database": "4.09.ribosomal_protein_L5_rplE_final_sequences.faa", "align_hmm": "DNGNGWU00025_mingle_output_good_seqs.hmm", "range": 274.5, "refpkg": "4.09.ribosomal_protein_L5_rplE_final.gpkg.refpkg", "trusted_cutoff": false, "diamond_database": "4.dmnd", "graftm_package_version": 3, "search_hmms": ["graftmFIm7K0_search.hmm", "graftmMH5eE7_search.hmm"]}
