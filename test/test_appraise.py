@@ -321,16 +321,17 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[1]
-        self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_assembled)
-        self.assertEqual(0, a.num_not_found)
+        res2 = list(sorted(app.appraisal_results, key=lambda x: x.metagenome_sample_name))
         a = app.appraisal_results[0]
         self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(0, a.num_assembled)
         self.assertEqual(4, a.num_not_found)
+        a = app.appraisal_results[1]
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual(0, a.num_binned)
+        self.assertEqual(7, a.num_assembled)
+        self.assertEqual(0, a.num_not_found)
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
