@@ -57,7 +57,7 @@ gene    sample  sequence        num_hits        coverage        taxonomy
 5. estimated coverage of a genome from this OTU
 6. "median" taxonomic classification of each of the reads in the OTU according to [pplacer](http://matsen.fhcrc.org/pplacer/)
 
-Currently SingleM concentrates on 15 single copy marker genes to provide fine-grained differentiation of species that is independent of the copy-number variation issues that hamper 16S analyses. SingleM is reasonably fast and is quite scalable, although there is much room for improvement. On average, each of the 15 genes better differentiates closely related lineages than a typical 16S amplicon-based study.
+Currently SingleM concentrates on 14 single copy marker genes to provide fine-grained differentiation of species that is independent of the copy-number variation issues that hamper 16S analyses. SingleM is reasonably fast and is quite scalable, although there is much room for improvement. On average, each of the 14 genes better differentiates closely related lineages than a typical 16S amplicon-based study.
 
 ## Further processing of OTU tables
 ### Summarising OTU tables
@@ -89,7 +89,7 @@ As SingleM generates OTUs that are independent of taxonomy, they can be used as 
 ```
 singlem summarise --input_otu_table otu_table.csv --unifrac otu_table.unifrac
 ```
-The above commands generates 15 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
+The above commands generates 14 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
 
 To calculate beta diversity, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
 ```
@@ -176,7 +176,7 @@ docker pull wwood/singlem:[RELEASE_TAG]
 ```
 If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
 ```
-docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 15
+docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 14
 ```
 
 #### Installation via PyPI
