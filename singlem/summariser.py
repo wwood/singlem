@@ -49,7 +49,10 @@ class Summariser:
     @staticmethod
     def _collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection,
                                                                      add_sequence_to_taxonomy=True,
+                                                                     use_sequence_as_taxonomy=False,
                                                                      use_coverage=True):
+        if add_sequence_to_taxonomy and use_sequence_as_taxonomy:
+            raise Exception("Cannot specify both add_sequence_to_taxonomy and use_sequence_as_taxonomy")
         gene_to_sample_to_taxonomy_to_count = {}
         for otu in table_collection:
             if otu.marker not in gene_to_sample_to_taxonomy_to_count:
@@ -61,6 +64,8 @@ class Summariser:
                     tax = '; '.join(otu.taxonomy_array() + [otu.sequence])
                 else:
                     tax = '; '.join([otu.sequence])
+            elif use_sequence_as_taxonomy:
+                tax = otu.sequence
             else:
                 tax = otu.taxonomy
             if add_sequence_to_taxonomy and tax in gene_to_sample_to_taxonomy_to_count[otu.marker][otu.sample_name]:
@@ -86,7 +91,7 @@ class Summariser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         # prep the array
-        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection, add_sequence_to_taxonomy=False, use_coverage=False)
+        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection, add_sequence_to_taxonomy=False, use_sequence_as_taxonomy=True, use_coverage=False)
 
         for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.items():
             unifrac_output = '%s.%s.unifrac' % (unifrac_output_prefix, gene)
