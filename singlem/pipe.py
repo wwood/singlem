@@ -39,14 +39,47 @@ class SearchPipe:
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
 
     def run(self, **kwargs):
-        forward_read_files = kwargs.pop('sequences')
         output_otu_table = kwargs.pop('otu_table', None)
         archive_otu_table = kwargs.pop('archive_otu_table', None)
+        output_extras = kwargs.pop('output_extras')
+        singlem_packages = kwargs['singlem_packages']
+
+        otu_table_object = self.run_to_otu_table(**kwargs)
+        if otu_table_object is not None:
+            write_otu_tables(
+                otu_table_object,
+                output_otu_table,
+                archive_otu_table,
+                output_extras,
+                singlem_packages)
+
+    def write_otu_tables(self,
+            otu_table_object,
+            output_otu_table,
+            archive_otu_table,
+            output_extras,
+            singlem_packages):
+        regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
+        otu_table_object.fields = regular_output_fields + \
+                                  split('read_names nucleotides_aligned taxonomy_by_known?')
+        if output_otu_table:
+            with open(output_otu_table, 'w') as f:
+                if output_extras:
+                    otu_table_object.write_to(f, otu_table_object.fields)
+                else:
+                    otu_table_object.write_to(f, regular_output_fields)
+        if archive_otu_table:
+            with open(archive_otu_table, 'w') as f:
+                otu_table_object.archive(HmmDatabase(singlem_packages)).write_to(f)
+
+
+    def run_to_otu_table(self, **kwargs):
+        '''Run the pipe, '''
+        forward_read_files = kwargs.pop('sequences')
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
         output_jplace = kwargs.pop('output_jplace')
-        output_extras = kwargs.pop('output_extras')
         evalue = kwargs.pop('evalue')
         min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
@@ -122,7 +155,7 @@ class SearchPipe:
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
             return_cleanly()
-            return
+            return None
         logging.debug("Recovered %i samples with at least one hit e.g. '%s'" \
                      % (len(sample_names), sample_names[0]))
 
@@ -159,9 +192,6 @@ class SearchPipe:
         #### Process taxonomically assigned reads
         # get the sequences out for each of them
         otu_table_object = OtuTable()
-        regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
-        otu_table_object.fields = regular_output_fields + \
-                                  split('read_names nucleotides_aligned taxonomy_by_known?')
         if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
             package_to_taxonomy_bihash = {}
 
@@ -264,17 +294,8 @@ class SearchPipe:
                     with open(output_jplace_file, 'w') as output_jplace_io:
                         self._write_jplace_from_infos(
                             open(input_jplace_file), new_infos, output_jplace_io)
-
-        if output_otu_table:
-            with open(output_otu_table, 'w') as f:
-                if output_extras:
-                    otu_table_object.write_to(f, otu_table_object.fields)
-                else:
-                    otu_table_object.write_to(f, regular_output_fields)
-        if archive_otu_table:
-            with open(archive_otu_table, 'w') as f:
-                otu_table_object.archive(hmms.singlem_packages).write_to(f)
         return_cleanly()
+        return otu_table_object
 
     def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file,
                                 singlem_package, include_inserts):
