@@ -46,7 +46,7 @@ class SearchPipe:
 
         otu_table_object = self.run_to_otu_table(**kwargs)
         if otu_table_object is not None:
-            write_otu_tables(
+            self.write_otu_tables(
                 otu_table_object,
                 output_otu_table,
                 archive_otu_table,
