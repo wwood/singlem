@@ -19,6 +19,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 import singlem.sequence_database
 import singlem.query_formatters
 import singlem.pipe as pipe
+from singlem.pipe import SearchPipe
 from singlem.summariser import Summariser
 from singlem.strain_summariser import StrainSummariser
 from singlem.sequence_classes import SeqReader
@@ -220,57 +221,61 @@ if __name__ == '__main__':
 
     pipe_description = 'Generate an OTU table from raw sequences.'
     pipe_parser = new_subparser(subparsers, 'pipe', pipe_description)
+
+    # Make a function here so the code can be re-used between pipe and renew
+    def add_common_pipe_options(argument_group):
+        argument_group.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
+        argument_group.add_argument('--otu_table', metavar='filename', help='output OTU table')
+        current_default = 1
+        argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
+        current_default = pipe.PPLACER_ASSIGNMENT_METHOD
+        argument_group.add_argument('--assignment_method', choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
+                                                                 pipe.DIAMOND_ASSIGNMENT_METHOD,
+                                                                 pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
+                                         help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification [default: %s]' % (
+                                             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                                             current_default),
+                                         default=current_default)
+        argument_group.add_argument('--output_extras', action='store_true',
+                                         help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) [default: not set]',
+                                         default=False)
     common_pipe_options = pipe_parser.add_argument_group('Common options')
-    common_pipe_options.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
-    common_pipe_options.add_argument('--otu_table', metavar='filename', help='output OTU table')
-    current_default = 1
-    common_pipe_options.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
-    current_default = pipe.PPLACER_ASSIGNMENT_METHOD
-    common_pipe_options.add_argument('--assignment_method', choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
-                                                             pipe.DIAMOND_ASSIGNMENT_METHOD,
-                                                             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
-                                     help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification [default: %s]' % (
-                                         pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-                                         current_default),
-                                     default=current_default)
-    common_pipe_options.add_argument('--output_extras', action='store_true',
-                                     help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) [default: not set]',
-                                     default=False)
-    less_common_pipe_options = pipe_parser.add_argument_group('Less common options')
-    less_common_pipe_options.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc. [default: unused]')
-    less_common_pipe_options.add_argument('--working_directory', metavar='directory', help='work in this directory [default: a temporary directory]')
-    less_common_pipe_options.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
-    less_common_pipe_options.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
-    less_common_pipe_options.add_argument('--evalue', help='GraftM e-value cutoff [default: the GraftM default]')
-    current_default = 96
-    less_common_pipe_options.add_argument('--min_orf_length',
-                                          metavar='length',
-                                          help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i]' % current_default,
-                                          type=int, default=current_default)
-    less_common_pipe_options.add_argument('--restrict_read_length',
-                                          metavar='length',
-                                          help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
-                                          type=int)
-    current_default = 28
-    less_common_pipe_options.add_argument('--filter_minimum_protein',
-                                          metavar='length',
-                                          help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % current_default,
-                                          type=int, default=current_default)
-    current_default = 95
-    less_common_pipe_options.add_argument('--filter_minimum_nucleotide',
-                                          metavar='length',
-                                          help='Ignore reads aligning in less than this many positions to each nucleotide HMM [default: %i]' % current_default,
-                                          type=int, default=current_default)
-    less_common_pipe_options.add_argument('--include_inserts', action='store_true',
-                                          help='print the entirety of the sequences, not just the aligned nucleotides [default: not set]', default=False)
-    less_common_pipe_options.add_argument('--known_otu_tables', nargs='+',
-                                          help='OTU tables previously generated with trusted taxonomies for each sequence [default: unused]')
-    less_common_pipe_options.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
-    less_common_pipe_options.add_argument('--no_assign_taxonomy', action='store_true',
-                                          help='Do not assign any taxonomy except for those already known [default: not set]',
-                                          default=False)
-    less_common_pipe_options.add_argument('--known_sequence_taxonomy', metavar='FILE',
-                                          help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
+    add_common_pipe_options(common_pipe_options)
+
+    def add_less_common_pipe_arguments(argument_group):
+        argument_group.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc. [default: unused]')
+        argument_group.add_argument('--working_directory', metavar='directory', help='work in this directory [default: a temporary directory]')
+        argument_group.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
+        argument_group.add_argument('--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
+        argument_group.add_argument('--evalue', help='GraftM e-value cutoff [default: the GraftM default]')
+        argument_group.add_argument('--min_orf_length',
+                                    metavar='length',
+                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i]' % SearchPipe.DEFAULT_MIN_ORF_LENGTH,
+                                    type=int, default=SearchPipe.DEFAULT_MIN_ORF_LENGTH)
+        argument_group.add_argument('--restrict_read_length',
+                                    metavar='length',
+                                    help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
+                                    type=int)
+        argument_group.add_argument('--filter_minimum_protein',
+                                    metavar='length',
+                                    help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
+                                    type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
+        argument_group.add_argument('--filter_minimum_nucleotide',
+                                    metavar='length',
+                                    help='Ignore reads aligning in less than this many positions to each nucleotide HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE,
+                                    type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
+        argument_group.add_argument('--include_inserts', action='store_true',
+                                    help='print the entirety of the sequences, not just the aligned nucleotides [default: not set]', default=False)
+        argument_group.add_argument('--known_otu_tables', nargs='+',
+                                    help='OTU tables previously generated with trusted taxonomies for each sequence [default: unused]')
+        argument_group.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
+        argument_group.add_argument('--no_assign_taxonomy', action='store_true',
+                                    help='Do not assign any taxonomy except for those already known [default: not set]',
+                                    default=False)
+        argument_group.add_argument('--known_sequence_taxonomy', metavar='FILE',
+                                    help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
+    less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
+    add_less_common_pipe_arguments(less_common_pipe_arguments)
 
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = new_subparser(subparsers, 'seqs', seqs_description)
@@ -318,6 +323,14 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--unifrac', help="Output UniFrac format file")
     summarise_output_args.add_argument('--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
+
+    # renew_description = 'Reannotate an OTU table with an updated taxonomy'
+    # renew_parser = new_subparser(subparsers, 'renew', renew_description)
+    # renew_input_args = renew_parser.add_argument_group('input')
+    # renew_input_args.add_argument('--input_archive_otu_tables', nargs='+', help="Renew these tables", required=True)
+    # renew_input_args.add_argument('--input_sequences', help="Sequences to reannotate are in this FASTQ.GZ file", required=True)
+    # renew_output_args = renew_parser.add_argument_group('output')
+    # renew_output_args.add_argument('--output_archive_otu_table', help="Output reannotated OTU table here", required=True)
 
     create_description = 'Create a SingleM package.'
     create_parser = new_subparser(subparsers, 'create', create_description)
@@ -368,6 +381,7 @@ if __name__ == '__main__':
         print '\n  General usage:'
         print '    pipe         -> %s' % pipe_description
         print '    summarise    -> %s' % summarise_description
+        #print '    renew        -> %s' % renew_description
 
         print '\n  Databases:'
         print '    makedb       -> %s' % makedb_description
@@ -438,6 +452,16 @@ if __name__ == '__main__':
             window_size=DEFAULT_WINDOW_SIZE,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy)
+
+    elif args.subparser_name=='renew':
+        otus = StreamingOtuTableCollection()
+        if args.archive_otu_tables:
+            for o in args.archive_otu_tables:
+                otus.add_archive_otu_table_file(o)
+        singlem.renew.Renew.renew(
+            input_otus=otus,
+            output_otu_path=args.output_archive_otu_table,
+            seqs=args.sequences)
 
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:

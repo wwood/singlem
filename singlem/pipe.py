@@ -34,6 +34,10 @@ DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
 NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 
 class SearchPipe:
+    DEFAULT_MIN_ORF_LENGTH = 96
+    DEFAULT_FILTER_MINIMUM_PROTEIN = 28
+    DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
+
     def run(self, **kwargs):
         forward_read_files = kwargs.pop('sequences')
         output_otu_table = kwargs.pop('otu_table', None)
