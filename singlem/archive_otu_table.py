@@ -5,6 +5,7 @@ from otu_table_entry import OtuTableEntry
 class ArchiveOtuTable:
     version = 1
     FIELDS = split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
+    READ_NAME_FIELD_INDEX=6
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -35,7 +36,7 @@ class ArchiveOtuTable:
 
     def __iter__(self):
         for d in self.data:
-            e = OtuTableEntry()
+            e = ArchiveOtuTableEntry()
             e.marker = d[0]
             e.sample_name = d[1]
             e.sequence = d[2]
@@ -45,3 +46,9 @@ class ArchiveOtuTable:
             e.data = d
             e.fields = self.fields
             yield e
+
+
+class ArchiveOtuTableEntry(OtuTableEntry):
+    def read_names(self):
+        '''Return a list of read names for this OTU'''
+        return self.data[ArchiveOtuTable.READ_NAME_FIELD_INDEX]

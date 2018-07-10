@@ -32,6 +32,7 @@ from singlem.querier import Querier
 from singlem.chancer import Chancer
 from singlem.regenerator import Regenerator
 from singlem.taxonomy import Taxonomy
+from singlem.renew import Renew
 
 DEFAULT_WINDOW_SIZE=60
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
@@ -223,7 +224,7 @@ if __name__ == '__main__':
     pipe_parser = new_subparser(subparsers, 'pipe', pipe_description)
 
     # Make a function here so the code can be re-used between pipe and renew
-    def add_common_pipe_options(argument_group):
+    def add_common_pipe_arguments(argument_group):
         argument_group.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
         argument_group.add_argument('--otu_table', metavar='filename', help='output OTU table')
         current_default = 1
@@ -239,8 +240,8 @@ if __name__ == '__main__':
         argument_group.add_argument('--output_extras', action='store_true',
                                          help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) [default: not set]',
                                          default=False)
-    common_pipe_options = pipe_parser.add_argument_group('Common options')
-    add_common_pipe_options(common_pipe_options)
+    common_pipe_arguments = pipe_parser.add_argument_group('Common options')
+    add_common_pipe_arguments(common_pipe_arguments)
 
     def add_less_common_pipe_arguments(argument_group):
         argument_group.add_argument('--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc. [default: unused]')
@@ -324,13 +325,14 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
 
-    # renew_description = 'Reannotate an OTU table with an updated taxonomy'
-    # renew_parser = new_subparser(subparsers, 'renew', renew_description)
-    # renew_input_args = renew_parser.add_argument_group('input')
-    # renew_input_args.add_argument('--input_archive_otu_tables', nargs='+', help="Renew these tables", required=True)
-    # renew_input_args.add_argument('--input_sequences', help="Sequences to reannotate are in this FASTQ.GZ file", required=True)
-    # renew_output_args = renew_parser.add_argument_group('output')
-    # renew_output_args.add_argument('--output_archive_otu_table', help="Output reannotated OTU table here", required=True)
+    renew_description = 'Reannotate an OTU table with an updated taxonomy'
+    renew_parser = new_subparser(subparsers, 'renew', renew_description)
+    renew_input_args = renew_parser.add_argument_group('input')
+    renew_input_args.add_argument('--input_archive_otu_tables', nargs='+', help="Renew these table(s)", required=True)
+    renew_common = renew_input_args.add_argument_group("Common arguments in shared with 'pipe'")
+    add_common_pipe_arguments(renew_common)
+    renew_less_common = renew_input_args.add_argument_group("Less common arguments shared with 'pipe'")
+    add_less_common_pipe_arguments(renew_less_common)
 
     create_description = 'Create a SingleM package.'
     create_parser = new_subparser(subparsers, 'create', create_description)
@@ -375,13 +377,26 @@ if __name__ == '__main__':
     chance_parser.add_argument('--otu_tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
     chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
 
+    def validate_pipe_args(args):
+        if not args.otu_table and not args.archive_otu_table:
+            raise Exception("At least one of --otu_table or --archive_otu_table must be specified")
+        if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
+            raise Exception("If --output_jplace is specified, then --assignment_method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
+        if args.output_jplace and args.known_otu_tables:
+            raise Exception("Currently --output_jplace and --known_otu_tables are incompatible")
+        if args.output_jplace and args.no_assign_taxonomy:
+            raise Exception("Currently --output_jplace and --no_assign_taxonomy are incompatible")
+        if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
+            raise Exception(
+                "Currently --known_sequence_taxonomy requires --no_assign_taxonomy to be set also")
+
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
         print ''
         print '                ...::: SingleM v' + singlem.__version__ + ' :::...'''
         print '\n  General usage:'
         print '    pipe         -> %s' % pipe_description
         print '    summarise    -> %s' % summarise_description
-        #print '    renew        -> %s' % renew_description
+        print '    renew        -> %s' % renew_description
 
         print '\n  Databases:'
         print '    makedb       -> %s' % makedb_description
@@ -420,17 +435,7 @@ if __name__ == '__main__':
     if args.subparser_name == 'seqs':
         seqs(args)
     elif args.subparser_name=='pipe':
-        if not args.otu_table and not args.archive_otu_table:
-            raise Exception("At least one of --otu_table or --archive_otu_table must be specified")
-        if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
-            raise Exception("If --output_jplace is specified, then --assignment_method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
-        if args.output_jplace and args.known_otu_tables:
-            raise Exception("Currently --output_jplace and --known_otu_tables are incompatible")
-        if args.output_jplace and args.no_assign_taxonomy:
-            raise Exception("Currently --output_jplace and --no_assign_taxonomy are incompatible")
-        if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
-            raise Exception(
-                "Currently --known_sequence_taxonomy requires --no_assign_taxonomy to be set also")
+        validate_pipe_args(args)
         singlem.pipe.SearchPipe().run(
             sequences = args.sequences,
             otu_table = args.otu_table,
@@ -454,14 +459,35 @@ if __name__ == '__main__':
             known_sequence_taxonomy = args.known_sequence_taxonomy)
 
     elif args.subparser_name=='renew':
+        validate_pipe_args(args)
+
         otus = StreamingOtuTableCollection()
-        if args.archive_otu_tables:
-            for o in args.archive_otu_tables:
-                otus.add_archive_otu_table_file(o)
-        singlem.renew.Renew.renew(
+        for o in args.input_archive_otu_tables:
+            otus.add_archive_otu_table_file(o)
+
+        Renew().renew(
             input_otus=otus,
-            output_otu_path=args.output_archive_otu_table,
-            seqs=args.sequences)
+
+            sequences = args.sequences,
+            otu_table = args.otu_table,
+            archive_otu_table = args.archive_otu_table,
+            threads = args.threads,
+            known_otu_tables = args.known_otu_tables,
+            assignment_method = args.assignment_method,
+            output_jplace = args.output_jplace,
+            evalue = args.evalue,
+            min_orf_length = args.min_orf_length,
+            restrict_read_length = args.restrict_read_length,
+            filter_minimum_protein = args.filter_minimum_protein,
+            filter_minimum_nucleotide = args.filter_minimum_nucleotide,
+            output_extras = args.output_extras,
+            include_inserts = args.include_inserts,
+            working_directory = args.working_directory,
+            force = args.force,
+            singlem_packages = args.singlem_packages,
+            window_size=DEFAULT_WINDOW_SIZE,
+            assign_taxonomy = not args.no_assign_taxonomy,
+            known_sequence_taxonomy = args.known_sequence_taxonomy)
 
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:

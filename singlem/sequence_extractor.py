@@ -9,8 +9,7 @@ class SequenceExtractor:
 Python-land rather than output as a file.'''
 
     def extract_and_read(self, reads_to_extract, database_fasta_file):
-        '''Extract the reads_to_extract from the database_fasta_file and put them in
-        output_file.
+        '''Extract the reads_to_extract from the database_fasta_file and return them.
 
         Parameters
         ----------
