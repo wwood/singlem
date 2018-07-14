@@ -257,10 +257,14 @@ class SearchPipe:
                         base_dir = assignment_result._base_dir(
                             sample_name, singlem_package, tmpbase)
                         jplace_file = os.path.join(base_dir, "placements.jplace")
-                        logging.debug("Reading jplace output from %s" % jplace_file)
-                        with open(jplace_file) as f:
-                            jplace_json = json.loads(f.read())
-                        placement_parser = PlacementParser(jplace_json, taxonomy_bihash, 0.5)
+                        logging.debug("Attempting to read jplace output from %s" % jplace_file)
+                        if os.path.exists(jplace_file):
+                            with open(jplace_file) as f:
+                                jplace_json = json.loads(f.read())
+                            placement_parser = PlacementParser(jplace_json, taxonomy_bihash, 0.5)
+                        else:
+                            # Sometimes alignments are filtered out.
+                            placement_parser = None
                         taxonomies = {}
                     elif singlem_assignment_method == NO_ASSIGNMENT_METHOD:
                         taxonomies = {}
@@ -458,7 +462,7 @@ class SearchPipe:
             elif assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                 tax = collected_info.taxonomies[0]
                 if tax is None: tax = ''
-            elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
+            elif assignment_method == PPLACER_ASSIGNMENT_METHOD and placement_parser is not None:
                 placed_tax = placement_parser.otu_placement(
                     collected_info.orf_names)
                 if placed_tax is None:
