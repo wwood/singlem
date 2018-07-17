@@ -195,6 +195,25 @@ https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 ''' % detail_str
             return help
 
+        elif subcommand == 'renew':
+            help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
+
+'''+bcolors.HEADER+'Example:'+bcolors.ENDC+'''
+
+  singlem query --input_archive_otu_table my.archive_otu_table_from_pipe.json \\
+            --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
+
+'''+bcolors.HEADER+'Note:'+bcolors.ENDC+'''
+
+  The <input_fastq_or_fasta> must be the same as was used in the previous run
+  of 'pipe'. Note that this mode should be used with care, especially because
+  the singlem package sets used in each run may change in time.
+
+  This 'renew' mode accepts all arguments that 'pipe' does.
+
+%s
+''' % detail_str
+            return help
 
         else:
             return argparse.ArgumentParser.format_help(self)
