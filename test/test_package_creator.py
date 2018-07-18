@@ -45,10 +45,12 @@ class Tests(unittest.TestCase):
                     path_to_data, '4.11.22seqs.gpkg.spkg', '4.11.22seqs'),
                 output_singlem_package = 'protein.spkg',
                 hmm_position = 76,
+                window_size = 63,
                 force = False)
             self.assertTrue(os.path.isdir('protein.spkg'))
             j = json.load(open('protein.spkg/CONTENTS.json'))
             self.assertEqual(76, j['singlem_hmm_position'])
+            self.assertEqual(63, j['singlem_window_size'])
 
     def test_create_nuc_pkg(self):
         with tempdir.in_tempdir():
@@ -57,12 +59,14 @@ class Tests(unittest.TestCase):
                     path_to_data, '61_otus.v3.gpkg.spkg', '61_otus.v3'),
                 output_singlem_package = 'nuc.spkg',
                 hmm_position = 888,
+                window_size = 57,
                 force = False)
             self.assertTrue(os.path.isdir('nuc.spkg'))
             j = json.load(open('nuc.spkg/CONTENTS.json'))
             self.assertEqual(888, j['singlem_hmm_position'])
-            
-       
+            self.assertEqual(57, j['singlem_window_size'])
+
+
 
 if __name__ == "__main__":
     unittest.main()

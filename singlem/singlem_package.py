@@ -26,6 +26,7 @@ class SingleMPackage:
     GRAFTM_PACKAGE_KEY = 'graftm_package_path'
     VERSION_KEY = 'singlem_package_version'
     SINGLEM_POSITION_KEY = 'singlem_hmm_position'
+    SINGLEM_WINDOW_SIZE_KEY = 'singlem_window_size'
     ALIGNMENT_HMM_SHA256_KEY = 'alignment_hmm_sha256'
     SINGLEM_PACKAGE_SHA256_KEY = 'singlem_package_sha256'
 
@@ -35,6 +36,13 @@ class SingleMPackage:
                              VERSION_KEY,
                              GRAFTM_PACKAGE_KEY,
                              SINGLEM_POSITION_KEY,
+                             ALIGNMENT_HMM_SHA256_KEY
+                             ],
+                      '2': [
+                             VERSION_KEY,
+                             GRAFTM_PACKAGE_KEY,
+                             SINGLEM_POSITION_KEY,
+                             SINGLEM_WINDOW_SIZE_KEY,
                              ALIGNMENT_HMM_SHA256_KEY
                              ],
                       }
@@ -50,20 +58,17 @@ class SingleMPackage:
             path to base directory of singlem package
         '''
 
-        contents_hash = json.load(
-                                   open(
-                                        os.path.join(
-                                                     singlem_package_path,
-                                                     SingleMPackage._CONTENTS_FILE_NAME
-                                                     ),
-                                         )
-                                   )
-
+        with open(os.path.join(
+                singlem_package_path,
+                SingleMPackage._CONTENTS_FILE_NAME)) as f:
+            contents_hash = json.load(f)
 
         v=contents_hash[SingleMPackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM package: %s" % (v, singlem_package_path))
         if v == 1:
             pkg = SingleMPackageVersion1()
+        elif v == 2:
+            pkg = SingleMPackageVersion2()
         else:
             raise InsufficientSingleMPackageException("Bad SingleM package version: %s" % str(v))
 
@@ -154,6 +159,9 @@ class SingleMPackageVersion1(SingleMPackage):
             h.update(open(f).read())
         return h.hexdigest()
 
+    def window_size(self):
+        return 60
+
     @staticmethod
     def graftm_package_is_protein(graftm_package):
         return graftm_package.is_protein_package()
@@ -218,3 +226,49 @@ class SingleMPackageVersion1(SingleMPackage):
         # save contents file
         json.dump(singlem_package._contents_hash,
                   open(os.path.join(output_package_path, SingleMPackage._CONTENTS_FILE_NAME), 'w'))
+
+class SingleMPackageVersion2(SingleMPackageVersion1):
+    '''Version 2 packages are like version 1 packages except that the window size
+    is defined.'''
+    version = 2 # don't change me bro
+
+    def window_size(self):
+        return self._contents_hash[SingleMPackage.SINGLEM_WINDOW_SIZE_KEY]
+
+    @staticmethod
+    def compile(output_package_path, graftm_package_path, singlem_position, window_size):
+        if os.path.exists(output_package_path):
+            raise Exception("Not writing new SingleM package to already existing file/directory with name %s" % output_package_path)
+        os.mkdir(output_package_path)
+
+        graftm_package = GraftMPackage.acquire(graftm_package_path)
+        if graftm_package.version != 3:
+            raise Exception("SingleM packages can only be created from version 3 GraftM packages at this point.")
+        graftm_package_basename = os.path.basename(
+            output_package_path.replace('.spkg','').replace('.gpkg',''))
+        logging.info("Using GraftM package name %s" % graftm_package_basename)
+        if graftm_package_basename == SingleMPackage._CONTENTS_FILE_NAME:
+            raise Exception("Name of GraftM package cannot be %s" % SingleMPackage._CONTENTS_FILE_NAME)
+        shutil.copytree(graftm_package_path, os.path.join(output_package_path, graftm_package_basename))
+
+        singlem_package = SingleMPackageVersion2()
+        singlem_package._contents_hash = {SingleMPackage.VERSION_KEY: singlem_package.version,
+                                          SingleMPackage.GRAFTM_PACKAGE_KEY: graftm_package_basename,
+                                          SingleMPackage.SINGLEM_POSITION_KEY: singlem_position,
+                                          SingleMPackage.SINGLEM_WINDOW_SIZE_KEY: window_size
+                                          }
+        singlem_package._base_directory = output_package_path
+
+        if singlem_package.is_protein_package() and window_size % 3 != 0:
+            raise Exception("For protein packages, the window size must be specified in base pairs. However, the window_size specified is not divisible by 3.")
+
+        # calculate the sha256 values
+        singlem_package._contents_hash[SingleMPackage.ALIGNMENT_HMM_SHA256_KEY] = \
+            singlem_package.calculate_alignment_hmm_sha256()
+        singlem_package._contents_hash[SingleMPackage.SINGLEM_PACKAGE_SHA256_KEY] = \
+            singlem_package.calculate_singlem_package_sha256()
+
+        # save contents file
+        with open(os.path.join(
+                output_package_path, SingleMPackage._CONTENTS_FILE_NAME), 'w') as f:
+            json.dump(singlem_package._contents_hash, f)

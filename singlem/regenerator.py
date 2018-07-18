@@ -6,7 +6,7 @@ import dendropy
 from graftm.graftm_package import GraftMPackage
 
 from graftm_result import GraftMResult
-from singlem_package import SingleMPackageVersion1, SingleMPackage
+from singlem_package import SingleMPackageVersion2, SingleMPackage
 from sequence_classes import SeqReader
 from dereplicator import Dereplicator
 from sequence_extractor import SequenceExtractor
@@ -142,10 +142,11 @@ class Regenerator:
 
         ##############################################################################
         # Run singlem create to put the final package together
-        SingleMPackageVersion1.compile(
+        SingleMPackageVersion2.compile(
             output_singlem_package,
             final_gpkg,
-            original_pkg.singlem_position())
+            original_pkg.singlem_position(),
+            original_pkg.window_size())
         logging.info("SingleM package generated.")
 
 

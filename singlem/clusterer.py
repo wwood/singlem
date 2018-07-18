@@ -39,12 +39,18 @@ class Clusterer:
         def name_to_index(name):
             return int(name)
 
-        divergence = int((1.0-cluster_identity) * 60)
+        divergence = None
 
         # smafa cluster does not accept data streamed in via /dev/stdin, so we
         # make a temporary file.
         with tempfile.NamedTemporaryFile(prefix='singlem_for_cluster') as f:
             for i, u in enumerate(otus):
+                if divergence is None:
+                    sequence_length = len(u.sequence)
+                    divergence = int((1.0-cluster_identity) * sequence_length)
+                elif len(u.sequence) != sequence_length:
+                    raise Exception(
+                        "Currently, for clustering, OTU tables must only contain OTUs that are all equal in length")
                 f.write(">%i\n" % i)
                 f.write(u.sequence+"\n")
             f.flush()

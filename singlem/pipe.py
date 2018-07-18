@@ -311,7 +311,7 @@ class SearchPipe:
         return MetagenomeOtuFinder().find_windowed_sequences(
             protein_alignment,
             nucleotide_sequences,
-            60,
+            singlem_package.window_size(),
             include_inserts,
             singlem_package.is_protein_package(),
             best_position=singlem_package.singlem_position())
