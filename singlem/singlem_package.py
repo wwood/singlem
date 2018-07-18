@@ -244,8 +244,9 @@ class SingleMPackageVersion2(SingleMPackageVersion1):
         graftm_package = GraftMPackage.acquire(graftm_package_path)
         if graftm_package.version != 3:
             raise Exception("SingleM packages can only be created from version 3 GraftM packages at this point.")
+        # Use abspath before basename so that trailing slashes are dealt with.
         graftm_package_basename = os.path.basename(
-            output_package_path.replace('.spkg','').replace('.gpkg',''))
+            os.path.abspath(output_package_path).replace('.spkg','').replace('.gpkg',''))
         logging.info("Using GraftM package name %s" % graftm_package_basename)
         if graftm_package_basename == SingleMPackage._CONTENTS_FILE_NAME:
             raise Exception("Name of GraftM package cannot be %s" % SingleMPackage._CONTENTS_FILE_NAME)
