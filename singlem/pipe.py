@@ -87,7 +87,6 @@ class SearchPipe:
         filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide')
         include_inserts = kwargs.pop('include_inserts')
         singlem_packages = kwargs.pop('singlem_packages')
-        window_size = kwargs.pop('window_size')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
 

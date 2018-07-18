@@ -473,7 +473,6 @@ if __name__ == '__main__':
             working_directory = args.working_directory,
             force = args.force,
             singlem_packages = args.singlem_packages,
-            window_size=DEFAULT_WINDOW_SIZE,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy)
 
@@ -504,7 +503,6 @@ if __name__ == '__main__':
             working_directory = args.working_directory,
             force = args.force,
             singlem_packages = args.singlem_packages,
-            window_size=DEFAULT_WINDOW_SIZE,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy)
 
