@@ -430,6 +430,42 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             '-------VAKKVDSVVKLQIPAGKANPAPPVGPALGQAGINIMGFCKEFNAQT-QDQA-----GMIIPVEITVYEDRSFTFITKTPPAAVLLKKAAGI-----E--------TASGEPNRNKVA---------TLNRDKVKEIAELKMPDLNAADVEAAMRMVEGTARSMGIVIED--------',
             a2.seq)
 
+    def test_protein_package_non60_length(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTT	1	1.41	Root; d__Bacteria; p__Firmicutes',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.length30.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+    def test_nucleotide_package_non60_length(self):
+        expected = [
+            "\t".join(self.headers),
+            '61_otus.v3		GGAGGAACAC	1	1.10	Root; k__Bacteria; p__Proteobacteria',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.length10.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
 
 
 if __name__ == "__main__":

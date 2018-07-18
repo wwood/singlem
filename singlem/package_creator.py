@@ -4,7 +4,7 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
-from singlem_package import SingleMPackageVersion1
+from singlem_package import SingleMPackageVersion2
 import shutil
 import os
 import tempdir
@@ -14,18 +14,19 @@ class PackageCreator:
         input_graftm_package_path = kwargs.pop('input_graftm_package')
         output_singlem_package_path = kwargs.pop('output_singlem_package')
         hmm_position = kwargs.pop('hmm_position')
+        window_size = kwargs.pop('window_size')
         force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-        
+
         if force and os.path.exists(output_singlem_package_path):
             shutil.rmtree(output_singlem_package_path)
-        
+
         # For protein packages, remove sequences from diamond database that are
         # not in the tree so that hits can be mapped onto the tree and used for
         # alpha and beta diversity metrics.
         gpkg = GraftMPackage.acquire(input_graftm_package_path)
-        is_protein_package = SingleMPackageVersion1.graftm_package_is_protein(gpkg)
+        is_protein_package = SingleMPackageVersion2.graftm_package_is_protein(gpkg)
         logging.info("Detected package type as %s" %
                      ('protein' if is_protein_package else 'nucleotide'))
         if is_protein_package:
@@ -78,7 +79,7 @@ class PackageCreator:
             cmd = "diamond makedb --in '%s' -d '%s'" % (filtered_aligned_tempfile.name, dmnd_tf.name)
             logging.info("Creating DIAMOND database")
             extern.run(cmd)
-                
+
         # Compile the final graftm/singlem package
         if len(gpkg.search_hmm_paths()) == 1 and \
            gpkg.search_hmm_paths()[0] == gpkg.alignment_hmm_path():
@@ -102,8 +103,8 @@ class PackageCreator:
                                           search_hmms)
             logging.debug("Finished creating GraftM package for conversion to SingleM package")
 
-            SingleMPackageVersion1.compile(output_singlem_package_path,
-                                           gpkg_name, hmm_position)
+            SingleMPackageVersion2.compile(output_singlem_package_path,
+                                           gpkg_name, hmm_position, window_size)
 
             shutil.rmtree(gpkg_name)
             if is_protein_package:
@@ -111,4 +112,3 @@ class PackageCreator:
                 dmnd_tf.close()
 
             logging.info("SingleM-compatible package creation finished")
-
