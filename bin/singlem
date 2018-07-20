@@ -311,8 +311,10 @@ if __name__ == '__main__':
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
-    query_required_args = query_parser.add_argument_group('Required arguments')
-    query_required_args.add_argument('--db', '--db_path', help="Output from 'makedb' mode", required=True)
+    query_db_args = query_parser.add_argument_group('DB/Subject arguments (one is required)')
+    query_db_args.add_argument('--db', '--db_path', help="Output from 'makedb' mode")
+    query_db_args.add_argument('--subject_otu_tables', nargs='+', metavar='file',
+                               help='Pairwise align queries to this otu table (works with inserts, but is slow)')
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
     query_otu_args.add_argument('--query_sequence', metavar='sequence', help="Sequence to use as a query")
     query_otu_args.add_argument('--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
@@ -521,24 +523,46 @@ if __name__ == '__main__':
             (args.db, otus)
     elif args.subparser_name=='query':
         querier = Querier()
-        if args.sample_names or args.taxonomy:
-            if args.taxonomy and args.sample_names:
-                raise Exception("Cannot specify both sample names and taxonomy")
-            querier.print_samples(
-                db=args.db,
-                sample_names = args.sample_names,
-                taxonomy = args.taxonomy,
-                output_io=sys.stdout)
-        else:
-            args.threads = 1
-            querier.query(
-                db = args.db,
+        if args.db and args.subject_otu_tables:
+            raise Exception("Cannot specify both --db and --subject_otu_tables")
+
+        if args.db:
+            if args.sample_names or args.taxonomy:
+                if args.taxonomy and args.sample_names:
+                    raise Exception("Cannot specify both sample names and taxonomy")
+                querier.print_samples(
+                    db=args.db,
+                    sample_names = args.sample_names,
+                    taxonomy = args.taxonomy,
+                    output_io=sys.stdout)
+            else:
+                args.threads = 1
+                if args.db:
+                    querier.query(
+                        db = args.db,
+                        query_sequence = args.query_sequence,
+                        max_divergence = args.max_divergence,
+                        output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
+                        query_otu_table = args.query_otu_table,
+                        query_fasta = args.query_fasta,
+                        num_threads = args.threads)
+        elif args.subject_otu_tables:
+            if args.taxonomy:
+                raise Exception("--taxonomy only works with --db")
+            if args.sample_names:
+                raise Exception("--sample_names only works with --db")
+            otus = OtuTableCollection()
+            for o in args.subject_otu_tables:
+                otus.add_otu_table(open(o))
+            querier.query_subject_otu_table(
                 query_sequence = args.query_sequence,
                 max_divergence = args.max_divergence,
-                output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
                 query_otu_table = args.query_otu_table,
                 query_fasta = args.query_fasta,
-                num_threads = args.threads)
+                subject_otu_collection = otus,
+                output_style = 'sparse')# There is only sparse type atm.
+        else:
+            raise Exception("Either --db or --subject_otu_tables must be specified.")
     elif args.subparser_name == 'summarise':
         num_output_types = 0
         if args.strain_overview_table: num_output_types += 1
