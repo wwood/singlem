@@ -41,6 +41,17 @@ class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
+    def assertEqualOtuTable(self, expected_array, observed_string):
+        observed_array = list([line.split("\t") for line in observed_string.split("\n")])
+        if expected_array[-1] != ['']:
+            expected_array.append([''])
+
+        # make sure headers are OK
+        self.assertEqual(expected_array[0], observed_array[0])
+
+        # sort the rest of the table and compare that
+        self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
+
     def test_makedb_query(self):
         otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
 ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
@@ -111,6 +122,37 @@ class Tests(unittest.TestCase):
             expected = ["\t".join(x) for x in expected]+['']
             observed = subprocess.check_output(cmd, shell=True).split("\n")
             self.assertEqual(expected, observed)
+
+
+    def test_query_with_otu_table_two_samples_same_sequence(self):
+        with tempfile.NamedTemporaryFile() as f:
+            query = [self.headers,
+                     # second sequence with an extra A at the end
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli']
+                     ] # converted A to T in the middle
+            query = "\n".join(["\t".join(x) for x in query])
+            f.write(query)
+            f.flush()
+
+            with tempdir.TempDir() as d:
+                cmd = "{} makedb --db {}/sdb --otu_table {}".format(
+                    path_to_script, d, f.name)
+                extern.run(cmd)
+
+                cmd = "{} query --query_otu_table {} --db {}/sdb".format(
+                    path_to_script,
+                    f.name,
+                    d)
+
+                expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                            ['maximal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','0','7','maximal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                            ['maximal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                            ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','0','7','maximal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                            ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                            ]
+                observed = subprocess.check_output(cmd, shell=True)
+                self.assertEqualOtuTable(expected, observed)
 
     def test_fasta_query(self):
         with tempfile.NamedTemporaryFile() as f:
