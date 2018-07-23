@@ -144,15 +144,11 @@ class Querier:
     def query_by_smafa(self, queries, smafa_dbs, sqlite_db,  max_divergence):
         # Generate a tempfile of all the queries
         with tempfile.NamedTemporaryFile(prefix='singlem_query_smafa') as infile:
-            sequence_to_queries = {}
             for query in queries:
                 infile.write(">%s\n" % query.name)
                 infile.write(query.sequence+"\n")
                 infile.flush()
-                if query.sequence in sequence_to_queries:
-                    sequence_to_queries[query.sequence].append(query)
-                else:
-                    sequence_to_queries[query.sequence] = [query]
+            infile.flush()
 
             results = []
             for smafa_db in smafa_dbs:
@@ -161,7 +157,10 @@ class Querier:
                 proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 for line in iter(proc.stdout.readline,''):
                     query_name, query_sequence, subject_sequence, divergence = line.split("\t")[:4]
-                    queries = sequence_to_queries[query_sequence]
+                    logging.debug("smafa query with {} returned hit sequence {}".format(
+                        query_name, subject_sequence))
+                    #NOTE: Not the same objects as the original query objects.
+                    query = QueryInputSequence(query_name, query_sequence)
                     for entry in sqlite_db.table('otus').where('sequence',subject_sequence).get():
                         otu = OtuTableEntry()
                         otu.marker = entry.marker
@@ -170,8 +169,7 @@ class Querier:
                         otu.count = entry.num_hits
                         otu.coverage = entry.coverage
                         otu.taxonomy = entry.taxonomy
-                        for query in queries:
-                            results.append(QueryResult(query, otu, divergence))
+                        results.append(QueryResult(query, otu, divergence))
         return results
 
 
