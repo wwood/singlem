@@ -152,6 +152,7 @@ class Querier:
 
             results = []
             for smafa_db in smafa_dbs:
+                logging.info("Querying smafadb {}".format(smafa_db))
                 cmd = "smafa query -q -d %i '%s' '%s'" % (max_divergence, smafa_db, infile.name)
                 logging.debug("Running cmd with popen: %s" % cmd)
                 proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
