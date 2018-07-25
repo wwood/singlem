@@ -337,6 +337,35 @@ class Tests(unittest.TestCase):
                                                                   path_to_data)
         self.assertEqual(expected, extern.run(cmd).split('\n'))
 
+    def test_query_subject_otu_tables(self):
+        with tempfile.NamedTemporaryFile() as f:
+            query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC',
+                               ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
+            f.write(query)
+            f.flush()
+
+            subject = [
+                self.headers,
+                ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.1','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','12.4','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','19.5','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+            with tempfile.NamedTemporaryFile() as subject_f:
+                subject_f.write("\n".join(["\t".join(x) for x in subject]+['']))
+                subject_f.flush()
+
+                cmd = "%s query --query_fasta %s --subject_otu_tables %s" % (
+                    path_to_script,
+                    f.name,
+                    subject_f.name)
+
+                expected = [
+                    ['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                    ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+                    ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+                expected = ["\t".join(x) for x in expected]+['']
+                observed = subprocess.check_output(cmd, shell=True).split("\n")
+                self.assertEqual(expected, observed)
+
 
 if __name__ == "__main__":
     unittest.main()
