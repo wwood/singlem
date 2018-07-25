@@ -77,7 +77,7 @@ class Querier:
                 alignments = pairwise2.align.globalxs(
                     query.sequence.upper(),
                     otu.sequence.upper(),
-                    -1, -1)
+                    0, 0) # Use 0 not -1 because the gap is counted on top of the mismatch
                 best_alignment = max(alignments, key=lambda p: p[2])
                 divergence = max(len(query.sequence), len(otu.sequence)) - int(best_alignment[2])
                 logging.debug("Found divergence of best alignment {}".format(divergence))
