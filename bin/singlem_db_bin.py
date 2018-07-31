@@ -40,6 +40,7 @@ if __name__ == '__main__':
     parser.add_argument('--db', required=True)
 
     parser.add_argument('--threads', type=int, default=1)
+    parser.add_argument('--collapse_sra_coupled', action='store_true', help='Remove _1 and _2 from sample names')
     parser.add_argument('--bin_file_extension', default="fna")
     parser.add_argument('--samples_to_ignore', nargs='+', default=[])
     parser.add_argument('--samples_to_pick', type=int, default=5)
@@ -169,7 +170,10 @@ if __name__ == '__main__':
 
             for result in query_result:
                 sample = result.subject.sample_name
-                sample_name = sample.replace('_1','').replace('_2','') #FIXME
+                if args.collapse_sra_coupled:
+                    sample_name = sample.replace('_1','').replace('_2','')
+                else:
+                    sample_name = sample
                 if sample_name not in samples_to_ignore:
                     seq = result.query.sequence
                     try:
