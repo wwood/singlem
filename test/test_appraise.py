@@ -541,11 +541,13 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  sequence_identity=0.9)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[0]
-        self.assertEqual('another', app.appraisal_results[0].metagenome_sample_name)
+        def compare_res(res): return res.metagenome_sample_name
+        sorted_results = list(sorted(app.appraisal_results, key=compare_res))
+        a = sorted_results[0]
+        self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(8, a.num_binned)
         self.assertEqual(0, a.num_not_found)
-        a = app.appraisal_results[1]
+        a = sorted_results[1]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
