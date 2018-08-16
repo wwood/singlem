@@ -739,23 +739,38 @@ class SingleMPipeSearchResult:
             # No nucleotide singlem packages
             return
         for sample_name in self._nucleotide_result.sample_names(require_hits=True):
-            forward_reads = set()
-            reverse_reads = set()
+            forward_read_to_score = {}
+            reverse_read_to_score = {}
             for hmmout in self._nucleotide_result.hmmout_paths_from_sample_name(sample_name):
                 hmmout_result = HMMSearchResult.import_from_nhmmer_table(hmmout)
                 for hit in hmmout_result.each(
                         [SequenceSearchResult.QUERY_ID_FIELD,
-                         SequenceSearchResult.ALIGNMENT_DIRECTION]):
-                    if hit[1]:
-                        forward_reads.add(hit[0])
-                    else:
-                        reverse_reads.add(hit[0])
+                         SequenceSearchResult.ALIGNMENT_DIRECTION,
+                         SequenceSearchResult.ALIGNMENT_BIT_SCORE]):
+                    name = hit[0]
+                    score = float(hit[2])
+                    is_poorer_score = False
+                    if name in forward_read_to_score:
+                        if score > forward_read_to_score[name]:
+                            del forward_read_to_score[name]
+                        else:
+                            is_poorer_score = True
+                    if name in reverse_read_to_score:
+                        if score > reverse_read_to_score[name]:
+                            del reverse_read_to_score[name]
+                        else:
+                            is_poorer_score = True
+                    if not is_poorer_score:
+                        if hit[1]:
+                            forward_read_to_score[name] = score
+                        else:
+                            reverse_read_to_score[name] = score
             nucs = self._nucleotide_result.unaligned_sequences_path_from_sample_name(sample_name)
 
             yieldme = os.path.join(self._nucleotide_result.output_directory,
                                    "%s_hits.fa" % sample_name)
             SequenceExtractor().extract_forward_and_reverse_complement(
-                forward_reads, reverse_reads, nucs, yieldme)
+                forward_read_to_score.keys(), reverse_read_to_score.keys(), nucs, yieldme)
             if os.stat(yieldme).st_size > 0:
                 yield sample_name, yieldme
 
