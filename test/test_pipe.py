@@ -467,6 +467,26 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
                                  os.path.basename(n.name).replace('.fa',''),
                                  '').split("\n"))
 
+    def test_nucleotide_matches_forward_and_reverse(self):
+        '''Not the best test since the read does not actually match the alignment
+        region, but at least no error should be thrown.'''
+        expected = [
+            "\t".join(self.headers),
+            '']
+        inseqs = '''>seq18975201
+GTGAATACGTTCCCGGGCCTTGTACACACCGCCCGTCACGCCATGGAGTCGAGTTGCAGACTCCAATCCGAACTGGGGCCGGTTTTTATGGATTGGCTTCCCCTCGCGGGTTCGCGACCCTTTGTACCGGCCATTGTAACACGTGTGTAGC
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
+            self.assertEqual(expected,
+                             extern.run(cmd).replace(
+                                 os.path.basename(n.name).replace('.fa',''),
+                                 '').split("\n"))
+
 
 if __name__ == "__main__":
     unittest.main()
