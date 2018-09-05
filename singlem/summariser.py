@@ -26,8 +26,13 @@ class Summariser:
         logging.info("Writing krona %s" % krona_output_file)
         cmd = 'ktImportText -o %s' % krona_output_file
         sample_tempfiles = []
-        for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.iteritems():
-            for sample, taxonomy_to_count in sample_to_taxonomy_to_count.iteritems():
+        is_more_than_one_sample = False
+        for sample_to_etc in gene_to_sample_to_taxonomy_to_count.values():
+            if len(sample_to_etc) > 1:
+                is_more_than_one_sample = True
+                break
+        for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.items():
+            for sample, taxonomy_to_count in sample_to_taxonomy_to_count.items():
                 f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona')
                 sample_tempfiles.append(f)
 
@@ -37,10 +42,10 @@ class Summariser:
                     f.write('\t'.join([str(coverage)]+tax_split))
                     f.write('\n')
                 f.flush()
-                if len(sample_to_taxonomy_to_count) == 1:
-                    display_name = gene
-                else:
+                if is_more_than_one_sample:
                     display_name = '%s: %s' % (sample, gene)
+                else:
+                    display_name = gene
                 cmd += " %s,'%s'" % (f.name, display_name)
         extern.run(cmd)
         for f in sample_tempfiles:
