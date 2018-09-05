@@ -26,27 +26,35 @@ class Summariser:
         logging.info("Writing krona %s" % krona_output_file)
         cmd = 'ktImportText -o %s' % krona_output_file
         sample_tempfiles = []
-        is_more_than_one_sample = False
-        for sample_to_etc in gene_to_sample_to_taxonomy_to_count.values():
-            if len(sample_to_etc) > 1:
-                is_more_than_one_sample = True
-                break
+        sample_to_gene_to_taxonomy_to_count = {}
+        all_sample_names = set()
+        all_gene_names = set()
         for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.items():
+            all_gene_names.add(gene)
             for sample, taxonomy_to_count in sample_to_taxonomy_to_count.items():
-                f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona')
-                sample_tempfiles.append(f)
+                all_sample_names.add(sample)
+                if sample not in sample_to_gene_to_taxonomy_to_count:
+                    sample_to_gene_to_taxonomy_to_count[sample] = {}
+                sample_to_gene_to_taxonomy_to_count[sample][gene] = taxonomy_to_count
+        is_more_than_one_sample = len(sample_to_gene_to_taxonomy_to_count) > 1
+        for sample in sorted(all_sample_names):
+            for gene in sorted(all_gene_names):
+                if gene in sample_to_gene_to_taxonomy_to_count[sample]:
+                    f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona')
+                    sample_tempfiles.append(f)
 
-                for taxonomy, coverage in taxonomy_to_count.iteritems():
-                    tax_split = taxonomy.split('; ')
-                    if tax_split[0] == 'Root' and len(tax_split) > 1: tax_split = tax_split[1:]
-                    f.write('\t'.join([str(coverage)]+tax_split))
-                    f.write('\n')
-                f.flush()
-                if is_more_than_one_sample:
-                    display_name = '%s: %s' % (sample, gene)
-                else:
-                    display_name = gene
-                cmd += " %s,'%s'" % (f.name, display_name)
+                    taxonomy_to_count = sample_to_gene_to_taxonomy_to_count[sample][gene]
+                    for taxonomy, coverage in taxonomy_to_count.iteritems():
+                        tax_split = taxonomy.split('; ')
+                        if tax_split[0] == 'Root' and len(tax_split) > 1: tax_split = tax_split[1:]
+                        f.write('\t'.join([str(coverage)]+tax_split))
+                        f.write('\n')
+                    f.flush()
+                    if is_more_than_one_sample:
+                        display_name = '%s: %s' % (sample, gene)
+                    else:
+                        display_name = gene
+                    cmd += " %s,'%s'" % (f.name, display_name)
         extern.run(cmd)
         for f in sample_tempfiles:
             f.close()
