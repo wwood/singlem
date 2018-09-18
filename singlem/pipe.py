@@ -146,6 +146,13 @@ class SearchPipe:
         def return_cleanly():
             if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
+        # Set a tempfile directory in the working directory so that temporary
+        # files can be generated (with delete=False), and then immediately
+        # closed so that the file exists but the stream is not open, to avoid
+        # the "Too many open files" error.
+        tempfile_directory = os.path.join(self._working_directory, 'tmp')
+        os.mkdir(tempfile_directory)
+        tempfile.tempdir = tempfile_directory
 
         #### Search
         self._singlem_package_database = hmms
@@ -668,7 +675,6 @@ class SearchPipe:
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
-        all_tmp_files = []
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
         # fewer open files are needed, so that the open file count limit is
@@ -678,14 +684,16 @@ class SearchPipe:
             for readset in readsets:
                 if len(readset.sequences) > 0:
                     tmp = tempfile.NamedTemporaryFile(
-                        prefix='singlem.%s' % readset.sample_name, suffix=".fasta")
+                        prefix='singlem.%s' % readset.sample_name, suffix=".fasta",
+                        delete=False)
                     # Record basename (remove .fasta) so that the graftm output
                     # file is recorded for later on in pipe.
                     tmpbase = os.path.basename(tmp.name[:-6])
                     readset.tmpfile_basename = tmpbase
                     seqio = SequenceIO()
                     seqio.write_fasta(readset.sequences, tmp)
-                    tmp.flush()
+                    # Close immediately to avoid the "too many open files" error.
+                    tmp.close()
                     tmp_files.append(tmp)
 
             if len(tmp_files) > 0:
@@ -705,10 +713,8 @@ class SearchPipe:
                           singlem_package.graftm_package_basename(),
                           assignment_method)
                 commands.append(cmd)
-                all_tmp_files.append(tmp_files)
 
         extern.run_many(commands, num_threads=1)
-        for tmp_files in all_tmp_files: [t.close() for t in tmp_files]
         logging.info("Finished running taxonomic assignment with GraftM")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
