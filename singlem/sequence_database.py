@@ -51,10 +51,11 @@ class DBSequence(OtuTableEntry):
         return to_return
 
 class SequenceDatabase:
-    version = 2
+    version = 3
     GAP_REPLACEMENT_CHARACTER = 'Y'
     DEFLINE_DELIMITER_CHARACTER = '~'
     SQLITE_DB_NAME = 'otus.sqlite3'
+    DEFAULT_CLUSTERING_DIVERGENCE = 3
     _marker_to_smafadb = {}
 
     def add_smafa_db(self, marker_name, smafa_db):
@@ -102,6 +103,7 @@ class SequenceDatabase:
         c = db.cursor()
         c.execute("CREATE TABLE otus (marker text, sample_name text,"
                   " sequence text, num_hits int, coverage float, taxonomy text)")
+        c.execute("CREATE TABLE clusters (member text, representative text)")
         db.commit()
 
         gene_to_tempfile = {}
@@ -139,10 +141,22 @@ class SequenceDatabase:
         for marker_name, tf in gene_to_tempfile.items():
             smafa = "%s.smafadb" % os.path.join(db_path, marker_name)
             tf.flush()
-            cmd = "sort -S20%% '%s' |uniq |awk '{print \">1\\n\" $1}' |smafa makedb /dev/stdin '%s'" % (
-                tf.name, smafa)
+            cmd = "sort -S20% '{}' |uniq |awk '{{print \">1\\n\" $1}}' |smafa cluster --fragment-method /dev/stdin --divergence {} |tee >(cut -f2 |sort -S20% |uniq |awk '{{print \">1\\n\" $1}}' |smafa makedb /dev/stdin '{}')" \
+                .format(tf.name, SequenceDatabase.DEFAULT_CLUSTERING_DIVERGENCE, smafa)
             logging.debug("Running cmd: %s", cmd)
             logging.info("Formatting smafa database %s .." % smafa)
-            extern.run(cmd)
+            # Use streaming technique from
+            # https://stackoverflow.com/questions/2715847/python-read-streaming-input-from-subprocess-communicate#17698359
+            p = subprocess.Popen(['bash','-c',cmd], stdout=subprocess.PIPE, bufsize=1)
+            with p.stdout:
+                for line in iter(p.stdout.readline, b''):
+                    splits = line.rstrip().split("\t")
+                    if len(splits) != 2:
+                        raise Exception("Unexpected smafa cluster output: {}".format(line))
+                    c.execute("INSERT INTO clusters VALUES (?,?)",splits)
+            p.wait()
+            db.commit()
             tf.close()
+        logging.info("Generating cluster SQL index ..")
+        c.execute("CREATE INDEX clusters_representative on clusters(representative)")
         logging.info("Finished")
