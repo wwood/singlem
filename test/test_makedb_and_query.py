@@ -366,6 +366,40 @@ class Tests(unittest.TestCase):
                 observed = subprocess.check_output(cmd, shell=True).split("\n")
                 self.assertEqual(expected, observed)
 
+    def test_clustering(self):
+        otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'], #last base only is different to first sequence
+['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(otu_table)
+            f.flush()
+
+            with tempdir.TempDir() as d:
+                cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
+                                                                d,
+                                                                f.name)
+                subprocess.check_call(cmd, shell=True)
+
+                cmd = "%s query --query_sequence %s --db %s/db" % (
+                    path_to_script,
+                    'AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC', # first sequence with an extra A at the start
+                                                                d)
+
+                expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+                            ['unnamed_sequence','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                             '1','7','minimal','ribosomal_protein_L11_rplK_gpkg',
+                             'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                             'Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                            ['unnamed_sequence','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                             '2','6','minimal','ribosomal_protein_L11_rplK_gpkg',
+                             'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA',
+                             'Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+                expected = ["\t".join(x) for x in expected]+['']
+                self.assertEqual(expected,
+                                 subprocess.check_output(cmd, shell=True).split("\n"))
+
 
 if __name__ == "__main__":
     unittest.main()
