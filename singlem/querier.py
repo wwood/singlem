@@ -5,6 +5,7 @@ import subprocess
 import sys
 import os
 from orator import DatabaseManager, Model
+from orator.exceptions.query import QueryException
 from Bio import pairwise2
 
 from sequence_database import SequenceDatabase
@@ -130,6 +131,16 @@ class Querier:
             'database': sqlite_db_path
         }})
         Model.set_connection_resolver(dbm)
+        try:
+            len(dbm.table('otus').limit(1).get())
+        except Exception as e:
+            logging.error("Failure to extract any data from the otus table of the SQ Lite DB indicates this SingleM DB is either too old or is corrupt.")
+            raise(e)
+        try:
+            len(dbm.table('clusters').limit(1).get())
+        except QueryException:
+            logging.error("Failure to extract any data from the 'clusters' table indicates this SingleM DB is out-dated, and cannot be used with query implemented in this version of SingleM")
+            sys.exit(1)
         return dbm
 
     def query_with_queries(self, queries, db, max_divergence):
@@ -153,25 +164,52 @@ class Querier:
             results = []
             for smafa_db in smafa_dbs:
                 logging.info("Querying smafadb {}".format(smafa_db))
-                cmd = "smafa query -q -d %i '%s' '%s'" % (max_divergence, smafa_db, infile.name)
+                # Query with at least the divergence of the clustering + max_divergence,
+                # otherwise there may be false negatives.
+                smafa_divergence = max_divergence
+                min_divergence = SequenceDatabase.DEFAULT_CLUSTERING_DIVERGENCE + max_divergence
+                if smafa_divergence < min_divergence:
+                    smafa_divergence = min_divergence
+                cmd = "smafa query -q -d %i '%s' '%s'" % (smafa_divergence, smafa_db, infile.name)
                 logging.debug("Running cmd with popen: %s" % cmd)
                 proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
                 for line in iter(proc.stdout.readline,''):
                     query_name, query_sequence, subject_sequence, divergence = line.split("\t")[:4]
                     logging.debug("smafa query with {} returned hit sequence {}".format(
                         query_name, subject_sequence))
-                    #NOTE: Not the same objects as the original query objects.
-                    query = QueryInputSequence(query_name, query_sequence)
-                    for entry in sqlite_db.table('otus').where('sequence',subject_sequence).get():
-                        otu = OtuTableEntry()
-                        otu.marker = entry.marker
-                        otu.sample_name = entry.sample_name
-                        otu.sequence = entry.sequence
-                        otu.count = entry.num_hits
-                        otu.coverage = entry.coverage
-                        otu.taxonomy = entry.taxonomy
-                        results.append(QueryResult(query, otu, divergence))
+                    # Query for OTUs that have a cluster representative that is the hit sequence
+                    for entry in sqlite_db \
+                        .table('otus') \
+                        .join('clusters','clusters.member','=','otus.sequence') \
+                        .where('clusters.representative',subject_sequence).get():
+                        logging.debug("Returned a potential hit through through clustering table: {}".format(
+                            entry.sequence))
+
+                        div = self.divergence(query_sequence, entry.sequence)
+                        logging.debug("Found divergence {}".format(div))
+                        if div <= max_divergence:
+                            #NOTE: Not the same objects as the original query objects.
+                            query = QueryInputSequence(query_name, query_sequence)
+                            otu = OtuTableEntry()
+                            otu.marker = entry.marker
+                            otu.sample_name = entry.sample_name
+                            otu.sequence = entry.sequence
+                            otu.count = entry.num_hits
+                            otu.coverage = entry.coverage
+                            otu.taxonomy = entry.taxonomy
+                            results.append(QueryResult(query, otu, div))
         return results
+
+    def divergence(self, seq1, seq2):
+        """Return the number of bases two sequences differ by"""
+        if len(seq1) != len(seq2):
+            raise Exception(
+                "Attempted comparison of two OTU sequences with differing lengths: {} and {}" \
+                .format(seq1, seq2))
+        d = 0
+        for (a, b) in zip(seq1, seq2):
+            if a != b: d += 1
+        return d
 
 
     def query_by_sqlite(self, queries, db):
