@@ -396,9 +396,8 @@ class Tests(unittest.TestCase):
                              '2','6','minimal','ribosomal_protein_L11_rplK_gpkg',
                              'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA',
                              'Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-                expected = ["\t".join(x) for x in expected]+['']
-                self.assertEqual(expected,
-                                 subprocess.check_output(cmd, shell=True).split("\n"))
+                self.assertEqualOtuTable(expected,
+                                 subprocess.check_output(cmd, shell=True))
 
 
 if __name__ == "__main__":
