@@ -92,6 +92,7 @@ class SequenceDatabase:
         # ensure db does not already exist
         if os.path.exists(db_path):
             raise Exception("Cowardly refusing to overwrite already-existing database file '%s'" % db_path)
+        logging.info("Creating SingleM database at {}".format(db_path))
         os.makedirs(db_path)
 
         # setup sqlite DB
@@ -105,12 +106,6 @@ class SequenceDatabase:
 
         gene_to_tempfile = {}
 
-        # logging.info("Writing FASTA file to %s .." % sequences_fasta_file)
-        # cmd = "sort -S 20%" # The default sort buffer is too low IMO, use a larger one.
-        # sorter = subprocess.Popen(cmd, shell=True, stdin = subprocess.PIPE, stdout=subprocess.PIPE)
-        # fasta_writing_thread = Thread(target=SequenceDatabase.write_dereplicated_fasta_file,
-        #                               args=[sorter.stdout, fasta])
-        # fasta_writing_thread.start()
         chunksize = 10000 # Run in chunks for sqlite insert performance.
         for chunk in SequenceDatabase.grouper(otu_table_collection, chunksize):
             chunk_list = []
