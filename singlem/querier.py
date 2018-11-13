@@ -182,11 +182,15 @@ class Querier:
                         .table('otus') \
                         .join('clusters','clusters.member','=','otus.sequence') \
                         .where('clusters.representative',subject_sequence).get():
-                        logging.debug("Returned a potential hit through through clustering table: {}".format(
-                            entry.sequence))
+                        logging.debug(
+                            "Returned a potential hit through through clustering table: {} (divergence {})".format(
+                                entry.sequence, divergence))
 
-                        div = self.divergence(query_sequence, entry.sequence)
-                        logging.debug("Found divergence {}".format(div))
+                        if sdb.smafa_clustering_divergence() == 0:
+                            div = int(divergence)
+                        else:
+                            div = self.divergence(query_sequence, entry.sequence)
+                            logging.debug("Calculated divergence to be {}".format(div))
                         if div <= max_divergence:
                             #NOTE: Not the same objects as the original query objects.
                             query = QueryInputSequence(query_name, query_sequence)
