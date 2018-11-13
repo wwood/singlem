@@ -77,6 +77,10 @@ class SequenceDatabase:
     def smafa_dbs(self):
         return self._marker_to_smafadb.values()
 
+    def smafa_clustering_divergence(self):
+        return self._contents_hash[
+            SequenceDatabase.SMAFA_CLUSTER_DIVERGENCE_KEY]
+
     @staticmethod
     def acquire(path):
         db = SequenceDatabase()
