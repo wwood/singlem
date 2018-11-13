@@ -308,6 +308,7 @@ if __name__ == '__main__':
     makedb_parser.add_argument('--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
     makedb_parser.add_argument('--otu_tables', nargs='+', help="Make a db from these OTU tables")
     makedb_parser.add_argument('--db', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
+    makedb_parser.add_argument('--clustering_divergence', type=int, help="Cluster DB to reduce RAM usage (no loss i precision)", default=0)
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
@@ -520,7 +521,7 @@ if __name__ == '__main__':
             for o in args.archive_otu_tables:
                 otus.add_archive_otu_table_file(o)
         singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-            (args.db, otus)
+            (args.db, otus, args.clustering_divergence)
     elif args.subparser_name=='query':
         querier = Querier()
         if args.db and args.subject_otu_tables:
