@@ -123,14 +123,13 @@ class SequenceDatabase:
         return izip_longest(*args, fillvalue=None)
 
     @staticmethod
-    def create_from_otu_table(db_path, otu_table_collection):
+    def create_from_otu_table(db_path, otu_table_collection,
+                              clustering_divergence=DEFAULT_CLUSTERING_DIVERGENCE):
         # ensure db does not already exist
         if os.path.exists(db_path):
             raise Exception("Cowardly refusing to overwrite already-existing database file '%s'" % db_path)
         logging.info("Creating SingleM database at {}".format(db_path))
         os.makedirs(db_path)
-
-        clustering_divergence = SequenceDatabase.DEFAULT_CLUSTERING_DIVERGENCE
 
         # Create contents file
         contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
