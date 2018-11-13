@@ -149,10 +149,10 @@ class Querier:
             return self.query_by_sqlite(queries, dbm)
         else:
             return self.query_by_smafa(
-                queries, db.smafa_dbs(), dbm, max_divergence)
+                queries, db, dbm, max_divergence)
 
 
-    def query_by_smafa(self, queries, smafa_dbs, sqlite_db,  max_divergence):
+    def query_by_smafa(self, queries, sdb, sqlite_db,  max_divergence):
         # Generate a tempfile of all the queries
         with tempfile.NamedTemporaryFile(prefix='singlem_query_smafa') as infile:
             for query in queries:
@@ -162,12 +162,12 @@ class Querier:
             infile.flush()
 
             results = []
-            for smafa_db in smafa_dbs:
+            for smafa_db in sdb.smafa_dbs():
                 logging.info("Querying smafadb {}".format(smafa_db))
                 # Query with at least the divergence of the clustering + max_divergence,
                 # otherwise there may be false negatives.
                 smafa_divergence = max_divergence
-                min_divergence = SequenceDatabase.DEFAULT_CLUSTERING_DIVERGENCE + max_divergence
+                min_divergence = sdb.smafa_clustering_divergence() + max_divergence
                 if smafa_divergence < min_divergence:
                     smafa_divergence = min_divergence
                 cmd = "smafa query -q -d %i '%s' '%s'" % (smafa_divergence, smafa_db, infile.name)
