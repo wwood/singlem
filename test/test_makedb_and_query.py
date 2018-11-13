@@ -377,9 +377,8 @@ class Tests(unittest.TestCase):
             f.flush()
 
             with tempdir.TempDir() as d:
-                cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
-                                                                d,
-                                                                f.name)
+                cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 3".format(
+                    path_to_script, d, f.name)
                 subprocess.check_call(cmd, shell=True)
 
                 cmd = "%s query --query_sequence %s --db %s/db" % (
@@ -398,6 +397,37 @@ class Tests(unittest.TestCase):
                              'Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                 self.assertEqualOtuTable(expected,
                                  subprocess.check_output(cmd, shell=True))
+
+    def test_no_clustering(self):
+        otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'], #last base only is different to first sequence
+['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(otu_table)
+            f.flush()
+
+            with tempdir.TempDir() as d:
+                cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 0".format(
+                    path_to_script, d, f.name)
+                extern.run(cmd)
+                with tempfile.NamedTemporaryFile() as f2:
+                    f2.write(">seq1\n")
+                    # first sequence with an extra A at the start
+                    f2.write("AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
+                    f2.flush()
+
+                    # Querying the smafadb directly should show no clustering
+                    cmd = "smafa query {} {}".format(
+                        os.path.join(d,'db','ribosomal_protein_L11_rplK_gpkg.smafadb'),
+                        f2.name)
+                    out = extern.run(cmd)
+                    self.assertEqual(
+                        out,
+                        'seq1\tAGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA\t2\t60\n'+
+                        'seq1\tAGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\t1\t60\n')
+
 
 
 if __name__ == "__main__":
