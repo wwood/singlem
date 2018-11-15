@@ -428,7 +428,16 @@ class Tests(unittest.TestCase):
                         'seq1\tAGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA\t2\t60\n'+
                         'seq1\tAGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\t1\t60\n')
 
-
+    def test_dump(self):
+        expected = """gene	sample	sequence	num_hits	coverage	taxonomy
+ribosomal_protein_L11_rplK_gpkg	minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	15.1	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+ribosomal_protein_S2_rpsB_gpkg	minimal	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	6	12.4	Root; k__Bacteria; p__Firmicutes; c__Bacilli
+ribosomal_protein_S17_gpkg	minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	9	19.5	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus"""
+        cmd = "{} query --db {}/a.sdb --dump".format(
+            path_to_script, path_to_data)
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected.split("\n")]),
+            extern.run(cmd))
 
 if __name__ == "__main__":
     unittest.main()
