@@ -29,6 +29,7 @@ from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCo
 from singlem.clusterer import Clusterer
 from singlem.appraiser import Appraiser
 from singlem.querier import Querier
+from singlem.sequence_database import SequenceDatabase
 from singlem.chancer import Chancer
 from singlem.regenerator import Regenerator
 from singlem.taxonomy import Taxonomy
@@ -324,6 +325,7 @@ if __name__ == '__main__':
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
     query_other_args.add_argument('--sample_names', metavar='name', help='Print all OTUs from these samples', nargs='+')
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
+    query_other_args.add_argument('--dump', action='store_true', help='Print all OTUs in the DB')
 
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
@@ -528,7 +530,10 @@ if __name__ == '__main__':
             raise Exception("Cannot specify both --db and --subject_otu_tables")
 
         if args.db:
-            if args.sample_names or args.taxonomy:
+            if args.dump:
+                logging.debug("Dumping SingleM database {}".format(args.db))
+                SequenceDatabase.dump(args.db)
+            elif args.sample_names or args.taxonomy:
                 if args.taxonomy and args.sample_names:
                     raise Exception("Cannot specify both sample names and taxonomy")
                 querier.print_samples(
@@ -552,6 +557,8 @@ if __name__ == '__main__':
                 raise Exception("--taxonomy only works with --db")
             if args.sample_names:
                 raise Exception("--sample_names only works with --db")
+            if args.dump:
+                raise Exception("--dump only works with --db")
             otus = OtuTableCollection()
             for o in args.subject_otu_tables:
                 otus.add_otu_table(open(o))
