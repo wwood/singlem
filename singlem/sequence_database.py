@@ -222,12 +222,13 @@ class SequenceDatabase:
         }})
         Model.set_connection_resolver(db)
         print "\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS)
-        for entry in db.table('otus').get():
-            otu = OtuTableEntry()
-            otu.marker = entry.marker
-            otu.sample_name = entry.sample_name
-            otu.sequence = entry.sequence
-            otu.count = entry.num_hits
-            otu.coverage = entry.coverage
-            otu.taxonomy = entry.taxonomy
-            print str(otu)
+        for chunk in db.table('otus').chunk(1000):
+            for entry in chunk:
+                otu = OtuTableEntry()
+                otu.marker = entry.marker
+                otu.sample_name = entry.sample_name
+                otu.sequence = entry.sequence
+                otu.count = entry.num_hits
+                otu.coverage = entry.coverage
+                otu.taxonomy = entry.taxonomy
+                print str(otu)
