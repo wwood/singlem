@@ -12,8 +12,9 @@ import json
 from itertools import izip_longest
 from threading import Thread
 from Bio import SeqIO
+from orator import DatabaseManager, Model
 
-from otu_table import OtuTableEntry
+from otu_table import OtuTableEntry, OtuTable
 import extern
 
 class DBSequence(OtuTableEntry):
@@ -203,3 +204,30 @@ class SequenceDatabase:
         logging.info("Generating cluster SQL index ..")
         c.execute("CREATE INDEX clusters_representative on clusters(representative)")
         logging.info("Finished")
+
+    @staticmethod
+    def dump(db_path):
+        """Dump the DB contents to STDOUT, requiring only that the DB is a version that
+        has an otus table in sqlite3 form (i.e. version 2 and 3 at least).
+
+        """
+        sqlite_db = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+        logging.debug("Connecting to DB {}".format(sqlite_db))
+        if not os.path.exists(sqlite_db):
+            raise Exception("SQLite3 database does not appear to exist in the SingleM database - perhaps it is the wrong version?")
+        db = DatabaseManager({
+        'sqlite3': {
+            'driver': 'sqlite',
+            'database': sqlite_db
+        }})
+        Model.set_connection_resolver(db)
+        print "\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS)
+        for entry in db.table('otus').get():
+            otu = OtuTableEntry()
+            otu.marker = entry.marker
+            otu.sample_name = entry.sample_name
+            otu.sequence = entry.sequence
+            otu.count = entry.num_hits
+            otu.coverage = entry.coverage
+            otu.taxonomy = entry.taxonomy
+            print str(otu)
