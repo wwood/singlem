@@ -60,12 +60,12 @@ gene    sample  sequence        num_hits        coverage        taxonomy
 Currently SingleM concentrates on 14 single copy marker genes to provide fine-grained differentiation of species that is independent of the copy-number variation issues that hamper 16S analyses. SingleM is reasonably fast and is quite scalable, although there is much room for improvement. On average, each of the 14 genes better differentiates closely related lineages than a typical 16S amplicon-based study.
 
 ## Further processing of OTU tables
-### Summarising OTU tables
+### Summarising OTU tables by rarefying, clustering, etc.
 Once an OTU table has been generated with the `pipe` command, it can be further processed in various ways using `summarise`:
 
-Create a [Krona](https://sourceforge.net/p/krona/) plot of the community. The following command generates `my_krona*.html` files which can be viewed in a web browser:
+Create a [Krona](https://sourceforge.net/p/krona/) plot of the community. The following command generates a Krona file `my_krona.html` which can be viewed in a web browser:
 ```
-singlem summarise --input_otu_table otu_table.csv --krona my_krona
+singlem summarise --input_otu_table otu_table.csv --krona my_krona.html
 ```
 
 Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:
