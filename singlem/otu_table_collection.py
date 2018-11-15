@@ -173,7 +173,7 @@ class StreamingOtuTableCollection:
             for otu in ArchiveOtuTable.read(io):
                 yield otu
         for io in self._otu_table_io_objects:
-            for otu in OtuTable.read(io):
+            for otu in OtuTable.each(io):
                 yield otu
         for file_path in self._archive_table_file_paths:
             for otu in ArchiveOtuTable.read(open(file_path)):
