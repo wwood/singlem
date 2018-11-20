@@ -65,12 +65,17 @@ Once an OTU table has been generated with the `pipe` command, it can be further 
 
 Create a [Krona](https://sourceforge.net/p/krona/) plot of the community. The following command generates a Krona file `my_krona.html` which can be viewed in a web browser:
 ```
-singlem summarise --input_otu_table otu_table.csv --krona my_krona.html
+singlem summarise --input_otu_tables otu_table.csv --krona my_krona.html
+```
+
+Several OTU tables can be combined into one. Note that this is not necessary if the combined output is to be input again into summarise (or many other commands) - it is possible to just specify multiple input tables with `--input_otu_tables`. To combine:
+```
+singlem summarise --input_otu_tables otu_table1.csv otu_table2.csv --output_otu_table combined.otu_table.csv
 ```
 
 Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:
 ```
-singlem summarise --input_otu_table otu_table.csv --cluster --clustered_output_otu_table clustered.otu_table.csv
+singlem summarise --input_otu_tables otu_table.csv --cluster --clustered_output_otu_table clustered.otu_table.csv
 ```
 
 Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:
