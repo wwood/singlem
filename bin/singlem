@@ -338,7 +338,7 @@ if __name__ == '__main__':
     summarise_transformation_args.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
     summarise_transformation_args.add_argument('--rarefied_output_otu_table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
     summarise_transformation_args.add_argument('--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
-    summarise_transformation_args.add_argument('--collapse_coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table.")
+    summarise_transformation_args.add_argument('--collapse_coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
     summarise_output_args = summarise_parser.add_argument_group('output')
     summarise_output_args.add_argument('--output_otu_table', help="Output combined OTU table to this file")
     summarise_output_args.add_argument('--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
