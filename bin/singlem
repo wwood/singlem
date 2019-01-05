@@ -245,7 +245,15 @@ if __name__ == '__main__':
 
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
-        argument_group.add_argument('--sequences', nargs='+', metavar='sequence_file(s)', help='nucleotide sequences to be searched')
+        argument_group.add_argument('--sequences', '--forward',
+                                    required=True,
+                                    nargs='+',
+                                    metavar='sequence_file(s)',
+                                    help='nucleotide sequence(s) to be searched')
+        argument_group.add_argument('--reverse',
+                                    nargs='+',
+                                    metavar='sequence_file(s)',
+                                    help='reverse reads to be searched')
         argument_group.add_argument('--otu_table', metavar='filename', help='output OTU table')
         current_default = 1
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -463,6 +471,7 @@ if __name__ == '__main__':
         validate_pipe_args(args)
         singlem.pipe.SearchPipe().run(
             sequences = args.sequences,
+            reverse_read_files = args.reverse,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             threads = args.threads,

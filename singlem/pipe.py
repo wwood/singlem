@@ -76,6 +76,7 @@ class SearchPipe:
     def run_to_otu_table(self, **kwargs):
         '''Run the pipe, '''
         forward_read_files = kwargs.pop('sequences')
+        reverse_read_files = kwargs.pop('reverse_read_files', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
@@ -107,6 +108,15 @@ class SearchPipe:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
             graftm_assignment_method = singlem_assignment_method
+
+        analysing_pairs = reverse_read_files is not None
+        if analysing_pairs:
+            if len(forward_read_files) != len(reverse_read_files):
+                raise Exception("When analysing paired input data, the number of forward read files must be the same as the number of reverse read files")
+            for pkg in hmms:
+                if not pkg.is_protein_package():
+                    raise Exception(
+                        "Paired read inputs can only be used with protein SingleM packages, but support may be added in the future.")
 
         if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
             self._graftm_verbosity = '5'
@@ -156,13 +166,13 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
-        search_result = self._search(hmms, forward_read_files)
+        search_result = self._search(hmms, forward_read_files, reverse_read_files)
         sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
             return_cleanly()
             return None
-        logging.debug("Recovered %i samples with at least one hit e.g. '%s'" \
+        logging.debug("Recovered %i samples with at least one hit e.g. '%s'"
                      % (len(sample_names), sample_names[0]))
 
         #### Alignment
@@ -202,9 +212,12 @@ class SearchPipe:
             package_to_taxonomy_bihash = {}
 
         for readset in extracted_reads:
-            sample_name = readset.sample_name
-            singlem_package = readset.singlem_package
-            known_sequences = readset.known_sequences
+            if analysing_pairs:
+                readset_example = readset[0]
+            else:
+                readset_example = readset
+            sample_name = readset_example.sample_name
+            singlem_package = readset_example.singlem_package
             def add_info(infos, otu_table_object, known_tax):
                 for info in infos:
                     to_print = [
@@ -332,47 +345,83 @@ class SearchPipe:
         ExtractedReads object
         '''
 
-        extracted_reads = ExtractedReads()
+        def extract_reads(
+                singlem_package,
+                prealigned_file,
+                nucleotide_sequence_fasta_file,
+                include_inserts,
+                known_taxonomy,
+                read_direction):
+
+            aligned_seqs = self._get_windowed_sequences(
+                prealigned_file,
+                nucleotide_sequence_fasta_file,
+                singlem_package,
+                include_inserts)
+
+            known_sequences = []
+            unknown_sequences = []
+            for s in aligned_seqs:
+                if s.aligned_sequence in known_taxonomy:
+                    known_sequences.append(s)
+                else:
+                    unknown_sequences.append(s)
+            logging.debug("For sample {} ({}), spkg {}, found {} known and {} unknown OTU sequences".format(
+                sample_name,
+                read_direction,
+                singlem_package.base_directory(),
+                len(known_sequences),
+                len(unknown_sequences)))
+
+            if len(unknown_sequences) > 0:
+                extractor = singlem_sequence_extractor.SequenceExtractor()
+                seqs = extractor.extract_and_read(
+                    [s.name for s in unknown_sequences],
+                    nucleotide_sequence_fasta_file)
+            else:
+                seqs = []
+            readset = ExtractedReadSet(
+                sample_name, singlem_package,
+                seqs, known_sequences, unknown_sequences)
+            return readset
+
+        extracted_reads = ExtractedReads(alignment_result.analysing_pairs)
 
         for sample_name in alignment_result.sample_names():
             for singlem_package in self._singlem_package_database:
                 for prealigned_file in alignment_result.prealigned_sequence_files(
                         sample_name, singlem_package):
                     if singlem_package.is_protein_package():
-                        nucleotide_sequence_fasta_file = alignment_result.nucleotide_sequence_file(
-                            sample_name, singlem_package)
+                        nucleotide_sequence_fasta_file = list(
+                            alignment_result.nucleotide_sequence_file(
+                                sample_name, singlem_package))
                     else:
                         nucleotide_sequence_fasta_file = prealigned_file
 
-                    aligned_seqs = self._get_windowed_sequences(
-                        prealigned_file,
-                        nucleotide_sequence_fasta_file,
-                        singlem_package,
-                        include_inserts)
-
-                    known_sequences = []
-                    unknown_sequences = []
-                    for s in aligned_seqs:
-                        if s.aligned_sequence in known_taxonomy:
-                            known_sequences.append(s)
-                        else:
-                            unknown_sequences.append(s)
-                    logging.debug("For sample %s, spkg %s, found %i known and %i unknown OTU sequences" %(
-                        sample_name,
-                        singlem_package.base_directory(),
-                        len(known_sequences),
-                        len(unknown_sequences)))
-
-                    if len(unknown_sequences) > 0:
-                        extractor = singlem_sequence_extractor.SequenceExtractor()
-                        seqs = extractor.extract_and_read(
-                            [s.name for s in unknown_sequences],
-                            nucleotide_sequence_fasta_file)
+                    if alignment_result.analysing_pairs:
+                        readset1 = extract_reads(
+                            singlem_package,
+                            prealigned_file[0],
+                            nucleotide_sequence_fasta_file[0][0],
+                            include_inserts,
+                            known_taxonomy,
+                            'forward')
+                        readset2 = extract_reads(
+                            singlem_package,
+                            prealigned_file[1],
+                            nucleotide_sequence_fasta_file[0][1],
+                            include_inserts,
+                            known_taxonomy,
+                            'reverse')
+                        extracted_reads.add([readset1, readset2])
                     else:
-                        seqs = []
-                    readset = ExtractedReadSet(sample_name, singlem_package,
-                                               seqs, known_sequences, unknown_sequences)
-                    extracted_reads.add(readset)
+                        readset = extract_reads(
+                            singlem_package,
+                            nucleotide_sequence_fasta_file,
+                            include_inserts,
+                            known_taxonomy,
+                            'forward')
+                        extracted_reads.add(readset)
 
         return extracted_reads
 
@@ -576,7 +625,7 @@ class SearchPipe:
 
         return cmd+' '
 
-    def _search(self, singlem_package_database, forward_read_files):
+    def _search(self, singlem_package_database, forward_read_files, reverse_read_files):
         '''Find all reads that match one or more of the search HMMs in the
         singlem_package_database.
 
@@ -586,17 +635,22 @@ class SearchPipe:
             packages to search the reads for
         forward_read_files: list of str
             paths to the sequences to be searched
+        reverse_read_files: list of str or None
+            paths to the reverse sequences to be searched, or None to run in
+            unpaired mode. Must be the same length as forward_read_files unless
+            None.
 
         Returns
         -------
         SingleMPipeSearchResult
+
         '''
         logging.info("Using as input %i different sequence files e.g. %s" % (
             len(forward_read_files), forward_read_files[0]))
         graftm_protein_search_directory = os.path.join(
             self._working_directory, 'graftm_protein_search')
         graftm_nucleotide_search_directory = os.path.join(
-            self._working_directory,'graftm_nucleotide_search')
+            self._working_directory, 'graftm_nucleotide_search')
 
         def run(hmm_paths, output_directory, is_protein):
             cmd = self._graftm_command_prefix(is_protein) + \
@@ -611,6 +665,9 @@ class SearchPipe:
                       ' '.join(hmm_paths),
                       output_directory,
                       hmm_paths[0])
+            if reverse_read_files is not None:
+                cmd += "--reverse {} ".format(
+                    ' '.join(reverse_read_files))
             extern.run(cmd)
 
         num_singlem_packages = len(singlem_package_database.protein_packages())+\
@@ -634,11 +691,13 @@ class SearchPipe:
             run(hmms, graftm_nucleotide_search_directory, False)
 
         logging.info("Finished search phase")
-        protein_graftm = GraftMResult(graftm_protein_search_directory, hmms) if \
+        analysing_pairs = reverse_read_files is not None
+        protein_graftm = GraftMResult(graftm_protein_search_directory, analysing_pairs, search_hmm_files=hmms) if \
                          doing_proteins else None
-        nuc_graftm = GraftMResult(graftm_nucleotide_search_directory, hmms) if \
+        nuc_graftm = GraftMResult(graftm_nucleotide_search_directory, analysing_pairs, search_hmm_files=hmms) if \
                      doing_nucs else None
-        return SingleMPipeSearchResult(protein_graftm, nuc_graftm)
+        return SingleMPipeSearchResult(
+            protein_graftm, nuc_graftm, analysing_pairs)
 
     def _align(self, search_result):
         graftm_separate_directory_base = os.path.join(self._working_directory, 'graftm_separates')
@@ -646,35 +705,67 @@ class SearchPipe:
         logging.info("Running separate alignments in GraftM..")
         commands = []
 
-        def command(singlem_package, hit_files, is_protein):
-            return self._graftm_command_prefix(is_protein) + \
+        def command(singlem_package, hit_files, is_protein, analysing_pairs):
+            cmd = self._graftm_command_prefix(is_protein) + \
                 "--threads %i "\
-                "--forward %s "\
                 "--graftm_package %s --output_directory %s/%s "\
                 "--search_only" % (
                     1, #use 1 thread since most likely better to parallelise processes with extern
-                    ' '.join(hit_files),
                     singlem_package.graftm_package_path(),
                     graftm_separate_directory_base,
                     os.path.basename(singlem_package.graftm_package_path()))
+            if analysing_pairs:
+                cmd += ' --forward {} --reverse {}'.format(
+                    ' '.join([h[0] for h in hit_files]),
+                    ' '.join([h[1] for h in hit_files]))
+            else:
+                cmd += ' --forward {}'.format(
+                    ' '.join(hit_files))
+            return cmd
 
         # Gather commands for aligning protein packages
+        analysing_pairs = search_result.analysing_pairs
         for singlem_package in self._singlem_package_database.protein_packages():
-            commands.append(command(singlem_package, search_result.protein_hit_paths().values(), True))
+            commands.append(command(
+                singlem_package,
+                search_result.protein_hit_paths().values(),
+                True,
+                analysing_pairs))
         # Gather commands for aligning nucleotide packages.
         for singlem_package in self._singlem_package_database.nucleotide_packages():
             temporary_hit_files = [tf for _, tf in \
                 search_result.direction_corrected_nucleotide_read_files()]
-            commands.append(command(singlem_package, temporary_hit_files, False))
+            commands.append(command(
+                singlem_package,
+                temporary_hit_files,
+                False,
+                analysing_pairs))
 
         extern.run_many(commands, num_threads=self._num_threads)
         return SingleMPipeAlignSearchResult(
-            graftm_separate_directory_base, search_result.samples_with_hits())
+            graftm_separate_directory_base,
+            search_result.samples_with_hits(),
+            analysing_pairs)
 
     def _assign_taxonomy(self, extracted_reads, assignment_method):
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
+
+        def generate_tempfile_for_readset(readset):
+            tmp = tempfile.NamedTemporaryFile(
+                prefix='singlem.%s' % readset.sample_name, suffix=".fasta",
+                delete=False)
+            # Record basename (remove .fasta) so that the graftm output
+            # file is recorded for later on in pipe.
+            tmpbase = os.path.basename(tmp.name[:-6])
+            readset.tmpfile_basename = tmpbase
+            seqio = SequenceIO()
+            seqio.write_fasta(readset.sequences, tmp)
+            # Close immediately to avoid the "too many open files" error.
+            tmp.close()
+            return tmp
+
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
         # fewer open files are needed, so that the open file count limit is
@@ -682,36 +773,36 @@ class SearchPipe:
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
-                if len(readset.sequences) > 0:
-                    tmp = tempfile.NamedTemporaryFile(
-                        prefix='singlem.%s' % readset.sample_name, suffix=".fasta",
-                        delete=False)
-                    # Record basename (remove .fasta) so that the graftm output
-                    # file is recorded for later on in pipe.
-                    tmpbase = os.path.basename(tmp.name[:-6])
-                    readset.tmpfile_basename = tmpbase
-                    seqio = SequenceIO()
-                    seqio.write_fasta(readset.sequences, tmp)
-                    # Close immediately to avoid the "too many open files" error.
-                    tmp.close()
-                    tmp_files.append(tmp)
+                if extracted_reads.analysing_pairs:
+                    if len(readset[0].sequences + readset[1].sequences) > 0:
+                        tmp_files.append([
+                            generate_tempfile_for_readset(readset[0]),
+                            generate_tempfile_for_readset(readset[1])])
+                else:
+                    if len(readset.sequences) > 0:
+                        tmp_files.append(generate_tempfile_for_readset(readset))
 
             if len(tmp_files) > 0:
-                tmpnames = list([tg.name for tg in tmp_files])
                 cmd = "%s "\
                       "--threads %i "\
-                      "--forward %s "\
                       "--graftm_package %s "\
                       "--output_directory %s/%s "\
                       "--max_samples_for_krona 0 "\
                       "--assignment_method %s" % (
                           self._graftm_command_prefix(singlem_package.is_protein_package()),
                           self._num_threads,
-                          ' '.join(tmpnames),
                           singlem_package.graftm_package_path(),
                           graftm_align_directory_base,
                           singlem_package.graftm_package_basename(),
                           assignment_method)
+                if extracted_reads.analysing_pairs:
+                    cmd += " --forward {} --reverse {}".format(
+                        ' '.join(t[0].name for t in tmp_files),
+                        ' '.join(t[1].name for t in tmp_files))
+                else:
+                    tmpnames = list([tg.name for tg in tmp_files])
+                    cmd += " --forward {} ".format(
+                        ' '.join(tmpnames))
                 commands.append(cmd)
 
         extern.run_many(commands, num_threads=1)
@@ -719,13 +810,17 @@ class SearchPipe:
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
 class SingleMPipeSearchResult:
-    def __init__(self, graftm_protein_result, graftm_nucleotide_result):
+    def __init__(self, graftm_protein_result, graftm_nucleotide_result, analysing_pairs):
         self._protein_result = graftm_protein_result
         self._nucleotide_result = graftm_nucleotide_result
+        self.analysing_pairs = analysing_pairs
 
     def protein_hit_paths(self):
         '''Return a dict of sample name to corresponding '_hits.fa' files generated in
         the search step. Do not return those samples where there were no hits.
+
+        If analysing paired data, return an pair of paths (fwd, rev) as the
+        values in the Dict.
 
         '''
         if self._protein_result is None:
@@ -784,35 +879,75 @@ class SingleMPipeSearchResult:
         '''Return a list of sample names that had at least one hit'''
         return list(set(itertools.chain(
             self.protein_hit_paths().keys(),
-            self._nucleotide_result.sample_names(require_hits=True) if \
+            self._nucleotide_result.sample_names(require_hits=True) if
                 self._nucleotide_result else [])))
 
 class SingleMPipeAlignSearchResult:
-    def __init__(self, graftm_separate_directory_base, sample_names):
+    def __init__(
+            self,
+            graftm_separate_directory_base,
+            sample_names,
+            analysing_pairs):
         self._graftm_separate_directory_base = graftm_separate_directory_base
         self._sample_names = sample_names
+        self.analysing_pairs = analysing_pairs
 
     def _base_dir(self, sample_name, singlem_package):
-        return os.path.join(
-            self._graftm_separate_directory_base,
-            os.path.basename(singlem_package.graftm_package_path()),
-            '%s_hits' % sample_name)
+        if self.analysing_pairs:
+            return [
+                os.path.join(
+                    self._graftm_separate_directory_base,
+                    os.path.basename(singlem_package.graftm_package_path()),
+                    '{}_forward_hits'.format(sample_name),
+                    'forward'),
+                os.path.join(
+                    self._graftm_separate_directory_base,
+                    os.path.basename(singlem_package.graftm_package_path()),
+                    '{}_forward_hits'.format(sample_name),
+                    'reverse')]
+        else:
+            return os.path.join(
+                self._graftm_separate_directory_base,
+                os.path.basename(singlem_package.graftm_package_path()),
+                '%s_hits' % sample_name)
 
     def prealigned_sequence_files(self, sample_name, singlem_package):
         '''Yield a path to the sequences that were aligned to the HMM.
 
         '''
         if singlem_package.is_protein_package():
-            yield os.path.join(
-                self._base_dir(sample_name, singlem_package),
-                "%s_hits_orf.fa" % sample_name)
+            if self.analysing_pairs:
+                base_dirs = self._base_dir(sample_name, singlem_package)
+                yield [
+                    os.path.join(
+                        base_dirs[0],
+                        "{}_forward_hits_forward_orf.fa".format(sample_name)),
+                    os.path.join(
+                        base_dirs[1],
+                        "{}_forward_hits_reverse_orf.fa".format(sample_name)),
+                ]
+            else:
+                yield os.path.join(
+                    self._base_dir(sample_name, singlem_package),
+                    "%s_hits_orf.fa" % sample_name)
         else:
             yield self.nucleotide_sequence_file(sample_name, singlem_package)
 
     def nucleotide_sequence_file(self, sample_name, singlem_package):
-        return os.path.join(
-            self._base_dir(sample_name, singlem_package),
-            "%s_hits_hits.fa" % sample_name)
+        if self.analysing_pairs:
+            base_dirs = self._base_dir(sample_name, singlem_package)
+            yield [
+                os.path.join(
+                    base_dirs[0],
+                    "{}_forward_hits_forward_hits.fa".format(sample_name)),
+                os.path.join(
+                    base_dirs[1],
+                    "{}_forward_hits_reverse_hits.fa".format(sample_name)),
+            ]
+        else:
+            yield os.path.join(
+                self._base_dir(sample_name, singlem_package),
+                "%s_hits_hits.fa" % sample_name)
 
     def sample_names(self):
         return self._sample_names
@@ -859,11 +994,17 @@ class SingleMPipeTaxonomicAssignmentResult:
 
 class ExtractedReads:
     '''Collection class for ExtractedReadSet objects'''
-    def __init__(self):
+    def __init__(self, analysing_pairs):
         self._sample_to_extracted_read_objects = {}
+        self.analysing_pairs = analysing_pairs
 
     def add(self, extracted_read_set):
-        sample_name = extracted_read_set.sample_name
+        '''Add an ExtractedReadSet, or if analysing_pairs, a pair of them'''
+        if self.analysing_pairs:
+            sample_name = extracted_read_set[0].sample_name
+        else:
+            sample_name = extracted_read_set.sample_name
+
         if sample_name in self._sample_to_extracted_read_objects:
             self._sample_to_extracted_read_objects[sample_name].append(extracted_read_set)
         else:
@@ -883,13 +1024,19 @@ class ExtractedReads:
         pkg_basename_to_readsets = {}
         for sample, readsets in self._sample_to_extracted_read_objects.items():
             for readset in readsets:
-                pkg_base = readset.singlem_package.base_directory()
+                if self.analysing_pairs:
+                    pkg_base = readset[0].singlem_package.base_directory()
+                else:
+                    pkg_base = readset.singlem_package.base_directory()
                 if pkg_base in pkg_basename_to_readsets:
                     pkg_basename_to_readsets[pkg_base].append(readset)
                 else:
                     pkg_basename_to_readsets[pkg_base] = [readset]
         for readsets in pkg_basename_to_readsets.values():
-            yield readsets[0].singlem_package, readsets
+            if self.analysing_pairs:
+                yield readsets[0][0].singlem_package, readsets
+            else:
+                yield readsets[0].singlem_package, readsets
 
     def each_sample(self):
         return self._sample_to_array.keys()
