@@ -9,6 +9,9 @@ class Sequence:
         self.name = name
         self.seq = seq
 
+    def fasta(self):
+        return ">{}\n{}\n".format(self.name, self.seq)
+
 class AlignedProteinSequence(Sequence):
     def un_orfm_name(self):
         return OrfMUtils().un_orfm_name(self.name)
