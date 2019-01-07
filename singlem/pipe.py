@@ -206,31 +206,211 @@ class SearchPipe:
                 extracted_reads, graftm_assignment_method)
 
         #### Process taxonomically assigned reads
-        # get the sequences out for each of them
         otu_table_object = OtuTable()
-        if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
-            package_to_taxonomy_bihash = {}
-
+        package_to_taxonomy_bihash = {}
         for readset in extracted_reads:
-            if analysing_pairs:
-                readset_example = readset[0]
+            self._process_taxonomically_assigned_reads(
+                # inputs
+                readset,
+                analysing_pairs,
+                known_taxes,
+                known_sequence_taxonomy,
+                assign_taxonomy,
+                singlem_assignment_method,
+                assignment_result if assign_taxonomy else None,
+                output_jplace,
+                known_sequence_tax if known_sequence_taxonomy else None,
+                # outputs
+                otu_table_object,
+                package_to_taxonomy_bihash)
+
+        return_cleanly()
+        return otu_table_object
+
+    def _get_windowed_sequences(self, protein_sequences, nucleotide_sequence_file,
+                                singlem_package, include_inserts):
+        if not os.path.exists(nucleotide_sequence_file) or \
+            os.stat(nucleotide_sequence_file).st_size == 0: return []
+        nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
+        protein_alignment = self._align_proteins_to_hmm(
+            protein_sequences,
+            singlem_package.graftm_package().alignment_hmm_path())
+        return MetagenomeOtuFinder().find_windowed_sequences(
+            protein_alignment,
+            nucleotide_sequences,
+            singlem_package.window_size(),
+            include_inserts,
+            singlem_package.is_protein_package(),
+            best_position=singlem_package.singlem_position())
+
+    def _extract_relevant_reads(self, alignment_result, include_inserts, known_taxonomy):
+        '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
+        part of the singlem choppage process.
+
+        Returns
+        -------
+        ExtractedReads object
+        '''
+
+        def extract_reads(
+                singlem_package,
+                prealigned_protein_sequences,
+                nucleotide_sequence_fasta_file,
+                include_inserts,
+                known_taxonomy,
+                read_direction):
+
+            aligned_seqs = self._get_windowed_sequences(
+                prealigned_protein_sequences,
+                nucleotide_sequence_fasta_file,
+                singlem_package,
+                include_inserts)
+
+            known_sequences = []
+            unknown_sequences = []
+            for s in aligned_seqs:
+                if s.aligned_sequence in known_taxonomy:
+                    known_sequences.append(s)
+                else:
+                    unknown_sequences.append(s)
+            logging.debug("For sample {} ({}), spkg {}, found {} known and {} unknown OTU sequences".format(
+                sample_name,
+                read_direction,
+                singlem_package.base_directory(),
+                len(known_sequences),
+                len(unknown_sequences)))
+
+            if len(unknown_sequences) > 0:
+                extractor = singlem_sequence_extractor.SequenceExtractor()
+                seqs = extractor.extract_and_read(
+                    [s.name for s in unknown_sequences],
+                    nucleotide_sequence_fasta_file)
             else:
-                readset_example = readset
-            sample_name = readset_example.sample_name
-            singlem_package = readset_example.singlem_package
-            def add_info(infos, otu_table_object, known_tax):
-                for info in infos:
-                    to_print = [
-                        singlem_package.graftm_package_basename(),
-                        sample_name,
-                        info.seq,
-                        info.count,
-                        info.coverage,
-                        info.taxonomy,
-                        info.names,
-                        info.aligned_lengths,
-                        known_tax]
-                    otu_table_object.data.append(to_print)
+                seqs = []
+            readset = ExtractedReadSet(
+                sample_name, singlem_package,
+                seqs, known_sequences, unknown_sequences)
+            return readset
+
+        extracted_reads = ExtractedReads(alignment_result.analysing_pairs)
+
+        for sample_name in alignment_result.sample_names():
+            for singlem_package in self._singlem_package_database:
+                for prealigned_file in alignment_result.prealigned_sequence_files(
+                        sample_name, singlem_package):
+                    if singlem_package.is_protein_package():
+                        nucleotide_sequence_fasta_file = \
+                            alignment_result.nucleotide_sequence_file(
+                                sample_name, singlem_package)
+                    else:
+                        nucleotide_sequence_fasta_file = prealigned_file
+
+                    if alignment_result.analysing_pairs:
+                        logging.debug("Extracting forward reads")
+                        if os.path.exists(prealigned_file[0]):
+                            prots = SeqReader().readfq(open(prealigned_file[0]))
+                        else:
+                            prots = []
+                        readset1 = extract_reads(
+                            singlem_package,
+                            prots,
+                            nucleotide_sequence_fasta_file[0],
+                            include_inserts,
+                            known_taxonomy,
+                            'forward')
+                        logging.debug("Extracting reverse reads")
+                        if os.path.exists(prealigned_file[1]):
+                            prots = SeqReader().readfq(open(prealigned_file[1]))
+                        else:
+                            prots = []
+                        readset2 = extract_reads(
+                            singlem_package,
+                            prots,
+                            nucleotide_sequence_fasta_file[1],
+                            include_inserts,
+                            known_taxonomy,
+                            'reverse')
+                        extracted_reads.add([readset1, readset2])
+                    else:
+                        if os.path.exists(prealigned_file):
+                            prots = SeqReader().readfq(open(prealigned_file))
+                        else:
+                            prots = []
+                        readset = extract_reads(
+                            singlem_package,
+                            prots,
+                            nucleotide_sequence_fasta_file,
+                            include_inserts,
+                            known_taxonomy,
+                            'forward')
+                        extracted_reads.add(readset)
+
+        return extracted_reads
+
+    def _align_proteins_to_hmm(self, protein_sequences, hmm_file):
+        '''hmmalign proteins to hmm, and return an alignment object
+
+        Parameters
+        ----------
+        protein_sequences: generator / list of tuple(name,sequence) objects
+        from SeqReader().
+
+        '''
+        cmd = "hmmalign '{}' /dev/stdin".format(hmm_file)
+        output = extern.run(cmd, stdin=''.join([
+            ">{}\n{}\n".format(s[0], s[1]) for s in protein_sequences]))
+        protein_alignment = []
+        for record in SeqIO.parse(StringIO(output), 'stockholm'):
+            protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
+        if len(protein_alignment) > 0:
+            logging.debug("Read in %i aligned sequences e.g. %s %s" % (
+                len(protein_alignment),
+                protein_alignment[0].name,
+                protein_alignment[0].seq))
+        else:
+            logging.debug("No aligned sequences found for this HMM")
+        return protein_alignment
+
+    def _process_taxonomically_assigned_reads(
+            self,
+            # inputs
+            maybe_paired_readset,
+            analysing_pairs,
+            known_taxes,
+            known_sequence_taxonomy,
+            assign_taxonomy,
+            singlem_assignment_method,
+            assignment_result,
+            output_jplace,
+            known_sequence_tax,
+            # outputs
+            otu_table_object,
+            package_to_taxonomy_bihash):
+
+        # To deal with paired reads, process each. Then exclude second reads
+        # from pairs where both match.
+        if analysing_pairs:
+            readset_example = maybe_paired_readset[0]
+        else:
+            readset_example = maybe_paired_readset
+        sample_name = readset_example.sample_name
+        singlem_package = readset_example.singlem_package
+        def add_info(infos, otu_table_object, known_tax):
+            for info in infos:
+                to_print = [
+                    singlem_package.graftm_package_basename(),
+                    sample_name,
+                    info.seq,
+                    info.count,
+                    info.coverage,
+                    info.taxonomy,
+                    info.names,
+                    info.aligned_lengths,
+                    known_tax]
+                otu_table_object.data.append(to_print)
+
+        def process_readset(readset, analysing_pairs):
+            known_sequences = readset.known_sequences
             known_infos = self._seqs_to_counts_and_taxonomy(
                 known_sequences,
                 NO_ASSIGNMENT_METHOD,
@@ -239,11 +419,12 @@ class SearchPipe:
                 None)
             add_info(known_infos, otu_table_object, True)
 
-            if len(readset.unknown_sequences) > 0: # if any sequences were aligned (not just already known)
+            if len(readset.unknown_sequences) == 0:
+                return []
+            else: # if any sequences were aligned (not just already known)
                 tmpbase = readset.tmpfile_basename
 
                 if assign_taxonomy:
-                    is_known_taxonomy = False
                     aligned_seqs = list(itertools.chain(
                         readset.unknown_sequences, readset.known_sequences))
 
@@ -296,14 +477,12 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
-                    is_known_taxonomy = True
 
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
                     taxonomies,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None))
-                add_info(new_infos, otu_table_object, is_known_taxonomy)
 
                 if output_jplace:
                     base_dir = assignment_result._base_dir(
@@ -317,130 +496,28 @@ class SearchPipe:
                     with open(output_jplace_file, 'w') as output_jplace_io:
                         self._write_jplace_from_infos(
                             open(input_jplace_file), new_infos, output_jplace_io)
-        return_cleanly()
-        return otu_table_object
 
-    def _get_windowed_sequences(self, protein_sequences_file, nucleotide_sequence_file,
-                                singlem_package, include_inserts):
-        if not os.path.exists(nucleotide_sequence_file) or \
-            os.stat(nucleotide_sequence_file).st_size == 0: return []
-        nucleotide_sequences = SeqReader().read_nucleotide_sequences(nucleotide_sequence_file)
-        protein_alignment = self._align_proteins_to_hmm(
-            protein_sequences_file,
-            singlem_package.graftm_package().alignment_hmm_path())
-        return MetagenomeOtuFinder().find_windowed_sequences(
-            protein_alignment,
-            nucleotide_sequences,
-            singlem_package.window_size(),
-            include_inserts,
-            singlem_package.is_protein_package(),
-            best_position=singlem_package.singlem_position())
+                return new_infos
 
-    def _extract_relevant_reads(self, alignment_result, include_inserts, known_taxonomy):
-        '''Given a SingleMPipeAlignSearchResult, extract reads that will be used as
-        part of the singlem choppage process.
+        if analysing_pairs:
+            forward_names = set([u.name for u in maybe_paired_readset[0].unknown_sequences])
+            # Remove sequences from the second set when they occur in the first set
+            indices_to_remove = []
+            for i, u in enumerate(maybe_paired_readset[1].unknown_sequences):
+                if u.name in forward_names:
+                    logging.debug("Removing sequence '{}' from the set of aligned reverse reads".format(
+                        u.name))
+                    indices_to_remove.append(i)
+            for i in reversed(indices_to_remove):
+                del maybe_paired_readset[1].unknown_sequences[i]
+            logging.debug(
+                "Removed {} sequences from reverse read set as the forward read was also detected".format(
+                    len(indices_to_remove)))
 
-        Returns
-        -------
-        ExtractedReads object
-        '''
+        new_infos = process_readset(maybe_paired_readset, analysing_pairs)
+        add_info(new_infos, otu_table_object, not assign_taxonomy)
 
-        def extract_reads(
-                singlem_package,
-                prealigned_file,
-                nucleotide_sequence_fasta_file,
-                include_inserts,
-                known_taxonomy,
-                read_direction):
 
-            aligned_seqs = self._get_windowed_sequences(
-                prealigned_file,
-                nucleotide_sequence_fasta_file,
-                singlem_package,
-                include_inserts)
-
-            known_sequences = []
-            unknown_sequences = []
-            for s in aligned_seqs:
-                if s.aligned_sequence in known_taxonomy:
-                    known_sequences.append(s)
-                else:
-                    unknown_sequences.append(s)
-            logging.debug("For sample {} ({}), spkg {}, found {} known and {} unknown OTU sequences".format(
-                sample_name,
-                read_direction,
-                singlem_package.base_directory(),
-                len(known_sequences),
-                len(unknown_sequences)))
-
-            if len(unknown_sequences) > 0:
-                extractor = singlem_sequence_extractor.SequenceExtractor()
-                seqs = extractor.extract_and_read(
-                    [s.name for s in unknown_sequences],
-                    nucleotide_sequence_fasta_file)
-            else:
-                seqs = []
-            readset = ExtractedReadSet(
-                sample_name, singlem_package,
-                seqs, known_sequences, unknown_sequences)
-            return readset
-
-        extracted_reads = ExtractedReads(alignment_result.analysing_pairs)
-
-        for sample_name in alignment_result.sample_names():
-            for singlem_package in self._singlem_package_database:
-                for prealigned_file in alignment_result.prealigned_sequence_files(
-                        sample_name, singlem_package):
-                    if singlem_package.is_protein_package():
-                        nucleotide_sequence_fasta_file = list(
-                            alignment_result.nucleotide_sequence_file(
-                                sample_name, singlem_package))
-                    else:
-                        nucleotide_sequence_fasta_file = prealigned_file
-
-                    if alignment_result.analysing_pairs:
-                        readset1 = extract_reads(
-                            singlem_package,
-                            prealigned_file[0],
-                            nucleotide_sequence_fasta_file[0][0],
-                            include_inserts,
-                            known_taxonomy,
-                            'forward')
-                        readset2 = extract_reads(
-                            singlem_package,
-                            prealigned_file[1],
-                            nucleotide_sequence_fasta_file[0][1],
-                            include_inserts,
-                            known_taxonomy,
-                            'reverse')
-                        extracted_reads.add([readset1, readset2])
-                    else:
-                        readset = extract_reads(
-                            singlem_package,
-                            nucleotide_sequence_fasta_file,
-                            include_inserts,
-                            known_taxonomy,
-                            'forward')
-                        extracted_reads.add(readset)
-
-        return extracted_reads
-
-    def _align_proteins_to_hmm(self, proteins_file, hmm_file):
-        '''hmmalign proteins to hmm, and return an alignment object'''
-        cmd = "hmmalign '%s' '%s'" % (hmm_file, proteins_file)
-        process = subprocess.Popen(['bash','-c',cmd], stdout=subprocess.PIPE)
-        output, error = process.communicate()
-        protein_alignment = []
-        for record in SeqIO.parse(StringIO(output), 'stockholm'):
-            protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
-        if len(protein_alignment) > 0:
-            logging.debug("Read in %i aligned sequences e.g. %s %s" % (
-                len(protein_alignment),
-                protein_alignment[0].name,
-                protein_alignment[0].seq))
-        else:
-            logging.debug("No aligned sequences found for this HMM")
-        return protein_alignment
 
     def _seqs_to_counts_and_taxonomy(self, sequences,
                                      assignment_method,
@@ -936,7 +1013,7 @@ class SingleMPipeAlignSearchResult:
     def nucleotide_sequence_file(self, sample_name, singlem_package):
         if self.analysing_pairs:
             base_dirs = self._base_dir(sample_name, singlem_package)
-            yield [
+            return [
                 os.path.join(
                     base_dirs[0],
                     "{}_forward_hits_forward_hits.fa".format(sample_name)),
@@ -945,7 +1022,7 @@ class SingleMPipeAlignSearchResult:
                     "{}_forward_hits_reverse_hits.fa".format(sample_name)),
             ]
         else:
-            yield os.path.join(
+            return os.path.join(
                 self._base_dir(sample_name, singlem_package),
                 "%s_hits_hits.fa" % sample_name)
 

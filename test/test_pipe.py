@@ -38,9 +38,11 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.pipe import SearchPipe
+from singlem.sequence_classes import SeqReader
 
 class Tests(unittest.TestCase):
     headers = split('gene sample sequence num_hits coverage taxonomy')
+    headers_with_extras = headers + split('read_names nucleotides_aligned taxonomy_by_known?')
     maxDiff = None
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
@@ -414,7 +416,9 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                             )
 
     def test__align_proteins_to_hmm(self):
-        proteins = path_to_data+'/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorq4droc.fasta'
+        proteins = SeqReader().readfq(open(
+            path_to_data+
+            '/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorq4droc.fasta'))
         hmm = path_to_data+'/4.12.22seqs.spkg/4.12.22seqs/graftmgyqgXl_search.hmm'
 
         alignment = SearchPipe()._align_proteins_to_hmm(proteins, hmm)
@@ -511,7 +515,39 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     n.name,
                     os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
                     n2.name)
-                import IPython; IPython.embed()
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+    def test_paired_reads_one_read_each(self):
+        # Reads should be merged
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False False',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>seq2
+AAAAAAAAAAAAAAAAA
+'''
+        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+AAAAAAAAAAAAAAAAA
+>seq2
+TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
+''' # reverse complement of the forward, so should collapse.
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+                n2.write(inseqs_reverse)
+                n2.flush()
+
+                cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {} --reverse {} --output_extras".format(
+                    path_to_script,
+                    n.name,
+                    os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
+                    n2.name)
+                #import IPython; IPython.embed()
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
