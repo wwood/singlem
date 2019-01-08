@@ -5,7 +5,6 @@ import shutil
 import extern
 import itertools
 import tempfile
-import subprocess
 import json
 import re
 from string import split
@@ -409,24 +408,53 @@ class SearchPipe:
                     known_tax]
                 otu_table_object.data.append(to_print)
 
+        def extract_placement_parser(
+                sample_name, singlem_package, tmpbase, taxonomy_bihash):
+            base_dir = assignment_result._base_dir(
+                sample_name, singlem_package, tmpbase)
+            jplace_file = os.path.join(base_dir, "placements.jplace")
+            logging.debug("Attempting to read jplace output from {}".format(
+                jplace_file))
+            placement_threshold = 0.5
+            if os.path.exists(jplace_file):
+                with open(jplace_file) as f:
+                    jplace_json = json.loads(f.read())
+                if analysing_pairs:
+                    placement_parser = PlacementParser(
+                        jplace_json, taxonomy_bihash, placement_threshold)
+                else:
+                    placement_parser = PlacementParser(
+                        jplace_json, taxonomy_bihash, placement_threshold)
+            else:
+                # Sometimes alignments are filtered out.
+                placement_parser = None
+            return placement_parser
+
         def process_readset(readset, analysing_pairs):
-            known_sequences = readset.known_sequences
             known_infos = self._seqs_to_counts_and_taxonomy(
-                known_sequences,
+                readset.known_sequences if not analysing_pairs else itertools.chain(
+                    readset[0].known_sequences, readset[1].known_sequences),
                 NO_ASSIGNMENT_METHOD,
                 known_taxes,
                 known_sequence_taxonomy,
                 None)
             add_info(known_infos, otu_table_object, True)
 
-            if len(readset.unknown_sequences) == 0:
+            if not analysing_pairs and len(readset.unknown_sequences) == 0:
+                return []
+            elif analysing_pairs and \
+                 len(readset[0].unknown_sequences) == 0 and \
+                 len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
-                tmpbase = readset.tmpfile_basename
-
                 if assign_taxonomy:
-                    aligned_seqs = list(itertools.chain(
-                        readset.unknown_sequences, readset.known_sequences))
+                    if analysing_pairs:
+                        aligned_seqs = list(itertools.chain(
+                            readset[0].unknown_sequences, readset[0].known_sequences,
+                            readset[1].unknown_sequences, readset[1].known_sequences))
+                    else:
+                        aligned_seqs = list(itertools.chain(
+                            readset.unknown_sequences, readset.known_sequences))
 
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         tax_file = assignment_result.diamond_assignment_file(
@@ -454,17 +482,24 @@ class SearchPipe:
                             with open(taxtastic_taxonomy) as f:
                                 taxonomy_bihash = TaxonomyBihash.parse_taxtastic_taxonomy(f)
                             package_to_taxonomy_bihash[bihash_key] = taxonomy_bihash
-                        base_dir = assignment_result._base_dir(
-                            sample_name, singlem_package, tmpbase)
-                        jplace_file = os.path.join(base_dir, "placements.jplace")
-                        logging.debug("Attempting to read jplace output from %s" % jplace_file)
-                        if os.path.exists(jplace_file):
-                            with open(jplace_file) as f:
-                                jplace_json = json.loads(f.read())
-                            placement_parser = PlacementParser(jplace_json, taxonomy_bihash, 0.5)
+
+                        if analysing_pairs:
+                            placement_parser1 = extract_placement_parser(
+                                sample_name, singlem_package, readset[0].tmpfile_basename,
+                                taxonomy_bihash)
+                            placement_parser2 = extract_placement_parser(
+                                sample_name, singlem_package, readset[1].tmpfile_basename,
+                                taxonomy_bihash)
+                            if placement_parser1 is None:
+                                placement_parser = placement_parser2
+                            else:
+                                if placement_parser2 is not None:
+                                    placement_parser1.merge(placement_parser2)
+                                placement_parser = placement_parser1
                         else:
-                            # Sometimes alignments are filtered out.
-                            placement_parser = None
+                            placement_parser = extract_placement_parser(
+                                sample_name, singlem_package, readset.tmpfile_basename,
+                                taxonomy_bihash)
                         taxonomies = {}
                     elif singlem_assignment_method == NO_ASSIGNMENT_METHOD:
                         taxonomies = {}
@@ -837,27 +872,59 @@ class SearchPipe:
             # file is recorded for later on in pipe.
             tmpbase = os.path.basename(tmp.name[:-6])
             readset.tmpfile_basename = tmpbase
-            seqio = SequenceIO()
-            seqio.write_fasta(readset.sequences, tmp)
-            # Close immediately to avoid the "too many open files" error.
-            tmp.close()
             return tmp
 
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
         # fewer open files are needed, so that the open file count limit is
         # eased.
+        seqio = SequenceIO()
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
                 if extracted_reads.analysing_pairs:
                     if len(readset[0].sequences + readset[1].sequences) > 0:
-                        tmp_files.append([
-                            generate_tempfile_for_readset(readset[0]),
-                            generate_tempfile_for_readset(readset[1])])
+                        # Some pairs will only have one side of the pair aligned,
+                        # some pairs both. Fill in the forward and reverse files
+                        # with dummy data as necessary
+                        dummy_sequence = 'AAA'
+                        forward_tmp = generate_tempfile_for_readset(readset[0])
+                        reverse_tmp = generate_tempfile_for_readset(readset[1])
+
+                        forward_seq_names = {}
+                        for (i, s) in enumerate(readset[0].sequences):
+                            forward_seq_names[s.name] = i
+                            seqio.write_fasta([s], forward_tmp)
+                        reverse_name_to_seq = {}
+                        for s in readset[1].sequences:
+                            reverse_name_to_seq[s.name] = s
+                        for name, forward_i in forward_seq_names.items():
+                            if name in reverse_name_to_seq:
+                                # Write corresponding reverse and delete it
+                                # from dict.
+                                seqio.write_fasta(
+                                    [reverse_name_to_seq.pop(name)], reverse_tmp)
+                            else:
+                                # Forward read matched only
+                                reverse_tmp.write(">{}\n{}\n".format(
+                                    name, dummy_sequence))
+                        for name, seq in reverse_name_to_seq.items():
+                            # Reverse read matched only
+                            forward_tmp.write(">{}\n{}\n".format(
+                                name, dummy_sequence))
+                            seqio.write_fasta([seq], reverse_tmp)
+
+                        # Close immediately to avoid the "too many open files" error.
+                        forward_tmp.close()
+                        reverse_tmp.close()
+                        tmp_files.append([forward_tmp, reverse_tmp])
                 else:
                     if len(readset.sequences) > 0:
-                        tmp_files.append(generate_tempfile_for_readset(readset))
+                        tmp = generate_tempfile_for_readset(readset)
+                        seqio.write_fasta(readset.sequences, tmp)
+                        tmp_files.append(tmp)
+                        # Close immediately to avoid the "too many open files" error.
+                        tmp.close()
 
             if len(tmp_files) > 0:
                 cmd = "%s "\
@@ -880,6 +947,7 @@ class SearchPipe:
                     tmpnames = list([tg.name for tg in tmp_files])
                     cmd += " --forward {} ".format(
                         ' '.join(tmpnames))
+                import IPython; IPython.embed()
                 commands.append(cmd)
 
         extern.run_many(commands, num_threads=1)
