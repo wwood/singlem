@@ -1,4 +1,5 @@
 import logging
+from singlem import OrfMUtils
 
 class PlacementParser:
     def __init__(self, json, taxonomy_bihash, probability_threshold):
@@ -6,15 +7,32 @@ class PlacementParser:
         self._taxonomy_bihash = taxonomy_bihash
         self._sequence_to_placement = {}
         self._probability_threshold = probability_threshold
+        orfm = OrfMUtils()
         for placement in json['placements']:
             for nm in placement['nm']:
                 if nm[1] != 1:
                     raise Exception("Cannot handle jplace files with nm counts != 1")
-                sequence = nm[0]
+                #TODO: Remove this hack that covers for a GraftM bug.
+                sequence = orfm.un_orfm_name(nm[0])
                 if sequence in self._sequence_to_placement:
                     raise Exception(
                         "There appears to be duplicate names amongst placed sequences")
                 self._sequence_to_placement[sequence] = placement
+
+    def merge(self, another_placement_parser):
+        '''Given this is an object storing the placements of the first read, add the
+        placements of the second reads. All sequences that have names not
+        already stored list of names are added.
+        '''
+        orfm = OrfMUtils()
+        for placement in another_placement_parser._json['placements']:
+            for nm in placement['nm']:
+                if nm[1] != 1:
+                    raise Exception("Cannot handle jplace files with nm counts != 1")
+                #TODO: Remove this hack that covers for a GraftM bug.
+                sequence = orfm.un_orfm_name(nm[0])
+                if sequence not in self._sequence_to_placement:
+                    self._sequence_to_placement[sequence] = placement
 
     def otu_placement(self, sequence_names):
         '''Return the most fully resolved taxonomy of the set of reads, pooling the
@@ -36,7 +54,10 @@ class PlacementParser:
         root_tax = None
 
         # For each placement for each sequence
-        for name in sequence_names:
+        orfm = OrfMUtils()
+        for name1 in sequence_names:
+            #TODO: Remove this hack that covers for a GraftM bug.
+            name = orfm.un_orfm_name(name1)
             if name in self._sequence_to_placement:
                 for p in self._sequence_to_placement[name]['p']:
                     # Get list of taxonomies from placed to root of tree
