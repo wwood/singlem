@@ -23,6 +23,11 @@ class TaxonomyFile:
     def __getitem__(self, item):
         return self.sequence_to_taxonomy[item]
 
+    def merge(self, another_taxonomy_file):
+        for key, value in another_taxonomy_file.sequence_to_taxonomy.items():
+            if key not in self.sequence_to_taxonomy:
+                self.sequence_to_taxonomy[key] = value
+
 class HmmDatabase:
     def __init__(self, package_paths=None):
         # Array of gpkg names to SingleMPackage objects

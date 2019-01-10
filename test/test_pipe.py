@@ -595,7 +595,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # Reads should be merged
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
@@ -619,7 +619,39 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     n.name,
                     os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
                     n2.name)
-                import IPython; IPython.embed()
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+
+    def test_paired_reads_one_read_each_diamond_example(self):
+        # Reads should be merged
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	2524614704	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>seq2
+AAAAAAAAAAAAAAAAA
+'''
+        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+AAAAAAAAAAAAAAAAA
+>seq2
+TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
+''' # reverse complement of the forward, so should collapse.
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+                n2.write(inseqs_reverse)
+                n2.flush()
+
+                cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {} --reverse {} --output_extras --assignment_method diamond_example".format(
+                    path_to_script,
+                    n.name,
+                    os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
+                    n2.name)
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))

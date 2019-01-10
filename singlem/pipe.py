@@ -457,20 +457,67 @@ class SearchPipe:
                             readset.unknown_sequences, readset.known_sequences))
 
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                        tax_file = assignment_result.diamond_assignment_file(
-                            sample_name, singlem_package, tmpbase)
-                        taxonomies = DiamondResultParser(tax_file)
-                    elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-                        tax_file = assignment_result.read_tax_file(
-                            sample_name, singlem_package, tmpbase)
-                        if not os.path.isfile(tax_file):
-                            logging.warn("Unable to find tax file for gene %s from sample %s "
-                                         "(likely do to min length filtering), skipping" % (
-                                             os.path.basename(singlem_package.base_directory()),
-                                             sample_name))
-                            taxonomies = {}
+                        if analysing_pairs:
+                            taxonomy1 = DiamondResultParser(
+                                assignment_result.forward_diamond_assignment_file(
+                                    sample_name, singlem_package, readset[0].tmpfile_basename))
+                            taxonomy2 = DiamondResultParser(
+                                assignment_result.reverse_diamond_assignment_file(
+                                    sample_name, singlem_package, readset[1].tmpfile_basename))
+                            taxonomies = taxonomy2
+                            taxonomies.sequence_to_hit_id.update(
+                                taxonomy1.sequence_to_hit_id)
                         else:
-                            taxonomies = TaxonomyFile(tax_file)
+                            tax_file = assignment_result.diamond_assignment_file(
+                                sample_name, singlem_package, readset.tmpfile_basename)
+                            taxonomies = DiamondResultParser(tax_file)
+
+                    elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                        def process_taxonomy_file(taxonomy_file_path, is_forward):
+                            if not os.path.isfile(taxonomy_file_path):
+                                if is_forward is None:
+                                    to_add = ''
+                                elif is_forward == True:
+                                    to_add = ' (forward)'
+                                elif is_forward == False:
+                                    to_add = ' (reverse)'
+                                logging.warn(
+                                    "Unable to find tax file for gene {} from sample {}{} "
+                                    "(likely do to min length filtering), skipping".format(
+                                        os.path.basename(singlem_package.base_directory()),
+                                        sample_name,
+                                        to_add))
+                                return None
+                            else:
+                                return TaxonomyFile(taxonomy_file_path)
+
+                        if analysing_pairs:
+                            taxonomy1 = process_taxonomy_file(
+                                assignment_result.forward_read_tax_file(
+                                    sample_name, singlem_package, readset[0].tmpfile_basename),
+                                True)
+                            taxonomy2 = process_taxonomy_file(
+                                assignment_result.reverse_read_tax_file(
+                                    sample_name, singlem_package, readset[1].tmpfile_basename),
+                                False)
+                            if taxonomy1 is None:
+                                if taxonomy2 is None:
+                                    taxonomies = {}
+                                else:
+                                    taxonomies = taxonomy2
+                            elif taxonomy2 is None:
+                                taxonomies = taxonomy1
+                            else:
+                                taxonomies = taxonomy1
+                                taxonomies.merge(taxonomy2)
+
+                        else:
+                            taxonomies = process_taxonomy_file(
+                                assignment_result.read_tax_file(
+                                    sample_name, singlem_package, readset.tmpfile_basename),
+                                None)
+                            if taxonomies is None:
+                                taxonomies = {}
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         bihash_key = singlem_package.base_directory()
@@ -520,17 +567,20 @@ class SearchPipe:
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None))
 
                 if output_jplace:
-                    base_dir = assignment_result._base_dir(
-                        sample_name, singlem_package, tmpbase)
-                    input_jplace_file = os.path.join(base_dir, "placements.jplace")
-                    output_jplace_file = "%s_%s_%s.jplace" % (
-                        output_jplace, sample_name, singlem_package.graftm_package_basename())
-                    logging.info("Writing jplace file '%s'" % output_jplace_file)
-                    logging.debug("Converting jplace file %s to singlem jplace file %s" % (
-                        input_jplace_file, output_jplace_file))
-                    with open(output_jplace_file, 'w') as output_jplace_io:
-                        self._write_jplace_from_infos(
-                            open(input_jplace_file), new_infos, output_jplace_io)
+                    if analysing_pairs:
+                        raise Exception("output_jplace is not currently implemented with paired read input")
+                    else:
+                        base_dir = assignment_result._base_dir(
+                            sample_name, singlem_package, readset.tmpfile_basename)
+                        input_jplace_file = os.path.join(base_dir, "placements.jplace")
+                        output_jplace_file = "%s_%s_%s.jplace" % (
+                            output_jplace, sample_name, singlem_package.graftm_package_basename())
+                        logging.info("Writing jplace file '%s'" % output_jplace_file)
+                        logging.debug("Converting jplace file %s to singlem jplace file %s" % (
+                            input_jplace_file, output_jplace_file))
+                        with open(output_jplace_file, 'w') as output_jplace_io:
+                            self._write_jplace_from_infos(
+                                open(input_jplace_file), new_infos, output_jplace_io)
 
                 return new_infos
 
@@ -930,29 +980,53 @@ class SearchPipe:
                 cmd = "%s "\
                       "--threads %i "\
                       "--graftm_package %s "\
-                      "--output_directory %s/%s "\
                       "--max_samples_for_krona 0 "\
-                      "--assignment_method %s" % (
+                      "--assignment_method %s " % (
                           self._graftm_command_prefix(singlem_package.is_protein_package()),
                           self._num_threads,
                           singlem_package.graftm_package_path(),
-                          graftm_align_directory_base,
-                          singlem_package.graftm_package_basename(),
                           assignment_method)
                 if extracted_reads.analysing_pairs:
-                    cmd += " --forward {} --reverse {}".format(
-                        ' '.join(t[0].name for t in tmp_files),
-                        ' '.join(t[1].name for t in tmp_files))
+                    if assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                        cmd += "--output_directory {}/{} ".format(
+                            graftm_align_directory_base,
+                            singlem_package.graftm_package_basename())
+                        cmd += " --forward {} --reverse {}".format(
+                            ' '.join(t[0].name for t in tmp_files),
+                            ' '.join(t[1].name for t in tmp_files))
+                        commands.append(cmd)
+                    elif assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                        # GraftM ignores reverse reads with diamond assignment
+                        # method, so run forward and reverse individually.
+                        cmd1 = cmd + "--forward {} --output_directory {}".format(
+                            ' '.join(t[0].name for t in tmp_files),
+                            self._diamond_assign_taxonomy_paired_output_directory(
+                                graftm_align_directory_base, singlem_package, True))
+                        cmd2 = cmd + "--forward {} --output_directory {}".format(
+                            ' '.join(t[1].name for t in tmp_files),
+                            self._diamond_assign_taxonomy_paired_output_directory(
+                                graftm_align_directory_base, singlem_package, False))
+                        commands.append(cmd1)
+                        commands.append(cmd2)
                 else:
+                    cmd += "--output_directory {}/{} ".format(
+                        graftm_align_directory_base,
+                        singlem_package.graftm_package_basename())
                     tmpnames = list([tg.name for tg in tmp_files])
                     cmd += " --forward {} ".format(
                         ' '.join(tmpnames))
-                import IPython; IPython.embed()
-                commands.append(cmd)
+                    commands.append(cmd)
 
         extern.run_many(commands, num_threads=1)
         logging.info("Finished running taxonomic assignment with GraftM")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
+
+    def _diamond_assign_taxonomy_paired_output_directory(
+            self, graftm_align_directory_base, singlem_package, is_forward):
+        return "{}/{}_{}".format(
+            graftm_align_directory_base,
+            singlem_package.graftm_package_basename(),
+            "read1" if is_forward else "read2")
 
 class SingleMPipeSearchResult:
     def __init__(self, graftm_protein_result, graftm_nucleotide_result, analysing_pairs):
@@ -1107,6 +1181,18 @@ class SingleMPipeTaxonomicAssignmentResult:
                                 singlem_package.graftm_package_basename(),
                                 re.sub('\.fasta$','',tmpbase)))
 
+    def _base_dir1(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(
+            self._graftm_output_directory,
+            "{}_read1".format(singlem_package.graftm_package_basename()),
+            tmpbase)
+
+    def _base_dir2(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(
+            self._graftm_output_directory,
+            "{}_read2".format(singlem_package.graftm_package_basename()),
+            tmpbase)
+
     def protein_orf_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             "%s_orf.fa" % tmpbase)
@@ -1129,9 +1215,25 @@ class SingleMPipeTaxonomicAssignmentResult:
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             '%s_diamond_assignment.daa' % tmpbase)
 
+    def forward_diamond_assignment_file(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(self._base_dir1(sample_name, singlem_package, tmpbase),
+                            '{}_diamond_assignment.daa'.format(tmpbase))
+
+    def reverse_diamond_assignment_file(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(self._base_dir2(sample_name, singlem_package, tmpbase),
+                            '{}_diamond_assignment.daa'.format(tmpbase))
+
     def read_tax_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             '%s_read_tax.tsv' % tmpbase)
+
+    def forward_read_tax_file(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(self._base_dir1(sample_name, singlem_package, tmpbase),
+                            '{}_read_tax.tsv'.format(tmpbase))
+
+    def reverse_read_tax_file(self, sample_name, singlem_package, tmpbase):
+        return os.path.join(self._base_dir2(sample_name, singlem_package, tmpbase),
+                            '{}_read_tax.tsv'.format(tmpbase))
 
     def jplace_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
