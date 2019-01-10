@@ -14,7 +14,6 @@ class DiamondResultParser:
                 logging.warn("Found a hopefully rare case: multiple ORFs from the same read hit the same HMM. Ignoring the duplicate. The read name was %s" % (query_id))
             else:
                 self.sequence_to_hit_id[query_id] = arr[1]
-            
         logging.debug("Finished reading diamond file, read in %i assignments" % len(self.sequence_to_hit_id))
 
     def __getitem__(self, item):
