@@ -95,7 +95,15 @@ class MyParser(argparse.ArgumentParser):
 
 '''+bcolors.HEADER+'Common usage:'+bcolors.ENDC+'''
 
-  singlem pipe --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
+With paired read input:
+
+  singlem pipe --forward <fastq_or_fasta1> --reverse <fastq_or_fasta2> \\
+    --otu_table <output.otu_table.tsv>
+
+Or with other input sequence types:
+
+  singlem pipe --sequences <input_fastq_or_fasta> \\
+    --otu_table <output.otu_table.tsv>
 
 '''+bcolors.HEADER+'Popular options:'+bcolors.ENDC+'''
   --threads N\t\tUse N threads.
@@ -201,7 +209,7 @@ https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
 '''+bcolors.HEADER+'Example:'+bcolors.ENDC+'''
 
-  singlem query --input_archive_otu_table my.archive_otu_table_from_pipe.json \\
+  singlem renew --input_archive_otu_table my.archive_otu_table_from_pipe.json \\
             --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
 
 '''+bcolors.HEADER+'Note:'+bcolors.ENDC+'''
@@ -422,6 +430,8 @@ if __name__ == '__main__':
         if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
             raise Exception(
                 "Currently --known_sequence_taxonomy requires --no_assign_taxonomy to be set also")
+        if args.reverse and args.output_jplace:
+            raise Exception("Currently jplace_output cannot be used with --reverse")
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
         print ''
