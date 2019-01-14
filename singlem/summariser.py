@@ -91,12 +91,12 @@ class Summariser:
         return gene_to_sample_to_taxonomy_to_count
 
     @staticmethod
-    def write_unifrac_format_file(**kwargs):
+    def write_unifrac_by_otu_format_file(**kwargs):
         '''Summarise an OTU table as 3 column tab separated OTU table:
-        sample, taxonomy, count
+        sample, OTU sequence, count
 
-        When >1 OTU maps to the same taxonomy, collapse them into one OTU,
-        adding their coverages
+        When >1 OTU has the same sequence, collapse them into one OTU,
+        adding their counts.
         '''
         unifrac_output_prefix = kwargs.pop('unifrac_output_prefix')
         table_collection = kwargs.pop('table_collection')
@@ -105,6 +105,31 @@ class Summariser:
 
         # prep the array
         gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection, add_sequence_to_taxonomy=False, use_sequence_as_taxonomy=True, use_coverage=False)
+
+        for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.items():
+            unifrac_output = '%s.%s.unifrac' % (unifrac_output_prefix, gene)
+            logging.info("Writing %s" % unifrac_output)
+            with open(unifrac_output, 'w') as f:
+                for sample, taxonomy_to_count in sample_to_taxonomy_to_count.items():
+                    for taxonomy, count in taxonomy_to_count.items():
+                        if taxonomy == '': continue #ignore unclassified
+                        f.write("\t".join([taxonomy, sample, str(count)])+"\n")
+
+    @staticmethod
+    def write_unifrac_by_taxonomy_format_file(**kwargs):
+        '''Summarise an OTU table as 3 column tab separated OTU table:
+        sample, taxonomy, count
+
+        When >1 OTU has the same taxonomy, collapse them into one OTU,
+        adding their counts.
+        '''
+        unifrac_output_prefix = kwargs.pop('unifrac_output_prefix')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        # prep the array
+        gene_to_sample_to_taxonomy_to_count = Summariser._collapse_otu_table_into_gene_to_sample_to_taxonomy_to_count(table_collection, add_sequence_to_taxonomy=False, use_sequence_as_taxonomy=False, use_coverage=False)
 
         for gene, sample_to_taxonomy_to_count in gene_to_sample_to_taxonomy_to_count.items():
             unifrac_output = '%s.%s.unifrac' % (unifrac_output_prefix, gene)

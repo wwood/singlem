@@ -361,7 +361,8 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--krona', help="Name of krona file to generate")
     summarise_output_args.add_argument('--wide_format_otu_table', help="Name of output species by site CSV file")
     summarise_output_args.add_argument('--strain_overview_table', help="Name of output strains table to generate")
-    summarise_output_args.add_argument('--unifrac', help="Output UniFrac format file")
+    summarise_output_args.add_argument('--unifrac_by_otu', help="Output UniFrac format file where entries are OTU sequences")
+    summarise_output_args.add_argument('--unifrac_by_taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
     summarise_output_args.add_argument('--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
 
@@ -594,7 +595,8 @@ if __name__ == '__main__':
         num_output_types = 0
         if args.strain_overview_table: num_output_types += 1
         if args.krona: num_output_types += 1
-        if args.unifrac: num_output_types += 1
+        if args.unifrac_by_otu: num_output_types += 1
+        if args.unifrac_by_taxonomy: num_output_types += 1
         if args.biom_prefix: num_output_types += 1
         if args.output_otu_table: num_output_types += 1
         if args.clustered_output_otu_table: num_output_types += 1
@@ -633,10 +635,14 @@ if __name__ == '__main__':
             Summariser.summarise(
                 table_collection = otus,
                 krona_output = args.krona)
-        elif args.unifrac:
-            Summariser.write_unifrac_format_file(
+        elif args.unifrac_by_otu:
+            Summariser.write_unifrac_by_otu_format_file(
                 table_collection = otus,
-                unifrac_output_prefix = args.unifrac)
+                unifrac_output_prefix = args.unifrac_by_otu)
+        elif args.unifrac_by_taxonomy:
+            Summariser.write_unifrac_by_taxonomy_format_file(
+                table_collection = otus,
+                unifrac_output_prefix = args.unifrac_by_taxonomy)
         elif args.biom_prefix:
             Summariser.write_biom_otu_tables(
                 table_collection = otus,

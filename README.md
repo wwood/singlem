@@ -90,13 +90,13 @@ singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv -
 This generates a BIOM table for each marker gene e.g. `myprefix.4.12.ribosomal_protein_L11_rplK.biom`.
 
 ### Calculating beta diversity between samples
-As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac format using `singlem summarise`:
+As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using `singlem summarise`. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.
 ```
-singlem summarise --input_otu_table otu_table.csv --unifrac otu_table.unifrac
+singlem summarise --input_otu_table otu_table.csv --unifrac_by_otu otu_table.unifrac
 ```
 The above commands generates 14 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
 
-To calculate beta diversity, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
+To calculate beta diversity that does not account for the phylogenetic relationships between the OTU sequences, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
 ```
 convertToEBD.py otu_table.unifrac.4.12.ribosomal_protein_L11_rplK.unifrac otu_table.ebd
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
@@ -104,10 +104,17 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 Phylogenetic tree-based methods of calculating beta diversity can also be calculated, but `pipe` must be used to generate a new OTU table using the `diamond_example` taxonomy assignment method so that each OTU is assigned to a single leaf in the tree:
 ```
 singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.diamond_example.csv --threads 24 --assignment_method diamond_example
-singlem summarise --otu_tables otu_table.diamond_example.csv --unifrac otu_table.diamond_example.csv
-convertToEBD.py otu_table.diamond_example.unifrac otu_table.diamond_example.ebd
-ExpressBetaDiversity -s otu_table.diamond_example.ebd -c Bray-Curtis -t `singlem get_tree --marker_name 4.21.ribosomal_protein_S19_rpsS`
 ```
+Then, use the `--unifrac_by_taxonomy` flag to create a unifrac format file indexed by taxonomy identifier:
+```
+singlem summarise --otu_tables otu_table.diamond_example.csv --unifrac_by_taxonomy otu_table.diamond_example.csv
+convertToEBD.py otu_table.diamond_example.unifrac otu_table.diamond_example.ebd
+```
+Then, finally run `ExpressBetaDiversity` using the `-t` flag.
+```
+ExpressBetaDiversity -s otu_table.diamond_example.ebd -c Bray-Curtis -t <path_to_tree_in_singlem_package>
+```
+where `<path_to_tree_in_singlem_package>` is the newick format file in the SingleM package used to find the OTU sequences.
 
 
 ### Creating and querying SingleM databases
@@ -167,7 +174,7 @@ unassembled.
 ### Installation
 
 #### Installation via GNU Guix
-The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well, except smafa. Once you have installed Guix, clone the ACE collection and install:
+The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
 ```
 git clone https://github.com/Ecogenomics/ace-guix
 GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
@@ -209,7 +216,7 @@ If you have any questions or comments, send a message to the [SupportM mailing l
 
 ### FAQ
 #### Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?
-Yes. By default, SingleM builds OTU tables from ribosomal protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a repository of auxiliary packages at https://github.com/wwood/singlem_extra_packages including a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem_packages` flag pointing to a separately downloaded package - see https://github.com/wwood/singlem_extra_packages/blob/master/README.md.
+Yes. By default, SingleM builds OTU tables from ribosomal protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a repository of auxiliary packages at https://github.com/wwood/singlem_extra_packages including a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem_packages` flag in `pipe` mode pointing to a separately downloaded package - see https://github.com/wwood/singlem_extra_packages/blob/master/README.md.
 
 #### How should SingleM be run on multiple samples?
 There are two ways. It is possible to specify multiple input files to the `singlem pipe` subcommand directly by space separating them. Alternatively `singlem pipe` can be run on each sample and OTU tables combined using `singlem summarise`. The results should be identical, though there are some performance trade-offs. For large numbers of samples (>100) it is probably preferable to run each sample individually or in smaller groups.
