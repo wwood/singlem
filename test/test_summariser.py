@@ -129,6 +129,73 @@ class Tests(unittest.TestCase):
         self.assertEqual('marker\tsequence\tminimal\tmaximal\ttaxonomy\n4.11.ribosomal_protein_L10\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA\t2\t2\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus\n4.12.ribosomal_protein_L11_rplK\tCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG\t4\t0\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n',
                          output.getvalue())
 
+    def test_phylogeny_aware_beta_diversity(self):
+        '''Need to make sure we can do phylogeny aware stuff with the output of summarise as per the README'''
+        e1 = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2512564006'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal','ACTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2585427686'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal','TCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2518645625']]
+        e2 = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal2','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2512564006'],
+            ['4.12.ribosomal_protein_L11_rplK','minimal2','ACTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','2585427686']]
+
+        with tempfile.NamedTemporaryFile() as otus1:
+            otus1.write("\n".join(["\t".join(x) for x in e1]+['']))
+            otus1.flush()
+            with tempfile.NamedTemporaryFile() as otus2:
+                otus2.write("\n".join(["\t".join(x) for x in e2]+['']))
+                otus2.flush()
+
+                with tempdir.TempDir() as d:
+                    #singlem summarise --input_otu_table /tmp/tmpGTvm6f /tmp/tmpTvoNvC --unifrac out_unifracer
+                    cmd = "{} summarise --input_otu_tables {} {} --unifrac_by_otu {}".format(
+                        path_to_script,
+                        otus1.name,
+                        otus2.name,
+                        os.path.join(d, 'unifrac_out'))
+                    extern.run(cmd)
+                    #convertToEBD.py out_unifracer.4.12.ribosomal_protein_L11_rplK.unifrac otu_table.ebd
+                    cmd = "convertToEBD.py {} {}".format(
+                        os.path.join(d,"unifrac_out.4.12.ribosomal_protein_L11_rplK.unifrac"),
+                        os.path.join(d, "otu_table1.ebd"))
+                    extern.run(cmd)
+                    #ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
+                    cmd = "ExpressBetaDiversity -s {} -c Bray-Curtis -p {}".format(
+                        os.path.join(d, "otu_table1.ebd"),
+                        os.path.join(d, "phylogeny_free"))
+                    extern.run(cmd)
+                    with open(os.path.join(d, "phylogeny_free.diss")) as f:
+                        self.assertEqual("""2
+minimal2
+minimal	0.2
+""",
+                                         f.read())
+
+                with tempdir.TempDir() as d:
+                    ## Then for the phylogeny version:
+                    #singlem summarise --taxonomy_as_identifier --unifrac
+                    cmd = "{} summarise --input_otu_tables {} {} --unifrac_by_taxonomy {}".format(
+                        path_to_script,
+                        otus1.name,
+                        otus2.name,
+                        os.path.join(d, 'unifrac_taxonomy_out'))
+                    extern.run(cmd)
+                    cmd = "convertToEBD.py {} {}".format(
+                        os.path.join(d,"unifrac_taxonomy_out.4.12.ribosomal_protein_L11_rplK.unifrac"),
+                        os.path.join(d, "otu_table2.ebd"))
+                    extern.run(cmd)
+                    cmd = "ExpressBetaDiversity -s {} -c Bray-Curtis -t {} -p {}".format(
+                        os.path.join(d, 'otu_table2.ebd'),
+                        os.path.join(
+                            path_to_data,
+                            "4.12.22seqs.spkg/4.12.22seqs/4.12.22seqs.gpkg.refpkg/treeitF_La.tre"),
+                        os.path.join(d, 'phylogeny_full'))
+                    extern.run(cmd)
+                    with open(os.path.join(d, "phylogeny_full.diss")) as f:
+                        self.assertEqual('2\nminimal2\nminimal\t0.109937\n', f.read())
+
+                # TODO: Implement singlem get_tree
+
 
 if __name__ == "__main__":
     unittest.main()
