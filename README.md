@@ -114,7 +114,7 @@ Then, finally run `ExpressBetaDiversity` using the `-t` flag.
 ```
 ExpressBetaDiversity -s otu_table.diamond_example.ebd -c Bray-Curtis -t <path_to_tree_in_singlem_package>
 ```
-where `<path_to_tree_in_singlem_package>` is the newick format file in the SingleM package used to find the OTU sequences.
+where `<path_to_tree_in_singlem_package>` is the newick format file in the SingleM package used to find the OTU sequences. This path can be found using `singlem get_tree`.
 
 
 ### Creating and querying SingleM databases

@@ -34,6 +34,7 @@ from singlem.chancer import Chancer
 from singlem.regenerator import Regenerator
 from singlem.taxonomy import Taxonomy
 from singlem.renew import Renew
+from singlem.singlem import HmmDatabase
 
 DEFAULT_WINDOW_SIZE=60
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
@@ -383,6 +384,10 @@ if __name__ == '__main__':
     create_parser.add_argument('--window_size', metavar="INTEGER", help="length of residues in the window, counting only those that match the HMM", required=True, type=int)
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
 
+    get_tree_description = 'Extract path to Newick tree file in a SingleM package.'
+    get_tree_parser = new_subparser(subparsers, 'get_tree', get_tree_description)
+    get_tree_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
+
     regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
     regenerate_parser.add_argument('--input_singlem_package', metavar="PATH", help="input package", required=True)
@@ -442,16 +447,17 @@ if __name__ == '__main__':
         print '    summarise    -> %s' % summarise_description
         print '    renew        -> %s' % renew_description
 
-        print '\n  Databases:'
+        print '\n  Databases (of OTU sequences):'
         print '    makedb       -> %s' % makedb_description
         print '    query        -> %s' % query_description
 
         print '\n  Assembly and binning:'
         print '    appraise     -> %s' % appraise_description
 
-        print '\n  Package creation:'
+        print '\n  Packages (to search with):'
         print '    seqs         -> %s' % seqs_description
         print '    create       -> %s' % create_description
+        print '    get_tree     -> %s' % get_tree_description
         print '    regenerate   -> %s' % regenerate_description
 
         print '\n  Use singlem <command> -h for command-specific help.\n'\
@@ -763,6 +769,15 @@ if __name__ == '__main__':
             intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
             input_taxonomy = args.input_taxonomy,
             type_strains_list_file = args.type_strains_list_file)
+
+    elif args.subparser_name == 'get_tree':
+        hmm_db = HmmDatabase(args.singlem_packages)
+        print("marker\ttree_file")
+        for pkg in hmm_db.singlem_packages:
+            print("{}\t{}".format(
+                pkg.graftm_package_basename(),
+                os.path.abspath(
+                    pkg.graftm_package().reference_package_tree_path())))
 
     elif args.subparser_name == 'chance':
         chancer = Chancer()

@@ -194,8 +194,31 @@ minimal	0.2
                     with open(os.path.join(d, "phylogeny_full.diss")) as f:
                         self.assertEqual('2\nminimal2\nminimal\t0.109937\n', f.read())
 
-                # TODO: Implement singlem get_tree
+    def test_get_tree_default(self):
+        cmd = "{} get_tree".format(path_to_script)
+        observed = extern.run(cmd)
+        splits = observed.split('\n')
+        self.assertEqual('marker\ttree_file', splits[0])
+        self.assertEqual('.tre',splits[1][-4:])
+        self.assertGreater(len(splits), 10)
+        for line in splits[1:-1]:
+            self.assertTrue(os.path.exists(line.split('\t')[1]))
 
+    def test_get_tree_specific(self):
+        cmd = "{} get_tree --singlem_package {}".format(
+            path_to_script,
+            os.path.join(path_to_data,'4.12.22seqs.spkg'))
+        observed = extern.run(cmd)
+        splits = observed.split('\n')
+        self.assertEqual('marker\ttree_file', splits[0])
+        self.assertEqual(3, len(splits))
+        self.assertEqual('',splits[2])
+        self.assertEqual(
+            '4.12.22seqs\t{}'.format(
+                os.path.abspath(os.path.join(
+                    path_to_data,
+                    '4.12.22seqs.spkg/4.12.22seqs/4.12.22seqs.gpkg.refpkg/treeitF_La.tre'))),
+            splits[1])
 
 if __name__ == "__main__":
     unittest.main()
