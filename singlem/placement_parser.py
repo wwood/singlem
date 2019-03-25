@@ -16,7 +16,9 @@ class PlacementParser:
                 sequence = orfm.un_orfm_name(nm[0])
                 if sequence in self._sequence_to_placement:
                     raise Exception(
-                        "There appears to be duplicate names amongst placed sequences")
+                        "There appears to be duplicate names amongst placed \
+                        sequences e.g. '%s' which was '%s".format(
+                            sequence, nm[0]))
                 self._sequence_to_placement[sequence] = placement
 
     def merge(self, another_placement_parser):
