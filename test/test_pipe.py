@@ -655,5 +655,29 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
+    def test_two_orfs_in_same_read(self):
+        # Read finds 2 ORFs, pretty rare for reads (but happens for genomes
+        # more frequently)
+        expected = [
+            "\t".join(self.headers_with_extras),
+            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False',
+            '']
+        inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
+CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
+'''
+        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {} --output_extras".format(
+                path_to_script,
+                n.name,
+                os.path.join(path_to_data, 'S1.12.ribosomal_protein_S12_S23.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+
+
 if __name__ == "__main__":
     unittest.main()
