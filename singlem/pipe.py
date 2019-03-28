@@ -394,6 +394,7 @@ class SearchPipe:
             readset_example = maybe_paired_readset
         sample_name = readset_example.sample_name
         singlem_package = readset_example.singlem_package
+        
         def add_info(infos, otu_table_object, known_tax):
             for info in infos:
                 to_print = [
@@ -403,7 +404,7 @@ class SearchPipe:
                     info.count,
                     info.coverage,
                     info.taxonomy,
-                    info.names,
+                    list(sorted(info.names)),
                     info.aligned_lengths,
                     known_tax]
                 otu_table_object.data.append(to_print)
