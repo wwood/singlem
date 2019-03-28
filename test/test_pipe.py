@@ -677,6 +677,20 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
+    def test_split_genes(self):
+        # 2 ORFs found causing GraftM to do its "split" thing
+        expected = [
+            "\t".join(self.headers),
+            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus",
+            '']
+        cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {}".format(
+            path_to_script,
+            os.path.join(path_to_data, 'aa_orf_split_bug.fna'),
+            os.path.join(path_to_data, 'S1.2.ribosomal_protein_L3_rplC.gpkg.spkg'))
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
+
 
 
 if __name__ == "__main__":
