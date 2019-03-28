@@ -48,7 +48,7 @@ setup(
     ],
     keywords="metagenomics bioinformatics",
     packages=find_packages(exclude=['contrib','docs']),
-    install_requires=('graftm >= 0.12.1',
+    install_requires=('graftm >= 0.12.2',
                       'extern >= 0.0.4',
                       'tempdir >= 0.6',
                       'biopython >= 1.64',
