@@ -21,6 +21,7 @@ def recursive_find(directory):
 # See https://stackoverflow.com/questions/20298729/pip-installing-data-files-to-the-wrong-place
 # for details on how to get them working.
 spkg_data_files = list([f.replace('singlem/data/','') for f in recursive_find('singlem/data')])
+print spkg_data_files[:4]
 
 setup(
     name='singlem',
@@ -47,7 +48,8 @@ setup(
         'Programming Language :: Python :: 2.7'
     ],
     keywords="metagenomics bioinformatics",
-    packages=find_packages(exclude=['contrib','docs']),
+    # Exclude test (and test data) since they takes up too much space.
+    packages=find_packages(exclude=['contrib','docs','test', '*.test', '*.test.*']),
     install_requires=('graftm >= 0.12.2',
                       'extern >= 0.0.4',
                       'tempdir >= 0.6',
