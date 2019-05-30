@@ -200,7 +200,7 @@ pip install singlem
 You may need super-user privileges.
 
 SingleM also has the following non-Python dependencies:
-* [smafa](https://github.com/wwood/smafa)
+* [smafa](https://github.com/wwood/smafa) >= 0.4.0
 * [VSEARCH](https://github.com/torognes/vsearch)
 
 Some dependencies of [GraftM](https://github.com/geronimp/graftM):
