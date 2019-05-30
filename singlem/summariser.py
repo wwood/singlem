@@ -55,6 +55,7 @@ class Summariser:
                     else:
                         display_name = gene
                     cmd += " %s,'%s'" % (f.name, display_name)
+
         extern.run(cmd)
         for f in sample_tempfiles:
             f.close()

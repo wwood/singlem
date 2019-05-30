@@ -66,10 +66,13 @@ class Tests(unittest.TestCase):
         clusters = list(Clusterer().each_cluster(table_collection, 1.0))
         self.assertEqual(2, len(clusters))
         self.assertIsInstance(clusters[0], SampleWiseClusteredOtu)
-        c = clusters[0]
+        sorted_clusters = list(sorted(
+            clusters,
+            key=lambda x: x.count))
+        c = sorted_clusters[0]
         self.assertEqual(2, c.count)
         self.assertEqual(4.88, c.coverage)
-        c = clusters[1]
+        c = sorted_clusters[1]
         self.assertEqual(4, c.count)
         self.assertEqual(9.76, c.coverage)
 
@@ -95,6 +98,41 @@ class Tests(unittest.TestCase):
                   'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACA',
                   '4',
                   '9.76',
+                  'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                 ['4.12.ribosomal_protein_L11_rplK',
+                  'minimal',
+                  'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACA',
+                  '2',
+                  '4.88',
+                  'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                 ['']],
+                out_clusters)
+
+    def test_cluster_across_samples_via_script_with_duplicate(self):
+        e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
+             # The first two rows have identical sequences. This can mess up
+             # the clusterer.
+            ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACT','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.11.ribosomal_protein_L10','ma','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACT','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.12.ribosomal_protein_L11_rplK','ma','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+            ]
+        exp = "\n".join(["\t".join(x) for x in e]+[''])
+
+        with tempfile.NamedTemporaryFile(prefix='singlem_cluster') as f:
+            cmd = "%s summarise --cluster --cluster_id %f --input_otu_tables %s --output_otu_table /dev/stdout" % (
+                path_to_script, 58.5/60, f.name)
+            for l in ["\t".join(o) for o in e]:
+                f.write(l+"\n")
+            f.flush()
+            output = extern.run(cmd)
+            out_clusters = [o.split("\t") for o in output.split("\n")]
+            self.assertEqual(
+                [['gene', 'sample', 'sequence', 'num_hits', 'coverage', 'taxonomy'],
+                 ['4.12.ribosomal_protein_L11_rplK',
+                  'ma',
+                  'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACA',
+                  '6',
+                  '14.64',
                   'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                  ['4.12.ribosomal_protein_L11_rplK',
                   'minimal',
