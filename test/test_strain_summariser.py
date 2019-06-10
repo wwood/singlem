@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -23,9 +23,8 @@
 
 import unittest
 import os.path
-from string import split
 import sys
-from StringIO import StringIO
+from io import StringIO
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -35,8 +34,8 @@ from singlem.strain_summariser import StrainSummariser
 from singlem.otu_table_collection import OtuTableCollection
 
 class Tests(unittest.TestCase):
-    headers = split('gene sample sequence num_hits coverage taxonomy')
-    output_headers = split('type gene sample difference_in_bp sequence num_hits coverage taxonomy')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
+    output_headers = str.split('type gene sample difference_in_bp sequence num_hits coverage taxonomy')
 
     def test_minimal(self):
         a = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -44,7 +43,7 @@ class Tests(unittest.TestCase):
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
             ]
         table = "\n".join(["\t".join(x) for x in a]+[''])
-        
+
         e = [self.output_headers,
              ['reference','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','0','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
              ['strain','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','3','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -59,14 +58,14 @@ class Tests(unittest.TestCase):
                         table_collection = table_collection,
                         output_table_io = output)
         self.assertEqual(exp, output.getvalue())
-        
+
     def test_taxonomy_focus(self):
         a = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
             ]
         table = "\n".join(["\t".join(x) for x in a]+[''])
-        
+
         e = [self.output_headers,
              ['reference','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','0','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
              ['strain','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','3','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -82,22 +81,22 @@ class Tests(unittest.TestCase):
                         output_table_io = output)
         self.assertEqual(exp, output.getvalue())
 
-        
+
     def test_multiple_genes_and_samples(self):
         a = [self.headers,['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-             
+
              ['2.13.ribosomal_protein_L11_rplK.gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
              ['2.13.ribosomal_protein_L11_rplK.gpkg','minimal','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria'],
              ['2.13.ribosomal_protein_L11_rplK.gpkg','minimal','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-             
+
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Archaea; p__Firmicutes; c__Bacilli; o__Bacillales'],
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
              ['2.12.ribosomal_protein_L11_rplK.gpkg','minimal2','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Aacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
             ]
         table = "\n".join(["\t".join(x) for x in a]+[''])
-        
+
         e = [self.output_headers,
              ['reference','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','0','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','9','18.07','Root; d__Bacteria'],
              ['strain','2.12.ribosomal_protein_L11_rplK.gpkg','minimal','3','GAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','8','17.57','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -115,6 +114,6 @@ class Tests(unittest.TestCase):
                         table_collection = table_collection,
                         output_table_io = output)
         self.assertEqual(exp, output.getvalue())
-                            
+
 if __name__ == "__main__":
     unittest.main()

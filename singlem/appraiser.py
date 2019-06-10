@@ -1,10 +1,10 @@
 import logging
 import sys
 
-from otu_table import OtuTable
-from otu_table_collection import OtuTableCollection
-from sequence_searcher import SequenceSearcher
-from appraisal_result import Appraisal, AppraisalResult
+from .otu_table import OtuTable
+from .otu_table_collection import OtuTableCollection
+from .sequence_searcher import SequenceSearcher
+from .appraisal_result import Appraisal, AppraisalResult
 
 class Appraiser:
     def appraise(self, **kwargs):
@@ -85,7 +85,7 @@ class Appraiser:
                     appraisal.not_found_otus.append(otu)
 
             app = Appraisal()
-            app.appraisal_results = sample_name_to_appraisal.values()
+            app.appraisal_results = list(sample_name_to_appraisal.values())
             return app
 
         else:
@@ -104,7 +104,7 @@ class Appraiser:
 
             app = Appraisal()
             app.appraisal_results = []
-            for sample in sample_to_building_block.keys():
+            for sample in list(sample_to_building_block.keys()):
                 res = AppraisalResult()
                 res.metagenome_sample_name = sample
                 seen_otu_sequences = set()

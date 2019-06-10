@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015-2016"
@@ -440,28 +440,28 @@ if __name__ == '__main__':
             raise Exception("Currently jplace_output cannot be used with --reverse")
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
-        print ''
-        print '                ...::: SingleM v' + singlem.__version__ + ' :::...'''
-        print '\n  General usage:'
-        print '    pipe         -> %s' % pipe_description
-        print '    summarise    -> %s' % summarise_description
-        print '    renew        -> %s' % renew_description
+        print('')
+        print('                ...::: SingleM v' + singlem.__version__ + ' :::...''')
+        print('\n  General usage:')
+        print('    pipe         -> %s' % pipe_description)
+        print('    summarise    -> %s' % summarise_description)
+        print('    renew        -> %s' % renew_description)
 
-        print '\n  Databases (of OTU sequences):'
-        print '    makedb       -> %s' % makedb_description
-        print '    query        -> %s' % query_description
+        print('\n  Databases (of OTU sequences):')
+        print('    makedb       -> %s' % makedb_description)
+        print('    query        -> %s' % query_description)
 
-        print '\n  Assembly and binning:'
-        print '    appraise     -> %s' % appraise_description
+        print('\n  Assembly and binning:')
+        print('    appraise     -> %s' % appraise_description)
 
-        print '\n  Packages (to search with):'
-        print '    seqs         -> %s' % seqs_description
-        print '    create       -> %s' % create_description
-        print '    get_tree     -> %s' % get_tree_description
-        print '    regenerate   -> %s' % regenerate_description
+        print('\n  Packages (to search with):')
+        print('    seqs         -> %s' % seqs_description)
+        print('    create       -> %s' % create_description)
+        print('    get_tree     -> %s' % get_tree_description)
+        print('    regenerate   -> %s' % regenerate_description)
 
-        print '\n  Use singlem <command> -h for command-specific help.\n'\
-            '  Some commands also have an extended --full_help flag.\n'
+        print('\n  Use singlem <command> -h for command-specific help.\n'\
+            '  Some commands also have an extended --full_help flag.\n')
         sys.exit(0)
     else:
         # Determine whether --full_help was specified before argument parsing.

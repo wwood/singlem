@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -27,8 +27,9 @@ random.seed(110)
 
 import unittest
 import os.path
-from StringIO import StringIO
+from io import StringIO
 import sys
+import itertools
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -39,6 +40,16 @@ from singlem.otu_table_collection import OtuTableCollection
 from singlem.otu_table import OtuTable
 
 class Tests(unittest.TestCase):
+    def assertEqualOtuTable2(self, expected_array, observed_otu_table):
+        observed_array = list(itertools.chain(
+            [observed_otu_table.fields],observed_otu_table.data))
+
+        # make sure headers are OK
+        self.assertEqual(expected_array[0], observed_array[0])
+
+        # sort the rest of the table and compare that
+        self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
+
     def test_hello_world(self):
         e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
             ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','1','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
@@ -85,13 +96,16 @@ class Tests(unittest.TestCase):
         table_collection = OtuTableCollection()
         table_collection.add_otu_table(StringIO(exp))
 
+        expected = [
+            ['gene','sample','sequence','num_hits','coverage','taxonomy'],
+            ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA',1,4.88,'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTT',1,9.76,'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            #['4.11.ribosomal_protein_L10','minimal','ATACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTT','1','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+        ]
+
         rares = Rarefier().rarefy(table_collection, 2, random_generator=PredictableRandomGenerator())
         self.assertIsInstance(rares, OtuTable)
-        rares = list(rares)
-        self.assertEqual(2, len(rares))
-        self.assertEqual('TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTT', rares[0].sequence)
-        self.assertEqual('ATACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTT', rares[1].sequence)
-        self.assertEqual([1,1], [e.count for e in rares])
+        self.assertEqualOtuTable2(expected, rares)
 
     def test_multiple_genes(self):
         e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
@@ -101,14 +115,20 @@ class Tests(unittest.TestCase):
             ]
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
+
+        expected = [
+            ['gene','sample','sequence','num_hits','coverage','taxonomy'],
+            ['4.11.ribosomal_protein_L11','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA',2,4.88,'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+            ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTT',1,9.76,'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['4.11.ribosomal_protein_L10','minimal','ATACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTT',1,9.76,'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+        ]
+
         table_collection = OtuTableCollection()
         table_collection.add_otu_table(StringIO(exp))
 
         rares = Rarefier().rarefy(table_collection, 2, random_generator=PredictableRandomGenerator())
         self.assertIsInstance(rares, OtuTable)
-        rares = list(rares)
-        self.assertEqual(3, len(rares))
-        self.assertEqual([1,1,2], [e.count for e in rares])
+        self.assertEqualOtuTable2(expected, rares)
 
     def test_nothing_returned(self):
         e = [['gene','sample','sequence','num_hits','coverage','taxonomy']]
@@ -118,7 +138,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(0, len(list(table_collection)))
         rares = Rarefier().rarefy(table_collection, 0)
         self.assertEqual(0, len(list(rares)))
-        
+
     def test_using_real_generator(self):
         e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
              ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
@@ -133,34 +153,34 @@ class Tests(unittest.TestCase):
         rares = list(rares)
         self.assertEqual(1, len(rares))
         self.assertEqual(2, rares[0].count)
-        
-    
+
+
 class PredictableRandomGenerator:
     '''Generate numbers predictably, not relying on random.random
     as that can change between python versions'''
-    
+
     def __init__(self, start_state=4):
         self.state = start_state
         self.multiplier = 1664525
         self.increment = 1013904223
- 	self.modulus = 2**32
+        self.modulus = 2**32
 
-    def next(self):
+    def __next__(self):
         n = (self.multiplier * self.state + self.increment) % self.modulus
         self.state = n
         return n
-        
+
     def sample(self, choose_mees, number_to_choose):
         if len(choose_mees) < number_to_choose: raise
         index_choices = list(range(number_to_choose))
         indices = []
         while len(indices) < number_to_choose:
-            chosen = index_choices[self.next() % len(index_choices)]
+            chosen = index_choices[next(self) % len(index_choices)]
             indices.append(chosen)
             index_choices.pop(chosen)
         return [choose_mees[i] for i in indices]
-            
-        
+
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,11 +1,13 @@
 import logging
-from singlem import HmmDatabase
+
+from .singlem import HmmDatabase
+
 
 class Chancer:
     def run_and_print(self, **kwargs):
-        print "\t".join(['sample', 'total_seqs', 'homogeneity_index'])
+        print("\t".join(['sample', 'total_seqs', 'homogeneity_index']))
         for sample_prediction in self.predict_samples(**kwargs):
-            print sample_prediction
+            print(sample_prediction)
 
     def predict_samples(self, **kwargs):
         '''Yield a RecoveryPrediction for each sample'''
@@ -75,9 +77,9 @@ class Chancer:
         s = sorted(numbers)
         n = len(numbers)
         if n % 2 == 0:
-            return (float(s[(n-1)/2]) + float(s[n/2])) / 2
+            return (float(s[int((n-1)/2)]) + float(s[int(n/2)])) / 2
         else:
-            return s[(n-1)/2]
+            return s[int((n-1)/2)]
 
     @staticmethod
     def mean(numbers):

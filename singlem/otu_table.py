@@ -1,10 +1,11 @@
 import csv
-import string
-from archive_otu_table import ArchiveOtuTable
-from otu_table_entry import OtuTableEntry
+
+from .archive_otu_table import ArchiveOtuTable
+from .otu_table_entry import OtuTableEntry
+
 
 class OtuTable:
-    DEFAULT_OUTPUT_FIELDS = string.split('gene sample sequence num_hits coverage taxonomy')
+    DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
 
     def __init__(self):
         self.fields = self.DEFAULT_OUTPUT_FIELDS
@@ -78,8 +79,7 @@ class OtuTable:
         fields_to_print: list of str
             a list of names of fields to be printed
         '''
-        if fields_to_print:
-            field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
+        field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
         output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
 
         for d in self.data:
@@ -109,7 +109,7 @@ class OtuTable:
         '''For printing OtuTableEntry parts
         When an element is actually multiple elements, join with a space,
         and in any case convert everything to a string'''
-        if hasattr(e, '__iter__'):
+        if hasattr(e, '__iter__') and not isinstance(e, str):
             return ' '.join([str(sub_e) for sub_e in e])
         elif isinstance(e, float):
             return "%.2f" % e

@@ -1,7 +1,9 @@
 from Bio.Seq import Seq
 import logging
 import re
-from singlem import OrfMUtils
+
+from .singlem import OrfMUtils
+
 
 class Sequence:
     '''Simple name+sequence object'''

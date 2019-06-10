@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft, Tim Lamberton.
@@ -27,8 +27,7 @@ import subprocess
 import os.path
 import tempfile
 import tempdir
-from string import split
-from StringIO import StringIO
+from io import StringIO
 import extern
 import sys
 import json

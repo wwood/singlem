@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -26,11 +26,10 @@ import subprocess
 import os.path
 import tempfile
 import tempdir
-from string import split
 import extern
 import sys
 import json
-from StringIO import StringIO
+from io import StringIO
 
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 

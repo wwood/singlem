@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -25,7 +25,7 @@ import unittest
 import os.path
 import tempfile
 import extern
-from StringIO import StringIO
+from io import StringIO
 import sys
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
@@ -83,7 +83,7 @@ class Tests(unittest.TestCase):
             ]
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
-        with tempfile.NamedTemporaryFile(prefix='singlem_cluster') as f:
+        with tempfile.NamedTemporaryFile(prefix='singlem_cluster',mode='w') as f:
             cmd = "%s summarise --cluster --cluster_id %f --input_otu_tables %s --output_otu_table /dev/stdout" % (
                 path_to_script, 58.5/60, f.name)
             for l in ["\t".join(o) for o in e]:
@@ -118,7 +118,7 @@ class Tests(unittest.TestCase):
             ]
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
-        with tempfile.NamedTemporaryFile(prefix='singlem_cluster') as f:
+        with tempfile.NamedTemporaryFile(prefix='singlem_cluster',mode='w') as f:
             cmd = "%s summarise --cluster --cluster_id %f --input_otu_tables %s --output_otu_table /dev/stdout" % (
                 path_to_script, 58.5/60, f.name)
             for l in ["\t".join(o) for o in e]:

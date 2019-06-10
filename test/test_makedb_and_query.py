@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -26,7 +26,6 @@ import subprocess
 import os.path
 import tempfile
 import tempdir
-from string import split
 import extern
 import sys
 import json
@@ -38,7 +37,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
 class Tests(unittest.TestCase):
-    headers = split('gene sample sequence num_hits coverage taxonomy')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
     def assertEqualOtuTable(self, expected_array, observed_string):
@@ -58,7 +57,7 @@ class Tests(unittest.TestCase):
 ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         otu_table = "\n".join(["\t".join(x) for x in otu_table])
 
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(otu_table)
             f.flush()
 
@@ -77,10 +76,10 @@ class Tests(unittest.TestCase):
                             ['unnamed_sequence','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                 expected = ["\t".join(x) for x in expected]+['']
                 self.assertEqual(expected,
-                                 subprocess.check_output(cmd, shell=True).split("\n"))
+                                 extern.run(cmd).split('\n'))
 
     def test_query_with_otu_table(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             query = [self.headers,
                      # second sequence with an extra A at the end
                      ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
@@ -97,10 +96,10 @@ class Tests(unittest.TestCase):
                         ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
             expected = ["\t".join(x) for x in expected]+['']
             self.assertEqual(expected,
-                             subprocess.check_output(cmd, shell=True).split("\n"))
+                             extern.run(cmd).split('\n'))
 
     def test_query_with_otu_table_two_samples(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             query = [self.headers,
                      # second sequence with an extra A at the end
                      ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -120,12 +119,12 @@ class Tests(unittest.TestCase):
                         ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']
                         ]
             expected = ["\t".join(x) for x in expected]+['']
-            observed = subprocess.check_output(cmd, shell=True).split("\n")
+            observed = extern.run(cmd).split('\n')
             self.assertEqual(expected, observed)
 
 
     def test_query_with_otu_table_two_samples_same_sequence(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             query = [self.headers,
                      # second sequence with an extra A at the end
                      ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -151,11 +150,11 @@ class Tests(unittest.TestCase):
                             ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','0','7','maximal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                             ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','0','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
                             ]
-                observed = subprocess.check_output(cmd, shell=True)
+                observed = extern.run(cmd)
                 self.assertEqualOtuTable(expected, observed)
 
     def test_fasta_query(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC',
                                ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
             f.write(query)
@@ -170,11 +169,11 @@ class Tests(unittest.TestCase):
                         ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
                         ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
             expected = ["\t".join(x) for x in expected]+['']
-            observed = subprocess.check_output(cmd, shell=True).split("\n")
+            observed = extern.run(cmd).split("\n")
             self.assertEqual(expected, observed)
 
     def test_query_with_gaps(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC',
                                ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
             f.write(query)
@@ -189,7 +188,7 @@ class Tests(unittest.TestCase):
                         ['seq1','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
                         ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
             expected = ["\t".join(x) for x in expected]+['']
-            observed = subprocess.check_output(cmd, shell=True).split("\n")
+            observed = extern.run(cmd).split("\n")
             self.assertEqual(expected, observed)
 
     def test_n_vs_gap(self):
@@ -200,7 +199,7 @@ class Tests(unittest.TestCase):
                      ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAANNNTATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes']]
         otu_table = "\n".join(["\t".join(x) for x in otu_table])
 
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(otu_table)
             f.flush()
 
@@ -221,7 +220,7 @@ class Tests(unittest.TestCase):
                             ['unnamed_sequence','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','4','7','minimal','ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAANNNTATATCTTCACTGAGAGAAATGGTATTTATATA','Root; k__Bacteria; p__Firmicutes']]
                 expected = ["\t".join(x) for x in expected]+['']
                 self.assertEqual(expected,
-                                 subprocess.check_output(cmd, shell=True).split("\n"))
+                                 extern.run(cmd).split('\n'))
 
     def test_duplicate_seqs_then_another(self):
         '''This tests when a two samples have the same OTU, and then there's another separate OTU after that'''
@@ -232,7 +231,7 @@ class Tests(unittest.TestCase):
                      ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         otu_table = "\n".join(["\t".join(x) for x in otu_table])
 
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(otu_table)
             f.flush()
 
@@ -243,7 +242,7 @@ class Tests(unittest.TestCase):
                                                                 f.name)
                 subprocess.check_call(cmd, shell=True)
 
-                with tempfile.NamedTemporaryFile() as infasta:
+                with tempfile.NamedTemporaryFile(mode='w') as infasta:
                     infasta.write(">1_\n") # same as the first sequence
                     infasta.write("GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
                     infasta.write(">2_\n") # third sequence with an replacement A at the end
@@ -262,7 +261,7 @@ class Tests(unittest.TestCase):
                         ['2_','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                     expected = ["\t".join(x) for x in expected]+['']
                     self.assertEqual(expected,
-                                     subprocess.check_output(cmd, shell=True).split("\n"))
+                                     extern.run(cmd).split("\n"))
 
 
     def test_divergence0(self):
@@ -275,7 +274,7 @@ class Tests(unittest.TestCase):
 
 
 
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(otu_table)
             f.flush()
 
@@ -286,7 +285,7 @@ class Tests(unittest.TestCase):
                                                                 f.name)
                 subprocess.check_call(cmd, shell=True)
 
-                with tempfile.NamedTemporaryFile() as infasta:
+                with tempfile.NamedTemporaryFile(mode='w') as infasta:
                     infasta.write(">1_\n") # same as the first sequence
                     infasta.write("GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
                     infasta.write(">2_\n") # same as first
@@ -309,7 +308,7 @@ class Tests(unittest.TestCase):
                         ['3_','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                     expected = ["\t".join(x) for x in expected]+['']
                     self.assertEqual(sorted(expected),
-                                     sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+                                     sorted(extern.run(cmd).split("\n")))
 
     def test_query_by_sample(self):
         expected = [
@@ -338,7 +337,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(expected, extern.run(cmd).split('\n'))
 
     def test_query_subject_otu_tables(self):
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC',
                                ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
             f.write(query)
@@ -349,7 +348,7 @@ class Tests(unittest.TestCase):
                 ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.1','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                 ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','12.4','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
                 ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','19.5','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-            with tempfile.NamedTemporaryFile() as subject_f:
+            with tempfile.NamedTemporaryFile(mode='w') as subject_f:
                 subject_f.write("\n".join(["\t".join(x) for x in subject]+['']))
                 subject_f.flush()
 
@@ -363,7 +362,7 @@ class Tests(unittest.TestCase):
                     ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
                     ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
                 expected = ["\t".join(x) for x in expected]+['']
-                observed = subprocess.check_output(cmd, shell=True).split("\n")
+                observed = extern.run(cmd).split("\n")
                 self.assertEqual(expected, observed)
 
     def test_clustering(self):
@@ -372,7 +371,7 @@ class Tests(unittest.TestCase):
 ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         otu_table = "\n".join(["\t".join(x) for x in otu_table])
 
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(otu_table)
             f.flush()
 
@@ -395,8 +394,7 @@ class Tests(unittest.TestCase):
                              '2','6','minimal','ribosomal_protein_L11_rplK_gpkg',
                              'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA',
                              'Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-                self.assertEqualOtuTable(expected,
-                                 subprocess.check_output(cmd, shell=True))
+                self.assertEqualOtuTable(expected, extern.run(cmd))
 
     def test_no_clustering(self):
         otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -404,7 +402,7 @@ class Tests(unittest.TestCase):
 ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
         otu_table = "\n".join(["\t".join(x) for x in otu_table])
 
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(otu_table)
             f.flush()
 
@@ -412,7 +410,7 @@ class Tests(unittest.TestCase):
                 cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 0".format(
                     path_to_script, d, f.name)
                 extern.run(cmd)
-                with tempfile.NamedTemporaryFile() as f2:
+                with tempfile.NamedTemporaryFile(mode='w') as f2:
                     f2.write(">seq1\n")
                     # first sequence with an extra A at the start
                     f2.write("AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")

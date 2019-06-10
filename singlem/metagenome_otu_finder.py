@@ -1,6 +1,6 @@
 import logging
 import re
-from sequence_classes import UnalignedAlignedNucleotideSequence
+from .sequence_classes import UnalignedAlignedNucleotideSequence
 import itertools
 
 class MetagenomeOtuFinder:

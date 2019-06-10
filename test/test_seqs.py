@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -26,7 +26,6 @@ import subprocess
 import os.path
 import tempfile
 import tempdir
-from string import split
 import extern
 import sys
 import json
@@ -54,7 +53,7 @@ TATGGAGGAACACCAGTGGC
 TATGGAGGAACACCAGTGGC
 TATGGAGGAACACCAGTGGC
 '''
-        with tempfile.NamedTemporaryFile() as a:
+        with tempfile.NamedTemporaryFile(mode='w') as a:
             a.write(aln)
             a.flush()
             with tempfile.NamedTemporaryFile() as stderr:
@@ -63,8 +62,10 @@ TATGGAGGAACACCAGTGGC
                           path_to_script, a.name, stderr.name)
                 self.assertEqual('', extern.run(cmd))
                 # This includes ignored columns at the front, which were messing things up.
-                self.assertTrue('Found best section of the alignment starting from 14\n' in \
-                                open(stderr.name).read())
+                with open(stderr.name) as stde:
+                    self.assertTrue(
+                        'Found best section of the alignment starting from 14\n' in \
+                        stde.read())
 
 if __name__ == "__main__":
     unittest.main()

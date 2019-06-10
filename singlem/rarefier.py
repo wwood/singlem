@@ -2,7 +2,8 @@ import logging
 import copy
 import random
 
-from otu_table import OtuTable
+from .otu_table import OtuTable
+
 
 class Rarefier:
     def rarefy(self, otu_table_collection, num_to_sample, random_generator=random):
@@ -45,7 +46,7 @@ class Rarefier:
                     for _ in range(otu.count):
                         sequences_to_sample.append(sequence)
                 if len(sequences_to_sample) < num_to_sample:
-                    logging.warn("Sample %s gene %s only contains %i sequences, so cannot be rarefied. Ignoring this sample/gene combination" % (sample_name, gene, len(sequences_to_sample)))
+                    logging.warning("Sample %s gene %s only contains %i sequences, so cannot be rarefied. Ignoring this sample/gene combination" % (sample_name, gene, len(sequences_to_sample)))
                     continue
                 else:
                     sequences_sampled = random_generator.sample(sequences_to_sample, num_to_sample)

@@ -1,5 +1,4 @@
 import tempfile
-import extern
 import logging
 import subprocess
 import sys
@@ -8,12 +7,12 @@ from orator import DatabaseManager, Model
 from orator.exceptions.query import QueryException
 from Bio import pairwise2
 
-from sequence_database import SequenceDatabase
-from sequence_classes import SeqReader
-from query_formatters import SparseResultFormatter
-from otu_table_collection import OtuTableCollection
-from otu_table_entry import OtuTableEntry
-from otu_table import OtuTable
+from .sequence_database import SequenceDatabase
+from .sequence_classes import SeqReader
+from .query_formatters import SparseResultFormatter
+from .otu_table_collection import OtuTableCollection
+from .otu_table_entry import OtuTableEntry
+from .otu_table import OtuTable
 
 class Querier:
     def query(self, **kwargs):
@@ -154,7 +153,7 @@ class Querier:
 
     def query_by_smafa(self, queries, sdb, sqlite_db,  max_divergence):
         # Generate a tempfile of all the queries
-        with tempfile.NamedTemporaryFile(prefix='singlem_query_smafa') as infile:
+        with tempfile.NamedTemporaryFile(prefix='singlem_query_smafa',mode='w') as infile:
             for query in queries:
                 infile.write(">%s\n" % query.name)
                 infile.write(query.sequence+"\n")
@@ -172,8 +171,12 @@ class Querier:
                     smafa_divergence = min_divergence
                 cmd = "smafa query -q -d %i '%s' '%s'" % (smafa_divergence, smafa_db, infile.name)
                 logging.debug("Running cmd with popen: %s" % cmd)
-                proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
-                for line in iter(proc.stdout.readline,''):
+                proc = subprocess.Popen(
+                    cmd,
+                    shell=True,
+                    stdout=subprocess.PIPE,
+                    universal_newlines=True)
+                for line in proc.stdout:
                     query_name, query_sequence, subject_sequence, divergence = line.split("\t")[:4]
                     logging.debug("smafa query with {} returned hit sequence {}".format(
                         query_name, subject_sequence))

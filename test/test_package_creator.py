@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -23,9 +23,8 @@
 
 import unittest
 import os.path
-from string import split
 import sys
-from StringIO import StringIO
+from io import StringIO
 import tempdir
 import json
 
@@ -48,7 +47,8 @@ class Tests(unittest.TestCase):
                 window_size = 63,
                 force = False)
             self.assertTrue(os.path.isdir('protein.spkg'))
-            j = json.load(open('protein.spkg/CONTENTS.json'))
+            with open('protein.spkg/CONTENTS.json') as f:
+                j = json.load(f)
             self.assertEqual(76, j['singlem_hmm_position'])
             self.assertEqual(63, j['singlem_window_size'])
 
@@ -62,7 +62,8 @@ class Tests(unittest.TestCase):
                 window_size = 57,
                 force = False)
             self.assertTrue(os.path.isdir('nuc.spkg'))
-            j = json.load(open('nuc.spkg/CONTENTS.json'))
+            with open('nuc.spkg/CONTENTS.json') as f:
+                j = json.load(f)
             self.assertEqual(888, j['singlem_hmm_position'])
             self.assertEqual(57, j['singlem_window_size'])
 

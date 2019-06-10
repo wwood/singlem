@@ -2,13 +2,16 @@ import re
 import os
 import csv
 import logging
-from singlem_package import SingleMPackage
 import itertools
 import pkg_resources
+
+from .singlem_package import SingleMPackage
+
 
 class OrfMUtils:
     def un_orfm_name(self, name):
         return re.sub('_\d+_\d+_\d+$', '', name)
+
 
 class TaxonomyFile:
     def __init__(self, taxonomy_file_path):
@@ -28,6 +31,7 @@ class TaxonomyFile:
             if key not in self.sequence_to_taxonomy:
                 self.sequence_to_taxonomy[key] = value
 
+                
 class HmmDatabase:
     def __init__(self, package_paths=None):
         # Array of gpkg names to SingleMPackage objects

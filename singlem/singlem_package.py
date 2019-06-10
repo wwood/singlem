@@ -140,23 +140,27 @@ class SingleMPackageVersion1(SingleMPackage):
         return os.path.basename(self.hmm_path())
 
     def calculate_alignment_hmm_sha256(self):
-        return hashlib.sha256(open(self.graftm_package().alignment_hmm_path()).read()).hexdigest()
+        with open(self.graftm_package().alignment_hmm_path()) as f:
+            return hashlib.sha256(f.read().encode()).hexdigest()
 
     def calculate_singlem_package_sha256(self):
         h = hashlib.sha256()
         # Maybe the reference package contents should be cached instead
         # of the reference package contents file so that randomly
         # generated files don't interfere, but eh for now.
-        h.update(str(self.graftm_package()._refpkg_contents()))
-        h.update(str(self.version))
-        h.update(str(self.singlem_position()))
+        h.update(str(self.graftm_package()._refpkg_contents()).encode())
+        h.update(str(self.version).encode())
+        h.update(str(self.singlem_position()).encode())
         files_to_hash = [self.graftm_package().alignment_hmm_path()]
         if self.is_protein_package():
             files_to_hash.append(self.graftm_package().diamond_database_path())
-        files_to_hash.append(self.graftm_package().unaligned_sequence_database_path())
+        files_to_hash.append(
+            self.graftm_package().unaligned_sequence_database_path())
         files_to_hash += self.graftm_package().search_hmm_paths()
         for f in files_to_hash:
-            h.update(open(f).read())
+            with open(f, mode='rb') as fh:  # Open in binary mode so .dmnd is OK
+                contents = fh.read()
+                h.update(contents)
         return h.hexdigest()
 
     def window_size(self):

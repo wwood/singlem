@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -23,8 +23,7 @@
 
 
 import sys, os, unittest, logging
-from string import split
-from StringIO import StringIO
+from io import StringIO
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
@@ -33,7 +32,7 @@ from singlem.otu_table import *
 from singlem.otu_table_entry import *
 
 class Tests(unittest.TestCase):
-    headers = split('gene sample sequence num_hits coverage taxonomy')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
 
     def test_exclude_distinct_duplicates(self):
         collection = OtuTableCollection()

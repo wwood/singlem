@@ -1,4 +1,4 @@
-import otu_table
+from . import otu_table
 import logging
 
 class KnownOtuTable:

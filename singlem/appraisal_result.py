@@ -12,8 +12,8 @@ plt.rcParams['svg.fonttype'] = 'none' # Export text as text, not paths
 import matplotlib.gridspec as gridspec
 import numpy
 
-from clusterer import Clusterer
-from otu_table_collection import OtuTableCollection
+from .clusterer import Clusterer
+from .otu_table_collection import OtuTableCollection
 
 class Appraisal:
     appraisal_results = None
@@ -147,7 +147,7 @@ class Appraisal:
             ## numbers as a point in some dimensional space where the dimension
             ## depends on doing_binning etc.
             dimension_means = []
-            for i in range(len(marker_to_fractions.values()[0])): # for each dimension
+            for i in range(len(list(marker_to_fractions.values())[0])): # for each dimension
                 dimension_means.append(
                     self._trimmean([f for f in marker_to_fractions.values()], 10))
             logging.debug("Found trimmed mean of sample %s as %s" % (
@@ -383,6 +383,18 @@ class AppraisalResult:
         self.binned_otus = []
         self.assembled_otus = []
         self.not_found_otus = []
+
+    def __lt__(self, another):
+        '''So testing is reproducilble'''
+        return [
+            self.metagenome_sample_name,
+            self.binned_otus,
+            self.assembled_otus,
+            self.not_found_otus] < [
+                another.metagenome_sample_name,
+                another.binned_otus,
+                another.assembled_otus,
+                another.not_found_otus]
 
     def assembled_not_binned_otus(self):
         '''Iterate (yield) over those OTUs that are assembled but not binned.

@@ -1,6 +1,7 @@
 import subprocess
 import string
-from StringIO import StringIO
+from io import StringIO
+import extern
 
 from graftm.sequence_io import Sequence, SequenceIO
 
@@ -23,14 +24,7 @@ Python-land rather than output as a file.'''
         An array of graftm.sequence_io.Sequence objects'''
         cmd = "fxtract -XH -f /dev/stdin '%s'" % database_fasta_file
 
-        process = subprocess.Popen(["bash", "-c", cmd],
-                                   stdin=subprocess.PIPE,
-                                   stdout=subprocess.PIPE)
-        output, error = process.communicate('\n'.join(reads_to_extract))
-
-        if process.returncode != 0:
-            raise Exception("Extraction command '%s' failed with exitstatus %i" %
-                            (cmd, process.returncode))
+        output = extern.run(cmd, stdin='\n'.join(reads_to_extract))
 
         seqs = []
         for name, seq, _ in SequenceIO().each(StringIO(output)):

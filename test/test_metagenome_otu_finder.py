@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -33,7 +33,7 @@ class Tests(unittest.TestCase):
         m = MetagenomeOtuFinder()
         self.assertEqual(('AAATTT---GGG',9),\
             m._nucleotide_alignment(AlignedProteinSequence('name','AC-D'), 'AAATTTGGG', [0,1,2,3], True))
-        
+
     def test__nucleotide_alignment_include_inserts(self):
         m = MetagenomeOtuFinder()
         self.assertEqual(('AAA---GGG',9),\
@@ -61,7 +61,7 @@ class Tests(unittest.TestCase):
         for i, seq in enumerate(seqs):
             name = 'seq%i' % i
             unaligned[name] = seq.replace('-','')
-            
+
         obs = m.find_windowed_sequences(
             s2,
             unaligned,
@@ -83,9 +83,9 @@ class Tests(unittest.TestCase):
             best_position)
         self.assertEqual(['AAAAA','TATGG','TATGG','TATGG','TATGG'],
                          [o.aligned_sequence for o in obs])
-        
-        
-                            
+
+
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.ERROR)
     unittest.main()
