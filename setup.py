@@ -21,7 +21,6 @@ def recursive_find(directory):
 # See https://stackoverflow.com/questions/20298729/pip-installing-data-files-to-the-wrong-place
 # for details on how to get them working.
 spkg_data_files = list([f.replace('singlem/data/','') for f in recursive_find('singlem/data')])
-print spkg_data_files[:4]
 
 setup(
     name='singlem',
@@ -44,8 +43,7 @@ setup(
         'License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)',
         # Specify the Python versions you support here. In particular, ensure
         # that you indicate whether you support Python 2, Python 3 or both.
-        'Programming Language :: Python :: 2',
-        'Programming Language :: Python :: 2.7'
+        'Programming Language :: Python :: 3',
     ],
     keywords="metagenomics bioinformatics",
     # Exclude test (and test data) since they takes up too much space.
