@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -24,9 +24,8 @@
 
 import unittest
 import os.path
-from string import split
 import sys
-from StringIO import StringIO
+from io import StringIO
 import tempfile
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
@@ -38,7 +37,7 @@ from singlem.otu_table_collection import OtuTableCollection
 from singlem.otu_table import OtuTable
 
 class Tests(unittest.TestCase):
-    headers = split('gene sample sequence num_hits coverage taxonomy')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
     def _sort_appraisal_results(self, appraisal_results):
@@ -95,11 +94,12 @@ class Tests(unittest.TestCase):
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[1]
+        res = sorted(app.appraisal_results)
+        a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(7, a.num_binned)
         self.assertEqual(0, a.num_not_found)
-        a = app.appraisal_results[0]
+        a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(4, a.num_not_found)
@@ -175,8 +175,9 @@ class Tests(unittest.TestCase):
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
                                  sequence_identity=0.7)
+        res = sorted(app.appraisal_results)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[1]
+        a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(7, a.num_binned)
         self.assertEqual(0, a.num_not_found)
@@ -184,7 +185,7 @@ class Tests(unittest.TestCase):
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
                          a.binned_otus[0].sequence)
         self.assertEqual(0, len(a.not_found_otus))
-        a = app.appraisal_results[0]
+        a = res[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(4, a.num_not_found)
@@ -217,8 +218,8 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  sequence_identity=0.7)
         self.assertEqual(2, len(app.appraisal_results))
-
-        a = app.appraisal_results[1]
+        res = sorted(app.appraisal_results)
+        a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(7, a.num_binned)
         self.assertEqual(12, a.num_not_found)
@@ -233,7 +234,7 @@ class Tests(unittest.TestCase):
         self.assertEqual('minimal',
                          a.not_found_otus[0].sample_name)
 
-        a = app.appraisal_results[0]
+        a = res[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
         self.assertEqual(1, a.num_binned)
         self.assertEqual(4, a.num_not_found)
@@ -267,18 +268,19 @@ class Tests(unittest.TestCase):
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[1]
+        res = sorted(app.appraisal_results)
+        a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(7, a.num_binned)
         self.assertEqual(0, a.num_not_found)
-        a = app.appraisal_results[0]
+        a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(4, a.num_not_found)
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print)
-        self.assertEqual("sample\tnum_binned\tnum_not_found\tpercent_binned\nanother\t0\t4\t0.0\nminimal\t7\t0\t100.0\ntotal\t7\t4\t63.6\naverage\t3.5\t2.0\t50.0\n", to_print.getvalue())
+        self.assertEqual("sample\tnum_binned\tnum_not_found\tpercent_binned\nminimal\t7\t0\t100.0\nanother\t0\t4\t0.0\ntotal\t7\t4\t63.6\naverage\t3.5\t2.0\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
@@ -321,13 +323,13 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        res2 = list(sorted(app.appraisal_results, key=lambda x: x.metagenome_sample_name))
-        a = app.appraisal_results[0]
+        res = sorted(app.appraisal_results)
+        a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(0, a.num_assembled)
         self.assertEqual(4, a.num_not_found)
-        a = app.appraisal_results[1]
+        a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_assembled)
@@ -335,7 +337,7 @@ class Tests(unittest.TestCase):
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
-        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nanother\t0\t0\t4\t0.0\t0.0\nminimal\t0\t7\t0\t0.0\t100.0\ntotal\t0\t7\t4\t0.0\t63.6\naverage\t0.0\t3.5\t2.0\t0.0\t50.0\n", to_print.getvalue())
+        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\t0\t7\t0\t0.0\t100.0\nanother\t0\t0\t4\t0.0\t0.0\ntotal\t0\t7\t4\t0.0\t63.6\naverage\t0.0\t3.5\t2.0\t0.0\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
@@ -404,12 +406,13 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[1]
+        res = sorted(app.appraisal_results)
+        a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(7, a.num_binned)
         self.assertEqual(7, a.num_assembled)
         self.assertEqual(0, a.num_not_found)
-        a = app.appraisal_results[0]
+        a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
         self.assertEqual(0, a.num_binned)
         self.assertEqual(0, a.num_assembled)
@@ -417,7 +420,7 @@ class Tests(unittest.TestCase):
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
-        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nanother\t0\t0\t4\t0.0\t0.0\nminimal\t7\t7\t0\t100.0\t100.0\ntotal\t7\t7\t4\t63.6\t63.6\naverage\t3.5\t3.5\t2.0\t50.0\t50.0\n", to_print.getvalue())
+        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\t7\t7\t0\t100.0\t100.0\nanother\t0\t0\t4\t0.0\t0.0\ntotal\t7\t7\t4\t63.6\t63.6\naverage\t3.5\t3.5\t2.0\t50.0\t50.0\n", to_print.getvalue())
 
         # Check that unbinned is the same as assembled OTUs when no binning is done
         to_print = StringIO()
@@ -530,10 +533,11 @@ class Tests(unittest.TestCase):
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[0]
+        res = sorted(app.appraisal_results)
+        a = res[0]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(8, a.num_not_found)
-        a = app.appraisal_results[1]
+        a = res[1]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
@@ -596,10 +600,11 @@ class Tests(unittest.TestCase):
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection)
         self.assertEqual(2, len(app.appraisal_results))
-        a = app.appraisal_results[0]
+        res = sorted(app.appraisal_results)
+        a = res[0]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(8, a.num_not_found)
-        a = app.appraisal_results[1]
+        a = res[1]
         self.assertEqual(0, a.num_binned)
         self.assertEqual(7, a.num_not_found)
 
@@ -665,7 +670,7 @@ class Tests(unittest.TestCase):
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection)
 
-        with tempfile.NamedTemporaryFile(suffix='.svg',prefix='single_test_appraisal.') as f:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.svg',prefix='single_test_appraisal.') as f:
             app.plot(
                 output_svg_base='/tmp/a.svg',#f.name,
                 cluster_identity = 0.89,

@@ -1,5 +1,5 @@
 
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft, Tim Lamberton.
@@ -23,15 +23,9 @@
 #=======================================================================
 
 import unittest
-import subprocess
 import os.path
-import tempfile
-import tempdir
-from string import split
 import extern
 import sys
-import json
-import re
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -40,7 +34,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.
 from singlem.renew import Renew
 
 class Tests(unittest.TestCase):
-    headers = split('gene sample sequence num_hits coverage taxonomy')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),

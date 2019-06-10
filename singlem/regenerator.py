@@ -5,11 +5,12 @@ import extern
 import dendropy
 from graftm.graftm_package import GraftMPackage
 
-from graftm_result import GraftMResult
-from singlem_package import SingleMPackageVersion2, SingleMPackage
-from sequence_classes import SeqReader
-from dereplicator import Dereplicator
-from sequence_extractor import SequenceExtractor
+from .graftm_result import GraftMResult
+from .singlem_package import SingleMPackageVersion2, SingleMPackage
+from .sequence_classes import SeqReader
+from .dereplicator import Dereplicator
+from .sequence_extractor import SequenceExtractor
+
 
 class Regenerator:
     def regenerate(self, **kwargs):
@@ -44,7 +45,7 @@ class Regenerator:
         hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
         if len(hit_paths) != 1: raise Exception(
                 "Unexpected number of hits against euk in graftm")
-        euk_hits_path = hit_paths.values()[0]
+        euk_hits_path = hit_paths.values().next() #i.e. first
 
         # Concatenate euk, archaea and bacterial sequences
         archaeal_intermediate_pkg = GraftMPackage.acquire(

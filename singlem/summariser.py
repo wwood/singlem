@@ -3,11 +3,12 @@ import tempfile
 import extern
 from collections import OrderedDict
 import logging
-from otu_table import OtuTable
-from rarefier import Rarefier
 import biom
 import pandas
-from ordered_set import OrderedSet
+
+from .otu_table import OtuTable
+from .rarefier import Rarefier
+from .ordered_set import OrderedSet
 
 class Summariser:
     @staticmethod
@@ -40,11 +41,11 @@ class Summariser:
         for sample in sorted(all_sample_names):
             for gene in sorted(all_gene_names):
                 if gene in sample_to_gene_to_taxonomy_to_count[sample]:
-                    f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona')
+                    f = tempfile.NamedTemporaryFile(prefix='singlem_for_krona',mode='w')
                     sample_tempfiles.append(f)
 
                     taxonomy_to_count = sample_to_gene_to_taxonomy_to_count[sample][gene]
-                    for taxonomy, coverage in taxonomy_to_count.iteritems():
+                    for taxonomy, coverage in taxonomy_to_count.items():
                         tax_split = taxonomy.split('; ')
                         if tax_split[0] == 'Root' and len(tax_split) > 1: tax_split = tax_split[1:]
                         f.write('\t'.join([str(coverage)]+tax_split))

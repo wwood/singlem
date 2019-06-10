@@ -1,5 +1,5 @@
 import logging
-from singlem import OrfMUtils
+from .singlem import OrfMUtils
 
 
 class PlacementParser:

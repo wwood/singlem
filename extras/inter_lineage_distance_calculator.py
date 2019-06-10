@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 __author__ = "Ben Woodcroft"
 __copyright__ = "Copyright 2015-2016"

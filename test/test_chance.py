@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -23,9 +23,8 @@
 
 import unittest
 import os.path
-from string import split
 import sys
-from StringIO import StringIO
+from io import StringIO
 import tempfile
 import extern
 
@@ -38,8 +37,8 @@ from singlem.otu_table_collection import OtuTableCollection
 from singlem.taxonomy import Taxonomy
 
 class Tests(unittest.TestCase):
-    chance_headers = split('sample total_seqs homogeneity_index')
-    headers = split('gene sample sequence num_hits coverage taxonomy')
+    chance_headers = str.split('sample total_seqs homogeneity_index')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
     def test_script_hello_world(self):
@@ -51,7 +50,7 @@ class Tests(unittest.TestCase):
         ]
         metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
 
-        with tempfile.NamedTemporaryFile(prefix='singlem-chance') as f:
+        with tempfile.NamedTemporaryFile(prefix='singlem-chance',mode='w') as f:
             f.write(metagenomes)
             f.flush()
 

@@ -1,8 +1,8 @@
 import logging
 import tempfile
 
-from sequence_extractor import SequenceExtractor
-from pipe import SearchPipe
+from .sequence_extractor import SequenceExtractor
+from .pipe import SearchPipe
 
 class Renew:
     @staticmethod
@@ -44,7 +44,7 @@ class Renew:
             raise Exception("Unexpected number of reads in the OTU table were extracted from the sequence file")
 
         # Run pipe from the start again on those sequences
-        with tempfile.NamedTemporaryFile(suffix='.fna',prefix='singlem_renew') as tf:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fna',prefix='singlem_renew') as tf:
             for s in extracted_seqs:
                 tf.write(">{}\n{}\n".format(s.name, s.seq))
             tf.flush()

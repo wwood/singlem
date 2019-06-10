@@ -1,4 +1,4 @@
-from otu_table import OtuTableEntry
+from .otu_table import OtuTableEntry
 
 
 class DifferenceOTUEntry(OtuTableEntry):

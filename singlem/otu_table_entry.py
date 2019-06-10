@@ -1,4 +1,4 @@
-from taxonomy import Taxonomy
+from .taxonomy import Taxonomy
 
 class OtuTableEntry:
     marker = None

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -35,7 +35,7 @@ ATG
 >2 comment
 AAAAA
 '''
-        with tempfile.NamedTemporaryFile() as f:
+        with tempfile.NamedTemporaryFile(mode='w') as f:
             f.write(fasta)
             f.flush()
             seqs = SequenceExtractor().extract_and_read(['1'], f.name)

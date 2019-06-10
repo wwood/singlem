@@ -4,7 +4,7 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
-from singlem_package import SingleMPackageVersion2
+from .singlem_package import SingleMPackageVersion2
 import shutil
 import os
 import tempdir
@@ -50,8 +50,10 @@ class PackageCreator:
             # Make a new fasta file of all the sequences that are leaves
             found_sequence_names = set()
             num_seqs_unaligned = 0
-            filtered_aligned_tempfile = tempfile.NamedTemporaryFile(prefix='singlem_package_creator',
-                                                                    suffix='.fasta')
+            filtered_aligned_tempfile = tempfile.NamedTemporaryFile(
+                prefix='singlem_package_creator',
+                suffix='.fasta',
+                mode='w')
             for s in SeqIO.parse(gpkg.unaligned_sequence_database_path(), "fasta"):
                 num_seqs_unaligned += 1
                 if s.id in tree_leaves:

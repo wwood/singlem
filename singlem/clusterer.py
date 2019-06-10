@@ -1,8 +1,9 @@
 import tempfile
 import subprocess
-from otu_table_entry import OtuTableEntry
-from otu_table import OtuTable
 from itertools import chain
+
+from .otu_table_entry import OtuTableEntry
+from .otu_table import OtuTable
 
 
 class Clusterer:
@@ -42,7 +43,7 @@ class Clusterer:
         # smafa cluster previously did not accept data streamed in via
         # /dev/stdin, so we make a temporary file. Not sure if this is still
         # required?
-        with tempfile.NamedTemporaryFile(prefix='singlem_for_cluster') as f:
+        with tempfile.NamedTemporaryFile(prefix='singlem_for_cluster',mode='w') as f:
             sequence_to_indexes = {}
             for i, u in enumerate(otus):
                 if divergence is None:
@@ -68,39 +69,39 @@ class Clusterer:
                     "smafa cluster --fragment-method -d {} '{}'".format(
                         divergence, f.name)],
                 stdout=subprocess.PIPE,
-                bufsize=1)
+                bufsize=1,
+                universal_newlines=True)
 
             cluster_name_to_sample_to_otus = {}
-            with p.stdout:
-                for line in iter(p.stdout.readline, b''):
-                    splits = line.rstrip().split("\t")
-                    if len(splits) != 2:
-                        raise Exception(
-                            "Unexpected smafa cluster output: {}".format(line))
-                    query_sequence = splits[0]
-                    centroid_sequence = splits[1]
+            for line in p.stdout:
+                splits = line.rstrip().split("\t")
+                if len(splits) != 2:
+                    raise Exception(
+                        "Unexpected smafa cluster output: {}".format(line))
+                query_sequence = splits[0]
+                centroid_sequence = splits[1]
 
-                    # Take the first index because it will have the largest
-                    # number of OTUs due to the sorting of the OTU table done
-                    # above.
-                    centre = sequence_to_indexes[centroid_sequence][0]
-                    query_otu_indexes = sequence_to_indexes[query_sequence]
+                # Take the first index because it will have the largest
+                # number of OTUs due to the sorting of the OTU table done
+                # above.
+                centre = sequence_to_indexes[centroid_sequence][0]
+                query_otu_indexes = sequence_to_indexes[query_sequence]
 
-                    for query_otu_index in query_otu_indexes:
-                        query_otu = otus[query_otu_index]
-                        sample = query_otu.sample_name
-                        if centre in cluster_name_to_sample_to_otus:
-                            if sample in \
-                               cluster_name_to_sample_to_otus[centre]:
-                                cluster_name_to_sample_to_otus[
-                                    centre][sample].append(query_otu)
-                            else:
-                                cluster_name_to_sample_to_otus[
-                                    centre][sample] = [query_otu]
+                for query_otu_index in query_otu_indexes:
+                    query_otu = otus[query_otu_index]
+                    sample = query_otu.sample_name
+                    if centre in cluster_name_to_sample_to_otus:
+                        if sample in \
+                           cluster_name_to_sample_to_otus[centre]:
+                            cluster_name_to_sample_to_otus[
+                                centre][sample].append(query_otu)
                         else:
-                            cluster_name_to_sample_to_otus[centre] = {}
-                            cluster_name_to_sample_to_otus[centre][sample] = \
-                                [query_otu]
+                            cluster_name_to_sample_to_otus[
+                                centre][sample] = [query_otu]
+                    else:
+                        cluster_name_to_sample_to_otus[centre] = {}
+                        cluster_name_to_sample_to_otus[centre][sample] = \
+                            [query_otu]
             p.wait()
 
             for centre_name, sample_to_otus in cluster_name_to_sample_to_otus.items():

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft, Tim Lamberton.
@@ -26,7 +26,6 @@ import subprocess
 import os.path
 import tempfile
 import tempdir
-from string import split
 import extern
 import sys
 import json
@@ -40,8 +39,8 @@ from singlem.pipe import SearchPipe
 from singlem.sequence_classes import SeqReader
 
 class Tests(unittest.TestCase):
-    headers = split('gene sample sequence num_hits coverage taxonomy')
-    headers_with_extras = headers + split('read_names nucleotides_aligned taxonomy_by_known?')
+    headers = str.split('gene sample sequence num_hits coverage taxonomy')
+    headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known?')
     maxDiff = None
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
@@ -66,7 +65,7 @@ class Tests(unittest.TestCase):
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -92,7 +91,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 
         cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
-        self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
     def test_print_insert(self):
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
@@ -118,7 +117,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             path_to_script,
             path_to_data,
             self.two_packages)
-        self.assertEqual(exp, sorted(subprocess.check_output(cmd, shell=True).split("\n")))
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
         expected = [self.headers,
                     ['4.12.22seqs','small',
@@ -129,7 +128,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                      '2','4.88','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        with tempfile.NamedTemporaryFile(prefix='singlem_test_known') as t:
+        with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test_known') as t:
             t.write('\n'.join(["\t".join(x) for x in expected[:2]]))
             t.flush()
 
@@ -141,7 +140,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
     def test_diamond_assign_taxonomy(self):
-        with tempfile.NamedTemporaryFile(suffix='.fasta') as f:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fasta') as f:
             query = "\n".join(['>HWI-ST1243:156:D1K83ACXX:7:1109:18214:9910 1:N:0:TCCTGAGCCTAAGCCT',
                 'GTTAAATTACAAATTCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATCATGGGATTCTGTAAAGAGT',''])
             f.write(query)
@@ -176,7 +175,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
             self.headers,
             ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_000949295.1']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
-        with tempfile.NamedTemporaryFile(prefix='singlem_test',suffix='.fa') as t:
+        with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
             t.flush()
             cmd = "%s --quiet pipe --sequences %s --otu_table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
@@ -189,37 +188,45 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                                     split("\n")))
 
     def test_jplace_output(self):
-        expected_jpace = {u'fields': [u'classification',
-                                      u'distal_length',
-                                      u'edge_num',
-                                      u'like_weight_ratio',
-                                      u'likelihood',
-                                      u'pendant_length'],
-                          u'metadata': 'the_metadata',
-                          u'placements':
+        expected_jpace = {'fields': ['classification',
+                                     'distal_length',
+                                     'edge_num',
+                                     'like_weight_ratio',
+                                     'likelihood',
+                                     'pendant_length'],
+                          'metadata': 'the_metadata',
+                          'placements':
                           [{
-                           u'nm': [[u'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
-                                     2]],
-                            u'p': [[u'o__Bacillales',
-                                    0.0874346630859,
-                                    13,
-                                    0.333351177694,
-                                    -631.301684875,
-                                    0.150831104822],
-                                   [u'o__Bacillales',
-                                    0.0643521435547,
-                                    14,
-                                    0.333326655502,
-                                    -631.301758441,
-                                    0.15083915761],
-                                   [u'p__Firmicutes',
-                                    5.97534179688e-06,
-                                    15,
-                                    0.333322166804,
-                                    -631.301771907,
-                                    0.150839131805]]}],
-                          u'tree': 'tree_thanks',
-                          u'version': 3}
+                              'nm': [['CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
+                                      2]],
+                              'p': [
+                                  [
+                                      "o__Bacillales",
+                                      0.0874346630859,
+                                      13,
+                                      0.333350512423,
+                                      -608.20180926,
+                                      6.11351501465e-06
+                                  ],
+                                  [
+                                      "o__Bacillales",
+                                      0.0643521435547,
+                                      14,
+                                      0.333326884837,
+                                      -608.201880142,
+                                      6.11351501465e-06
+                                  ],
+                                  [
+                                      "p__Firmicutes",
+                                      5.97534179688e-06,
+                                      15,
+                                      0.33332260274,
+                                      -608.201892989,
+                                      6.11351501465e-06
+                                  ]
+                              ]}],
+                          'tree': 'tree_thanks',
+                          'version': 3}
 
         with tempdir.TempDir() as d:
             cmd = "%s pipe --sequences %s --otu_table /dev/null --output_jplace %s"\
@@ -230,7 +237,8 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                       os.path.join(path_to_data,'4.12.22seqs.spkg'))
             extern.run(cmd)
             jplace_path = os.path.join(d, 'my_jplace_jplace_test_4.12.22seqs.jplace')
-            j = json.load(open(jplace_path))
+            with open(jplace_path) as f:
+                j = json.load(f)
             j['tree'] = 'tree_thanks'
             j['metadata'] = 'the_metadata'
             self.assertEqual(expected_jpace, j)
@@ -246,7 +254,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
 GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -265,7 +273,7 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483_revcom
 ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGCCACTGGTGTTCCTCCATATC
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -286,7 +294,7 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
 >HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483_revcom
 ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGCCACTGGTGTTCCTCCATATC
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -310,7 +318,7 @@ ACTACCAGGGTATCTAATCCTGTTTGATCCCCACGCTTTCGCACATCAGCGTCAGTTACAGACCAGAAAGTCGCCTTCGC
 >NS500333:10:H0V2GAGXX:2:13211:8623:16289 1:N:0:GATCAG
 ATTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCAAGAGCCCGGAGATGGATTCTGAGACACGAATCCAGGTCCTACGGGGCGCAGCAGGCGCGAAAACTTTACACTGCGCGAAAGCGCGATA
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -331,7 +339,7 @@ ATTAGGTAGTTGCTGGGGTAACGTCCCAACAAGCCGATAATCGGTACGGGTTGTGAGAGCAAGAGCCCGGAGATGGATTC
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -352,10 +360,10 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 >another
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-            with tempfile.NamedTemporaryFile() as taxf:
+            with tempfile.NamedTemporaryFile(mode='w',) as taxf:
                 taxf.write("HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482\tmytax; yeh\n")
                 taxf.write("another\tmytax; yeh; 2\n")
                 taxf.flush()
@@ -400,7 +408,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         inseqs = '''>contig_1 abcd
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -415,9 +423,9 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                             )
 
     def test__align_proteins_to_hmm(self):
-        proteins = SeqReader().readfq(open(
-            path_to_data+
-            '/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorq4droc.fasta'))
+        with open(path_to_data +
+                  '/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorq4droc.fasta') as f:
+            proteins = list(SeqReader().readfq(f))
         hmm = path_to_data+'/4.12.22seqs.spkg/4.12.22seqs/graftmgyqgXl_search.hmm'
 
         alignment = SearchPipe()._align_proteins_to_hmm(proteins, hmm)
@@ -441,7 +449,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -459,7 +467,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
 GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -479,7 +487,7 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
         inseqs = '''>seq18975201
 GTGAATACGTTCCCGGGCCTTGTACACACCGCCCGTCACGCCATGGAGTCGAGTTGCAGACTCCAATCCGAACTGGGGCCGGTTTTTATGGATTGGCTTCCCCTCGCGGGTTCGCGACCCTTTGTACCGGCCATTGTAACACGTGTGTAGC
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 
@@ -502,10 +510,10 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
 ''' # reverse complement of the forward, so should collapse.
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
                 n2.write(inseqs_reverse)
                 n2.flush()
 
@@ -534,10 +542,10 @@ AAAAAAAAAAAAAAAAA
 >seq2
 TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
 ''' # reverse complement of the forward, so should collapse.
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
                 n2.write(inseqs_reverse)
                 n2.flush()
 
@@ -573,10 +581,10 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
 >seq3
 TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
 ''' # reverse complement of the forward, so should collapse.
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
                 n2.write(inseqs_reverse)
                 n2.flush()
 
@@ -606,10 +614,10 @@ AAAAAAAAAAAAAAAAA
 >seq2
 TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
 ''' # reverse complement of the forward, so should collapse.
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
                 n2.write(inseqs_reverse)
                 n2.flush()
 
@@ -639,10 +647,10 @@ AAAAAAAAAAAAAAAAA
 >seq2
 TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
 ''' # reverse complement of the forward, so should collapse.
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-            with tempfile.NamedTemporaryFile(suffix='.fa') as n2:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
                 n2.write(inseqs_reverse)
                 n2.flush()
 
@@ -665,7 +673,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
 '''
-        with tempfile.NamedTemporaryFile(suffix='.fa') as n:
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
 

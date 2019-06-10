@@ -7,20 +7,19 @@ import itertools
 import tempfile
 import json
 import re
-from string import split
 from Bio import SeqIO
-from StringIO import StringIO
+from io import StringIO
 
-from singlem import HmmDatabase, TaxonomyFile, OrfMUtils
-from otu_table import OtuTable
-from known_otu_table import KnownOtuTable
-from metagenome_otu_finder import MetagenomeOtuFinder
-from sequence_classes import SeqReader, AlignedProteinSequence
-from diamond_parser import DiamondResultParser
-from graftm_result import GraftMResult
-import sequence_extractor as singlem_sequence_extractor
-from placement_parser import PlacementParser
-from taxonomy_bihash import TaxonomyBihash
+from .singlem import HmmDatabase, TaxonomyFile, OrfMUtils
+from .otu_table import OtuTable
+from .known_otu_table import KnownOtuTable
+from .metagenome_otu_finder import MetagenomeOtuFinder
+from .sequence_classes import SeqReader, AlignedProteinSequence
+from .diamond_parser import DiamondResultParser
+from .graftm_result import GraftMResult
+from . import sequence_extractor as singlem_sequence_extractor
+from .placement_parser import PlacementParser
+from .taxonomy_bihash import TaxonomyBihash
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -58,9 +57,9 @@ class SearchPipe:
             archive_otu_table,
             output_extras,
             singlem_packages):
-        regular_output_fields = split('gene sample sequence num_hits coverage taxonomy')
+        regular_output_fields = str.split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
-                                  split('read_names nucleotides_aligned taxonomy_by_known?')
+            str.split('read_names nucleotides_aligned taxonomy_by_known?')
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
                 if output_extras:
@@ -580,8 +579,9 @@ class SearchPipe:
                         logging.debug("Converting jplace file %s to singlem jplace file %s" % (
                             input_jplace_file, output_jplace_file))
                         with open(output_jplace_file, 'w') as output_jplace_io:
-                            self._write_jplace_from_infos(
-                                open(input_jplace_file), new_infos, output_jplace_io)
+                            with open(input_jplace_file) as input_jplace_io:
+                                self._write_jplace_from_infos(
+                                    input_jplace_io, new_infos, output_jplace_io)
 
                 return new_infos
 
@@ -740,9 +740,10 @@ class SearchPipe:
 
         # rewrite placements to be OTU-wise instead of sequence-wise
         orfm_utils = OrfMUtils()
-        another_regex = re.compile(u'_\d+$')
+        another_regex = re.compile(r'_\d+$')
         sequence_to_count = {}
         sequence_to_example_p = {}
+
         for placement in jplace['placements']:
             if 'nm' not in placement:
                 raise Exception("Unexpected jplace format detected in placement %s" % placement)
@@ -759,7 +760,8 @@ class SearchPipe:
                 except KeyError:
                     sequence_to_count[sequence] = count
 
-                if real_name == info.names[0]:
+                if real_name == info.names[0] and \
+                   sequence not in sequence_to_example_p: # For determinism:
                     sequence_to_example_p[sequence] = placement['p']
 
         new_placements = {}
@@ -768,7 +770,7 @@ class SearchPipe:
             new_placements[sequence]['nm'] = [[sequence, sequence_to_count[sequence]]]
             new_placements[sequence]['p'] = example_p
 
-        jplace['placements'] = new_placements.values()
+        jplace['placements'] = list(new_placements.values())
         json.dump(jplace, output_jplace_io)
 
     def _graftm_command_prefix(self, is_protein):
@@ -891,7 +893,7 @@ class SearchPipe:
         for singlem_package in self._singlem_package_database.protein_packages():
             commands.append(command(
                 singlem_package,
-                search_result.protein_hit_paths().values(),
+                list(search_result.protein_hit_paths().values()),
                 True,
                 analysing_pairs))
         # Gather commands for aligning nucleotide packages.
@@ -917,6 +919,7 @@ class SearchPipe:
 
         def generate_tempfile_for_readset(readset):
             tmp = tempfile.NamedTemporaryFile(
+                mode='w',
                 prefix='singlem.%s' % readset.sample_name, suffix=".fasta",
                 delete=False)
             # Record basename (remove .fasta) so that the graftm output

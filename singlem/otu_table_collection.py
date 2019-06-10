@@ -2,10 +2,10 @@ import logging
 import re
 from collections import OrderedDict
 
-from archive_otu_table import ArchiveOtuTable
-from otu_table import OtuTable
-from taxonomy import Taxonomy
-from otu_table_entry import OtuTableEntry
+from .archive_otu_table import ArchiveOtuTable
+from .otu_table import OtuTable
+from .taxonomy import Taxonomy
+from .otu_table_entry import OtuTableEntry
 
 class OtuTableCollection:
     def __init__(self):
@@ -96,7 +96,7 @@ class OtuTableCollection:
 
         for sample, gene_to_otu in sample_to_gene_to_otu.items():
             for gene, otus in gene_to_otu.items():
-                logging.debug("Found %i OTUs for %s/%s" %(
+                logging.debug("Found %i OTUs for %s/%s" % (
                     len(otus), gene, otus[0].marker))
                 if len(otus) == 1:
                     yield otus[0]
@@ -110,7 +110,7 @@ class OtuTableCollection:
         sample_to_sequence_to_otus = OrderedDict()
         reg = re.compile(r'.[12]$')
         for otu in self:
-            new_sample = reg.sub('',otu.sample_name)
+            new_sample = reg.sub('', otu.sample_name)
             otu.sample_name = new_sample
             if new_sample not in sample_to_sequence_to_otus:
                 sample_to_sequence_to_otus[new_sample] = OrderedDict()
@@ -130,7 +130,8 @@ class OtuTableCollection:
                     o.sequence = seq
                     o.count = sum([otu.count for otu in otus])
                     o.coverage = sum([otu.coverage for otu in otus])
-                    o.taxonomy = otus[0].taxonomy #TODO: Make this more of a 'median' taxonomy.
+                    # TODO: Make this more of a 'median' taxonomy.
+                    o.taxonomy = otus[0].taxonomy
                     otu_table.add([o])
         return otu_table
 

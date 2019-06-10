@@ -1,10 +1,11 @@
-from string import split
 import json
-from otu_table_entry import OtuTableEntry
+
+from .otu_table_entry import OtuTableEntry
+
 
 class ArchiveOtuTable:
     version = 1
-    FIELDS = split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
+    FIELDS = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
     READ_NAME_FIELD_INDEX=6
 
     def __init__(self, singlem_packages=None):

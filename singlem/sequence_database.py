@@ -1,21 +1,16 @@
-import csv
 import os
 import tempfile
-import StringIO
 import logging
 import subprocess
-import itertools
 import sqlite3
 import glob
 import json
+import itertools
 
-from itertools import izip_longest
-from threading import Thread
-from Bio import SeqIO
 from orator import DatabaseManager, Model
 
-from otu_table import OtuTableEntry, OtuTable
-import extern
+from .otu_table import OtuTableEntry, OtuTable
+
 
 class DBSequence(OtuTableEntry):
     sequence_id = None
@@ -76,7 +71,7 @@ class SequenceDatabase:
             return None
 
     def smafa_dbs(self):
-        return self._marker_to_smafadb.values()
+        return list(self._marker_to_smafadb.values())
 
     def smafa_clustering_divergence(self):
         return self._contents_hash[
@@ -121,7 +116,7 @@ class SequenceDatabase:
     @staticmethod
     def grouper(iterable, n):
         args = [iter(iterable)] * n
-        return izip_longest(*args, fillvalue=None)
+        return itertools.zip_longest(*args, fillvalue=None)
 
     @staticmethod
     def create_from_otu_table(db_path, otu_table_collection,
@@ -167,7 +162,9 @@ class SequenceDatabase:
                     dbseq.taxonomy = entry.taxonomy
 
                     if entry.marker not in gene_to_tempfile:
-                        gene_to_tempfile[entry.marker] = tempfile.NamedTemporaryFile(prefix='singlem-makedb')
+                        gene_to_tempfile[entry.marker] = \
+                            tempfile.NamedTemporaryFile(
+                                prefix='singlem-makedb', mode='w')
                     tf = gene_to_tempfile[entry.marker]
                     tf.write("%s\n" % entry.sequence)
 
@@ -191,13 +188,16 @@ class SequenceDatabase:
             logging.info("Formatting smafa database %s .." % smafa)
             # Use streaming technique from
             # https://stackoverflow.com/questions/2715847/python-read-streaming-input-from-subprocess-communicate#17698359
-            p = subprocess.Popen(['bash','-c',cmd], stdout=subprocess.PIPE, bufsize=1)
-            with p.stdout:
-                for line in iter(p.stdout.readline, b''):
-                    splits = line.rstrip().split("\t")
-                    if len(splits) != 2:
-                        raise Exception("Unexpected smafa cluster output: {}".format(line))
-                    c.execute("INSERT INTO clusters VALUES (?,?)",splits)
+            p = subprocess.Popen(
+                ['bash','-c',cmd],
+                stdout=subprocess.PIPE,
+                bufsize=1,
+                universal_newlines=True)
+            for line in p.stdout:
+                splits = line.rstrip().split("\t")
+                if len(splits) != 2:
+                    raise Exception("Unexpected smafa cluster output: {}".format(line))
+                c.execute("INSERT INTO clusters VALUES (?,?)",splits)
             p.wait()
             db.commit()
             tf.close()
@@ -221,7 +221,7 @@ class SequenceDatabase:
             'database': sqlite_db
         }})
         Model.set_connection_resolver(db)
-        print "\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS)
+        print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
         for chunk in db.table('otus').chunk(1000):
             for entry in chunk:
                 otu = OtuTableEntry()
@@ -231,4 +231,4 @@ class SequenceDatabase:
                 otu.count = entry.num_hits
                 otu.coverage = entry.coverage
                 otu.taxonomy = entry.taxonomy
-                print str(otu)
+                print(str(otu))

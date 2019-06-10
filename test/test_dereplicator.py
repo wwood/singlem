@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 #=======================================================================
 # Authors: Ben Woodcroft
@@ -23,11 +23,7 @@
 
 import unittest
 import os.path
-from string import split
 import sys
-from StringIO import StringIO
-import tempfile
-import extern
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.dereplicator import Dereplicator
