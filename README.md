@@ -192,7 +192,7 @@ docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.
 ```
 
 #### Installation via PyPI
-To install the Python libraries required:
+SingleM has migrated to Python 3. To install the Python libraries required:
 ```
 pip install graftm
 pip install singlem
@@ -200,7 +200,7 @@ pip install singlem
 You may need super-user privileges.
 
 SingleM also has the following non-Python dependencies:
-* [smafa](https://github.com/wwood/smafa) >= 0.4.0
+* [smafa](https://github.com/wwood/smafa) >= 0.5.0
 * [VSEARCH](https://github.com/torognes/vsearch)
 
 Some dependencies of [GraftM](https://github.com/geronimp/graftM):
