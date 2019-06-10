@@ -62,47 +62,45 @@ class Clusterer:
                 f.flush()
             # Use streaming technique from
             # https://stackoverflow.com/questions/2715847/python-read-streaming-input-from-subprocess-communicate#17698359
-            p = subprocess.Popen(
-                [
+            with subprocess.Popen([
                     'bash',
                     '-c',
                     "smafa cluster --fragment-method -d {} '{}'".format(
                         divergence, f.name)],
                 stdout=subprocess.PIPE,
                 bufsize=1,
-                universal_newlines=True)
+                universal_newlines=True) as p:
 
-            cluster_name_to_sample_to_otus = {}
-            for line in p.stdout:
-                splits = line.rstrip().split("\t")
-                if len(splits) != 2:
-                    raise Exception(
-                        "Unexpected smafa cluster output: {}".format(line))
-                query_sequence = splits[0]
-                centroid_sequence = splits[1]
+                cluster_name_to_sample_to_otus = {}
+                for line in p.stdout:
+                    splits = line.rstrip().split("\t")
+                    if len(splits) != 2:
+                        raise Exception(
+                            "Unexpected smafa cluster output: {}".format(line))
+                    query_sequence = splits[0]
+                    centroid_sequence = splits[1]
 
-                # Take the first index because it will have the largest
-                # number of OTUs due to the sorting of the OTU table done
-                # above.
-                centre = sequence_to_indexes[centroid_sequence][0]
-                query_otu_indexes = sequence_to_indexes[query_sequence]
+                    # Take the first index because it will have the largest
+                    # number of OTUs due to the sorting of the OTU table done
+                    # above.
+                    centre = sequence_to_indexes[centroid_sequence][0]
+                    query_otu_indexes = sequence_to_indexes[query_sequence]
 
-                for query_otu_index in query_otu_indexes:
-                    query_otu = otus[query_otu_index]
-                    sample = query_otu.sample_name
-                    if centre in cluster_name_to_sample_to_otus:
-                        if sample in \
-                           cluster_name_to_sample_to_otus[centre]:
-                            cluster_name_to_sample_to_otus[
-                                centre][sample].append(query_otu)
+                    for query_otu_index in query_otu_indexes:
+                        query_otu = otus[query_otu_index]
+                        sample = query_otu.sample_name
+                        if centre in cluster_name_to_sample_to_otus:
+                            if sample in \
+                               cluster_name_to_sample_to_otus[centre]:
+                                cluster_name_to_sample_to_otus[
+                                    centre][sample].append(query_otu)
+                            else:
+                                cluster_name_to_sample_to_otus[
+                                    centre][sample] = [query_otu]
                         else:
-                            cluster_name_to_sample_to_otus[
-                                centre][sample] = [query_otu]
-                    else:
-                        cluster_name_to_sample_to_otus[centre] = {}
-                        cluster_name_to_sample_to_otus[centre][sample] = \
-                            [query_otu]
-            p.wait()
+                            cluster_name_to_sample_to_otus[centre] = {}
+                            cluster_name_to_sample_to_otus[centre][sample] = \
+                                [query_otu]
 
             for centre_name, sample_to_otus in cluster_name_to_sample_to_otus.items():
                 centre = otus[centre_name]
