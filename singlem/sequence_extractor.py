@@ -22,7 +22,8 @@ Python-land rather than output as a file.'''
         Returns
         -------
         An array of graftm.sequence_io.Sequence objects'''
-        cmd = "fxtract -XH -f /dev/stdin '%s'" % database_fasta_file
+        cmd = "mfqe --output-uncompressed --fasta-read-name-lists /dev/stdin --input-fasta '{}' --output-fasta-files /dev/stdout".format(
+            database_fasta_file)
 
         output = extern.run(cmd, stdin='\n'.join(reads_to_extract))
 
