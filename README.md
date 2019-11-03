@@ -191,6 +191,22 @@ If the sequence data to be analyzed is in the current working directory, SingleM
 docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 14
 ```
 
+#### Installation via conda
+Conda support at this time is partial because some dependencies are not packaged
+for conda, and the following is not well tested, but it may aid your
+installation. After installing conda and setting up the bioconda and conda-forge
+channels,
+
+```
+conda create -n singlem nose python hmmer h5py matplotlib krona diamond orfm pplacer vsearch smafa tempdir biopython biom-format dendropy mfqe
+conda activate singlem
+pip install orator
+pip install extern
+pip install squarify
+pip install graftm
+pip install singlem
+```
+
 #### Installation via PyPI
 SingleM has migrated to Python 3. To install the Python libraries required:
 ```
@@ -206,7 +222,7 @@ SingleM also has the following non-Python dependencies:
 Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 * [OrfM](https://github.com/wwood/OrfM) >= 0.2.0 
 * [HMMER](http://hmmer.janelia.org/) >= 3.1b1 
-* [fxtract](https://github.com/ctSkennerton/fxtract)
+* [mfqe](https://github.com/wwood/mfqe) >= 0.5.0
 * [pplacer](http://matsen.fhcrc.org/pplacer/) >= 1.1.alpha17
 * [KronaTools](http://sourceforge.net/p/krona/home/krona/) >= 2.4
 * [diamond](https://github.com/bbuchfink/diamond) >= 0.9
