@@ -25,7 +25,8 @@ Python-land rather than output as a file.'''
         cmd = "mfqe --output-uncompressed --fasta-read-name-lists /dev/stdin --input-fasta '{}' --output-fasta-files /dev/stdout".format(
             database_fasta_file)
 
-        output = extern.run(cmd, stdin='\n'.join(reads_to_extract))
+        # Retrieve each sequence exactly once so mfqe does not croak
+        output = extern.run(cmd, stdin='\n'.join(set(reads_to_extract)))
 
         seqs = []
         for name, seq, _ in SequenceIO().each(StringIO(output)):
