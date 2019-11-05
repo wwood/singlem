@@ -280,6 +280,9 @@ class SearchPipe:
 
             if len(unknown_sequences) > 0:
                 extractor = singlem_sequence_extractor.SequenceExtractor()
+                logging.debug("Extracting reads for {} from {} ..".format(
+                    singlem_package.base_directory(), nucleotide_sequence_fasta_file
+                ))
                 seqs = extractor.extract_and_read(
                     [s.name for s in unknown_sequences],
                     nucleotide_sequence_fasta_file)
@@ -938,10 +941,14 @@ class SearchPipe:
             for readset in readsets:
                 if extracted_reads.analysing_pairs:
                     if len(readset[0].sequences + readset[1].sequences) > 0:
-                        # Some pairs will only have one side of the pair aligned,
-                        # some pairs both. Fill in the forward and reverse files
-                        # with dummy data as necessary
-                        dummy_sequence = 'AAA'
+                        # Some pairs will only have one side of the pair
+                        # aligned, some pairs both. Fill in the forward and
+                        # reverse files with dummy data as necessary
+                        #
+                        # The dummy sequence must have an ORF with
+                        # >min_orf_length bases because otherwise if there are
+                        # >no sequences, hmmsearch inside graftm croaks.
+                        dummy_sequence = 'ATG'+''.join(['A']*self._min_orf_length)
                         forward_tmp = generate_tempfile_for_readset(readset[0])
                         reverse_tmp = generate_tempfile_for_readset(readset[1])
 
