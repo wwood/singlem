@@ -90,6 +90,7 @@ class SearchPipe:
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
 
         working_directory = kwargs.pop('working_directory')
+        working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
         force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -126,17 +127,25 @@ class SearchPipe:
 
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
-            shared_mem_directory = '/dev/shm'
-            if os.path.exists(shared_mem_directory):
-                logging.debug("Using shared memory as a base directory")
-                tmp = tempdir.TempDir(basedir=shared_mem_directory)
+            if working_directory_tmpdir is False:
+                shared_mem_directory = '/dev/shm'
+                if os.path.exists(shared_mem_directory):
+                    logging.debug("Using shared memory as a base directory")
+                    tmp = tempdir.TempDir(basedir=shared_mem_directory)
+                    tempfiles_path = os.path.join(tmp.name, 'tempfiles')
+                    os.mkdir(tempfiles_path)
+                    os.environ['TEMP'] = tempfiles_path
+                else:
+                    logging.debug("Shared memory directory not detected, using default temporary directory instead")
+                    tmp = tempdir.TempDir()
+                working_directory = tmp.name
+            else:
+                logging.debug("Using conventional temporary directory as working directory")
+                tmp = tempdir.TempDir()
                 tempfiles_path = os.path.join(tmp.name, 'tempfiles')
                 os.mkdir(tempfiles_path)
                 os.environ['TEMP'] = tempfiles_path
-            else:
-                logging.debug("Shared memory directory not detected, using default temporary directory instead")
-                tmp = tempdir.TempDir()
-            working_directory = tmp.name
+                working_directory = tmp.name
         else:
             working_directory = working_directory
             if os.path.exists(working_directory):
