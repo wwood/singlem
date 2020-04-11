@@ -164,11 +164,15 @@ class Tests(unittest.TestCase):
                         os.path.join(d, "phylogeny_free"))
                     extern.run(cmd)
                     with open(os.path.join(d, "phylogeny_free.diss")) as f:
-                        self.assertEqual("""2
+                        r = f.read()
+                        self.assertTrue(r=="""2
 minimal2
 minimal	0.2
-""",
-                                         f.read())
+"""
+or r=="""2
+minimal
+minimal2	0.2
+""")
 
                 with tempdir.TempDir() as d:
                     ## Then for the phylogeny version:
@@ -191,7 +195,8 @@ minimal	0.2
                         os.path.join(d, 'phylogeny_full'))
                     extern.run(cmd)
                     with open(os.path.join(d, "phylogeny_full.diss")) as f:
-                        self.assertEqual('2\nminimal2\nminimal\t0.109937\n', f.read())
+                        r = f.read()
+                        self.assertTrue(r=='2\nminimal2\nminimal\t0.109937\n' or r=='2\nminimal\nminimal2\t0.109937\n')
 
     def test_get_tree_default(self):
         cmd = "{} get_tree".format(path_to_script)
