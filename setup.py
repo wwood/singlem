@@ -27,6 +27,7 @@ setup(
     version=__version__,
     description='Find de-novo operational taxonomic units (OTUs) from metagenome data',
     long_description=readme,
+    long_description_content_type='text/markdown',
     url="https://github.com/wwood/SingleM",
     author='Ben Woodcroft',
     license='GPL3+',
