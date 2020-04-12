@@ -290,7 +290,7 @@ class Summariser:
                 aggfunc=sum,
                 fill_value=0)
             bt = biom.table.Table(
-                df2.as_matrix(),
+                df2.values,
                 ['%s; %s' % (ind[1],ind[0]) for ind in df2.index],
                 df2.columns,
                 [{'taxonomy': ind[1].split('; ')} for ind in df2.index])
