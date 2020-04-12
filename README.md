@@ -1,22 +1,25 @@
+[![Travis](https://img.shields.io/travis/wwood/singlem.svg?style=flat-square)](https://travis-ci.org/wwood/singlem)
+
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
 
 - [SingleM](#singlem)
-    - [Generating an OTU table](#generating-an-otu-table)
-    - [Further processing of OTU tables](#further-processing-of-otu-tables)
-        - [Summarising OTU tables](#summarising-otu-tables)
-        - [Calculating beta diversity between samples](#calculating-beta-diversity-between-samples)
-        - [Creating and querying SingleM databases](#creating-and-querying-singlem-databases)
-        - [Appraising assembly and genome recovery efforts](#appraising-assembly-and-genome-recovery-efforts)
-        - [Installation](#installation)
-            - [Installation via GNU Guix](#installation-via-gnu-guix)
-            - [Installation via DockerHub](#installation-via-dockerhub)
-            - [Installation via PyPI](#installation-via-pypi)
-    - [Help](#help)
-        - [FAQ](#faq)
-            - [Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?](#can-you-target-the-16s-rrna-gene-instead-of-the-default-set-of-ribosomal-proteins-with-singlem)
-            - [How should SingleM be run on multiple samples?](#how-should-singlem-be-run-on-multiple-samples)
-    - [License](#license)
+  - [Generating an OTU table](#generating-an-otu-table)
+  - [Further processing of OTU tables](#further-processing-of-otu-tables)
+    - [Summarising OTU tables by rarefying, clustering, etc.](#summarising-otu-tables-by-rarefying-clustering-etc)
+    - [Calculating beta diversity between samples](#calculating-beta-diversity-between-samples)
+    - [Creating and querying SingleM databases](#creating-and-querying-singlem-databases)
+    - [Appraising assembly and genome recovery efforts](#appraising-assembly-and-genome-recovery-efforts)
+    - [Installation](#installation)
+      - [Installation via GNU Guix](#installation-via-gnu-guix)
+      - [Installation via DockerHub](#installation-via-dockerhub)
+      - [Installation via conda](#installation-via-conda)
+      - [Installation via PyPI](#installation-via-pypi)
+  - [Help](#help)
+    - [FAQ](#faq)
+      - [Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?](#can-you-target-the-16s-rrna-gene-instead-of-the-default-set-of-ribosomal-proteins-with-singlem)
+      - [How should SingleM be run on multiple samples?](#how-should-singlem-be-run-on-multiple-samples)
+  - [License](#license)
 
 <!-- markdown-toc end -->
 # SingleM
