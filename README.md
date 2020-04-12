@@ -1,4 +1,4 @@
-[![Travis](https://img.shields.io/travis/wwood/singlem.svg?style=flat-square)](https://travis-ci.org/wwood/singlem)
+[![Travis]([![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/CoverM))](https://travis-ci.org/wwood/singlem)
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
