@@ -22,6 +22,10 @@ install:
   - conda update -q conda
   # Useful for debugging any issues with conda
   - conda info -a
+  
+  - conda config --add channels defaults
+  - conda config --add channels bioconda
+  - conda config --add channels conda-forge
 
   # Replace dep1 dep2 ... with your dependencies
   - conda create -q -n test-environment python=$TRAVIS_PYTHON_VERSION nose tempdir biopython dendropy pandas biom-format orator squarify matplotlib-base smafa vsearch diamond hmmer h5py krona orfm pplacer mfqe expressbetadiversity graftm extern
