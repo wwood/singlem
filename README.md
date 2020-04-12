@@ -201,12 +201,8 @@ installation. After installing conda and setting up the bioconda and conda-forge
 channels,
 
 ```
-conda create -n singlem nose python hmmer h5py matplotlib krona diamond orfm pplacer vsearch smafa tempdir biopython biom-format dendropy mfqe
+conda create -n singlem python nose tempdir biopython dendropy pandas biom-format orator squarify matplotlib-base smafa vsearch diamond hmmer h5py krona orfm pplacer mfqe expressbetadiversity extern
 conda activate singlem
-pip install orator
-pip install extern
-pip install squarify
-pip install graftm
 pip install singlem
 ```
 
