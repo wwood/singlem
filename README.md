@@ -1,4 +1,4 @@
-[![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/singlem)
+[![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/singlem) [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
@@ -176,7 +176,16 @@ unassembled.
 
 ### Installation
 
+#### Installation via conda
+SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
+
+```
+conda install -c bioconda singlem
+```
+
 #### Installation via GNU Guix
+(currently out of date)
+
 The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
 ```
 git clone https://github.com/Ecogenomics/ace-guix
@@ -185,6 +194,8 @@ GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
 Beyond installing GNU Guix, super-user privileges are not required for installation.
 
 #### Installation via DockerHub
+(currently out of date)
+
 A docker image generated from the Guix package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
 ```
 docker pull wwood/singlem:[RELEASE_TAG]
@@ -192,18 +203,6 @@ docker pull wwood/singlem:[RELEASE_TAG]
 If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
 ```
 docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 14
-```
-
-#### Installation via conda
-Conda support at this time is partial because some dependencies are not packaged
-for conda, and the following is not well tested, but it may aid your
-installation. After installing conda and setting up the bioconda and conda-forge
-channels,
-
-```
-conda create -n singlem python nose tempdir biopython dendropy pandas biom-format orator squarify matplotlib-base smafa vsearch diamond hmmer h5py krona orfm pplacer mfqe expressbetadiversity extern
-conda activate singlem
-pip install singlem
 ```
 
 #### Installation via PyPI
