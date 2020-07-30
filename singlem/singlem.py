@@ -78,3 +78,7 @@ class HmmDatabase:
         for hp in self._hmms_and_positions.values():
             yield hp
 
+class DiamondDatabase(HmmDatabase):
+    def __init__(self, package_paths=None):
+        HmmDatabase.__init__(self, package_paths)
+        pass
