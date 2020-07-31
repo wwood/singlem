@@ -82,3 +82,22 @@ class DiamondDatabase(HmmDatabase):
     def __init__(self, package_paths=None):
         HmmDatabase.__init__(self, package_paths)
         pass
+    
+    def create_dmnd(self, fasta_paths):
+        'concatenate fasta files into a single diamond file'
+        pass
+    
+    def protein_packages(self):
+        pass
+    
+    def nucleotide_packages(self):
+        pass
+    
+    def protein_search_dmnd_paths(self):
+        pass
+    
+    def nucleotide_search_dmnd_paths(self):
+        pass
+    
+    def __iter__(self):
+        pass
