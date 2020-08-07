@@ -4,6 +4,8 @@ import csv
 import logging
 import itertools
 import pkg_resources
+import subprocess
+import tempfile
 
 from .singlem_package import SingleMPackage
 
@@ -78,26 +80,34 @@ class HmmDatabase:
         for hp in self._hmms_and_positions.values():
             yield hp
 
-class DiamondDatabase(HmmDatabase):
+class DiamondDatabase:
     def __init__(self, package_paths=None):
-        HmmDatabase.__init__(self, package_paths)
         pass
     
     def create_dmnd(self, fasta_paths):
         'concatenate fasta files into a single diamond file'
-        pass
+        # this is a stupid way of generating unique filenames but it will have to do for now
+        temp_fasta = next(tempfile._get_candidate_names()) + '.fasta'
+        cat_cmd = 'cat ' + \
+            ' '.join(fasta_paths) + ' > ' + \
+            temp_fasta
+        subprocess.Popen(cat_cmd)
+        
+        # make temp dmnd from temp fasta
+        # temp_dmnd
+        temp_dmnd = next(tempfile._get_candidate_names()) + '.dmnd'
+        dmnd_cmd = 'diamond makedb --in ' + temp_fasta + ' --db ' + temp_dmnd
+        subprocess.Popen(dmnd_cmd)
+        
+        return # path to temp_dmnd
     
     def protein_packages(self):
         pass
     
-    def nucleotide_packages(self):
-        pass
     
     def protein_search_dmnd_paths(self):
         pass
     
-    def nucleotide_search_dmnd_paths(self):
-        pass
     
     def __iter__(self):
         pass
