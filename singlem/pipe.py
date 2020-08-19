@@ -863,6 +863,7 @@ class SearchPipe:
                 cmd += "--reverse {} ".format(
                     ' '.join(reverse_read_files))
             extern.run(cmd)
+            
 
         num_singlem_packages = len(singlem_package_database.protein_packages())+\
                                len(singlem_package_database.nucleotide_packages())
