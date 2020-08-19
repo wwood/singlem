@@ -88,6 +88,7 @@ class SearchPipe:
         singlem_packages = kwargs.pop('singlem_packages')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
+        diamond_search = kwargs.pop('d') # diamond search keyword
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -173,7 +174,7 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
-        search_result = self._search(hmms, forward_read_files, reverse_read_files)
+        search_result = self._search(hmms, forward_read_files, reverse_read_files, diamond_search)
         sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
@@ -802,7 +803,7 @@ class SearchPipe:
 
         return cmd+' '
 
-    def _search(self, singlem_package_database, forward_read_files, reverse_read_files, diamond_method=False):
+    def _search(self, singlem_package_database, forward_read_files, reverse_read_files, diamond_search=False):
         '''Find all reads that match one or more of the search HMMs in the
         singlem_package_database.
 
@@ -863,13 +864,12 @@ class SearchPipe:
                 cmd += "--reverse {} ".format(
                     ' '.join(reverse_read_files))
             extern.run(cmd)
-            
 
         num_singlem_packages = len(singlem_package_database.protein_packages())+\
                                len(singlem_package_database.nucleotide_packages())
         logging.info("Searching with %i SingleM package(s)" % num_singlem_packages)
         
-        if diamond_method:
+        if diamond_search:
             # Run searches for proteins via DIAMOND
             hmms = singlem_package_database.protein_search_hmm_paths()
             dmnd = singlem_package_database.get_dmnd()
