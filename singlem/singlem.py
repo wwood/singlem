@@ -4,7 +4,7 @@ import csv
 import logging
 import itertools
 import pkg_resources
-import subprocess
+import extern
 import tempfile
 
 from .singlem_package import SingleMPackage
@@ -60,6 +60,24 @@ class HmmDatabase:
         for pkg in self.singlem_packages:
             self._hmms_and_positions[pkg.base_directory()] = pkg
 
+    def get_dmnd(self):
+        ''' Create temporary DIAMOND file for search method '''
+        fasta_paths = [pkg.graftm_package().alignment_fasta_path() for pkg in self.protein_packages]
+        
+        temp_fasta = tempfile.mkstemp(prefix='SM', suffix='.faa')[1]
+        cat_cmd = 'cat %s > %s' % (' '.join(fasta_paths), temp_fasta)
+        extern.run(cat_cmd)
+        # make temp dmnd from temp fasta
+        temp_dmnd = tempfile.mkstemp(prefix='SM', suffix='.dmnd')[1]
+        
+        dmnd_cmd = 'diamond makedb --in %s --db %s' % (temp_fasta, temp_dmnd)
+        extern.run(dmnd_cmd)
+        
+        # remove concatenated fasta file
+        os.remove(temp_fasta)
+        
+        return temp_dmnd
+    
     def protein_packages(self):
         return [pkg for pkg in self._hmms_and_positions.values() if pkg.is_protein_package()]
 
@@ -79,35 +97,3 @@ class HmmDatabase:
     def __iter__(self):
         for hp in self._hmms_and_positions.values():
             yield hp
-
-class DiamondDatabase:
-    def __init__(self, package_paths=None):
-        pass
-    
-    def create_dmnd(self, fasta_paths):
-        'concatenate fasta files into a single diamond file'
-        # this is a stupid way of generating unique filenames but it will have to do for now
-        temp_fasta = next(tempfile._get_candidate_names()) + '.fasta'
-        cat_cmd = 'cat ' + \
-            ' '.join(fasta_paths) + ' > ' + \
-            temp_fasta
-        subprocess.Popen(cat_cmd)
-        
-        # make temp dmnd from temp fasta
-        # temp_dmnd
-        temp_dmnd = next(tempfile._get_candidate_names()) + '.dmnd'
-        dmnd_cmd = 'diamond makedb --in ' + temp_fasta + ' --db ' + temp_dmnd
-        subprocess.Popen(dmnd_cmd)
-        
-        return # path to temp_dmnd
-    
-    def protein_packages(self):
-        pass
-    
-    
-    def protein_search_dmnd_paths(self):
-        pass
-    
-    
-    def __iter__(self):
-        pass
