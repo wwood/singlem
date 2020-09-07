@@ -88,7 +88,7 @@ class SearchPipe:
         singlem_packages = kwargs.pop('singlem_packages')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
-        diamond_search = kwargs.pop('d') # diamond search keyword
+        diamond_prefilter = kwargs.pop('diamond_prefilter') # diamond search keyword
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -174,7 +174,21 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
-        search_result = self._search(hmms, forward_read_files, reverse_read_files, diamond_search)
+        logging.info("Using as input %i different sequence files e.g. %s" % (
+            len(forward_read_files), forward_read_files[0]))
+        
+        if diamond_prefilter:
+            for pkg in hmms:
+                if not pkg.is_protein_package():
+                    raise Exception(
+                        "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
+            logging.info("Filtering sequence files through DIAMOND" % 
+                         len(forward_read_files))
+            forward_read_files = self._prefilter(hmms, forward_read_files)
+            if reverse_read_files != None:
+                reverse_read_files = self._prefilter(hmms, reverse_read_files)
+                
+        search_result = self._search(hmms, forward_read_files, reverse_read_files)
         sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
@@ -802,11 +816,43 @@ class SearchPipe:
             cmd += "  --filter_minimum %i" % self._filter_minimum_nucleotide
 
         return cmd+' '
+    
+    def _prefilter(self, singlem_package_database, read_files):
+        '''Find all reads that match the DIAMOND database in the 
+        singlem_package database.
+        Parameters
+        ----------
+        singlem_package_database: HmmDatabase 
+            packages to search the reads for
+        read_files: list of str 
+            paths to the sequences to be searched
+        Returns
+        -------
+        path to fasta file of filtered reads
+        '''
+        dmnd = singlem_package_database.get_dmnd()
+        fasta_path = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
+                                                     suffix='.fasta', delete=False)
+        cmd = "zcat -f %s " \
+              "| diamond blastx " \
+              "--outfmt 6 qseqid full_qseq " \
+              "--max-target-seqs 1 " \
+              "--index-chunks 1 " \
+              "--threads %i " \
+              "--query - " \
+              "--db %s " \
+              "| sed -e 's/^/>/' -e 's/\\t/\\n/ > %s" % (
+                  read_files,
+                  self._num_threads,
+                  dmnd,
+                  fasta_path)
+        
+        extern.run(cmd)
+        return fasta_path
 
-    def _search(self, singlem_package_database, forward_read_files, reverse_read_files, diamond_search=False):
+    def _search(self, singlem_package_database, forward_read_files, reverse_read_files):
         '''Find all reads that match one or more of the search HMMs in the
         singlem_package_database.
-
         Parameters
         ----------
         singlem_package_database: HmmDatabase
@@ -817,14 +863,12 @@ class SearchPipe:
             paths to the reverse sequences to be searched, or None to run in
             unpaired mode. Must be the same length as forward_read_files unless
             None.
-
         Returns
         -------
         SingleMPipeSearchResult
-
         '''
-        logging.info("Using as input %i different sequence files e.g. %s" % (
-            len(forward_read_files), forward_read_files[0]))
+        # logging.info("Using as input %i different sequence files e.g. %s" % (
+        #     len(forward_read_files), forward_read_files[0]))
         graftm_protein_search_directory = os.path.join(
             self._working_directory, 'graftm_protein_search')
         graftm_nucleotide_search_directory = os.path.join(
@@ -839,27 +883,10 @@ class SearchPipe:
                   "--output_directory %s "\
                   "--aln_hmm_file %s " % (
                       self._num_threads,
-                      ' '.join(forward_read_files),
+                      forward_read_files,
                       ' '.join(hmm_paths),
                       output_directory,
                       hmm_paths[0])
-            if reverse_read_files is not None:
-                cmd += "--reverse {} ".format(
-                    ' '.join(reverse_read_files))
-            extern.run(cmd)
-        
-        def run2(dmnd_file, output_directory):
-            ''' Diamond method for protein search'''
-            cmd = self._graftm_command_prefix(True) + \
-                  "--threads %i "\
-                  "--forward %s "\
-                  "--search_only "\
-                  "--search_diamond_file %s "\
-                  "--output_directory %s" % (
-                      self._num_threads,
-                      ' '.join(forward_read_files),
-                      ' '.join(dmnd_file),
-                      output_directory)
             if reverse_read_files is not None:
                 cmd += "--reverse {} ".format(
                     ' '.join(reverse_read_files))
@@ -869,24 +896,14 @@ class SearchPipe:
                                len(singlem_package_database.nucleotide_packages())
         logging.info("Searching with %i SingleM package(s)" % num_singlem_packages)
         
-        if diamond_search:
-            # Run searches for proteins via DIAMOND
-            hmms = singlem_package_database.protein_search_hmm_paths()
-            dmnd = singlem_package_database.get_dmnd()
-            if len(hmms) > 0:
-                doing_proteins = True
-                logging.info("Searching for reads matching DIAMOND database")
-                run2(dmnd, graftm_protein_search_directory, True)
-                os.remove(dmnd)
-        else:
-            # Run searches for proteins
-            hmms = singlem_package_database.protein_search_hmm_paths()
-            doing_proteins = False
-            if len(hmms) > 0:
-                doing_proteins = True
-                logging.info("Searching for reads matching %i different protein HMM(s)" % len(hmms))
-                run(hmms, graftm_protein_search_directory, True)
-        
+        # Run searches for proteins
+        hmms = singlem_package_database.protein_search_hmm_paths()
+        doing_proteins = False
+        if len(hmms) > 0:
+            doing_proteins = True
+            logging.info("Searching for reads matching %i different protein HMM(s)" % len(hmms))
+            run(hmms, graftm_protein_search_directory, True)
+
         # Run searches for nucleotides
         hmms = singlem_package_database.nucleotide_search_hmm_paths()
         doing_nucs = False
