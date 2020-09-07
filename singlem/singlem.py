@@ -62,19 +62,12 @@ class HmmDatabase:
 
     def get_dmnd(self):
         ''' Create temporary DIAMOND file for search method '''
-        fasta_paths = [pkg.graftm_package().alignment_fasta_path() for pkg in self.protein_packages]
+        fasta_paths = [pkg.graftm_package().unaligned_sequence_database() for pkg in self.protein_packages]
+        temp_dmnd = tempfile.mkstemp(prefix='SM', suffix='.dmnd')[1]     
+        cmd = 'cat %s | '\
+            'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
         
-        temp_fasta = tempfile.mkstemp(prefix='SM', suffix='.faa')[1]
-        cat_cmd = 'cat %s > %s' % (' '.join(fasta_paths), temp_fasta)
-        extern.run(cat_cmd)
-        # make temp dmnd from temp fasta
-        temp_dmnd = tempfile.mkstemp(prefix='SM', suffix='.dmnd')[1]
-        
-        dmnd_cmd = 'diamond makedb --in %s --db %s' % (temp_fasta, temp_dmnd)
-        extern.run(dmnd_cmd)
-        
-        # remove concatenated fasta file
-        os.remove(temp_fasta)
+        extern.run(cmd)
         
         return temp_dmnd
     
