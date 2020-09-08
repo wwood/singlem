@@ -841,7 +841,7 @@ class SearchPipe:
               "--query - " \
               "--db %s " \
               "| sed -e 's/^/>/' -e 's/\\t/\\n/ > %s" % (
-                  read_files,
+                  ' '.join(read_files),
                   self._num_threads,
                   dmnd,
                   fasta_path)
@@ -882,7 +882,7 @@ class SearchPipe:
                   "--output_directory %s "\
                   "--aln_hmm_file %s " % (
                       self._num_threads,
-                      forward_read_files,
+                      ' '.join(forward_read_files),
                       ' '.join(hmm_paths),
                       output_directory,
                       hmm_paths[0])
