@@ -831,7 +831,7 @@ class SearchPipe:
         '''
         dmnd = singlem_package_database.get_dmnd()
         fasta_path = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
-                                                     suffix='.fasta', delete=False)
+                                                     suffix='.fasta', delete=False).name
         cmd = "zcat -f %s " \
               "| diamond blastx " \
               "--outfmt 6 qseqid full_qseq " \
