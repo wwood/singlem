@@ -62,7 +62,7 @@ class HmmDatabase:
 
     def get_dmnd(self):
         ''' Create temporary DIAMOND file for search method '''
-        fasta_paths = [pkg.graftm_package().unaligned_sequence_database() for pkg in self.protein_packages]
+        fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]
         temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='SM', 
                                                 suffix='.dmnd', delete=False)
         cmd = 'cat %s | '\
