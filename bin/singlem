@@ -513,7 +513,8 @@ if __name__ == '__main__':
             force = args.force,
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
-            known_sequence_taxonomy = args.known_sequence_taxonomy)
+            known_sequence_taxonomy = args.known_sequence_taxonomy,
+            diamond_prefilter = args.diamond_prefilter)
 
     elif args.subparser_name=='renew':
         validate_pipe_args(args)
