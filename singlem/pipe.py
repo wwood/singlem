@@ -847,7 +847,7 @@ class SearchPipe:
                                                                              fasta_path)
         logging.info("Running DIAMOND blastx...")
         extern.run(cmd)
-        cmd = "sed -e 's/^/>/' -e 's/\\t/\\n/ %s > %s" % (fasta_path, fasta_path)
+        cmd = "sed -e 's/^/>/' -e 's/\\t/\\n/' %s > %s" % (fasta_path, fasta_path)
         
         # cmd = "zcat -f %s " \
         #       "| diamond blastx " \
