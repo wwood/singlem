@@ -829,24 +829,40 @@ class SearchPipe:
         -------
         path to fasta file of filtered reads
         '''
+        logging.info("Creating DIAMOND database from singlem packages")
         dmnd = singlem_package_database.get_dmnd()
+        temp_reads = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
+                                                     suffix='.fasta', delete=False).name
+        
         fasta_path = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
                                                      suffix='.fasta', delete=False).name
         
-        cmd = "zcat -f %s " \
-              "| diamond blastx " \
-              "--outfmt 6 qseqid full_qseq " \
-              "--max-target-seqs 1 " \
-              "--index-chunks 1 " \
-              "--threads %i " \
-              "--query - " \
-              "--db %s " \
-              "| sed -e 's/^/>/' -e 's/\\t/\\n/ > %s" % (
-                  ' '.join(read_files),
-                  self._num_threads,
-                  dmnd,
-                  fasta_path)
+        cmd = "zcat -f %s > %s" % (' '.join(read_files), temp_reads)
+        logging.info("Concatenating read files into stream")
+        extern.run(cmd)
+        cmd = "diamond blastx --outfmt 6 qseqid full_qseq --max-target-seqs 1 " \
+              "--index-chunks 1 --threads %i --query %s --db %s --out %s" % (self._num_threads,
+                                                                             temp_reads,
+                                                                             dmnd,
+                                                                             fasta_path)
+        logging.info("Running DIAMOND blastx...")
+        extern.run(cmd)
+        cmd = "sed -e 's/^/>/' -e 's/\\t/\\n/ %s > %s" % (fasta_path, fasta_path)
         
+        # cmd = "zcat -f %s " \
+        #       "| diamond blastx " \
+        #       "--outfmt 6 qseqid full_qseq " \
+        #       "--max-target-seqs 1 " \
+        #       "--index-chunks 1 " \
+        #       "--threads %i " \
+        #       "--query - " \
+        #       "--db %s " \
+        #       "| sed -e 's/^/>/' -e 's/\\t/\\n/ > %s" % (
+        #           ' '.join(read_files),
+        #           self._num_threads,
+        #           dmnd,
+        #           fasta_path)
+        logging.info("Converting DIAMOND output to fasta file")
         extern.run(cmd)
         return fasta_path
 
