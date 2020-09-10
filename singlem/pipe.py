@@ -182,7 +182,7 @@ class SearchPipe:
                 if not pkg.is_protein_package():
                     raise Exception(
                         "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
-            logging.info("Filtering sequence files through DIAMOND")
+            logging.info("Filtering sequence files through DIAMOND blastx")
             forward_read_files = self._prefilter(hmms, forward_read_files)
             if reverse_read_files != None:
                 reverse_read_files = self._prefilter(hmms, reverse_read_files)
@@ -846,6 +846,7 @@ class SearchPipe:
                   dmnd,
                   fasta_path)
         extern.run(cmd)
+        logging.info("Finished DIAMOND prefilter phase")
         return [fasta_path]
 
     def _search(self, singlem_package_database, forward_read_files, reverse_read_files):
