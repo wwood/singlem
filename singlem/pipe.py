@@ -843,8 +843,8 @@ class SearchPipe:
             if fasta_path[-3:] == '.gz':
                 fasta_path = fasta_path[:-3] # remove .gz for destination files
             
-            f = open(fasta_path, 'w+') # create tempfile in working directory
-            f.close()
+            #f = open(fasta_path, 'w+') # create tempfile in working directory
+            #f.close()
             
             cmd = "diamond blastx " \
                   "--outfmt 6 qseqid full_qseq " \
