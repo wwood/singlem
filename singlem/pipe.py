@@ -832,9 +832,7 @@ class SearchPipe:
         path to fasta file of filtered reads
         '''
         dmnd = singlem_package_database.get_dmnd()
-        # fasta_path = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
-        #                                              suffix='.fasta', delete=False).name
-        
+
         filtered_reads = []
         prefilter_dir = os.path.join(self._working_directory, 'prefilter')
         os.mkdir(prefilter_dir)
@@ -860,20 +858,6 @@ class SearchPipe:
             extern.run(cmd)
             filtered_reads.append(fasta_path)
             
-        # cmd = "zcat -f %s " \
-        #       "| diamond blastx " \
-        #       "--outfmt 6 qseqid full_qseq " \
-        #       "--max-target-seqs 1 " \
-        #       "--index-chunks 1 " \
-        #       "--threads %i " \
-        #       "--query - " \
-        #       "--db %s " \
-        #       "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
-        #           ' '.join(read_files),
-        #           self._num_threads,
-        #           dmnd,
-        #           fasta_path)
-        # extern.run(cmd)
         return filtered_reads
 
     def _search(self, singlem_package_database, forward_read_files, reverse_read_files):
