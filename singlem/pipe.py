@@ -88,7 +88,7 @@ class SearchPipe:
         singlem_packages = kwargs.pop('singlem_packages')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
-        diamond_prefilter = kwargs.pop('diamond_prefilter') # diamond search keyword
+        diamond_prefilter = kwargs.pop('diamond_prefilter')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -182,10 +182,12 @@ class SearchPipe:
                 if not pkg.is_protein_package():
                     raise Exception(
                         "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
+                    
             logging.info("Filtering sequence files through DIAMOND blastx")
             forward_read_files = self._prefilter(hmms, forward_read_files)
             if reverse_read_files != None:
                 reverse_read_files = self._prefilter(hmms, reverse_read_files)
+            logging.info("Finished DIAMOND prefilter phase")
                 
         search_result = self._search(hmms, forward_read_files, reverse_read_files)
         sample_names = search_result.samples_with_hits()
@@ -830,24 +832,47 @@ class SearchPipe:
         path to fasta file of filtered reads
         '''
         dmnd = singlem_package_database.get_dmnd()
-        fasta_path = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
-                                                     suffix='.fasta', delete=False).name
-        cmd = "zcat -f %s " \
-              "| diamond blastx " \
-              "--outfmt 6 qseqid full_qseq " \
-              "--max-target-seqs 1 " \
-              "--index-chunks 1 " \
-              "--threads %i " \
-              "--query - " \
-              "--db %s " \
-              "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
-                  ' '.join(read_files),
-                  self._num_threads,
-                  dmnd,
-                  fasta_path)
-        extern.run(cmd)
-        logging.info("Finished DIAMOND prefilter phase")
-        return [fasta_path]
+        # fasta_path = tempfile.NamedTemporaryFile(mode='w', prefix='SMreads', 
+        #                                              suffix='.fasta', delete=False).name
+        
+        filtered_reads = []
+        
+        for file in read_files:
+            fasta_path = os.path.join(self._working_directory, 
+                                 os.path.basename(file)) #not sure how well this handles .gz
+            f = open(fasta_path) # create tempfile in working directory
+            f.close()
+            
+            cmd = "diamond blastx " \
+                  "--outfmt 6 qseqid full_qseq " \
+                  "--max-target-seqs 1 " \
+                  "--index-chunks 1 " \
+                  "--threads %i " \
+                  "--query %s " \
+                  "--db %s " \
+                  "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
+                      self._num_threads,
+                      file,
+                      dmnd,
+                      fasta_path)
+            extern.run(cmd)
+            filtered_reads.append(fasta_path)
+            
+        # cmd = "zcat -f %s " \
+        #       "| diamond blastx " \
+        #       "--outfmt 6 qseqid full_qseq " \
+        #       "--max-target-seqs 1 " \
+        #       "--index-chunks 1 " \
+        #       "--threads %i " \
+        #       "--query - " \
+        #       "--db %s " \
+        #       "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
+        #           ' '.join(read_files),
+        #           self._num_threads,
+        #           dmnd,
+        #           fasta_path)
+        # extern.run(cmd)
+        return filtered_reads
 
     def _search(self, singlem_package_database, forward_read_files, reverse_read_files):
         '''Find all reads that match one or more of the search HMMs in the
