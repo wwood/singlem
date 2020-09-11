@@ -839,8 +839,9 @@ class SearchPipe:
         
         for file in read_files:
             fasta_path = os.path.join(self._working_directory, 
-                                 os.path.basename(file)) #not sure how well this handles .gz
-            f = open(fasta_path) # create tempfile in working directory
+                                      'prefilter',
+                                      os.path.basename(file)) #not sure how well this handles .gz
+            f = open(fasta_path, mode='w+') # create tempfile in working directory
             f.close()
             
             cmd = "diamond blastx " \
