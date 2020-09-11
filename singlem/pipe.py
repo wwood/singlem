@@ -836,10 +836,11 @@ class SearchPipe:
         #                                              suffix='.fasta', delete=False).name
         
         filtered_reads = []
+        prefilter_dir = os.path.join(self._working_directory, 'prefilter')
+        os.mkdir(prefilter_dir)
         
         for file in read_files:
-            fasta_path = os.path.join(self._working_directory, 
-                                      'prefilter',
+            fasta_path = os.path.join(prefilter_dir,
                                       os.path.basename(file)) #not sure how well this handles .gz
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
