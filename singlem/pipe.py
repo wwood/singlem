@@ -840,6 +840,8 @@ class SearchPipe:
         for file in read_files:
             fasta_path = os.path.join(prefilter_dir,
                                       os.path.basename(file)) #not sure how well this handles .gz
+            fasta_path = os.path.splitext(fasta_path)[0]
+            
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
             
