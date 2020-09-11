@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
 
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
-
+    
     def test_fast_protein_package(self):
         expected = [
             "\t".join(self.headers),
@@ -309,11 +309,13 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
         with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
             n.flush()
-
-            cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
-                path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
-
-            self.assertRaises(Exception, extern.run(cmd))
+            try:
+                cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
+                    path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
+                self.fail() # this is meant to fail
+            except:
+                pass
+                
 
     def test_revcom_nucleotide_package(self):
         expected = [
