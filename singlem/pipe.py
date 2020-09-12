@@ -842,7 +842,7 @@ class SearchPipe:
                                       os.path.basename(file))
             if fasta_path[-3:] == '.gz':
                 fasta_path = fasta_path[:-3] # remove .gz for destination files
-            fasta_path = os.path.splitext(fasta_path)+'.fasta'
+            fasta_path = os.path.splitext(fasta_path)[0]+'.fasta'
             
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
