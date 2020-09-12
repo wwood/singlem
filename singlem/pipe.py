@@ -1,4 +1,4 @@
-rimport tempdir
+import tempdir
 import logging
 import os.path
 import shutil
