@@ -1,4 +1,4 @@
-import tempdir
+rimport tempdir
 import logging
 import os.path
 import shutil
@@ -842,20 +842,22 @@ class SearchPipe:
                                       os.path.basename(file))
             if fasta_path[-3:] == '.gz':
                 fasta_path = fasta_path[:-3] # remove .gz for destination files
+            fasta_path = os.path.splitext(fasta_path)+'.fasta'
             
-            #f = open(fasta_path, 'w+') # create tempfile in working directory
-            #f.close()
+            f = open(fasta_path, 'w+') # create tempfile in working directory
+            f.close()
             
-            cmd = "diamond blastx " \
+            cmd = "zcat -f %s | " \
+                  "diamond blastx " \
                   "--outfmt 6 qseqid full_qseq " \
                   "--max-target-seqs 1 " \
                   "--index-chunks 1 " \
                   "--threads %i " \
-                  "--query %s " \
+                  "--query - " \
                   "--db %s " \
                   "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
-                      self._num_threads,
                       file,
+                      self._num_threads,
                       dmnd,
                       fasta_path)
             extern.run(cmd)
