@@ -1,4 +1,4 @@
-3dgimport tempdir
+import tempdir
 import logging
 import os.path
 import shutil
