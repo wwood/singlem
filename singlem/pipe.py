@@ -851,6 +851,7 @@ class SearchPipe:
                   "diamond blastx " \
                   "--outfmt 6 qseqid full_qseq " \
                   "--max-target-seqs 1 " \
+                  "--evalue 0.00001 " \
                   "--index-chunks 1 " \
                   "--threads %i " \
                   "--query - " \
@@ -882,8 +883,6 @@ class SearchPipe:
         -------
         SingleMPipeSearchResult
         '''
-        # logging.info("Using as input %i different sequence files e.g. %s" % (
-        #     len(forward_read_files), forward_read_files[0]))
         graftm_protein_search_directory = os.path.join(
             self._working_directory, 'graftm_protein_search')
         graftm_nucleotide_search_directory = os.path.join(
