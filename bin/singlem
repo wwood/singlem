@@ -314,7 +314,7 @@ if __name__ == '__main__':
         argument_group.add_argument('--known_sequence_taxonomy', metavar='FILE',
                                     help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
         argument_group.add_argument('--diamond_prefilter', action='store_true',
-                                    help='Parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages. NOTE: cannot be used with nucleotide packages [default: not set]',
+                                    help='Parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: not compatible with nucleotide packages [default: not set]',
                                     default=False)
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
