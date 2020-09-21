@@ -178,12 +178,12 @@ class SearchPipe:
             len(forward_read_files), forward_read_files[0]))
         
         if diamond_prefilter:
+            logging.info("Filtering sequence files through DIAMOND blastx")
             for pkg in hmms:
                 if not pkg.is_protein_package():
                     raise Exception(
                         "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
                     
-            logging.info("Filtering sequence files through DIAMOND blastx")
             forward_read_files = self._prefilter(hmms, forward_read_files)
             if reverse_read_files != None:
                 reverse_read_files = self._prefilter(hmms, reverse_read_files)
