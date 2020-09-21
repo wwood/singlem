@@ -88,6 +88,7 @@ class SearchPipe:
         singlem_packages = kwargs.pop('singlem_packages')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
+        diamond_prefilter = kwargs.pop('diamond_prefilter')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -173,6 +174,21 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
+        logging.info("Using as input %i different sequence files e.g. %s" % (
+            len(forward_read_files), forward_read_files[0]))
+        
+        if diamond_prefilter:
+            logging.info("Filtering sequence files through DIAMOND blastx")
+            for pkg in hmms:
+                if not pkg.is_protein_package():
+                    raise Exception(
+                        "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
+                    
+            forward_read_files = self._prefilter(hmms, forward_read_files)
+            if reverse_read_files != None:
+                reverse_read_files = self._prefilter(hmms, reverse_read_files)
+            logging.info("Finished DIAMOND prefilter phase")
+                
         search_result = self._search(hmms, forward_read_files, reverse_read_files)
         sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
@@ -801,11 +817,58 @@ class SearchPipe:
             cmd += "  --filter_minimum %i" % self._filter_minimum_nucleotide
 
         return cmd+' '
+    
+    def _prefilter(self, singlem_package_database, read_files):
+        '''Find all reads that match the DIAMOND database in the 
+        singlem_package database.
+        Parameters
+        ----------
+        singlem_package_database: HmmDatabase 
+            packages to search the reads for
+        read_files: list of str 
+            paths to the sequences to be searched
+        Returns
+        -------
+        path to fasta file of filtered reads
+        '''
+        dmnd = singlem_package_database.get_dmnd()
+
+        filtered_reads = []
+        prefilter_dir = os.path.join(self._working_directory, 'prefilter')
+        os.mkdir(prefilter_dir)
+        
+        for file in read_files:
+            fasta_path = os.path.join(prefilter_dir,
+                                      os.path.basename(file))
+            if fasta_path[-3:] == '.gz':
+                fasta_path = fasta_path[:-3] # remove .gz for destination files
+            fasta_path = os.path.splitext(fasta_path)[0]+'.fna'
+            
+            f = open(fasta_path, 'w+') # create tempfile in working directory
+            f.close()
+            
+            cmd = "zcat -f %s | " \
+                  "diamond blastx " \
+                  "--outfmt 6 qseqid full_qseq " \
+                  "--max-target-seqs 1 " \
+                  "--evalue 0.01 " \
+                  "--index-chunks 1 " \
+                  "--threads %i " \
+                  "--query - " \
+                  "--db %s " \
+                  "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
+                      file,
+                      self._num_threads,
+                      dmnd,
+                      fasta_path)
+            extern.run(cmd)
+            filtered_reads.append(fasta_path)
+            
+        return filtered_reads
 
     def _search(self, singlem_package_database, forward_read_files, reverse_read_files):
         '''Find all reads that match one or more of the search HMMs in the
         singlem_package_database.
-
         Parameters
         ----------
         singlem_package_database: HmmDatabase
@@ -816,14 +879,10 @@ class SearchPipe:
             paths to the reverse sequences to be searched, or None to run in
             unpaired mode. Must be the same length as forward_read_files unless
             None.
-
         Returns
         -------
         SingleMPipeSearchResult
-
         '''
-        logging.info("Using as input %i different sequence files e.g. %s" % (
-            len(forward_read_files), forward_read_files[0]))
         graftm_protein_search_directory = os.path.join(
             self._working_directory, 'graftm_protein_search')
         graftm_nucleotide_search_directory = os.path.join(
@@ -850,7 +909,7 @@ class SearchPipe:
         num_singlem_packages = len(singlem_package_database.protein_packages())+\
                                len(singlem_package_database.nucleotide_packages())
         logging.info("Searching with %i SingleM package(s)" % num_singlem_packages)
-
+        
         # Run searches for proteins
         hmms = singlem_package_database.protein_search_hmm_paths()
         doing_proteins = False

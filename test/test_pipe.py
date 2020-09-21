@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
 
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
-
+    
     def test_fast_protein_package(self):
         expected = [
             "\t".join(self.headers),
@@ -75,6 +75,24 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
+    def test_fast_protein_package_prefilter(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+    
     def test_minimal(self):
         expected = [
             self.headers,
@@ -84,12 +102,30 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
+        
+    def test_minimal_prefilter(self):
+        expected = [
+            self.headers,
+            ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        exp = sorted(["\t".join(x) for x in expected]+[''])
+
+        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --diamond_prefilter --otu_table /dev/stdout --threads 4" % (path_to_script,
+                                                                                                    path_to_data)
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
     def test_insert(self):
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
+                                                                                                    path_to_data)
+        self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
+    
+    def test_insert_prefilter(self):
+        expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        exp = sorted(["\t".join(x) for x in expected]+[''])
+
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --diamond_prefilter --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
@@ -264,6 +300,22 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
                              extern.run(cmd).replace(
                                  os.path.basename(n.name).replace('.fa',''),
                                  '').split("\n"))
+            
+    def test_nucleotide_package_prefilter(self):
+        """ correct behaviour is to fail, as DIAMOND does not have a blastn capability """
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1105:6981:63483 1:N:0:AAGAGGCAAAGGAGTA
+GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACAGGATTAGATACCCTGGTAGT
+'''
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            try:
+                cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
+                    path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
+                self.fail() # this is meant to fail
+            except:
+                pass
+                
 
     def test_revcom_nucleotide_package(self):
         expected = [

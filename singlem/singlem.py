@@ -4,6 +4,8 @@ import csv
 import logging
 import itertools
 import pkg_resources
+import extern
+import tempfile
 
 from .singlem_package import SingleMPackage
 
@@ -58,6 +60,18 @@ class HmmDatabase:
         for pkg in self.singlem_packages:
             self._hmms_and_positions[pkg.base_directory()] = pkg
 
+    def get_dmnd(self):
+        ''' Create temporary DIAMOND file for search method '''
+        fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]
+        temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='singlem-diamond-prefilter', 
+                                                suffix='.dmnd', delete=False).name
+        cmd = 'cat %s | '\
+            'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
+        
+        extern.run(cmd)
+        
+        return temp_dmnd
+    
     def protein_packages(self):
         return [pkg for pkg in self._hmms_and_positions.values() if pkg.is_protein_package()]
 
@@ -77,4 +91,3 @@ class HmmDatabase:
     def __iter__(self):
         for hp in self._hmms_and_positions.values():
             yield hp
-

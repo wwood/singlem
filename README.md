@@ -216,6 +216,7 @@ You may need super-user privileges.
 SingleM also has the following non-Python dependencies:
 * [smafa](https://github.com/wwood/smafa) >= 0.5.0
 * [VSEARCH](https://github.com/torognes/vsearch)
+* [sed](https://www.gnu.org/software/sed/) - is standard on most linux systems
 
 Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 * [OrfM](https://github.com/wwood/OrfM) >= 0.2.0 
@@ -223,7 +224,7 @@ Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 * [mfqe](https://github.com/wwood/mfqe) >= 0.5.0
 * [pplacer](http://matsen.fhcrc.org/pplacer/) >= 1.1.alpha17
 * [KronaTools](http://sourceforge.net/p/krona/home/krona/) >= 2.4
-* [diamond](https://github.com/bbuchfink/diamond) >= 0.9
+* [diamond](https://github.com/bbuchfink/diamond) >= 2.0.0
 
 ## Help
 If you have any questions or comments, send a message to the [SupportM mailing list](https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!forum/supportm) or raise a [GitHib issue](https://github.com/wwood/singlem/issues).
