@@ -851,7 +851,7 @@ class SearchPipe:
                   "diamond blastx " \
                   "--outfmt 6 qseqid full_qseq " \
                   "--max-target-seqs 1 " \
-                  "--evalue 0.00001 " \
+                  "--evalue 0.01 " \
                   "--index-chunks 1 " \
                   "--threads %i " \
                   "--query - " \
