@@ -313,6 +313,9 @@ if __name__ == '__main__':
                                     default=False)
         argument_group.add_argument('--known_sequence_taxonomy', metavar='FILE',
                                     help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
+        argument_group.add_argument('--diamond_prefilter', action='store_true',
+                                    help='Parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: not compatible with nucleotide packages [default: not set]',
+                                    default=False)
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
@@ -510,7 +513,8 @@ if __name__ == '__main__':
             force = args.force,
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
-            known_sequence_taxonomy = args.known_sequence_taxonomy)
+            known_sequence_taxonomy = args.known_sequence_taxonomy,
+            diamond_prefilter = args.diamond_prefilter)
 
     elif args.subparser_name=='renew':
         validate_pipe_args(args)
@@ -541,7 +545,8 @@ if __name__ == '__main__':
             force = args.force,
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
-            known_sequence_taxonomy = args.known_sequence_taxonomy)
+            known_sequence_taxonomy = args.known_sequence_taxonomy,
+            diamond_prefilter = False)
 
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:
