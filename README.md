@@ -216,7 +216,7 @@ You may need super-user privileges.
 SingleM also has the following non-Python dependencies:
 * [smafa](https://github.com/wwood/smafa) >= 0.5.0
 * [VSEARCH](https://github.com/torognes/vsearch)
-* [sed](https://www.gnu.org/software/sed/)
+* [sed](https://www.gnu.org/software/sed/) - is standard on most linux systems
 
 Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 * [OrfM](https://github.com/wwood/OrfM) >= 0.2.0 
