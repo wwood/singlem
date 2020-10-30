@@ -321,16 +321,22 @@ if __name__ == '__main__':
 
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = new_subparser(subparsers, 'seqs', seqs_description)
-    seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
-    seqs_parser.add_argument('--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
-    seqs_parser.add_argument('--window_size', metavar='INT', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
+    
+    required_seqs_arguments = seqs_parser.add_argument_group('required arguments')
+    
+    required_seqs_arguments.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
+    required_seqs_arguments.add_argument('--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
+    required_seqs_arguments.add_argument('--window_size', metavar='INT', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
 
     makedb_description = 'Create a searchable database from an OTU table'
     makedb_parser = new_subparser(subparsers, 'makedb', makedb_description)
-    makedb_parser.add_argument('--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
-    makedb_parser.add_argument('--otu_tables', nargs='+', help="Make a db from these OTU tables")
-    makedb_parser.add_argument('--db', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
-    makedb_parser.add_argument('--clustering_divergence', type=int, help="Cluster DB to reduce RAM usage (no loss i precision)", default=0)
+    
+    required_makedb_arguments = makedb_parser.add_argument_group('required arguments')
+    
+    required_makedb_arguments.add_argument('--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
+    required_makedb_arguments.add_argument('--otu_tables', nargs='+', help="Make a db from these OTU tables")
+    required_makedb_arguments.add_argument('--db', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
+    required_makedb_arguments.add_argument('--clustering_divergence', type=int, help="Cluster DB to reduce RAM usage (no loss i precision)", default=0)
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
@@ -382,27 +388,36 @@ if __name__ == '__main__':
 
     create_description = 'Create a SingleM package.'
     create_parser = new_subparser(subparsers, 'create', create_description)
-    create_parser.add_argument('--input_graftm_package', metavar="PATH", help="input package", required=True)
-    create_parser.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
-    create_parser.add_argument('--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
-    create_parser.add_argument('--window_size', metavar="INTEGER", help="length of residues in the window, counting only those that match the HMM", required=True, type=int)
+    
+    required_create_arguments = create_parser.add_argument_group('required arguments')
+    
+    required_create_arguments.add_argument('--input_graftm_package', metavar="PATH", help="input package", required=True)
+    required_create_arguments.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
+    required_create_arguments.add_argument('--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
+    required_create_arguments.add_argument('--window_size', metavar="INTEGER", help="length of residues in the window, counting only those that match the HMM", required=True, type=int)
     create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists')
 
     get_tree_description = 'Extract path to Newick tree file in a SingleM package.'
     get_tree_parser = new_subparser(subparsers, 'get_tree', get_tree_description)
-    get_tree_parser.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
+    
+    required_get_tree_arguments = get_tree_parser.add_argument_group('required arguments')
+    
+    required_get_tree_arguments.add_argument('--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
 
     regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
-    regenerate_parser.add_argument('--input_singlem_package', metavar="PATH", help="input package", required=True)
-    regenerate_parser.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
-    regenerate_parser.add_argument('--working_directory', required=True)
-    regenerate_parser.add_argument('--euk_sequences', required=True)
-    regenerate_parser.add_argument('--euk_taxonomy', required=True)
-    regenerate_parser.add_argument('--intermediate_archaea_graftm_package', required=True)
-    regenerate_parser.add_argument('--intermediate_bacteria_graftm_package', required=True)
-    regenerate_parser.add_argument('--input_taxonomy', required=True)
-    regenerate_parser.add_argument('--type_strains_list_file', required=True)
+    
+    required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
+    
+    required_regenerate_arguments.add_argument('--input_singlem_package', metavar="PATH", help="input package", required=True)
+    required_regenerate_arguments.add_argument('--output_singlem_package', metavar="PATH", help="output package", required=True)
+    required_regenerate_arguments.add_argument('--working_directory', required=True)
+    required_regenerate_arguments.add_argument('--euk_sequences', required=True)
+    required_regenerate_arguments.add_argument('--euk_taxonomy', required=True)
+    required_regenerate_arguments.add_argument('--intermediate_archaea_graftm_package', required=True)
+    required_regenerate_arguments.add_argument('--intermediate_bacteria_graftm_package', required=True)
+    required_regenerate_arguments.add_argument('--input_taxonomy', required=True)
+    required_regenerate_arguments.add_argument('--type_strains_list_file', required=True)
 
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
