@@ -22,7 +22,7 @@ class Regenerator:
         intermediate_archaea_graftm_package = kwargs.pop('intermediate_archaea_graftm_package')
         intermediate_bacteria_graftm_package = kwargs.pop('intermediate_bacteria_graftm_package')
         input_taxonomy = kwargs.pop('input_taxonomy')
-        type_strains_list_file = kwargs.pop('type_strains_list_file')
+        # type_strains_list_file = kwargs.pop('type_strains_list_file')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -41,11 +41,11 @@ class Regenerator:
         extern.run(cmd)
 
         # Extract hit sequences from that set
-        euk_result = GraftMResult(euk_graftm_output)
+        euk_result = GraftMResult(euk_graftm_output, False)
         hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
         if len(hit_paths) != 1: raise Exception(
                 "Unexpected number of hits against euk in graftm")
-        euk_hits_path = hit_paths.values().next() #i.e. first
+        euk_hits_path = next(iter(hit_paths.values())) #i.e. first
 
         # Concatenate euk, archaea and bacterial sequences
         archaeal_intermediate_pkg = GraftMPackage.acquire(
@@ -55,12 +55,12 @@ class Regenerator:
         num_euk_hits = 0
         final_sequences_path = os.path.join(working_directory,
                                             "%s_final_sequences.faa" % basename)
-        archeal_seqs = archaeal_intermediate_pkg.unaligned_sequence_database_path()
-        bacterial_seqs = bacterial_intermediate_pkg.unaligned_sequence_database_path()
-        with open(type_strains_list_file) as f:
-            type_strain_identifiers = [s.strip() for s in f.readlines()]
-        logging.info("Read in %i type strain IDs e.g. %s" % (
-            len(type_strain_identifiers), type_strain_identifiers[0]))
+        # archeal_seqs = archaeal_intermediate_pkg.unaligned_sequence_database_path()
+        # bacterial_seqs = bacterial_intermediate_pkg.unaligned_sequence_database_path()
+        # with open(type_strains_list_file) as f:
+        #     type_strain_identifiers = [s.strip() for s in f.readlines()]
+        # logging.info("Read in %i type strain IDs e.g. %s" % (
+        #     len(type_strain_identifiers), type_strain_identifiers[0]))
 
         with open(final_sequences_path, 'w') as final_seqs_fp:
             with open(euk_hits_path) as euk_seqs_fp:
@@ -73,24 +73,24 @@ class Regenerator:
                          num_euk_hits)
 
             # Dereplicate hit sequences on the species level, choosing type strains
-            # where applicable.
-            dereplicator = Dereplicator()
+            # where applicable. (deprecated as of GTDB r95)
+            # dereplicator = Dereplicator()
             for gpkg in [archaeal_intermediate_pkg, bacterial_intermediate_pkg]:
-                tax = gpkg.taxonomy_hash()
-                species_dereplicated_ids = dereplicator.dereplicate(
-                    list(tax.keys()),
-                    8, # root, kingdom, phylum, c o f g s
-                    tax,
-                    type_strain_identifiers)
-                logging.debug("Dereplicator returned %i entries" % len(species_dereplicated_ids))
+                # tax = gpkg.taxonomy_hash()
+                # species_dereplicated_ids = dereplicator.dereplicate(
+                #     list(tax.keys()),
+                #     8, # root, kingdom, phylum, c o f g s
+                #     tax,
+                #     type_strain_identifiers)
+                # logging.debug("Dereplicator returned %i entries" % len(species_dereplicated_ids))
                 num_total = 0
                 num_written = 0
                 with open(gpkg.unaligned_sequence_database_path()) as seqs:
                     for name, seq, _ in SeqReader().readfq(seqs):
                         num_total += 1
-                        if name in species_dereplicated_ids:
-                            final_seqs_fp.write(">%s\n%s\n" % (name, seq))
-                            num_written += 1
+                        # if name in species_dereplicated_ids:
+                        final_seqs_fp.write(">%s\n%s\n" % (name, seq))
+                        num_written += 1
                 logging.info(
                     "Of %i sequences in gpkg %s, %i species-dereplicated were included in the final package." %(
                         num_total, gpkg, num_written))
@@ -111,7 +111,7 @@ class Regenerator:
             ' '.join(bacterial_intermediate_pkg.search_hmm_paths()),
             original_hmm_path,
             final_gpkg)
-        extern.run(cmd)
+        extern.run(cmd)            
 
         ##############################################################################
         # Remove sequences from the diamond DB that are not in the tree i.e.
