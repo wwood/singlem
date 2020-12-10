@@ -417,7 +417,6 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--intermediate_archaea_graftm_package', required=True)
     required_regenerate_arguments.add_argument('--intermediate_bacteria_graftm_package', required=True)
     required_regenerate_arguments.add_argument('--input_taxonomy', required=True)
-    required_regenerate_arguments.add_argument('--type_strains_list_file', required=True)
 
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
@@ -792,8 +791,7 @@ if __name__ == '__main__':
             euk_taxonomy = args.euk_taxonomy,
             intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
             intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
-            input_taxonomy = args.input_taxonomy,
-            type_strains_list_file = args.type_strains_list_file)
+            input_taxonomy = args.input_taxonomy)
 
     elif args.subparser_name == 'get_tree':
         hmm_db = HmmDatabase(args.singlem_packages)
