@@ -106,6 +106,15 @@ class MetagenomeOtuFinder:
             the best position
 
         '''
+         # Internally stretch_length is the length of the alignment
+        if is_protein_alignment:
+            if stretch_length % 3 != 0:
+                raise Exception(
+                    "For protein alignments the window length must be divisible "
+                    "by 3 i.e. correspond to whole codons")
+            stretch_length = int(stretch_length / 3)
+        if stretch_length < 1:
+            raise Exception("stretch_length must be positive")
 
         ignored_columns = self._find_lower_case_columns(alignment)
 
