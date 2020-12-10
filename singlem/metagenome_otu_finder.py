@@ -112,7 +112,7 @@ class MetagenomeOtuFinder:
                 raise Exception(
                     "For protein alignments the window length must be divisible "
                     "by 3 i.e. correspond to whole codons")
-            stretch_length = stretch_length / 3
+            stretch_length = int(stretch_length / 3)
         if stretch_length < 1:
             raise Exception("stretch_length must be positive")
 
