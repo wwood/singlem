@@ -99,17 +99,17 @@ class MyParser(argparse.ArgumentParser):
 With paired read input:
 
   singlem pipe --forward <fastq_or_fasta1> --reverse <fastq_or_fasta2> \\
-    --otu_table <output.otu_table.tsv>
+    --otu-table <output.otu_table.tsv>
 
 Or with other input sequence types:
 
   singlem pipe --sequences <input_fastq_or_fasta> \\
-    --otu_table <output.otu_table.tsv>
+    --otu-table <output.otu_table.tsv>
 
 '''+bcolors.HEADER+'Popular options:'+bcolors.ENDC+'''
   --threads N\t\tUse N threads.
-  --output_extras\tOutput more detailed information in the OTU table.
-  --assignment_method {%s,%s,%s}\t
+  --output-extras\tOutput more detailed information in the OTU table.
+  --assignment-method {%s,%s,%s}\t
 \t\t\tSpecify taxonomic assignment method [default: %s].
 
 %s
@@ -125,20 +125,20 @@ Or with other input sequence types:
 
 '''+bcolors.HEADER+'To convert an OTU table into a Krona HTML visualisation:'+bcolors.ENDC+'''
 
-  singlem summarise --input_otu_tables otu_table.from_pipe.tsv \\
+  singlem summarise --input-otu-tables otu_table.from_pipe.tsv \\
             --krona singlem.krona.html
 
 '''+bcolors.HEADER+'To cluster an OTU table based on 89 percent sequence identity:'+bcolors.ENDC+'''
 
-  singlem summarise --input_otu_tables otu_table.from_pipe.tsv \\
-            --cluster --cluster_id 0.89 \\
-            --output_otu_table clustered.otu_table.tsv
+  singlem summarise --input-otu-tables otu_table.from_pipe.tsv \\
+            --cluster --cluster-id 0.89 \\
+            --output-otu-table clustered.otu_table.tsv
 
 '''+bcolors.HEADER+'To concatenate several OTU tables together:'+bcolors.ENDC+'''
 
-  singlem summarise --input_otu_tables \\
+  singlem summarise --input-otu-tables \\
             otu_table1.from_pipe.tsv otu_table2.from_pipe.tsv \\
-            --output_otu_table concatenated.otu_table.tsv
+            --output-otu-table concatenated.otu_table.tsv
 
 %s
 ''' % detail_str
@@ -149,13 +149,13 @@ Or with other input sequence types:
 
 '''+bcolors.HEADER+'Determine how much of a metagenome is represented by some genomes:'+bcolors.ENDC+'''
 
-  singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
-            --genome_otu_tables otu_table.from_pipe_on_genomes.tsv
+  singlem appraise --metagenome-otu-tables otu_table.from_pipe_on_reads.tsv \\
+            --genome-otu-tables otu_table.from_pipe_on_genomes.tsv
 
 '''+bcolors.HEADER+'Determine how much of a metagenome is represented by an assembly:'+bcolors.ENDC+'''
 
-  singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
-            --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv
+  singlem appraise --metagenome-otu-tables otu_table.from_pipe_on_reads.tsv \\
+            --assembly-otu-tables otu_table.from_pipe_on_assembly.tsv
 
 '''+bcolors.HEADER+\
     'Visualise which OTUs have been assembled or binned.'+bcolors.ENDC+ \
@@ -165,9 +165,9 @@ otherwise. To interpret these visualisations, see the description in the README
 at
 https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
-  singlem appraise --metagenome_otu_tables otu_table.from_pipe_on_reads.tsv \\
-            --assembly_otu_tables otu_table.from_pipe_on_assembly.tsv \\
-            --genome_otu_tables otu_table.from_pipe_on_genomes.tsv \\
+  singlem appraise --metagenome-otu-tables otu_table.from_pipe_on_reads.tsv \\
+            --assembly-otu-tables otu_table.from_pipe_on_assembly.tsv \\
+            --genome-otu-tables otu_table.from_pipe_on_genomes.tsv \\
             --plot singlem_appraise.svg
 
 %s
@@ -179,7 +179,7 @@ https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
 '''+bcolors.HEADER+'Generate a queryable database from an OTU table:'+bcolors.ENDC+'''
 
-  singlem makedb --db my.sdb --otu_table otu_table.from_pipe.tsv
+  singlem makedb --db my.sdb --otu-table otu_table.from_pipe.tsv
 
 %s
 ''' % detail_str
@@ -190,12 +190,12 @@ https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
 '''+bcolors.HEADER+'Query a database via an OTU sequence:'+bcolors.ENDC+'''
 
-  singlem query --db my.sdb --query_sequence \\
+  singlem query --db my.sdb --query-sequence \\
             AAAGACAATCACAGCCGGCGTGGCCTGCTGATGTTGGTTGGCCAACGCAAGAAACTCCTC
 
 '''+bcolors.HEADER+'Query a database with all entries in an OTU table:'+bcolors.ENDC+'''
 
-  singlem query --db my.sdb --query_otu_table another.otu_table.tsv
+  singlem query --db my.sdb --query-otu-table another.otu_table.tsv
 
 '''+bcolors.HEADER+'Extract all OTUs assigned to Firmicutes:'+bcolors.ENDC+'''
 
@@ -210,8 +210,8 @@ https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
 
 '''+bcolors.HEADER+'Example:'+bcolors.ENDC+'''
 
-  singlem renew --input_archive_otu_table my.archive_otu_table_from_pipe.json \\
-            --sequences <input_fastq_or_fasta> --otu_table <output.otu_table.tsv>
+  singlem renew --input-archive-otu-table my.archive_otu_table_from_pipe.json \\
+            --sequences <input_fastq_or_fasta> --otu-table <output.otu_table.tsv>
 
 '''+bcolors.HEADER+'Note:'+bcolors.ENDC+'''
 
