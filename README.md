@@ -43,7 +43,7 @@ This gives you the ability to answer questions such as:
 
 An overview of your community can be obtained like so:
 ```
-singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.csv --threads 24
+singlem pipe --sequences my_sequences.fastq.gz --otu-table otu_table.csv --threads 24
 ```
 Please use **raw** metagenome reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for SingleM to use. On the other hand, adapter trimming is unlikely to be detrimental.
 
@@ -68,34 +68,34 @@ Once an OTU table has been generated with the `pipe` command, it can be further 
 
 Create a [Krona](https://sourceforge.net/p/krona/) plot of the community. The following command generates a Krona file `my_krona.html` which can be viewed in a web browser:
 ```
-singlem summarise --input_otu_tables otu_table.csv --krona my_krona.html
+singlem summarise --input-otu-tables otu_table.csv --krona my_krona.html
 ```
 
-Several OTU tables can be combined into one. Note that this is not necessary if the combined output is to be input again into summarise (or many other commands) - it is possible to just specify multiple input tables with `--input_otu_tables`. To combine:
+Several OTU tables can be combined into one. Note that this is not necessary if the combined output is to be input again into summarise (or many other commands) - it is possible to just specify multiple input tables with `--input-otu-tables`. To combine:
 ```
-singlem summarise --input_otu_tables otu_table1.csv otu_table2.csv --output_otu_table combined.otu_table.csv
+singlem summarise --input-otu-tables otu_table1.csv otu_table2.csv --output-otu-table combined.otu_table.csv
 ```
 
 Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:
 ```
-singlem summarise --input_otu_tables otu_table.csv --cluster --clustered_output_otu_table clustered.otu_table.csv
+singlem summarise --input-otu-tables otu_table.csv --cluster --clustered-output-otu-table clustered.otu_table.csv
 ```
 
 Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:
 ```
-singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv --rarefied_output_otu_table rarefied.otu_table.csv --number_to_choose 100
+singlem summarise --input-otu-tables otu_table.csv other_samples.otu_table.csv --rarefied-output-otu-table rarefied.otu_table.csv --number-to-choose 100
 ```
 
 Conversion to [BIOM format](http://biom-format.org) for use with QIIME:
 ```
-singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv --biom_prefix myprefix
+singlem summarise --input-otu-tables otu_table.csv other_samples.otu_table.csv --biom-prefix myprefix
 ```
 This generates a BIOM table for each marker gene e.g. `myprefix.4.12.ribosomal_protein_L11_rplK.biom`.
 
 ### Calculating beta diversity between samples
 As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using `singlem summarise`. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.
 ```
-singlem summarise --input_otu_table otu_table.csv --unifrac_by_otu otu_table.unifrac
+singlem summarise --input-otu-table otu_table.csv --unifrac-by-otu otu_table.unifrac
 ```
 The above commands generates 14 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
 
@@ -106,11 +106,11 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
 Phylogenetic tree-based methods of calculating beta diversity can also be calculated, but `pipe` must be used to generate a new OTU table using the `diamond_example` taxonomy assignment method so that each OTU is assigned to a single leaf in the tree:
 ```
-singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.diamond_example.csv --threads 24 --assignment_method diamond_example
+singlem pipe --sequences my_sequences.fastq.gz --otu-table otu_table.diamond_example.csv --threads 24 --assignment-method diamond_example
 ```
-Then, use the `--unifrac_by_taxonomy` flag to create a unifrac format file indexed by taxonomy identifier:
+Then, use the `--unifrac-by-taxonomy` flag to create a unifrac format file indexed by taxonomy identifier:
 ```
-singlem summarise --otu_tables otu_table.diamond_example.csv --unifrac_by_taxonomy otu_table.diamond_example.csv
+singlem summarise --otu-tables otu_table.diamond_example.csv --unifrac-by-taxonomy otu_table.diamond_example.csv
 convertToEBD.py otu_table.diamond_example.unifrac otu_table.diamond_example.ebd
 ```
 Then, finally run `ExpressBetaDiversity` using the `-t` flag.
@@ -123,11 +123,11 @@ where `<path_to_tree_in_singlem_package>` is the newick format file in the Singl
 ### Creating and querying SingleM databases
 It can be useful in some situations to search for sequences in OTU tables. For instance, you may ask "is the most abundant OTU or anything similar in samples B, C or D?" To answer this question make a SingleM database from sample B, C & D's OTU tables:
 ```
-singlem makedb --otu_tables sample_B.csv sample_C.csv sample_D.csv --db_path sample_BCD.sdb
+singlem makedb --otu-tables sample_B.csv sample_C.csv sample_D.csv --db-path sample_BCD.sdb
 ```
 `.sdb` is the conventional file extension for SingleM databases. Then to query this database
 ```
-singlem query --query_sequence TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGGCCGTTCACAAC --db sample_BCD.sdb
+singlem query --query-sequence TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGGCCGTTCACAAC --db sample_BCD.sdb
 ```
 
 
@@ -148,9 +148,9 @@ genome, but the approach here is more flexible and has several advantages:
 To assess how well a set of sequences represent a metagenome, first run `pipe`
 on both the genomes and the raw reads, and then use `appraise`:
 ```
-singlem pipe --sequences raw.fq.gz --otu_table metagenome.otu_table.csv
-singlem pipe --sequences my_genomes/*.fasta --otu_table genomes.otu_table.csv
-singlem appraise --metagenome_otu_tables metagenome.otu_table.csv --genome_otu_tables genomes.otu_table.csv
+singlem pipe --sequences raw.fq.gz --otu-table metagenome.otu_table.csv
+singlem pipe --sequences my-genomes/*.fasta --otu_table genomes.otu_table.csv
+singlem appraise --metagenome-otu-tables metagenome.otu_table.csv --genome-otu-tables genomes.otu_table.csv
 ```
 One may also accommodate some sequence differences, with `--imperfect`, or
 output OTU tables of those sequences that match and those that do not (see
@@ -202,7 +202,7 @@ docker pull wwood/singlem:[RELEASE_TAG]
 ```
 If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
 ```
-docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 14
+docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu-table `pwd`/my.otu_table.csv --threads 14
 ```
 
 #### Installation via PyPI
@@ -231,7 +231,7 @@ If you have any questions or comments, send a message to the [SupportM mailing l
 
 ### FAQ
 #### Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?
-Yes. By default, SingleM builds OTU tables from ribosomal protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a repository of auxiliary packages at https://github.com/wwood/singlem_extra_packages including a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem_packages` flag in `pipe` mode pointing to a separately downloaded package - see https://github.com/wwood/singlem_extra_packages/blob/master/README.md.
+Yes. By default, SingleM builds OTU tables from ribosomal protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a repository of auxiliary packages at https://github.com/wwood/singlem_extra_packages including a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem-packages` flag in `pipe` mode pointing to a separately downloaded package - see https://github.com/wwood/singlem_extra_packages/blob/master/README.md.
 
 #### How should SingleM be run on multiple samples?
 There are two ways. It is possible to specify multiple input files to the `singlem pipe` subcommand directly by space separating them. Alternatively `singlem pipe` can be run on each sample and OTU tables combined using `singlem summarise`. The results should be identical, though there are some performance trade-offs. For large numbers of samples (>100) it is probably preferable to run each sample individually or in smaller groups.
