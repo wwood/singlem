@@ -183,20 +183,8 @@ SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/single
 conda install -c bioconda singlem
 ```
 
-#### Installation via GNU Guix
-(currently out of date)
-
-The most straightforward way of installing SingleM is to use the GNU Guix package which is part of the ACE Guix package collection. This method installs not just the Python libraries required but the compiled bioinformatics tools needed as well. Once you have installed Guix, clone the ACE collection and install:
-```
-git clone https://github.com/Ecogenomics/ace-guix
-GUIX_PACKAGE_PATH=ace-guix guix package --install singlem
-```
-Beyond installing GNU Guix, super-user privileges are not required for installation.
-
 #### Installation via DockerHub
-(currently out of date)
-
-A docker image generated from the Guix package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
+A docker image generated from the conda package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
 ```
 docker pull wwood/singlem:[RELEASE_TAG]
 ```
