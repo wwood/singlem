@@ -327,11 +327,13 @@ if __name__ == '__main__':
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = new_subparser(subparsers, 'seqs', seqs_description)
 
-    required_seqs_arguments = seqs_parser.add_argument_group('required arguments')
+    seqs_arguments = seqs_parser.add_argument_group('seqs-specific arguments')
 
-    required_seqs_arguments.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
-    required_seqs_arguments.add_argument('--alignment-type', '--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
-    required_seqs_arguments.add_argument('--window-size', '--window_size', metavar='INT', help='Number of nucleotides to use in continuous window', default=DEFAULT_WINDOW_SIZE, type=int)
+    seqs_arguments.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
+    seqs_arguments.add_argument('--alignment-type', '--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
+    seqs_arguments.add_argument('--window-size', '--window_size', metavar='INT', 
+        help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
+        default=DEFAULT_WINDOW_SIZE, type=int)
 
     makedb_description = 'Create a searchable database from an OTU table'
     makedb_parser = new_subparser(subparsers, 'makedb', makedb_description)
