@@ -188,7 +188,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK',os.path.basename(f.name)[:-6],'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli_A; o__Thermoactinomycetales; f__Thermoactinomycetaceae']]
             expected = ["\t".join(x) for x in expected]+['']
             observed = extern.run(cmd).split("\n")
-            r = re.compile('; g__.*') # Do not test beyond genus level because updated diamond version change slightly.
+            r = re.compile('; c__.*') # Do not test beyond phylum level because updated diamond version change slightly.
             self.assertEqual([r.sub('',e) for e in expected], [r.sub('',e) for e in observed])
 
     def test_diamond_example_assign_taxonomy(self):
