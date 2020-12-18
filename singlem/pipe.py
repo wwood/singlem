@@ -186,7 +186,7 @@ class SearchPipe:
                     
             forward_read_files = self._prefilter(hmms, forward_read_files)
             if reverse_read_files != None:
-                reverse_read_files = self._prefilter(hmms, reverse_read_files)
+                reverse_read_files = self._prefilter(hmms, reverse_read_files, True)
             logging.info("Finished DIAMOND prefilter phase")
                 
         search_result = self._search(hmms, forward_read_files, reverse_read_files)
@@ -818,7 +818,7 @@ class SearchPipe:
 
         return cmd+' '
     
-    def _prefilter(self, singlem_package_database, read_files):
+    def _prefilter(self, singlem_package_database, read_files, reverse=False):
         '''Find all reads that match the DIAMOND database in the 
         singlem_package database.
         Parameters
@@ -827,6 +827,8 @@ class SearchPipe:
             packages to search the reads for
         read_files: list of str 
             paths to the sequences to be searched
+        reverse: boolean
+            check if using reverse reads
         Returns
         -------
         path to fasta file of filtered reads
@@ -834,7 +836,11 @@ class SearchPipe:
         dmnd = singlem_package_database.get_dmnd()
 
         filtered_reads = []
-        prefilter_dir = os.path.join(self._working_directory, 'prefilter')
+        if reverse:
+            # running on reverse reads
+            prefilter_dir = os.path.join(self._working_directory, 'prefilter_reverse')
+        else:
+            prefilter_dir = os.path.join(self._working_directory, 'prefilter_forward')
         os.mkdir(prefilter_dir)
         
         for file in read_files:
