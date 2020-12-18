@@ -475,15 +475,16 @@ class SearchPipe:
                  len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
-                if assign_taxonomy:
-                    if analysing_pairs:
-                        aligned_seqs = list(itertools.chain(
-                            readset[0].unknown_sequences, readset[0].known_sequences,
-                            readset[1].unknown_sequences, readset[1].known_sequences))
-                    else:
-                        aligned_seqs = list(itertools.chain(
-                            readset.unknown_sequences, readset.known_sequences))
 
+                if analysing_pairs:
+                    aligned_seqs = list(itertools.chain(
+                        readset[0].unknown_sequences, readset[0].known_sequences,
+                        readset[1].unknown_sequences, readset[1].known_sequences))
+                else:
+                    aligned_seqs = list(itertools.chain(
+                        readset.unknown_sequences, readset.known_sequences))
+
+                if assign_taxonomy:
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         if analysing_pairs:
                             taxonomy1 = DiamondResultParser(
@@ -582,7 +583,6 @@ class SearchPipe:
                         raise Exception("Programming error")
 
                 else: # Taxonomy has not been assigned.
-                    aligned_seqs = readset.unknown_sequences
                     if known_sequence_taxonomy:
                         taxonomies = known_sequence_tax
                     else:
