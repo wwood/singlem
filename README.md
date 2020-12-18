@@ -1,8 +1,6 @@
 [![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/singlem) [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
-
 - [SingleM](#singlem)
   - [Generating an OTU table](#generating-an-otu-table)
   - [Further processing of OTU tables](#further-processing-of-otu-tables)
@@ -11,9 +9,8 @@
     - [Creating and querying SingleM databases](#creating-and-querying-singlem-databases)
     - [Appraising assembly and genome recovery efforts](#appraising-assembly-and-genome-recovery-efforts)
     - [Installation](#installation)
-      - [Installation via GNU Guix](#installation-via-gnu-guix)
-      - [Installation via DockerHub](#installation-via-dockerhub)
       - [Installation via conda](#installation-via-conda)
+      - [Installation via DockerHub](#installation-via-dockerhub)
       - [Installation via PyPI](#installation-via-pypi)
   - [Help](#help)
     - [FAQ](#faq)
