@@ -133,7 +133,7 @@ class SearchPipe:
                 shared_mem_directory = '/dev/shm'
                 if os.path.exists(shared_mem_directory):
                     logging.debug("Using shared memory as a base directory")
-                    tmp = tempdir.TempDir(basedir=shared_mem_directory)
+                    tmp = tempdir.TempDir(basedir=shared_mem_directory, prefix='singlem-pipe.')
                     tempfiles_path = os.path.join(tmp.name, 'tempfiles')
                     os.mkdir(tempfiles_path)
                     os.environ['TEMP'] = tempfiles_path
