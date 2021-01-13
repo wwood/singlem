@@ -35,7 +35,7 @@ path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
-from singlem.pipe_sequence_extractor import PipeSequenceExtractor
+from singlem.pipe_sequence_extractor import _align_proteins_to_hmm
 from singlem.sequence_classes import SeqReader
 
 class Tests(unittest.TestCase):
@@ -63,7 +63,7 @@ class Tests(unittest.TestCase):
             proteins = list(SeqReader().readfq(f))
         hmm = path_to_data+'/4.12.22seqs.spkg/4.12.22seqs/graftmgyqgXl_search.hmm'
 
-        alignment = PipeSequenceExtractor()._align_proteins_to_hmm(proteins, hmm)
+        alignment = _align_proteins_to_hmm(proteins, hmm)
         self.assertEqual(22, len(alignment))
         a = alignment[0]
         self.assertEqual('2512564006', a.name)

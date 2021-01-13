@@ -220,7 +220,8 @@ class SearchPipe:
 
         ### Extract other reads which do not have known taxonomy
         extracted_reads = PipeSequenceExtractor().extract_relevant_reads(
-            self._singlem_package_database, align_result, include_inserts, known_taxes)
+            self._singlem_package_database, self._num_threads,
+            align_result, include_inserts, known_taxes)
         logging.info("Finished extracting aligned sequences")
 
         #### Taxonomic assignment
