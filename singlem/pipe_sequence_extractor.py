@@ -131,8 +131,10 @@ def _align_proteins_to_hmm(protein_sequences, hmm_file):
 
     '''
     cmd = "hmmalign '{}' /dev/stdin".format(hmm_file)
+    logging.debug("Running command: {}".format(cmd))
     output = extern.run(cmd, stdin=''.join([
         ">{}\n{}\n".format(s[0], s[1]) for s in protein_sequences]))
+    logging.debug("Finished command: {}".format(cmd))
     protein_alignment = []
     for record in SeqIO.parse(StringIO(output), 'stockholm'):
         protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
