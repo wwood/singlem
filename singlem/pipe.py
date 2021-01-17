@@ -913,6 +913,73 @@ class SearchPipe:
             singlem_package.graftm_package_basename(),
             "read1" if is_forward else "read2")
 
+class SingleMPipeDiamondSearchResult:
+    '''Like SingleMPipeSearchResult but reconstructed from DiamondSearchResult objects
+    '''
+    def __init__(self, hmms, diamond_forward_search_results, diamond_reverse_search_results, base_directory, analysing_pairs):
+        self._analysing_pairs = analysing_pairs
+
+        # For each of the fwd search results, make lists of sequences that best hit
+        # each of the packages, then mfqe out from the fasta file each of those hits
+        # Do the same for the reverse reads if required
+        spkgs_sequence_id_to_spkg = {}
+        for hmm in hmms:
+            for name in hmm.get_sequence_ids():
+                if name in spkg_sequence_id_to_spkg:
+                    raise Exception("Found a sequence name that is present in multiple packages: {}, \
+                        so cannot use DIAMOND to distinguish".format(name))
+                spkgs_sequence_id_to_spkg[name] = hmm
+        
+        self._forward_protein_hit_paths = self._extract_reads_for_each_spkg(
+            spkgs_sequence_id_to_spkg, diamond_forward_search_results,
+            os.path.join(base_directory, 'diamond_best_hits_forward'))
+        if analysing_pairs:
+            self._reverse_protein_hit_paths = self._extract_reads_for_each_spkg(
+                spkgs_sequence_id_to_spkg, diamond_reverse_search_results,
+                os.path.join(base_directory, 'diamond_best_hits_reverse'))
+        
+
+    def _extract_reads_for_each_spkg(self, spkgs_sequence_id_to_spkg, diamond_search_results, fasta_folder):
+        # iterate best hits from diamond_search_results
+        # record qseqid in list for the best hit's spkg
+        query_fasta_to_spkg_to_qseqids = {}
+        for diamond_res in diamond_search_results:
+            spkg_hits = {}
+            for qseqid, sseqid in diamond_res.best_hits.items():
+                spkg = spkgs_sequence_id_to_spkg[sseqid]
+                key = spkg.base_directory()
+                if key in spkg_hits:
+                    spkg_hits[key].append(qseqid)
+                else:
+                    spkg_hits[key] = [qseqid]
+            query_fasta_to_spkg_to_qseqids[diamond_res.query_sequence_file] = spkg_hits
+        
+        # write lists to files for mfqe
+        for query_fasta, spkg_to_qseqids in query_fasta_to_spkg_to_qseqids.items():
+            seq_id_tempfiles = []
+            seq_fastas_to_return = []
+            for spkg, qseqids in spkg_to_qseqids.items():
+                spkg_tmp = tempfile.NamedTemporaryFile(prefix='singlem-diamond-search.')
+                seq_id_tempfiles.append(spkg_tmp)
+                spkg_tmp.write('{}\n'.format('\n'.join(qseqids)))
+                spkg_tmp.flush()
+
+                fasta_name = os.path.join(fasta_folder, '{}_{}')
+                seq_fastas_to_return
+
+            cmd = 'mfqe' #FIXME
+
+
+        # mfqe out the sequences corresponding to each file
+
+        # return dict of paths
+
+    def protein_hit_paths(self):
+        '''Follows the return value of SingleMPipeSearchResult#protein_hit_paths
+        '''
+        raise
+
+
 class SingleMPipeSearchResult:
     def __init__(self, graftm_protein_result, graftm_nucleotide_result, analysing_pairs):
         self._protein_result = graftm_protein_result
