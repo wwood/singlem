@@ -1,4 +1,5 @@
 import os
+import logging
 import extern
 
 class DiamondSpkgSearcher:
@@ -13,10 +14,10 @@ class DiamondSpkgSearcher:
                     "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
         
         dmnd = hmms.get_dmnd()
-        new_forward_read_files = self._prefilter(dmnd, forward_read_files, False)
+        new_forward_read_files = [r.query_sequences_file for r in self._prefilter(dmnd, forward_read_files, False)]
         new_reverse_read_files = None
         if reverse_read_files != None:
-            new_reverse_read_files = self._prefilter(dmnd, reverse_read_files, True)
+            new_reverse_read_files = [r.query_sequences_file for r in self._prefilter(dmnd, reverse_read_files, True)]
 
         return (new_forward_read_files, new_reverse_read_files)
 
@@ -33,9 +34,9 @@ class DiamondSpkgSearcher:
             check if using reverse reads
         Returns
         -------
-        path to fasta file of filtered reads
+        Array of DiamondSearchResult objects, one for each read file
         '''
-        filtered_reads = []
+        diamond_results = []
         if is_reverse_reads:
             # running on reverse reads
             prefilter_dir = os.path.join(self._working_directory, 'prefilter_reverse')
@@ -55,19 +56,36 @@ class DiamondSpkgSearcher:
             
             cmd = "zcat -f %s | " \
                   "diamond blastx " \
-                  "--outfmt 6 qseqid full_qseq " \
+                  "--outfmt 6 qseqid full_qseq sseqid " \
                   "--max-target-seqs 1 " \
                   "--evalue 0.01 " \
                   "--index-chunks 1 " \
                   "--threads %i " \
                   "--query - " \
                   "--db %s " \
-                  "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
+                  "| tee >(sed 's/^/>/; s/\\t/\\n/; s/\\t.*//' > %s) " \
+                  "| awk '{print $1,$3}'" % (
                       file,
                       self._num_threads,
                       diamond_database,
                       fasta_path)
-            extern.run(cmd)
-            filtered_reads.append(fasta_path)
+
+            qseqid_sseqid = extern.run(cmd)
+            best_hits = {}
+            for line in qseqid_sseqid.splitlines():
+                try:
+                    (qseqid,sseqid) = line.split(' ')
+                except ValueError:
+                    raise Exception("Unexpected line format for DIAMOND output line '{}'".format(line))
+                if qseqid in best_hits and best_hits[qseqid] != sseqid:
+                    raise Exception("Multiple DIAMOND best hits? for '{}'".format(qseqid))
+                best_hits[qseqid] = sseqid
+
+            diamond_results.append(DiamondSearchResult(fasta_path, best_hits))
             
-        return filtered_reads
+        return diamond_results
+
+class DiamondSearchResult:
+    def __init__(self, query_sequence_file, best_hits):
+        self.query_sequences_file = query_sequence_file
+        self.best_hits = best_hits
