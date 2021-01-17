@@ -8,6 +8,14 @@ class DiamondSpkgSearcher:
         self._working_directory = working_directory
 
     def run_diamond(self, hmms, forward_read_files, reverse_read_files):
+        '''Run a single DIAMOND run for each of the forward_read_files against a 
+        combined database of all sequences from the singlem package set given.
+
+        Returns
+        -------
+        (fwds, revs) where fwds is a list of DiamondSearchResult objects, and revs is
+        the same, or None if reverse read input is None
+        '''
         for pkg in hmms:
             if not pkg.is_protein_package():
                 raise Exception(
