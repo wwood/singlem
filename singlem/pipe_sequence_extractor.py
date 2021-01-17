@@ -174,9 +174,11 @@ class PipeSequenceExtractor:
 
         # Multiprocess across all instances
         pool = multiprocessing.Pool(num_threads)
-        extracted_readsets = [pool.apply(_run_individual_extraction, args=myargs) for myargs in to_iterate]
-        for readset_possibly_paired in extracted_readsets:
-            extracted_reads.add(readset_possibly_paired)
+        extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
+        for readset_possibly_paired_process in extraction_processes:
+            extracted_reads.add(readset_possibly_paired_process.get())
+        pool.close()
+        pool.join()
 
         return extracted_reads
 
