@@ -14,12 +14,12 @@ class DiamondSpkgSearcher:
                     "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
         
         dmnd = hmms.get_dmnd()
-        new_forward_read_files = [r.query_sequences_file for r in self._prefilter(dmnd, forward_read_files, False)]
-        new_reverse_read_files = None
+        fwds = self._prefilter(dmnd, forward_read_files, False)
+        revs = None
         if reverse_read_files != None:
-            new_reverse_read_files = [r.query_sequences_file for r in self._prefilter(dmnd, reverse_read_files, True)]
+            revs = self._prefilter(dmnd, reverse_read_files, True)
 
-        return (new_forward_read_files, new_reverse_read_files)
+        return (fwds, revs)
 
     def _prefilter(self, diamond_database, read_files, is_reverse_reads):
         '''Find all reads that match the DIAMOND database in the 

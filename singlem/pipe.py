@@ -181,9 +181,12 @@ class SearchPipe:
         
         if diamond_prefilter:
             logging.info("Filtering sequence files through DIAMOND blastx")
-            (forward_read_files, reverse_read_files) = DiamondSpkgSearcher(
+            (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                 self._num_threads, self._working_directory).run_diamond(
                 hmms, forward_read_files, reverse_read_files)
+            forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
+            if analysing_pairs:
+                reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
             logging.info("Finished DIAMOND prefilter phase")
 
         search_result = self._search(hmms, forward_read_files, reverse_read_files)
