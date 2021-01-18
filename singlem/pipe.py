@@ -184,10 +184,11 @@ class SearchPipe:
                 if not pkg.is_protein_package():
                     raise Exception(
                         "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
-                    
-            forward_read_files = self._prefilter(hmms, forward_read_files, False)
+            
+            dmnd = hmms.get_dmnd()
+            forward_read_files = self._prefilter(dmnd, forward_read_files, False)
             if reverse_read_files != None:
-                reverse_read_files = self._prefilter(hmms, reverse_read_files, True)
+                reverse_read_files = self._prefilter(dmnd, reverse_read_files, True)
             logging.info("Finished DIAMOND prefilter phase")
                 
         search_result = self._search(hmms, forward_read_files, reverse_read_files)
@@ -673,13 +674,13 @@ class SearchPipe:
 
         return cmd+' '
     
-    def _prefilter(self, singlem_package_database, read_files, is_reverse_reads):
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads):
         '''Find all reads that match the DIAMOND database in the 
         singlem_package database.
         Parameters
         ----------
-        singlem_package_database: HmmDatabase 
-            packages to search the reads for
+        diamond_database: dmnd 
+            DIAMOND database from the SingleM packages to search reads with
         read_files: list of str 
             paths to the sequences to be searched
         reverse: boolean
@@ -688,8 +689,6 @@ class SearchPipe:
         -------
         path to fasta file of filtered reads
         '''
-        dmnd = singlem_package_database.get_dmnd()
-
         filtered_reads = []
         if is_reverse_reads:
             # running on reverse reads
@@ -720,7 +719,7 @@ class SearchPipe:
                   "| sed -e 's/^/>/' -e 's/\\t/\\n/' > %s" % (
                       file,
                       self._num_threads,
-                      dmnd,
+                      diamond_database,
                       fasta_path)
             extern.run(cmd)
             filtered_reads.append(fasta_path)
