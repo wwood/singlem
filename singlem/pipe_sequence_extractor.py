@@ -10,15 +10,15 @@ from .metagenome_otu_finder import MetagenomeOtuFinder
 from . import sequence_extractor as singlem_sequence_extractor
 
 # Must be defined outside a class so that it is pickle-able, so multiprocessing can work
-def _run_individual_extraction(sample_name, singlem_package, sequence_files_for_alignment, alignment_result, include_inserts, known_taxonomy):
+def _run_individual_extraction(sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy):
     if singlem_package.is_protein_package():
         nucleotide_sequence_fasta_file = \
-            alignment_result.nucleotide_sequence_file(
+            separate_search_result.nucleotide_sequence_file(
                 sample_name, singlem_package)
     else:
         nucleotide_sequence_fasta_file = sequence_files_for_alignment
 
-    if alignment_result.analysing_pairs:
+    if separate_search_result.analysing_pairs:
         logging.debug("Extracting forward reads")
         if os.path.exists(sequence_files_for_alignment[0]):
             prots = SeqReader().readfq(open(sequence_files_for_alignment[0]))
@@ -153,7 +153,7 @@ class PipeSequenceExtractor:
 
     '''
 
-    def extract_relevant_reads(self, singlem_package_database, num_threads, alignment_result, include_inserts, known_taxonomy):
+    def extract_relevant_reads(self, singlem_package_database, num_threads, separate_search_result, include_inserts, known_taxonomy):
         '''Given a SingleMPipeSeparateSearchResult, extract reads that will be used as
         part of the singlem choppage process.
 
@@ -162,15 +162,15 @@ class PipeSequenceExtractor:
         ExtractedReads object
         '''
 
-        extracted_reads = ExtractedReads(alignment_result.analysing_pairs)
+        extracted_reads = ExtractedReads(separate_search_result.analysing_pairs)
 
         # Collect all possibilities
         to_iterate = []
-        for sample_name in alignment_result.sample_names():
+        for sample_name in separate_search_result.sample_names():
             for singlem_package in singlem_package_database:
-                for sequence_files_for_alignment in alignment_result.sequence_files_for_alignment(
+                for sequence_files_for_alignment in separate_search_result.sequence_files_for_alignment(
                         sample_name, singlem_package):
-                    to_iterate.append((sample_name, singlem_package, sequence_files_for_alignment, alignment_result, include_inserts, known_taxonomy))
+                    to_iterate.append((sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy))
 
         # Multiprocess across all instances
         pool = multiprocessing.Pool(num_threads)
