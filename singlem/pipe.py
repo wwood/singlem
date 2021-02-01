@@ -91,6 +91,7 @@ class SearchPipe:
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
         diamond_prefilter = kwargs.pop('diamond_prefilter')
+        #diamond_read_assignment = kwargs.pop('diamond_read_assignment')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -178,7 +179,7 @@ class SearchPipe:
         self._singlem_package_database = hmms
         logging.info("Using as input %i different sequence files e.g. %s" % (
             len(forward_read_files), forward_read_files[0]))
-        
+
         if diamond_prefilter:
             logging.info("Filtering sequence files through DIAMOND blastx")
             (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
@@ -189,18 +190,6 @@ class SearchPipe:
                 reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
             logging.info("Finished DIAMOND prefilter phase")
 
-        search_result = self._search(hmms, forward_read_files, reverse_read_files)
-        sample_names = search_result.samples_with_hits()
-        if len(sample_names) == 0:
-            logging.info("No reads identified in any samples, stopping")
-            return_cleanly()
-            return None
-        logging.debug("Recovered %i samples with at least one hit e.g. '%s'"
-                     % (len(sample_names), sample_names[0]))
-
-        #### Alignment
-        align_result = self._align(search_result)
-
         ### Extract reads that have already known taxonomy
         if known_otu_tables:
             logging.info("Parsing known taxonomy OTU tables")
@@ -209,6 +198,18 @@ class SearchPipe:
             logging.debug("Read in %i sequences with known taxonomy" % len(known_taxes))
         else:
             known_taxes = []
+
+        #### Extract relevant reads for each pkg
+        extracted_reads = self._find_and_extract_reads_by_hmmsearch(
+            hmms, forward_read_files, reverse_read_files,
+            known_taxes, known_otu_tables, include_inserts)
+
+        #### Taxonomic assignment
+        if assign_taxonomy:
+            logging.info("Running taxonomic assignment with GraftM..")
+            assignment_result = self._assign_taxonomy(
+                extracted_reads, graftm_assignment_method)
+
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
             tax1 = GreenGenesTaxonomy.read(open(known_sequence_taxonomy)).taxonomy
@@ -216,18 +217,6 @@ class SearchPipe:
             for seq_id, tax in tax1.items():
                 known_sequence_tax[seq_id] = '; '.join(tax)
             logging.info("Read in %i taxonomies from the GreenGenes format taxonomy file" % len(known_sequence_tax))
-
-        ### Extract other reads which do not have known taxonomy
-        extracted_reads = PipeSequenceExtractor().extract_relevant_reads(
-            self._singlem_package_database, self._num_threads,
-            align_result, include_inserts, known_taxes)
-        logging.info("Finished extracting aligned sequences")
-
-        #### Taxonomic assignment
-        if assign_taxonomy:
-            logging.info("Running taxonomic assignment with GraftM..")
-            assignment_result = self._assign_taxonomy(
-                extracted_reads, graftm_assignment_method)
 
         #### Process taxonomically assigned reads
         otu_table_object = OtuTable()
@@ -250,6 +239,31 @@ class SearchPipe:
 
         return_cleanly()
         return otu_table_object
+
+    def _find_and_extract_reads_by_hmmsearch(self,
+        hmms, forward_read_files, reverse_read_files,
+        known_taxes, known_otu_tables, include_inserts):
+
+        search_result = self._search(hmms, forward_read_files, reverse_read_files)
+        sample_names = search_result.samples_with_hits()
+        if len(sample_names) == 0:
+            logging.info("No reads identified in any samples, stopping")
+            return_cleanly()
+            return None
+        logging.debug("Recovered %i samples with at least one hit e.g. '%s'"
+                    % (len(sample_names), sample_names[0]))
+
+        #### Search for each package separately
+        separate_search_result = self._separate_searches(search_result)
+
+        ### Extract other reads which do not have known taxonomy
+        extracted_reads = PipeSequenceExtractor().extract_relevant_reads(
+            self._singlem_package_database, self._num_threads,
+            separate_search_result, include_inserts, known_taxes)
+        logging.info("Finished extracting aligned sequences")
+
+        return extracted_reads
+
 
     def _process_taxonomically_assigned_reads(
             self,
@@ -275,7 +289,7 @@ class SearchPipe:
             readset_example = maybe_paired_readset
         sample_name = readset_example.sample_name
         singlem_package = readset_example.singlem_package
-        
+
         def add_info(infos, otu_table_object, known_tax):
             for info in infos:
                 to_print = [
@@ -485,8 +499,6 @@ class SearchPipe:
         new_infos = process_readset(maybe_paired_readset, analysing_pairs)
         add_info(new_infos, otu_table_object, not assign_taxonomy)
 
-
-
     def _seqs_to_counts_and_taxonomy(self, sequences,
                                      assignment_method,
                                      otu_sequence_assigned_taxonomies,
@@ -580,8 +592,6 @@ class SearchPipe:
                        collected_info.names,
                        collected_info.coverage,
                        collected_info.aligned_lengths)
-
-
 
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
@@ -715,7 +725,7 @@ class SearchPipe:
         num_singlem_packages = len(singlem_package_database.protein_packages())+\
                                len(singlem_package_database.nucleotide_packages())
         logging.info("Searching with %i SingleM package(s)" % num_singlem_packages)
-        
+
         # Run searches for proteins
         hmms = singlem_package_database.protein_search_hmm_paths()
         doing_proteins = False
@@ -741,7 +751,7 @@ class SearchPipe:
         return SingleMPipeSearchResult(
             protein_graftm, nuc_graftm, analysing_pairs)
 
-    def _align(self, search_result):
+    def _separate_searches(self, search_result):
         graftm_separate_directory_base = os.path.join(self._working_directory, 'graftm_separates')
         os.mkdir(graftm_separate_directory_base)
         logging.info("Running separate alignments in GraftM..")
@@ -784,7 +794,7 @@ class SearchPipe:
                 analysing_pairs))
 
         extern.run_many(commands, num_threads=self._num_threads)
-        return SingleMPipeAlignSearchResult(
+        return SingleMPipeSeparateSearchResult(
             graftm_separate_directory_base,
             search_result.samples_with_hits(),
             analysing_pairs)
@@ -913,73 +923,6 @@ class SearchPipe:
             singlem_package.graftm_package_basename(),
             "read1" if is_forward else "read2")
 
-class SingleMPipeDiamondSearchResult:
-    '''Like SingleMPipeSearchResult but reconstructed from DiamondSearchResult objects
-    '''
-    def __init__(self, hmms, diamond_forward_search_results, diamond_reverse_search_results, base_directory, analysing_pairs):
-        self._analysing_pairs = analysing_pairs
-
-        # For each of the fwd search results, make lists of sequences that best hit
-        # each of the packages, then mfqe out from the fasta file each of those hits
-        # Do the same for the reverse reads if required
-        spkgs_sequence_id_to_spkg = {}
-        for hmm in hmms:
-            for name in hmm.get_sequence_ids():
-                if name in spkg_sequence_id_to_spkg:
-                    raise Exception("Found a sequence name that is present in multiple packages: {}, \
-                        so cannot use DIAMOND to distinguish".format(name))
-                spkgs_sequence_id_to_spkg[name] = hmm
-        
-        self._forward_protein_hit_paths = self._extract_reads_for_each_spkg(
-            spkgs_sequence_id_to_spkg, diamond_forward_search_results,
-            os.path.join(base_directory, 'diamond_best_hits_forward'))
-        if analysing_pairs:
-            self._reverse_protein_hit_paths = self._extract_reads_for_each_spkg(
-                spkgs_sequence_id_to_spkg, diamond_reverse_search_results,
-                os.path.join(base_directory, 'diamond_best_hits_reverse'))
-        
-
-    def _extract_reads_for_each_spkg(self, spkgs_sequence_id_to_spkg, diamond_search_results, fasta_folder):
-        # iterate best hits from diamond_search_results
-        # record qseqid in list for the best hit's spkg
-        query_fasta_to_spkg_to_qseqids = {}
-        for diamond_res in diamond_search_results:
-            spkg_hits = {}
-            for qseqid, sseqid in diamond_res.best_hits.items():
-                spkg = spkgs_sequence_id_to_spkg[sseqid]
-                key = spkg.base_directory()
-                if key in spkg_hits:
-                    spkg_hits[key].append(qseqid)
-                else:
-                    spkg_hits[key] = [qseqid]
-            query_fasta_to_spkg_to_qseqids[diamond_res.query_sequence_file] = spkg_hits
-        
-        # write lists to files for mfqe
-        for query_fasta, spkg_to_qseqids in query_fasta_to_spkg_to_qseqids.items():
-            seq_id_tempfiles = []
-            seq_fastas_to_return = []
-            for spkg, qseqids in spkg_to_qseqids.items():
-                spkg_tmp = tempfile.NamedTemporaryFile(prefix='singlem-diamond-search.')
-                seq_id_tempfiles.append(spkg_tmp)
-                spkg_tmp.write('{}\n'.format('\n'.join(qseqids)))
-                spkg_tmp.flush()
-
-                fasta_name = os.path.join(fasta_folder, '{}_{}')
-                seq_fastas_to_return
-
-            cmd = 'mfqe' #FIXME
-
-
-        # mfqe out the sequences corresponding to each file
-
-        # return dict of paths
-
-    def protein_hit_paths(self):
-        '''Follows the return value of SingleMPipeSearchResult#protein_hit_paths
-        '''
-        raise
-
-
 class SingleMPipeSearchResult:
     def __init__(self, graftm_protein_result, graftm_nucleotide_result, analysing_pairs):
         self._protein_result = graftm_protein_result
@@ -1053,7 +996,7 @@ class SingleMPipeSearchResult:
             self._nucleotide_result.sample_names(require_hits=True) if
                 self._nucleotide_result else [])))
 
-class SingleMPipeAlignSearchResult:
+class SingleMPipeSeparateSearchResult:
     def __init__(
             self,
             graftm_separate_directory_base,
@@ -1082,8 +1025,8 @@ class SingleMPipeAlignSearchResult:
                 os.path.basename(singlem_package.graftm_package_path()),
                 '%s_hits' % sample_name)
 
-    def prealigned_sequence_files(self, sample_name, singlem_package):
-        '''Yield a path to the sequences that were aligned to the HMM.
+    def sequence_files_for_alignment(self, sample_name, singlem_package):
+        '''Yield a path to the sequences that are aligned to the HMM.
 
         '''
         if singlem_package.is_protein_package():
