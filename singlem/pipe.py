@@ -91,7 +91,7 @@ class SearchPipe:
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
         diamond_prefilter = kwargs.pop('diamond_prefilter')
-        #diamond_read_assignment = kwargs.pop('diamond_read_assignment')
+        diamond_package_assignment = kwargs.pop('diamond_package_assignment')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -200,9 +200,16 @@ class SearchPipe:
             known_taxes = []
 
         #### Extract relevant reads for each pkg
-        extracted_reads = self._find_and_extract_reads_by_hmmsearch(
-            hmms, forward_read_files, reverse_read_files,
-            known_taxes, known_otu_tables, include_inserts)
+        if diamond_package_assignment:
+            logging.info("Assigning sequences to SingleM packages with DIAMOND ..")
+            extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
+                hmms, diamond_forward_search_results, diamond_reverse_search_results, 
+                analysing_pairs, include_inserts, min_orf_length)
+        else:
+            logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
+            extracted_reads = self._find_and_extract_reads_by_hmmsearch(
+                hmms, forward_read_files, reverse_read_files,
+                known_taxes, known_otu_tables, include_inserts)
 
         #### Taxonomic assignment
         if assign_taxonomy:
@@ -257,7 +264,7 @@ class SearchPipe:
         separate_search_result = self._separate_searches(search_result)
 
         ### Extract other reads which do not have known taxonomy
-        extracted_reads = PipeSequenceExtractor().extract_relevant_reads(
+        extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_separate_search_result(
             self._singlem_package_database, self._num_threads,
             separate_search_result, include_inserts, known_taxes)
         logging.info("Finished extracting aligned sequences")
