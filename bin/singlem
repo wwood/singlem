@@ -321,6 +321,9 @@ if __name__ == '__main__':
         argument_group.add_argument('--diamond-prefilter', '--diamond_prefilter', action='store_true',
                                     help='Parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: not compatible with nucleotide packages [default: not set]',
                                     default=False)
+        argument_group.add_argument('--diamond-package-assignment', '--diamond_package_assignment', action='store_true',
+                                    help='Assign each sequence to a SingleM package using the best hit result of the DIAMOND prefilter. Implies --diamond-prefilter. [default: not set]',
+                                    default=False)
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
@@ -538,7 +541,8 @@ if __name__ == '__main__':
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy,
-            diamond_prefilter = args.diamond_prefilter)
+            diamond_prefilter = args.diamond_prefilter or args.diamond_package_assignment,
+            diamond_package_assignment = args.diamond_package_assignment)
 
     elif args.subparser_name=='renew':
         validate_pipe_args(args)
