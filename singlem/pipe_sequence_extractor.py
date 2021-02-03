@@ -327,8 +327,8 @@ class PipeSequenceExtractor:
         for spkg in singlem_package_database:
             for name in spkg.get_sequence_ids():
                 if name in spkgs_sequence_id_to_spkg:
-                    raise Exception("Found a sequence name that is present in multiple packages: {}, \
-                        so cannot use DIAMOND to distinguish".format(name))
+                    raise Exception("Found a sequence name that is present in multiple packages: "
+                        "{}, so cannot use DIAMOND to distinguish".format(name))
                 spkgs_sequence_id_to_spkg[name] = spkg
         return spkgs_sequence_id_to_spkg
 

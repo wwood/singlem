@@ -180,6 +180,20 @@ class SingleMPackageVersion1(SingleMPackage):
                 self.graftm_package())
         return self._is_protein_package
 
+    def get_sequence_ids(self):
+        '''Return an iterable of sequence IDs that are in the unaligned sequences file.
+        '''
+        # Cannot import this at the top level for some reason - circular imports maybe?
+        from .sequence_classes import SeqReader
+        
+        seq_ids = set()
+        with open(self.graftm_package().unaligned_sequence_database_path()) as f:
+            for name, _, _ in SeqReader().readfq(f):
+                if name in seq_ids:
+                    raise Exception("Unexpected duplicate sequence name in unaligned sequences file: {}".format(name))
+                seq_ids.add(name)
+        return seq_ids
+
     @staticmethod
     def compile(output_package_path, graftm_package_path, singlem_position):
         '''Create a new SingleM package with the given inputs. Any files
@@ -277,17 +291,3 @@ class SingleMPackageVersion2(SingleMPackageVersion1):
         with open(os.path.join(
                 output_package_path, SingleMPackage._CONTENTS_FILE_NAME), 'w') as f:
             json.dump(singlem_package._contents_hash, f)
-
-    def get_sequence_ids(self):
-        '''Return an iterable of sequence IDs that are in the unaligned sequences file.
-        '''
-        # Cannot import this at the top level for some reason - circular imports maybe?
-        from .sequence_classes import SeqReader
-        
-        seq_ids = set()
-        with open(self.graftm_package().unaligned_sequence_database_path()) as f:
-            for name, _, _ in SeqReader().readfq(f):
-                if name in seq_ids:
-                    raise Exception("Unexpected duplicate sequence name in unaligned sequences file: {}".format(name))
-                seq_ids.add(name)
-        return seq_ids
