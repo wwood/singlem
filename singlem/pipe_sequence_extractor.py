@@ -197,80 +197,115 @@ class PipeSequenceExtractor:
         # Cache spkg sequence ID to spkg object
         spkgs_sequence_id_to_spkg = self._read_spkg_sequence_ids(singlem_package_database)
 
-        if analysing_pairs:
-            raise Exception("Not implemented")
         extracted_reads = ExtractedReads(analysing_pairs)
 
         # TODO: Multithread over samples and spkgs
-        # TODO: allow reverse reads
+        forward_extracted_read_sets = []
         for diamond_search_result in diamond_forward_search_results:
-            # From diamond search result, collect the hit sequences, parsing them into collections for each spkg
-            spkg_to_sequences = {}
-            spkg_key_to_spkg = {}
-            with open(diamond_search_result.query_sequences_file) as f:
-                for (qseqid, seq, _) in SeqReader().readfq(f):
-                    sseqid = diamond_search_result.best_hits[qseqid]
-                    spkg = spkgs_sequence_id_to_spkg[sseqid]
-                    spkg_key = spkg.base_directory()
-                    try:
-                        spkg_to_sequences[spkg_key].append(Sequence(qseqid,seq))
-                    except KeyError:
-                        spkg_to_sequences[spkg_key] = [Sequence(qseqid,seq)]
-                        spkg_key_to_spkg[spkg_key] = spkg
-            
-            # Align each read via hmmsearch and pick windowed sequences
-            for (spkg_key, sequences) in spkg_to_sequences.items():
-                spkg = spkg_key_to_spkg[spkg_key]
+            extracts = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
+                singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
+            )
+            forward_extracted_read_sets.append(extracts)
 
-                # Run orfm |hmmalign
-                cmd = "orfm -m {} | hmmalign '{}' /dev/stdin".format(
-                    min_orf_length, spkg.graftm_package().alignment_hmm_path()
+        reverse_extracted_read_sets = []
+        if analysing_pairs:
+            for diamond_search_result in diamond_reverse_search_results:
+                extracts = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
+                    singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
                 )
-                stdin = '\n'.join(
-                    [">{}\n{}".format(s.name, s.seq) for s in sequences])
-                logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(sequences)))
-                output = extern.run(cmd, stdin=stdin)
-                logging.debug("Finished command: {}".format(cmd))
+                reverse_extracted_read_sets.append(extracts)
 
-                # Convert to AlignedProteinSequence
-                protein_alignment = []
-                for record in SeqIO.parse(StringIO(output), 'stockholm'):
-                    protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
-                if len(protein_alignment) > 0:
-                    logging.debug("Read in %i aligned sequences e.g. %s %s" % (
-                        len(protein_alignment),
-                        protein_alignment[0].name,
-                        protein_alignment[0].seq))
-                else:
-                    logging.debug("No aligned sequences found for this HMM")
-
-                # Extract OTU sequences
-                nucleotide_sequence_hash = {}
-                for s in sequences:
-                    nucleotide_sequence_hash[s.name] = s.seq
-                windows_seqs = MetagenomeOtuFinder().find_windowed_sequences(
-                    protein_alignment,
-                    nucleotide_sequence_hash,
-                    spkg.window_size(),
-                    include_inserts,
-                    spkg.is_protein_package(), # Always true
-                    best_position=spkg.singlem_position())
-
-                # In order to have compatible sample names with the hmmsearch mode,
-                # remove filename suffixes.
-                sample_name = os.path.basename(diamond_search_result.query_sequences_file)
-                for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
-                    if sample_name.endswith(extension):
-                        sample_name = sample_name[0:(len(sample_name)-len(extension))]
-                        break
-                extracted_reads.add(ExtractedReadSet(
-                    sample_name, spkg,
-                    sequences, [], windows_seqs
-                ))
+        if analysing_pairs:
+            for (fwds, revs) in zip(forward_extracted_read_sets,reverse_extracted_read_sets):
+                for (fwd, rev) in zip(fwds, revs):
+                    extracted_reads.add((fwd, rev))
+        else:
+            for fwds in forward_extracted_read_sets:
+                for fwd in fwds:
+                    extracted_reads.add(fwd)
         
         return extracted_reads
 
+    def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
+            self, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length):
+        # Determine sample name.
+        # In order to have compatible sample names with the hmmsearch mode,
+        # remove filename suffixes.
+        sample_name = os.path.basename(diamond_search_result.query_sequences_file)
+        for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
+            if sample_name.endswith(extension):
+                sample_name = sample_name[0:(len(sample_name)-len(extension))]
+                break
 
+        # From diamond search result, collect the hit sequences, parsing them into collections for each spkg
+        spkg_to_sequences = {}
+        spkg_key_to_spkg = {}
+        with open(diamond_search_result.query_sequences_file) as f:
+            for (qseqid, seq, _) in SeqReader().readfq(f):
+                sseqid = diamond_search_result.best_hits[qseqid]
+                spkg = spkgs_sequence_id_to_spkg[sseqid]
+                spkg_key = spkg.base_directory()
+                try:
+                    spkg_to_sequences[spkg_key].append(Sequence(qseqid,seq))
+                except KeyError:
+                    spkg_to_sequences[spkg_key] = [Sequence(qseqid,seq)]
+                    spkg_key_to_spkg[spkg_key] = spkg
+        
+        # Align each read via hmmsearch and pick windowed sequences
+        extracted_read_sets = []
+        for spkg in singlem_package_database:
+            try:
+                sequences = spkg_to_sequences[spkg.base_directory()]
+            except KeyError:
+                # Happens when there is no hits
+                sequences = []
+                # Add something so that when analysing pairs and one side has no hits, indexing errors don't happen.
+                extracted_read_sets.append(ExtractedReadSet(
+                    sample_name, spkg,
+                    sequences, [], []
+                ))
+                continue
+
+            # Run orfm |hmmalign
+            cmd = "orfm -m {} | hmmalign '{}' /dev/stdin".format(
+                min_orf_length, spkg.graftm_package().alignment_hmm_path()
+            )
+            stdin = '\n'.join(
+                [">{}\n{}".format(s.name, s.seq) for s in sequences])
+            logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(sequences)))
+            output = extern.run(cmd, stdin=stdin)
+            logging.debug("Finished command: {}".format(cmd))
+
+            # Convert to AlignedProteinSequence
+            protein_alignment = []
+            for record in SeqIO.parse(StringIO(output), 'stockholm'):
+                protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
+            if len(protein_alignment) > 0:
+                logging.debug("Read in %i aligned sequences e.g. %s %s" % (
+                    len(protein_alignment),
+                    protein_alignment[0].name,
+                    protein_alignment[0].seq))
+            else:
+                logging.debug("No aligned sequences found for this HMM")
+
+            # Extract OTU sequences
+            nucleotide_sequence_hash = {}
+            for s in sequences:
+                nucleotide_sequence_hash[s.name] = s.seq
+            windows_seqs = MetagenomeOtuFinder().find_windowed_sequences(
+                protein_alignment,
+                nucleotide_sequence_hash,
+                spkg.window_size(),
+                include_inserts,
+                spkg.is_protein_package(), # Always true
+                best_position=spkg.singlem_position())
+
+            extracted_read_sets.append(ExtractedReadSet(
+                sample_name, spkg,
+                sequences, [], windows_seqs
+            ))
+
+        return extracted_read_sets
 
 
     def _read_spkg_sequence_ids(self, singlem_package_database):
