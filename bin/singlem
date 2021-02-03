@@ -77,7 +77,7 @@ class bcolors:
     #     self.ENDC = ''
 
 class MyParser(argparse.ArgumentParser):
-    FULL_HELP_FLAG = 'full_help'
+    FULL_HELP_FLAG = 'full-help'
 
     PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.PPLACER_ASSIGNMENT_METHOD
 
