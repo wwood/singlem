@@ -5,7 +5,7 @@ from Bio import SeqIO
 from io import StringIO
 import multiprocessing
 
-from .sequence_classes import SeqReader, AlignedProteinSequence
+from .sequence_classes import SeqReader, AlignedProteinSequence, Sequence
 from .metagenome_otu_finder import MetagenomeOtuFinder
 from . import sequence_extractor as singlem_sequence_extractor
 
@@ -207,15 +207,16 @@ class PipeSequenceExtractor:
             # From diamond search result, collect the hit sequences, parsing them into collections for each spkg
             spkg_to_sequences = {}
             spkg_key_to_spkg = {}
-            for (qseqid, seq, _) in SeqReader().readfq(diamond_search_result.query_sequence_file):
-                sseqid = diamond_search_result.best_hits[qseqid]
-                spkg = spkgs_sequence_id_to_spkg[sseqid]
-                spkg_key = spkg.base_directory()
-                try:
-                    spkg_to_sequences[spkg_key].append(Sequence(qseqid,seq))
-                except KeyError:
-                    spkg_to_sequences[spkg_key] = [Sequence(qseqid,seq)]
-                    spkg_key_to_spkg[spkg_key] = spkg
+            with open(diamond_search_result.query_sequences_file) as f:
+                for (qseqid, seq, _) in SeqReader().readfq(f):
+                    sseqid = diamond_search_result.best_hits[qseqid]
+                    spkg = spkgs_sequence_id_to_spkg[sseqid]
+                    spkg_key = spkg.base_directory()
+                    try:
+                        spkg_to_sequences[spkg_key].append(Sequence(qseqid,seq))
+                    except KeyError:
+                        spkg_to_sequences[spkg_key] = [Sequence(qseqid,seq)]
+                        spkg_key_to_spkg[spkg_key] = spkg
             
             # Align each read via hmmsearch and pick windowed sequences
             for (spkg_key, sequences) in spkg_to_sequences.items():
@@ -225,9 +226,10 @@ class PipeSequenceExtractor:
                 cmd = "orfm -m {} | hmmalign '{}' /dev/stdin".format(
                     min_orf_length, spkg.graftm_package().alignment_hmm_path()
                 )
-                logging.debug("Running command: {}".format(cmd))
-                stdout = extern.run(cmd, stdin='\n'.join(
-                    [">{}\n{}".format(s.name, s.sequence) for s in sequences]))
+                stdin = '\n'.join(
+                    [">{}\n{}".format(s.name, s.seq) for s in sequences])
+                logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(sequences)))
+                output = extern.run(cmd, stdin=stdin)
                 logging.debug("Finished command: {}".format(cmd))
 
                 # Convert to AlignedProteinSequence
@@ -245,7 +247,7 @@ class PipeSequenceExtractor:
                 # Extract OTU sequences
                 nucleotide_sequence_hash = {}
                 for s in sequences:
-                    nucleotide_sequence_hash[s.name] = s.sequence
+                    nucleotide_sequence_hash[s.name] = s.seq
                 windows_seqs = MetagenomeOtuFinder().find_windowed_sequences(
                     protein_alignment,
                     nucleotide_sequence_hash,
@@ -254,11 +256,19 @@ class PipeSequenceExtractor:
                     spkg.is_protein_package(), # Always true
                     best_position=spkg.singlem_position())
 
-                sample_name = diamond_search_result.query_sequence_file
+                # In order to have compatible sample names with the hmmsearch mode,
+                # remove filename suffixes.
+                sample_name = os.path.basename(diamond_search_result.query_sequences_file)
+                for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
+                    if sample_name.endswith(extension):
+                        sample_name = sample_name[0:(len(sample_name)-len(extension))]
+                        break
                 extracted_reads.add(ExtractedReadSet(
                     sample_name, spkg,
                     sequences, [], windows_seqs
                 ))
+        
+        return extracted_reads
 
 
 
@@ -270,18 +280,12 @@ class PipeSequenceExtractor:
         spkgs_sequence_id_to_spkg = {}
         for spkg in singlem_package_database:
             for name in spkg.get_sequence_ids():
-                if name in spkg_sequence_id_to_spkg:
+                if name in spkgs_sequence_id_to_spkg:
                     raise Exception("Found a sequence name that is present in multiple packages: {}, \
                         so cannot use DIAMOND to distinguish".format(name))
                 spkgs_sequence_id_to_spkg[name] = spkg
-        
-        # self._forward_protein_hit_paths = self._extract_reads_for_each_spkg(
-        #     spkgs_sequence_id_to_spkg, diamond_forward_search_results,
-        #     os.path.join(base_directory, 'diamond_best_hits_forward'))
-        # if analysing_pairs:
-        #     self._reverse_protein_hit_paths = self._extract_reads_for_each_spkg(
-        #         spkgs_sequence_id_to_spkg, diamond_reverse_search_results,
-        #         os.path.join(base_directory, 'diamond_best_hits_reverse'))
+        return spkgs_sequence_id_to_spkg
+
 
 class ExtractedReads:
     '''Collection class for ExtractedReadSet objects'''
