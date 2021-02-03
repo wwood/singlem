@@ -235,7 +235,8 @@ class PipeSequenceExtractor:
 
         return extracted_reads
 
-    def extract_relevant_reads_from_diamond_prefilter(self, singlem_package_database, 
+    def extract_relevant_reads_from_diamond_prefilter(self,
+        num_threads, singlem_package_database, 
         diamond_forward_search_results, diamond_reverse_search_results, 
         analysing_pairs, include_inserts, min_orf_length):
         '''Return an ExtractedReads object built by running hmmalign on
@@ -252,35 +253,38 @@ class PipeSequenceExtractor:
 
         extracted_reads = ExtractedReads(analysing_pairs)
 
-        # TODO: Multithread over samples and spkgs
-        forward_extracted_read_sets = []
-        for diamond_search_result in diamond_forward_search_results:
-            extracts = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-                singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
-            )
-            forward_extracted_read_sets.append(extracts)
+        pool = multiprocessing.Pool(num_threads)
 
-        reverse_extracted_read_sets = []
+        forward_extraction_process_lists_per_sample = []
+        for diamond_search_result in diamond_forward_search_results:
+            extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
+                pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
+            )
+            forward_extraction_process_lists_per_sample.append(extraction_processes)
+
+        reverse_extraction_process_lists_per_sample = []
         if analysing_pairs:
             for diamond_search_result in diamond_reverse_search_results:
-                extracts = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-                    singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
+                extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
+                    pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
                 )
-                reverse_extracted_read_sets.append(extracts)
+                reverse_extraction_process_lists_per_sample.append(extraction_processes)
 
         if analysing_pairs:
-            for (fwds, revs) in zip(forward_extracted_read_sets,reverse_extracted_read_sets):
+            for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
                 for (fwd, rev) in zip(fwds, revs):
-                    extracted_reads.add((fwd, rev))
+                    extracted_reads.add((fwd.get(), rev.get()))
         else:
-            for fwds in forward_extracted_read_sets:
+            for fwds in forward_extraction_process_lists_per_sample:
                 for fwd in fwds:
-                    extracted_reads.add(fwd)
+                    extracted_reads.add(fwd.get())
+        pool.close()
+        pool.join()
         
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-            self, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length):
+            self, pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length):
         # Determine sample name.
         # In order to have compatible sample names with the hmmsearch mode,
         # remove filename suffixes.
@@ -305,13 +309,14 @@ class PipeSequenceExtractor:
                     spkg_key_to_spkg[spkg_key] = spkg
         
         # Align each read via hmmsearch and pick windowed sequences
-        extracted_read_sets = []
+        extraction_of_read_set_processes = []
         for spkg in singlem_package_database:
-            extracted_read_sets.append(_extract_reads_by_diamond_for_package_and_sample(
-                spkg_to_sequences, spkg, sample_name, min_orf_length, include_inserts
-            ))
+            extraction_of_read_set_processes.append(
+                pool.apply_async(
+                    _extract_reads_by_diamond_for_package_and_sample, args=(
+                spkg_to_sequences, spkg, sample_name, min_orf_length, include_inserts)))
 
-        return extracted_read_sets
+        return extraction_of_read_set_processes
 
 
     def _read_spkg_sequence_ids(self, singlem_package_database):

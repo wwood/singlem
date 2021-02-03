@@ -203,7 +203,8 @@ class SearchPipe:
         if diamond_package_assignment:
             logging.info("Assigning sequences to SingleM packages with DIAMOND ..")
             extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
-                hmms, diamond_forward_search_results, diamond_reverse_search_results, 
+                self._num_threads, hmms,
+                diamond_forward_search_results, diamond_reverse_search_results, 
                 analysing_pairs, include_inserts, min_orf_length)
         else:
             logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
