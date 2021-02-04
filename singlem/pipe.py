@@ -215,7 +215,9 @@ class SearchPipe:
         #### Taxonomic assignment
         reuse_diamond_taxonomy = False
         if assign_taxonomy:
-            if diamond_prefilter and singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+            if diamond_prefilter and (
+                singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD or 
+                singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD):
                 logging.info("Using DIAMOND taxonomic assignment from prefilter step ..")
                 assignment_result = SingleMPipeDiamondTaxonomicAssignmentResult(
                     diamond_forward_search_results, diamond_reverse_search_results)
@@ -371,11 +373,9 @@ class SearchPipe:
 
                 if assign_taxonomy:
                     # Add usage of prefilter results here
-                    if reuse_diamond_taxonomy == True and singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                    if reuse_diamond_taxonomy == True:
                         def process_taxonomy(singular_readset, assignment_result, forward):
                             logging.debug("Reusing prefilter DIAMOND results for taxonomy assignment for sample {}".format(singular_readset.sample_name))
-                            # TODO cache this as it is an IO operation
-                            graftm_package_taxonomy = assignment_result.taxonomy_hash(singular_readset.singlem_package)
                             # Information flow: readset -> sequences -> name -> prefilter_result for sample -> best_hits[sseqid]
                             # And readset -> singlem_package -> graftm_package -> taxonomy_hash
                             taxonomies = {}
@@ -392,7 +392,13 @@ class SearchPipe:
                                 best_hit = diamond_res.best_hits[s.name]
                                 if s.name in taxonomies:
                                     raise Exception("Unexpectedly found >1 input sequence with the same name: {}".format(s.name))
-                                taxonomies[s.name] = 'Root; ' + '; '.join(graftm_package_taxonomy[best_hit])
+                                if singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                                    graftm_package_taxonomy = assignment_result.taxonomy_hash(singular_readset.singlem_package)
+                                    taxonomies[s.name] = 'Root; ' + '; '.join(graftm_package_taxonomy[best_hit])
+                                elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                                    taxonomies[s.name] = best_hit
+                                else:
+                                    raise Exception("Programming error")
                             return taxonomies
 
                         if analysing_pairs:
