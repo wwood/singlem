@@ -375,7 +375,7 @@ class SearchPipe:
                         def process_taxonomy(singular_readset, assignment_result, forward):
                             logging.debug("Reusing prefilter DIAMOND results for taxonomy assignment for sample {}".format(singular_readset.sample_name))
                             # TODO cache this as it is an IO operation
-                            graftm_package_taxonomy = singular_readset.singlem_package.graftm_package().taxonomy_hash()
+                            graftm_package_taxonomy = assignment_result.taxonomy_hash(singular_readset.singlem_package)
                             # Information flow: readset -> sequences -> name -> prefilter_result for sample -> best_hits[sseqid]
                             # And readset -> singlem_package -> graftm_package -> taxonomy_hash
                             taxonomies = {}
@@ -1185,6 +1185,7 @@ class SingleMPipeTaxonomicAssignmentResult:
 
 class SingleMPipeDiamondTaxonomicAssignmentResult:
     def __init__(self, diamond_forward_search_results, diamond_reverse_search_results):
+        self._singlem_package_taxonomy_hashes = {}
         if diamond_reverse_search_results is None:
             self._sample_name_to_diamond_result = {}
             for res in diamond_forward_search_results:
@@ -1205,3 +1206,13 @@ class SingleMPipeDiamondTaxonomicAssignmentResult:
 
     def diamond_result_for_paired_sample_reverse(self, sample_name):
         return self._sample_name_to_diamond_result_reverse[sample_name]
+
+    def taxonomy_hash(self, singlem_package):
+        '''Acts as a cache so taxonomies are not read in multiple times'''
+        key = singlem_package.base_directory()
+        if key in self._singlem_package_taxonomy_hashes:
+            return self._singlem_package_taxonomy_hashes[key]
+        else:
+            tax = singlem_package.graftm_package().taxonomy_hash()
+            self._singlem_package_taxonomy_hashes[key] = tax
+            return tax
