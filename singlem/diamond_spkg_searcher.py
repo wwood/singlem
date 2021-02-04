@@ -97,3 +97,11 @@ class DiamondSearchResult:
     def __init__(self, query_sequence_file, best_hits):
         self.query_sequences_file = query_sequence_file
         self.best_hits = best_hits
+
+    def sample_name(self):
+        sample_name = os.path.basename(self.query_sequences_file)
+        for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
+            if sample_name.endswith(extension):
+                sample_name = sample_name[0:(len(sample_name)-len(extension))]
+                break
+        return sample_name
