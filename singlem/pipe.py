@@ -177,8 +177,12 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
-        logging.info("Using as input %i different sequence files e.g. %s" % (
-            len(forward_read_files), forward_read_files[0]))
+        if analysing_pairs:
+            logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
+                len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
+        else:
+            logging.info("Using as input %i different sequence files e.g. %s" % (
+                len(forward_read_files), forward_read_files[0]))
 
         if diamond_prefilter:
             logging.info("Filtering sequence files through DIAMOND blastx")
