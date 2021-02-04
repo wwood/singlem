@@ -574,7 +574,8 @@ if __name__ == '__main__':
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy,
-            diamond_prefilter = False)
+            diamond_prefilter = False,
+            diamond_package_assignment = False)
 
     elif args.subparser_name=='makedb':
         if not args.otu_tables and not args.archive_otu_tables:
