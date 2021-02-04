@@ -372,20 +372,35 @@ class SearchPipe:
                 if assign_taxonomy:
                     # Add usage of prefilter results here
                     if reuse_diamond_taxonomy == True and singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-                        logging.debug("Reusing prefilter DIAMOND results for taxonomy assignment for sample {}".format(readset.sample_name))
+                        def process_taxonomy(singular_readset, assignment_result, forward):
+                            logging.debug("Reusing prefilter DIAMOND results for taxonomy assignment for sample {}".format(singular_readset.sample_name))
+                            # TODO cache this as it is an IO operation
+                            graftm_package_taxonomy = singular_readset.singlem_package.graftm_package().taxonomy_hash()
+                            # Information flow: readset -> sequences -> name -> prefilter_result for sample -> best_hits[sseqid]
+                            # And readset -> singlem_package -> graftm_package -> taxonomy_hash
+                            taxonomies = {}
+                            sample_name = singular_readset.sample_name
+                            if forward == None:
+                                diamond_res = assignment_result.diamond_result_for_unpaired_sample(sample_name)
+                            elif forward == True:
+                                diamond_res = assignment_result.diamond_result_for_paired_sample_forward(sample_name)
+                            elif forward == False:
+                                diamond_res = assignment_result.diamond_result_for_paired_sample_reverse(sample_name)
+                            else:
+                                raise Exception("Programming error")
+                            for s in singular_readset.sequences:
+                                best_hit = diamond_res.best_hits[s.name]
+                                if s.name in taxonomies:
+                                    raise Exception("Unexpectedly found >1 input sequence with the same name: {}".format(s.name))
+                                taxonomies[s.name] = 'Root; ' + '; '.join(graftm_package_taxonomy[best_hit])
+                            return taxonomies
+
                         if analysing_pairs:
-                            raise Exception("Not yet implemented")
-                        # TODO cache this as it is an IO operation
-                        graftm_package_taxonomy = readset.singlem_package.graftm_package().taxonomy_hash()
-                        # Information flow: readset -> sequences -> name -> prefilter_result for sample -> best_hits[sseqid]
-                        # And readset -> singlem_package -> graftm_package -> taxonomy_hash
-                        taxonomies = {}
-                        diamond_res = assignment_result.diamond_result_for_unpaired_sample(readset.sample_name)
-                        for s in readset.sequences:
-                            best_hit = diamond_res.best_hits[s.name]
-                            if s.name in taxonomies:
-                                raise Exception("Unexpectedly found >1 input sequence with the same name: {}".format(s.name))
-                            taxonomies[s.name] = 'Root; ' + '; '.join(graftm_package_taxonomy[best_hit])
+                            fwd_taxonomies = process_taxonomy(readset[0], assignment_result, True)
+                            taxonomies = process_taxonomy(readset[1], assignment_result, False)
+                            taxonomies.update(fwd_taxonomies)
+                        else:
+                            taxonomies = process_taxonomy(readset, assignment_result, None)
 
                     elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         if analysing_pairs:
@@ -1175,7 +1190,18 @@ class SingleMPipeDiamondTaxonomicAssignmentResult:
             for res in diamond_forward_search_results:
                 self._sample_name_to_diamond_result[res.sample_name()] = res
         else:
-            raise Exception("Not implemented")
+            self._sample_name_to_diamond_result_forward = {}
+            for res in diamond_forward_search_results:
+                self._sample_name_to_diamond_result_forward[res.sample_name()] = res
+            self._sample_name_to_diamond_result_reverse = {}
+            for res in diamond_reverse_search_results:
+                self._sample_name_to_diamond_result_reverse[res.sample_name()] = res
 
     def diamond_result_for_unpaired_sample(self, sample_name):
         return self._sample_name_to_diamond_result[sample_name]
+
+    def diamond_result_for_paired_sample_forward(self, sample_name):
+        return self._sample_name_to_diamond_result_forward[sample_name]
+
+    def diamond_result_for_paired_sample_reverse(self, sample_name):
+        return self._sample_name_to_diamond_result_reverse[sample_name]
