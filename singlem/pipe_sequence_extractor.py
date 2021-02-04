@@ -285,16 +285,13 @@ class PipeSequenceExtractor:
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
             self, pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length):
-        # Determine sample name.
-        # In order to have compatible sample names with the hmmsearch mode,
-        # remove filename suffixes.
-        sample_name = os.path.basename(diamond_search_result.query_sequences_file)
-        for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
-            if sample_name.endswith(extension):
-                sample_name = sample_name[0:(len(sample_name)-len(extension))]
-                break
 
-        # From diamond search result, collect the hit sequences, parsing them into collections for each spkg
+        # Determine sample name. In order to have compatible sample names with
+        # the hmmsearch mode, remove filename suffixes.
+        sample_name = diamond_search_result.sample_name()
+
+        # From diamond search result, collect the hit sequences, parsing them
+        # into collections for each spkg
         spkg_to_sequences = {}
         spkg_key_to_spkg = {}
         with open(diamond_search_result.query_sequences_file) as f:
@@ -320,9 +317,9 @@ class PipeSequenceExtractor:
 
 
     def _read_spkg_sequence_ids(self, singlem_package_database):
-        # For each of the fwd search results, make lists of sequences that best hit
-        # each of the packages, then mfqe out from the fasta file each of those hits
-        # Do the same for the reverse reads if required
+        # For each of the fwd search results, make lists of sequences that best
+        # hit each of the packages, then mfqe out from the fasta file each of
+        # those hits Do the same for the reverse reads if required
         spkgs_sequence_id_to_spkg = {}
         for spkg in singlem_package_database:
             for name in spkg.get_sequence_ids():

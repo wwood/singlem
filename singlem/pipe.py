@@ -213,10 +213,17 @@ class SearchPipe:
                 known_taxes, known_otu_tables, include_inserts)
 
         #### Taxonomic assignment
+        reuse_diamond_taxonomy = False
         if assign_taxonomy:
-            logging.info("Running taxonomic assignment with GraftM..")
-            assignment_result = self._assign_taxonomy(
-                extracted_reads, graftm_assignment_method)
+            if diamond_prefilter and singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                logging.info("Using DIAMOND taxonomic assignment from prefilter step ..")
+                assignment_result = SingleMPipeDiamondTaxonomicAssignmentResult(
+                    diamond_forward_search_results, diamond_reverse_search_results)
+                reuse_diamond_taxonomy = True
+            else:
+                logging.info("Running taxonomic assignment with GraftM ..")
+                assignment_result = self._assign_taxonomy(
+                    extracted_reads, graftm_assignment_method)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -238,6 +245,7 @@ class SearchPipe:
                 known_sequence_taxonomy,
                 assign_taxonomy,
                 singlem_assignment_method,
+                reuse_diamond_taxonomy,
                 assignment_result if assign_taxonomy else None,
                 output_jplace,
                 known_sequence_tax if known_sequence_taxonomy else None,
@@ -282,6 +290,7 @@ class SearchPipe:
             known_sequence_taxonomy,
             assign_taxonomy,
             singlem_assignment_method,
+            reuse_diamond_taxonomy,
             assignment_result,
             output_jplace,
             known_sequence_tax,
@@ -361,7 +370,24 @@ class SearchPipe:
                         readset.unknown_sequences, readset.known_sequences))
 
                 if assign_taxonomy:
-                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                    # Add usage of prefilter results here
+                    if reuse_diamond_taxonomy == True and singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                        logging.debug("Reusing prefilter DIAMOND results for taxonomy assignment for sample {}".format(readset.sample_name))
+                        if analysing_pairs:
+                            raise Exception("Not yet implemented")
+                        # TODO cache this as it is an IO operation
+                        graftm_package_taxonomy = readset.singlem_package.graftm_package().taxonomy_hash()
+                        # Information flow: readset -> sequences -> name -> prefilter_result for sample -> best_hits[sseqid]
+                        # And readset -> singlem_package -> graftm_package -> taxonomy_hash
+                        taxonomies = {}
+                        diamond_res = assignment_result.diamond_result_for_unpaired_sample(readset.sample_name)
+                        for s in readset.sequences:
+                            best_hit = diamond_res.best_hits[s.name]
+                            if s.name in taxonomies:
+                                raise Exception("Unexpectedly found >1 input sequence with the same name: {}".format(s.name))
+                            taxonomies[s.name] = 'Root; ' + '; '.join(graftm_package_taxonomy[best_hit])
+
+                    elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         if analysing_pairs:
                             taxonomy1 = DiamondResultParser(
                                 assignment_result.forward_diamond_assignment_file(
@@ -1141,3 +1167,15 @@ class SingleMPipeTaxonomicAssignmentResult:
     def jplace_file(self, sample_name, singlem_package, tmpbase):
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             'placements.jplace')
+
+class SingleMPipeDiamondTaxonomicAssignmentResult:
+    def __init__(self, diamond_forward_search_results, diamond_reverse_search_results):
+        if diamond_reverse_search_results is None:
+            self._sample_name_to_diamond_result = {}
+            for res in diamond_forward_search_results:
+                self._sample_name_to_diamond_result[res.sample_name()] = res
+        else:
+            raise Exception("Not implemented")
+
+    def diamond_result_for_unpaired_sample(self, sample_name):
+        return self._sample_name_to_diamond_result[sample_name]
