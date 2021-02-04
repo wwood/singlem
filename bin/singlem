@@ -498,6 +498,7 @@ if __name__ == '__main__':
         print('    create       -> %s' % create_description)
         print('    get_tree     -> %s' % get_tree_description)
         print('    regenerate   -> %s' % regenerate_description)
+        print('    chainsaw     -> %s' % chainsaw_description)
 
         print('\n  Use singlem <command> -h for command-specific help.\n'\
             '  Some commands also have an extended --full-help flag.\n')
