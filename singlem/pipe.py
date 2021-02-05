@@ -219,7 +219,7 @@ class SearchPipe:
         #### Taxonomic assignment
         reuse_diamond_taxonomy = False
         if assign_taxonomy:
-            if diamond_prefilter and (
+            if diamond_package_assignment and (
                 singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD or 
                 singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD):
                 logging.info("Using DIAMOND taxonomic assignment from prefilter step ..")
