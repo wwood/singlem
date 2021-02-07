@@ -61,7 +61,7 @@ class SearchPipe:
             singlem_packages):
         regular_output_fields = str.split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
-            str.split('read_names nucleotides_aligned taxonomy_by_known?')
+            str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences')
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
                 if output_extras:
@@ -315,6 +315,9 @@ class SearchPipe:
 
         def add_info(infos, otu_table_object, known_tax):
             for info in infos:
+                names_and_sequences = list(sorted(
+                    list(zip(info.names, info.unaligned_sequences)),
+                    key=lambda x: x[0]))
                 to_print = [
                     singlem_package.graftm_package_basename(),
                     sample_name,
@@ -322,9 +325,10 @@ class SearchPipe:
                     info.count,
                     info.coverage,
                     info.taxonomy,
-                    list(sorted(info.names)),
+                    list([ns[0] for ns in names_and_sequences]),
                     info.aligned_lengths,
-                    known_tax]
+                    known_tax,
+                    list([ns[1] for ns in names_and_sequences])]
                 otu_table_object.data.append(to_print)
 
         def extract_placement_parser(
@@ -584,6 +588,7 @@ class SearchPipe:
                 self.count = 0
                 self.taxonomies = []
                 self.names = []
+                self.unaligned_sequences = []
                 self.coverage = 0.0
                 self.aligned_lengths = []
                 self.orf_names = []
@@ -614,16 +619,18 @@ class SearchPipe:
             collected_info.count += 1
             if per_read_taxonomies: collected_info.taxonomies.append(tax)
             collected_info.names.append(s.name)
+            collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
             collected_info.orf_names.append(s.orf_name)
 
         class Info:
-            def __init__(self, seq, count, taxonomy, names, coverage, aligned_lengths):
+            def __init__(self, seq, count, taxonomy, names, unaligned_sequences, coverage, aligned_lengths):
                 self.seq = seq
                 self.count = count
                 self.taxonomy = taxonomy
                 self.names = names
+                self.unaligned_sequences = unaligned_sequences
                 self.coverage = coverage
                 self.aligned_lengths = aligned_lengths
 
@@ -649,6 +656,7 @@ class SearchPipe:
                        collected_info.count,
                        tax,
                        collected_info.names,
+                       collected_info.unaligned_sequences,
                        collected_info.coverage,
                        collected_info.aligned_lengths)
 
