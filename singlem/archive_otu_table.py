@@ -4,8 +4,8 @@ from .otu_table_entry import OtuTableEntry
 
 
 class ArchiveOtuTable:
-    version = 1
-    FIELDS = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
+    version = 2
+    FIELDS = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences')
     READ_NAME_FIELD_INDEX=6
 
     def __init__(self, singlem_packages=None):
