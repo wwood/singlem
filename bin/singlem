@@ -457,9 +457,12 @@ if __name__ == '__main__':
 
     chainsaw_description = 'Remove tree information from a singlem package'
     chainsaw_parser = new_subparser(subparsers, 'chainsaw', chainsaw_description)
-    chainsaw_parser.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info from this package")
-    chainsaw_parser.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
-    chainsaw_parser.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
+    
+    required_chainsaw_arguments = chainsaw_parser.add_argument_group("required arguments")
+    
+    required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info from this package")
+    required_chainsaw_arguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
+    required_chainsaw_arguments.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
 
     def validate_pipe_args(args):
         if not args.otu_table and not args.archive_otu_table:
