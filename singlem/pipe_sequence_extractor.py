@@ -358,8 +358,13 @@ class ExtractedReads:
         '''True if all readsets have no sequences, else False'''
         for readsets in self._sample_to_extracted_read_objects.values():
             for readset in readsets:
-                if len(readset.unknown_sequences) > 0  or len(readset.known_sequences) > 0:
-                    return False
+                if self.analysing_pairs:
+                    if len(readset[0].unknown_sequences) > 0  or len(readset[0].known_sequences) > 0 or \
+                       len(readset[1].unknown_sequences) > 0  or len(readset[1].known_sequences) > 0:
+                        return False
+                else:
+                    if len(readset.unknown_sequences) > 0  or len(readset.known_sequences) > 0:
+                        return False
         return True
 
     def each_package_wise(self):
