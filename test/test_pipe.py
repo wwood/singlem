@@ -919,6 +919,33 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    def test_no_results(self):
+        # ORFs but no hits at all 
+        expected = [
+            "\t".join(self.headers),
+            '']
+        cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {}".format(
+            path_to_script,
+            os.path.join(path_to_data, 'random.fna'),
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
+
+    def test_no_results_diamond_prefilter(self):
+        # ORFs but no hits at all 
+        expected = [
+            "\t".join(self.headers),
+            '']
+        cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {} --diamond-prefilter".format(
+            path_to_script,
+            os.path.join(path_to_data, 'random.fna'),
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
+
+
 
 
 if __name__ == "__main__":

@@ -354,6 +354,14 @@ class ExtractedReads:
             for readset in readsets:
                 yield readset
 
+    def empty(self):
+        '''True if all readsets have no sequences, else False'''
+        for readsets in self._sample_to_extracted_read_objects.values():
+            for readset in readsets:
+                if len(readset.sequences) > 0:
+                    return False
+        return True
+
     def each_package_wise(self):
         '''yield once per pkg: [singlem_package, ExtractedReadSet objects with all
         samples / sequences that have extracted sequences from it]
