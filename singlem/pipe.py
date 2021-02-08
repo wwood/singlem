@@ -189,10 +189,19 @@ class SearchPipe:
             (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                 self._num_threads, self._working_directory).run_diamond(
                 hmms, forward_read_files, reverse_read_files)
+            found_a_hit = False
+            if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
+                found_a_hit = True
             forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
             if analysing_pairs:
                 reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
+                if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
+                    found_a_hit = True
             logging.info("Finished DIAMOND prefilter phase")
+            if not found_a_hit:
+                logging.info("No reads identified in any samples, stopping")
+                return_cleanly()
+                return OtuTable()
 
         ### Extract reads that have already known taxonomy
         if known_otu_tables:
@@ -210,11 +219,18 @@ class SearchPipe:
                 self._num_threads, hmms,
                 diamond_forward_search_results, diamond_reverse_search_results, 
                 analysing_pairs, include_inserts, min_orf_length)
+            if extracted_reads.empty():
+                logging.info("No reads found")
+                return_cleanly()
+                return OtuTable()
         else:
             logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
             extracted_reads = self._find_and_extract_reads_by_hmmsearch(
                 hmms, forward_read_files, reverse_read_files,
                 known_taxes, known_otu_tables, include_inserts)
+            if extracted_reads is None:
+                return_cleanly()
+                return OtuTable()
 
         #### Taxonomic assignment
         reuse_diamond_taxonomy = False
@@ -270,7 +286,6 @@ class SearchPipe:
         sample_names = search_result.samples_with_hits()
         if len(sample_names) == 0:
             logging.info("No reads identified in any samples, stopping")
-            return_cleanly()
             return None
         logging.debug("Recovered %i samples with at least one hit e.g. '%s'"
                     % (len(sample_names), sample_names[0]))
