@@ -198,7 +198,7 @@ class SearchPipe:
             forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
             if analysing_pairs:
                 reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
-                if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
+                if any([len(r.best_hits)>0 for r in diamond_reverse_search_results]):
                     found_a_hit = True
             logging.info("Finished DIAMOND prefilter phase")
             if not found_a_hit:
