@@ -121,6 +121,9 @@ class SearchPipe:
                     raise Exception(
                         "Paired read inputs can only be used with protein SingleM packages, but support may be added in the future.")
 
+        if diamond_prefilter and (known_otu_tables or known_sequence_taxonomy):
+            raise Exception("DIAMOND prefilter is currently incompatible with known OTUs and taxonomy")
+
         if logging.getLevelName(logging.getLogger().level) == 'DEBUG':
             self._graftm_verbosity = '5'
         else:
