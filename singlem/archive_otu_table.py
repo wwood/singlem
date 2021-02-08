@@ -5,7 +5,11 @@ from .otu_table_entry import OtuTableEntry
 
 class ArchiveOtuTable:
     version = 2
-    FIELDS = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences')
+
+    FIELDS_VERSION1 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
+    FIELDS_VERSION2 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences')
+    FIELDS = FIELDS_VERSION2
+
     READ_NAME_FIELD_INDEX=6
 
     def __init__(self, singlem_packages=None):
@@ -25,11 +29,11 @@ class ArchiveOtuTable:
     def read(input_io):
         otus = ArchiveOtuTable()
         j = json.loads(input_io.read())
-        if j['version'] != ArchiveOtuTable.version:
+        if not j['version'] in [1,2]:
             raise Exception("Wrong OTU table version detected")
 
         otus.fields = j['fields']
-        if otus.fields != ArchiveOtuTable.FIELDS:
+        if otus.fields != [ArchiveOtuTable.FIELDS_VERSION1,ArchiveOtuTable.FIELDS_VERSION2][j['version']-1]:
             raise Exception("Unexpected archive OTU table format detected")
 
         otus.data = j['otus']
