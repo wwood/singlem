@@ -78,7 +78,7 @@ class bcolors:
     #     self.ENDC = ''
 
 class MyParser(argparse.ArgumentParser):
-    FULL_HELP_FLAG = 'full-help'
+    FULL_HELP_FLAG = 'full_help'
 
     PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.PPLACER_ASSIGNMENT_METHOD
 
@@ -408,6 +408,8 @@ if __name__ == '__main__':
     create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER", 
         help="length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE), 
         default=DEFAULT_WINDOW_SIZE, type=int)
+    create_specific_arguments.add_argument('--target_domains', '--target-domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea' or 'Bacteria' or 'Eukaryota'. Input with multiple domains must be space separated.", required=True)
+    create_specific_arguments.add_argument('--gene_description', '--gene-description', metavar="STRING", help="input long description of this marker package", required=True, type=str)
     create_specific_arguments.add_argument('--force', action='store_true', help='overwrite output path if it already exists [default: false]')
 
     get_tree_description = 'Extract path to Newick tree file in a SingleM package.'
@@ -419,6 +421,7 @@ if __name__ == '__main__':
 
     regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
+    regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM (default: 30)", type=int, default=30)
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
@@ -736,6 +739,8 @@ if __name__ == '__main__':
                                 output_singlem_package = args.output_singlem_package,
                                 hmm_position = args.hmm_position,
                                 window_size = args.window_size,
+                                target_domains = args.target_domains,
+                                gene_description = args.gene_description,
                                 force = args.force)
     elif args.subparser_name == 'appraise':
         appraiser = Appraiser()
@@ -817,7 +822,8 @@ if __name__ == '__main__':
             euk_taxonomy = args.euk_taxonomy,
             intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
             intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
-            input_taxonomy = args.input_taxonomy)
+            input_taxonomy = args.input_taxonomy,
+            min_aligned_percent = args.min_aligned_percent)
 
     elif args.subparser_name == 'get_tree':
         hmm_db = HmmDatabase(args.singlem_packages)
