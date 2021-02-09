@@ -98,7 +98,7 @@ class Regenerator:
         try:
             extern.run(cmd)
         except Exception:
-            logging.debug("Automatically retrying graftM after taxit create failure")
+            logging.info("Automatically retrying graftM after taxit create failure")
             
             rerooted_tree = "graftm_create_tree." + basename.split(".")[0] + ".tree"
             

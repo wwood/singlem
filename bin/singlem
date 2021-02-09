@@ -421,7 +421,7 @@ if __name__ == '__main__':
 
     regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
-    regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM (default: 30)", type=int, default=30)
+    regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
