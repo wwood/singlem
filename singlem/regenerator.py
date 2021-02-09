@@ -145,10 +145,10 @@ class Regenerator:
         # Run singlem create to put the final package together
         if original_pkg.version == 2:
             SingleMPackageVersion2.compile(
-            output_singlem_package,
-            final_gpkg,
-            original_pkg.singlem_position(),
-            original_pkg.window_size())
+                output_singlem_package,
+                final_gpkg,
+                original_pkg.singlem_position(),
+                original_pkg.window_size())
         elif original_pkg.version == 3:
             SingleMPackageVersion3.compile(
                 output_singlem_package,
