@@ -6,7 +6,7 @@ import dendropy
 from graftm.graftm_package import GraftMPackage
 
 from .graftm_result import GraftMResult
-from .singlem_package import SingleMPackageVersion2, SingleMPackage
+from .singlem_package import SingleMPackageVersion3, SingleMPackageVersion2, SingleMPackage
 from .sequence_classes import SeqReader
 from .dereplicator import Dereplicator
 from .sequence_extractor import SequenceExtractor
@@ -22,6 +22,7 @@ class Regenerator:
         intermediate_archaea_graftm_package = kwargs.pop('intermediate_archaea_graftm_package')
         intermediate_bacteria_graftm_package = kwargs.pop('intermediate_bacteria_graftm_package')
         input_taxonomy = kwargs.pop('input_taxonomy')
+        min_aligned_percent = kwargs.pop('min_aligned_percent')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -86,14 +87,31 @@ class Regenerator:
         # Run graftm create to get the final package
         final_gpkg = os.path.join(working_directory,
                                   "%s_final.gpkg" % basename)
-        cmd = "graftM create --force --sequences %s --taxonomy %s --search_hmm_files %s %s --hmm %s --output %s" % (
+        cmd = "graftM create --force --min_aligned_percent %s --sequences %s --taxonomy %s --search_hmm_files %s %s --hmm %s --output %s" % (
+            min_aligned_percent,
             final_sequences_path,
             final_taxonomy_file,
             ' '.join(archaeal_intermediate_pkg.search_hmm_paths()),
             ' '.join(bacterial_intermediate_pkg.search_hmm_paths()),
             original_hmm_path,
             final_gpkg)
-        extern.run(cmd)
+        try:
+            extern.run(cmd)
+        except Exception:
+            logging.info("Automatically retrying graftM after taxit create failure")
+            
+            rerooted_tree = "graftm_create_tree." + basename.split(".")[0] + ".tree"
+            
+            cmd = "graftM create --force --min_aligned_percent %s --sequences %s --taxonomy %s --search_hmm_files %s %s --hmm %s --output %s --rerooted_tree %s" % (
+            min_aligned_percent,
+            final_sequences_path,
+            final_taxonomy_file,
+            ' '.join(archaeal_intermediate_pkg.search_hmm_paths()),
+            ' '.join(bacterial_intermediate_pkg.search_hmm_paths()),
+            original_hmm_path,
+            final_gpkg,
+            rerooted_tree)
+            extern.run(cmd)
 
         ##############################################################################
         # Remove sequences from the diamond DB that are not in the tree i.e.
@@ -125,11 +143,20 @@ class Regenerator:
 
         ##############################################################################
         # Run singlem create to put the final package together
-        SingleMPackageVersion2.compile(
-            output_singlem_package,
-            final_gpkg,
-            original_pkg.singlem_position(),
-            original_pkg.window_size())
+        if original_pkg.version == 2:
+            SingleMPackageVersion2.compile(
+                output_singlem_package,
+                final_gpkg,
+                original_pkg.singlem_position(),
+                original_pkg.window_size())
+        elif original_pkg.version == 3:
+            SingleMPackageVersion3.compile(
+                output_singlem_package,
+                final_gpkg,
+                original_pkg.singlem_position(),
+                original_pkg.window_size(),
+                original_pkg.target_domains(),
+                original_pkg.gene_description())
         logging.info("SingleM package generated.")
 
 
