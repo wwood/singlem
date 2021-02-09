@@ -45,7 +45,7 @@ class Tests(unittest.TestCase):
                 output_singlem_package = 'protein.spkg',
                 hmm_position = 76,
                 window_size = 63,
-                target_domain = ["Bacteria"],
+                target_domains = ["Bacteria"],
                 gene_description = "",
                 force = False)
             self.assertTrue(os.path.isdir('protein.spkg'))
@@ -62,7 +62,7 @@ class Tests(unittest.TestCase):
                 output_singlem_package = 'nuc.spkg',
                 hmm_position = 888,
                 window_size = 57,
-                target_domain = ["Bacteria"],
+                target_domains = ["Bacteria"],
                 gene_description = "",
                 force = False)
             self.assertTrue(os.path.isdir('nuc.spkg'))
