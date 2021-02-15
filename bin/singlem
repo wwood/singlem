@@ -458,7 +458,7 @@ if __name__ == '__main__':
     chance_parser.add_argument('--otu-tables', '--otu_tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
     chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
 
-    chainsaw_description = 'Remove tree information from a singlem package'
+    chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = new_subparser(subparsers, 'chainsaw', chainsaw_description)
     
     required_chainsaw_arguments = chainsaw_parser.add_argument_group("required arguments")
