@@ -23,7 +23,7 @@ class Chainsaw:
         
         # Ensure protein package
         if not input_spkg.is_protein_package():
-            raise Exception("Only works with nucleotide packages.")
+            raise Exception("Only works with protein packages.")
 
         # Ensure v2
         if input_spkg.version != 2:
