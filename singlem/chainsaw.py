@@ -20,6 +20,10 @@ class Chainsaw:
 
         # Open the input package
         input_spkg = SingleMPackage.acquire(input_singlem_package_path)
+        
+        # Ensure protein package
+        if not input_spkg.is_protein_package():
+            raise Exception("Only works with nucleotide packages.")
 
         # Ensure v2
         if input_spkg.version != 2:
