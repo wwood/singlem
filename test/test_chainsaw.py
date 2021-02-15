@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #=======================================================================
-# Authors: Ben Woodcroft
+# Authors: Rossen Zhao
 #
 # Unit tests.
 #

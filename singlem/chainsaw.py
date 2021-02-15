@@ -58,11 +58,11 @@ class Chainsaw:
                 out.write(">{}{}\n{}\n".format(sequence_prefix,name,seq))
         
         # Trim unaligned sequences according to alignment window +/- 30 aa
-        logging.debug("Trimming unaligned sequences according to alignment window")
+        logging.info("Trimming unaligned sequences according to alignment window")
         protein_sequences = SeqReader().readfq(open(os.path.join(graftm_path, unaligned_basename)))
         tmp_alignment = _align_proteins_to_hmm(protein_sequences, input_spkg.graftm_package().alignment_hmm_path())
         best_position = input_spkg.singlem_position()
-        stretch_length = input_spkg.window_size()
+        stretch_length = input_spkg.window_size() / 3
         trimmed_output = []
         
         ignored_columns = MetagenomeOtuFinder()._find_lower_case_columns(tmp_alignment)
