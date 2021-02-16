@@ -26,7 +26,7 @@ class Chainsaw:
             raise Exception("Only works with protein packages.")
 
         # Ensure v2 or v3
-        if input_spkg.version in [2, 3]:
+        if not input_spkg.version in [2, 3]:
             raise Exception("Only works with v2 and v3 packages for the moment.")
         
         # mkdir output package folder
