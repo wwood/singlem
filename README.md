@@ -93,6 +93,9 @@ singlem summarise --input_otu_tables otu_table.csv other_samples.otu_table.csv -
 This generates a BIOM table for each marker gene e.g. `myprefix.4.12.ribosomal_protein_L11_rplK.biom`.
 
 ### Calculating beta diversity between samples
+Ecological [beta-diversity](https://en.wikipedia.org/wiki/Beta_diversity) metrics, which measure differences between two microbial communities, can be calculated from SingleM profiles using OTU-based or phylogenetic tree-based approaches.
+
+#### OTU-based beta diversity measures
 As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using `singlem summarise`. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.
 ```
 singlem summarise --input_otu_table otu_table.csv --unifrac_by_otu otu_table.unifrac
@@ -104,6 +107,7 @@ To calculate beta diversity that does not account for the phylogenetic relations
 convertToEBD.py otu_table.unifrac.4.12.ribosomal_protein_L11_rplK.unifrac otu_table.ebd
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
+#### Phylogenetic tree-based beta diversity measures
 Phylogenetic tree-based methods of calculating beta diversity can also be calculated, but `pipe` must be used to generate a new OTU table using the `diamond_example` taxonomy assignment method so that each OTU is assigned to a single leaf in the tree:
 ```
 singlem pipe --sequences my_sequences.fastq.gz --otu_table otu_table.diamond_example.csv --threads 24 --assignment_method diamond_example
