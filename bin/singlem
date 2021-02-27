@@ -529,6 +529,8 @@ if __name__ == '__main__':
         loglevel = logging.INFO
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
+    logging.info("SingleM v{}".format(singlem.__version__))
+
     if args.subparser_name == 'seqs':
         seqs(args)
     elif args.subparser_name=='pipe':
