@@ -67,7 +67,7 @@ class DiamondSpkgSearcher:
                   "--outfmt 6 qseqid full_qseq sseqid " \
                   "--max-target-seqs 1 " \
                   "--evalue 0.01 " \
-                  "--index-chunks 1 " \
+                  "--block-size 0.5 " \
                   "--threads %i " \
                   "--query - " \
                   "--db %s " \
