@@ -16,26 +16,9 @@ import math
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 
-import singlem.sequence_database
-import singlem.query_formatters
+import singlem
 import singlem.pipe as pipe
 from singlem.pipe import SearchPipe
-from singlem.summariser import Summariser
-from singlem.strain_summariser import StrainSummariser
-from singlem.sequence_classes import SeqReader
-from singlem.metagenome_otu_finder import MetagenomeOtuFinder
-from singlem.package_creator import PackageCreator
-from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
-from singlem.clusterer import Clusterer
-from singlem.appraiser import Appraiser
-from singlem.querier import Querier
-from singlem.sequence_database import SequenceDatabase
-from singlem.chancer import Chancer
-from singlem.regenerator import Regenerator
-from singlem.taxonomy import Taxonomy
-from singlem.renew import Renew
-from singlem.singlem import HmmDatabase
-from singlem.chainsaw import Chainsaw
 
 DEFAULT_WINDOW_SIZE=60
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
@@ -531,9 +514,7 @@ if __name__ == '__main__':
 
     logging.info("SingleM v{}".format(singlem.__version__))
 
-    if args.subparser_name == 'seqs':
-        seqs(args)
-    elif args.subparser_name=='pipe':
+    if args.subparser_name=='pipe':
         validate_pipe_args(args)
         singlem.pipe.SearchPipe().run(
             sequences = args.sequences,
@@ -560,299 +541,322 @@ if __name__ == '__main__':
             diamond_prefilter = args.diamond_prefilter or args.diamond_package_assignment,
             diamond_package_assignment = args.diamond_package_assignment)
 
-    elif args.subparser_name=='renew':
-        validate_pipe_args(args)
-
-        otus = StreamingOtuTableCollection()
-        for o in args.input_archive_otu_tables:
-            otus.add_archive_otu_table_file(o)
-
-        Renew().renew(
-            input_otus=otus,
-
-            sequences = args.sequences,
-            otu_table = args.otu_table,
-            archive_otu_table = args.archive_otu_table,
-            threads = args.threads,
-            known_otu_tables = args.known_otu_tables,
-            assignment_method = args.assignment_method,
-            output_jplace = args.output_jplace,
-            evalue = args.evalue,
-            min_orf_length = args.min_orf_length,
-            restrict_read_length = args.restrict_read_length,
-            filter_minimum_protein = args.filter_minimum_protein,
-            filter_minimum_nucleotide = args.filter_minimum_nucleotide,
-            output_extras = args.output_extras,
-            include_inserts = args.include_inserts,
-            working_directory = args.working_directory,
-            working_directory_tmpdir = False,
-            force = args.force,
-            singlem_packages = args.singlem_packages,
-            assign_taxonomy = not args.no_assign_taxonomy,
-            known_sequence_taxonomy = args.known_sequence_taxonomy,
-            diamond_prefilter = False,
-            diamond_package_assignment = False)
-
-    elif args.subparser_name=='makedb':
-        if not args.otu_tables and not args.archive_otu_tables:
-            raise Exception("Making a database requires input OTU tables or archive tables")
-        otus = StreamingOtuTableCollection()
-        if args.otu_tables:
-            for o in args.otu_tables:
-                otus.add_otu_table_file(o)
-        if args.archive_otu_tables:
-            for o in args.archive_otu_tables:
-                otus.add_archive_otu_table_file(o)
-        singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-            (args.db, otus, args.clustering_divergence)
-    elif args.subparser_name=='query':
-        querier = Querier()
-        if args.db and args.subject_otu_tables:
-            raise Exception("Cannot specify both --db and --subject_otu_tables")
-
-        if args.db:
-            if args.dump:
-                logging.debug("Dumping SingleM database {}".format(args.db))
-                SequenceDatabase.dump(args.db)
-            elif args.sample_names or args.taxonomy:
-                if args.taxonomy and args.sample_names:
-                    raise Exception("Cannot specify both sample names and taxonomy")
-                querier.print_samples(
-                    db=args.db,
-                    sample_names = args.sample_names,
-                    taxonomy = args.taxonomy,
-                    output_io=sys.stdout)
-            else:
-                args.threads = 1
-                if args.db:
-                    querier.query(
-                        db = args.db,
-                        query_sequence = args.query_sequence,
-                        max_divergence = args.max_divergence,
-                        output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
-                        query_otu_table = args.query_otu_table,
-                        query_fasta = args.query_fasta,
-                        num_threads = args.threads)
-        elif args.subject_otu_tables:
-            if args.taxonomy:
-                raise Exception("--taxonomy only works with --db")
-            if args.sample_names:
-                raise Exception("--sample_names only works with --db")
-            if args.dump:
-                raise Exception("--dump only works with --db")
-            otus = OtuTableCollection()
-            for o in args.subject_otu_tables:
-                otus.add_otu_table(open(o))
-            querier.query_subject_otu_table(
-                query_sequence = args.query_sequence,
-                max_divergence = args.max_divergence,
-                query_otu_table = args.query_otu_table,
-                query_fasta = args.query_fasta,
-                subject_otu_collection = otus,
-                output_style = 'sparse')# There is only sparse type atm.
-        else:
-            raise Exception("Either --db or --subject-otu-tables must be specified.")
-    elif args.subparser_name == 'summarise':
-        num_output_types = 0
-        if args.strain_overview_table: num_output_types += 1
-        if args.krona: num_output_types += 1
-        if args.unifrac_by_otu: num_output_types += 1
-        if args.unifrac_by_taxonomy: num_output_types += 1
-        if args.biom_prefix: num_output_types += 1
-        if args.output_otu_table: num_output_types += 1
-        if args.clustered_output_otu_table: num_output_types += 1
-        if args.rarefied_output_otu_table: num_output_types += 1
-        if args.wide_format_otu_table: num_output_types += 1
-        if num_output_types != 1:
-            raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
-        if not args.input_otu_tables and not args.input_archive_otu_tables:
-            raise Exception("Summary requires input OTU tables or archive tables")
-
-        otus = OtuTableCollection()
-        otus.set_target_taxonomy_by_string(args.taxonomy)
-        if args.input_otu_tables:
-            for o in args.input_otu_tables:
-                otus.add_otu_table(open(o))
-        if args.input_archive_otu_tables:
-            for o in args.input_archive_otu_tables:
-                otus.add_archive_otu_table(open(o))
-
-        if args.cluster:
-            logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
-            o2 = OtuTableCollection()
-            o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
-            otus = o2
-            logging.info("Finished clustering")
-
-        if args.collapse_coupled:
-            if not args.output_otu_table:
-                raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
-            logging.info("Collapsing forward and reverse read OTU tables")
-            o2 = OtuTableCollection()
-            o2.otu_table_objects.append(otus.collapse_coupled())
-            otus = o2
-
-        if args.krona:
-            Summariser.summarise(
-                table_collection = otus,
-                krona_output = args.krona)
-        elif args.unifrac_by_otu:
-            Summariser.write_unifrac_by_otu_format_file(
-                table_collection = otus,
-                unifrac_output_prefix = args.unifrac_by_otu)
-        elif args.unifrac_by_taxonomy:
-            Summariser.write_unifrac_by_taxonomy_format_file(
-                table_collection = otus,
-                unifrac_output_prefix = args.unifrac_by_taxonomy)
-        elif args.biom_prefix:
-            Summariser.write_biom_otu_tables(
-                table_collection = otus,
-                biom_output_prefix = args.biom_prefix)
-        elif args.output_otu_table:
-            Summariser.write_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.output_otu_table,'w'),
-                output_extras = args.output_extras)
-        elif args.wide_format_otu_table:
-            Summariser.write_wide_format_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.wide_format_otu_table,'w'))
-        elif args.strain_overview_table:
-            StrainSummariser().summarise_strains(
-                table_collection = otus,
-                output_table_io = open(args.strain_overview_table,'w'))
-        elif args.clustered_output_otu_table:
-            if not args.cluster:
-                raise Exception("If --clustered-output-otu-table is set, then clustering (--cluster) must be applied")
-            Summariser.write_clustered_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.clustered_output_otu_table,'w'))
-        elif args.rarefied_output_otu_table:
-            Summariser.write_rarefied_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.rarefied_output_otu_table,'w'),
-                number_to_choose = args.number_to_choose)
-
-        else: raise Exception("Programming error")
-        logging.info("Finished")
-
-    elif args.subparser_name == 'create':
-        PackageCreator().create(input_graftm_package = args.input_graftm_package,
-                                output_singlem_package = args.output_singlem_package,
-                                hmm_position = args.hmm_position,
-                                window_size = args.window_size,
-                                target_domains = args.target_domains,
-                                gene_description = args.gene_description,
-                                force = args.force)
-    elif args.subparser_name == 'appraise':
-        appraiser = Appraiser()
-
-        metagenomes = OtuTableCollection()
-        for table in args.metagenome_otu_tables:
-            with open(table) as f:
-                metagenomes.add_otu_table(f)
-
-        if args.genome_otu_tables:
-            genomes = OtuTableCollection()
-            for table in args.genome_otu_tables:
-                with open(table) as f:
-                    genomes.add_otu_table(f)
-        else:
-            genomes = None
-        if args.assembly_otu_tables:
-            assemblies = OtuTableCollection()
-            for table in args.assembly_otu_tables:
-                with open(table) as f:
-                    assemblies.add_otu_table(f)
-        else:
-            assemblies = None
-
-        if genomes is None and assemblies is None:
-            raise Exception("Appraise must be run with genomes and/or assemblies.")
-
-        app = appraiser.appraise(genome_otu_table_collection=genomes,
-                                 metagenome_otu_table_collection=metagenomes,
-                                 assembly_otu_table_collection=assemblies,
-                                 sequence_identity=(args.sequence_identity if args.imperfect else None))
-
-        if args.output_binned_otu_table:
-            output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
-        if args.output_unbinned_otu_table:
-            output_unbinned_otu_table_io = open(args.output_unbinned_otu_table,'w')
-        if args.output_assembled_otu_table:
-            output_assembled_otu_table_io = open(args.output_assembled_otu_table,'w')
-        if args.output_unaccounted_for_otu_table:
-            output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
-
-        if args.plot_basename or args.plot:
-            if args.plot and args.plot_basename:
-                raise Exception("Cannot specify both --plot and --plot-basename")
-            if args.plot:
-                app.plot(
-                    cluster_identity=args.sequence_identity,
-                    doing_assembly=assemblies is not None,
-                    doing_binning=genomes is not None,
-                    gene_to_plot=args.plot_marker,
-                    output_svg=args.plot)
-            else:
-                app.plot(
-                    output_svg_base=args.plot_basename,
-                    cluster_identity=args.sequence_identity,
-                    doing_assembly=assemblies is not None,
-                    doing_binning=genomes is not None)
-
-        appraiser.print_appraisal(
-            app,
-            doing_binning = genomes is not None,
-            doing_assembly = assemblies is not None,
-            binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
-            unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
-            assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
-            unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
-            if args.output_unaccounted_for_otu_table else None)
-        if args.output_binned_otu_table: output_binned_otu_table_io.close()
-        if args.output_unbinned_otu_table: output_unbinned_otu_table_io.close()
-        if args.output_assembled_otu_table: output_assembled_otu_table_io.close()
-        if args.output_unaccounted_for_otu_table: output_unaccounted_for_otu_table_io.close()
-
-    elif args.subparser_name == 'regenerate':
-        Regenerator().regenerate(
-            input_singlem_package = args.input_singlem_package,
-            output_singlem_package = args.output_singlem_package,
-            working_directory = args.working_directory,
-            euk_sequences = args.euk_sequences,
-            euk_taxonomy = args.euk_taxonomy,
-            intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
-            intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
-            input_taxonomy = args.input_taxonomy,
-            min_aligned_percent = args.min_aligned_percent)
-
-    elif args.subparser_name == 'get_tree':
-        hmm_db = HmmDatabase(args.singlem_packages)
-        print("marker\ttree_file")
-        for pkg in hmm_db.singlem_packages:
-            print("{}\t{}".format(
-                pkg.graftm_package_basename(),
-                os.path.abspath(
-                    pkg.graftm_package().reference_package_tree_path())))
-
-    elif args.subparser_name == 'chance':
-        chancer = Chancer()
-        metagenomes = OtuTableCollection()
-        for table in args.otu_tables:
-            with open(table) as f:
-                metagenomes.add_otu_table(f)
-        chancer.run_and_print(
-            metagenomes = metagenomes,
-            target_taxonomy = Taxonomy.split_taxonomy(args.taxonomy))
-
-    elif args.subparser_name == 'chainsaw':
-        Chainsaw().chainsaw(
-            input_singlem_package_path = args.input_singlem_package,
-            output_singlem_package_path = args.output_singlem_package,
-            sequence_prefix = args.sequence_prefix)
-
     else:
-        raise Exception("Programming error")
+        # Only import some things as reuqired here, so that pipe can run in a smaller conda environment, and startup faster.
+        import singlem.sequence_database
+        import singlem.query_formatters
+        from singlem.summariser import Summariser
+        from singlem.strain_summariser import StrainSummariser
+        from singlem.sequence_classes import SeqReader
+        from singlem.metagenome_otu_finder import MetagenomeOtuFinder
+        from singlem.package_creator import PackageCreator
+        from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
+        from singlem.clusterer import Clusterer
+        from singlem.appraiser import Appraiser
+        from singlem.querier import Querier
+        from singlem.sequence_database import SequenceDatabase
+        from singlem.chancer import Chancer
+        from singlem.regenerator import Regenerator
+        from singlem.taxonomy import Taxonomy
+        from singlem.renew import Renew
+        from singlem.singlem import HmmDatabase
+        from singlem.chainsaw import Chainsaw
+
+        if args.subparser_name == 'seqs':
+            seqs(args)
+        elif args.subparser_name=='renew':
+            validate_pipe_args(args)
+
+            otus = StreamingOtuTableCollection()
+            for o in args.input_archive_otu_tables:
+                otus.add_archive_otu_table_file(o)
+
+            Renew().renew(
+                input_otus=otus,
+
+                sequences = args.sequences,
+                otu_table = args.otu_table,
+                archive_otu_table = args.archive_otu_table,
+                threads = args.threads,
+                known_otu_tables = args.known_otu_tables,
+                assignment_method = args.assignment_method,
+                output_jplace = args.output_jplace,
+                evalue = args.evalue,
+                min_orf_length = args.min_orf_length,
+                restrict_read_length = args.restrict_read_length,
+                filter_minimum_protein = args.filter_minimum_protein,
+                filter_minimum_nucleotide = args.filter_minimum_nucleotide,
+                output_extras = args.output_extras,
+                include_inserts = args.include_inserts,
+                working_directory = args.working_directory,
+                working_directory_tmpdir = False,
+                force = args.force,
+                singlem_packages = args.singlem_packages,
+                assign_taxonomy = not args.no_assign_taxonomy,
+                known_sequence_taxonomy = args.known_sequence_taxonomy,
+                diamond_prefilter = False,
+                diamond_package_assignment = False)
+
+        elif args.subparser_name=='makedb':
+            if not args.otu_tables and not args.archive_otu_tables:
+                raise Exception("Making a database requires input OTU tables or archive tables")
+            otus = StreamingOtuTableCollection()
+            if args.otu_tables:
+                for o in args.otu_tables:
+                    otus.add_otu_table_file(o)
+            if args.archive_otu_tables:
+                for o in args.archive_otu_tables:
+                    otus.add_archive_otu_table_file(o)
+            singlem.sequence_database.SequenceDatabase.create_from_otu_table\
+                (args.db, otus, args.clustering_divergence)
+        elif args.subparser_name=='query':
+            querier = Querier()
+            if args.db and args.subject_otu_tables:
+                raise Exception("Cannot specify both --db and --subject_otu_tables")
+
+            if args.db:
+                if args.dump:
+                    logging.debug("Dumping SingleM database {}".format(args.db))
+                    SequenceDatabase.dump(args.db)
+                elif args.sample_names or args.taxonomy:
+                    if args.taxonomy and args.sample_names:
+                        raise Exception("Cannot specify both sample names and taxonomy")
+                    querier.print_samples(
+                        db=args.db,
+                        sample_names = args.sample_names,
+                        taxonomy = args.taxonomy,
+                        output_io=sys.stdout)
+                else:
+                    args.threads = 1
+                    if args.db:
+                        querier.query(
+                            db = args.db,
+                            query_sequence = args.query_sequence,
+                            max_divergence = args.max_divergence,
+                            output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
+                            query_otu_table = args.query_otu_table,
+                            query_fasta = args.query_fasta,
+                            num_threads = args.threads)
+            elif args.subject_otu_tables:
+                if args.taxonomy:
+                    raise Exception("--taxonomy only works with --db")
+                if args.sample_names:
+                    raise Exception("--sample_names only works with --db")
+                if args.dump:
+                    raise Exception("--dump only works with --db")
+                otus = OtuTableCollection()
+                for o in args.subject_otu_tables:
+                    otus.add_otu_table(open(o))
+                querier.query_subject_otu_table(
+                    query_sequence = args.query_sequence,
+                    max_divergence = args.max_divergence,
+                    query_otu_table = args.query_otu_table,
+                    query_fasta = args.query_fasta,
+                    subject_otu_collection = otus,
+                    output_style = 'sparse')# There is only sparse type atm.
+            else:
+                raise Exception("Either --db or --subject-otu-tables must be specified.")
+        elif args.subparser_name == 'summarise':
+            num_output_types = 0
+            if args.strain_overview_table: num_output_types += 1
+            if args.krona: num_output_types += 1
+            if args.unifrac_by_otu: num_output_types += 1
+            if args.unifrac_by_taxonomy: num_output_types += 1
+            if args.biom_prefix: num_output_types += 1
+            if args.output_otu_table: num_output_types += 1
+            if args.clustered_output_otu_table: num_output_types += 1
+            if args.rarefied_output_otu_table: num_output_types += 1
+            if args.wide_format_otu_table: num_output_types += 1
+            if num_output_types != 1:
+                raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
+            if not args.input_otu_tables and not args.input_archive_otu_tables:
+                raise Exception("Summary requires input OTU tables or archive tables")
+
+            otus = OtuTableCollection()
+            otus.set_target_taxonomy_by_string(args.taxonomy)
+            if args.input_otu_tables:
+                for o in args.input_otu_tables:
+                    otus.add_otu_table(open(o))
+            if args.input_archive_otu_tables:
+                for o in args.input_archive_otu_tables:
+                    otus.add_archive_otu_table(open(o))
+
+            if args.cluster:
+                logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
+                o2 = OtuTableCollection()
+                o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
+                otus = o2
+                logging.info("Finished clustering")
+
+            if args.collapse_coupled:
+                if not args.output_otu_table:
+                    raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
+                logging.info("Collapsing forward and reverse read OTU tables")
+                o2 = OtuTableCollection()
+                o2.otu_table_objects.append(otus.collapse_coupled())
+                otus = o2
+
+            if args.krona:
+                Summariser.summarise(
+                    table_collection = otus,
+                    krona_output = args.krona)
+            elif args.unifrac_by_otu:
+                Summariser.write_unifrac_by_otu_format_file(
+                    table_collection = otus,
+                    unifrac_output_prefix = args.unifrac_by_otu)
+            elif args.unifrac_by_taxonomy:
+                Summariser.write_unifrac_by_taxonomy_format_file(
+                    table_collection = otus,
+                    unifrac_output_prefix = args.unifrac_by_taxonomy)
+            elif args.biom_prefix:
+                Summariser.write_biom_otu_tables(
+                    table_collection = otus,
+                    biom_output_prefix = args.biom_prefix)
+            elif args.output_otu_table:
+                Summariser.write_otu_table(
+                    table_collection = otus,
+                    output_table_io = open(args.output_otu_table,'w'),
+                    output_extras = args.output_extras)
+            elif args.wide_format_otu_table:
+                Summariser.write_wide_format_otu_table(
+                    table_collection = otus,
+                    output_table_io = open(args.wide_format_otu_table,'w'))
+            elif args.strain_overview_table:
+                StrainSummariser().summarise_strains(
+                    table_collection = otus,
+                    output_table_io = open(args.strain_overview_table,'w'))
+            elif args.clustered_output_otu_table:
+                if not args.cluster:
+                    raise Exception("If --clustered-output-otu-table is set, then clustering (--cluster) must be applied")
+                Summariser.write_clustered_otu_table(
+                    table_collection = otus,
+                    output_table_io = open(args.clustered_output_otu_table,'w'))
+            elif args.rarefied_output_otu_table:
+                Summariser.write_rarefied_otu_table(
+                    table_collection = otus,
+                    output_table_io = open(args.rarefied_output_otu_table,'w'),
+                    number_to_choose = args.number_to_choose)
+
+            else: raise Exception("Programming error")
+            logging.info("Finished")
+
+        elif args.subparser_name == 'create':
+            PackageCreator().create(input_graftm_package = args.input_graftm_package,
+                                    output_singlem_package = args.output_singlem_package,
+                                    hmm_position = args.hmm_position,
+                                    window_size = args.window_size,
+                                    target_domains = args.target_domains,
+                                    gene_description = args.gene_description,
+                                    force = args.force)
+        elif args.subparser_name == 'appraise':
+            appraiser = Appraiser()
+
+            metagenomes = OtuTableCollection()
+            for table in args.metagenome_otu_tables:
+                with open(table) as f:
+                    metagenomes.add_otu_table(f)
+
+            if args.genome_otu_tables:
+                genomes = OtuTableCollection()
+                for table in args.genome_otu_tables:
+                    with open(table) as f:
+                        genomes.add_otu_table(f)
+            else:
+                genomes = None
+            if args.assembly_otu_tables:
+                assemblies = OtuTableCollection()
+                for table in args.assembly_otu_tables:
+                    with open(table) as f:
+                        assemblies.add_otu_table(f)
+            else:
+                assemblies = None
+
+            if genomes is None and assemblies is None:
+                raise Exception("Appraise must be run with genomes and/or assemblies.")
+
+            app = appraiser.appraise(genome_otu_table_collection=genomes,
+                                    metagenome_otu_table_collection=metagenomes,
+                                    assembly_otu_table_collection=assemblies,
+                                    sequence_identity=(args.sequence_identity if args.imperfect else None))
+
+            if args.output_binned_otu_table:
+                output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
+            if args.output_unbinned_otu_table:
+                output_unbinned_otu_table_io = open(args.output_unbinned_otu_table,'w')
+            if args.output_assembled_otu_table:
+                output_assembled_otu_table_io = open(args.output_assembled_otu_table,'w')
+            if args.output_unaccounted_for_otu_table:
+                output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
+
+            if args.plot_basename or args.plot:
+                if args.plot and args.plot_basename:
+                    raise Exception("Cannot specify both --plot and --plot-basename")
+                if args.plot:
+                    app.plot(
+                        cluster_identity=args.sequence_identity,
+                        doing_assembly=assemblies is not None,
+                        doing_binning=genomes is not None,
+                        gene_to_plot=args.plot_marker,
+                        output_svg=args.plot)
+                else:
+                    app.plot(
+                        output_svg_base=args.plot_basename,
+                        cluster_identity=args.sequence_identity,
+                        doing_assembly=assemblies is not None,
+                        doing_binning=genomes is not None)
+
+            appraiser.print_appraisal(
+                app,
+                doing_binning = genomes is not None,
+                doing_assembly = assemblies is not None,
+                binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
+                unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
+                assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
+                unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
+                if args.output_unaccounted_for_otu_table else None)
+            if args.output_binned_otu_table: output_binned_otu_table_io.close()
+            if args.output_unbinned_otu_table: output_unbinned_otu_table_io.close()
+            if args.output_assembled_otu_table: output_assembled_otu_table_io.close()
+            if args.output_unaccounted_for_otu_table: output_unaccounted_for_otu_table_io.close()
+
+        elif args.subparser_name == 'regenerate':
+            Regenerator().regenerate(
+                input_singlem_package = args.input_singlem_package,
+                output_singlem_package = args.output_singlem_package,
+                working_directory = args.working_directory,
+                euk_sequences = args.euk_sequences,
+                euk_taxonomy = args.euk_taxonomy,
+                intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
+                intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
+                input_taxonomy = args.input_taxonomy,
+                min_aligned_percent = args.min_aligned_percent)
+
+        elif args.subparser_name == 'get_tree':
+            hmm_db = HmmDatabase(args.singlem_packages)
+            print("marker\ttree_file")
+            for pkg in hmm_db.singlem_packages:
+                print("{}\t{}".format(
+                    pkg.graftm_package_basename(),
+                    os.path.abspath(
+                        pkg.graftm_package().reference_package_tree_path())))
+
+        elif args.subparser_name == 'chance':
+            chancer = Chancer()
+            metagenomes = OtuTableCollection()
+            for table in args.otu_tables:
+                with open(table) as f:
+                    metagenomes.add_otu_table(f)
+            chancer.run_and_print(
+                metagenomes = metagenomes,
+                target_taxonomy = Taxonomy.split_taxonomy(args.taxonomy))
+
+        elif args.subparser_name == 'chainsaw':
+            Chainsaw().chainsaw(
+                input_singlem_package_path = args.input_singlem_package,
+                output_singlem_package_path = args.output_singlem_package,
+                sequence_prefix = args.sequence_prefix)
+
+        else:
+            raise Exception("Programming error")
 
 
