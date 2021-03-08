@@ -249,12 +249,14 @@ class PipeSequenceExtractor:
         '''
 
         # Cache spkg sequence ID to spkg object
+        logging.debug("Extracting reads IDs from each package ..")
         spkgs_sequence_id_to_spkg = self._read_spkg_sequence_ids(singlem_package_database)
 
         extracted_reads = ExtractedReads(analysing_pairs)
 
         pool = multiprocessing.Pool(num_threads)
 
+        logging.debug("Aligning and extracting forward reads ..")
         forward_extraction_process_lists_per_sample = []
         for diamond_search_result in diamond_forward_search_results:
             extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
@@ -262,6 +264,7 @@ class PipeSequenceExtractor:
             )
             forward_extraction_process_lists_per_sample.append(extraction_processes)
 
+        logging.debug("Aligning and extracting reverse reads ..")
         reverse_extraction_process_lists_per_sample = []
         if analysing_pairs:
             for diamond_search_result in diamond_reverse_search_results:
@@ -270,6 +273,7 @@ class PipeSequenceExtractor:
                 )
                 reverse_extraction_process_lists_per_sample.append(extraction_processes)
 
+        logging.debug("Finished aligning and extracting reads")
         if analysing_pairs:
             for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
                 for (fwd, rev) in zip(fwds, revs):
