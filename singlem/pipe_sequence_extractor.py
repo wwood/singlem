@@ -175,7 +175,7 @@ def _extract_reads_by_diamond_for_package_and_sample(
         stdin = '\n'.join(
             [">{}\n{}".format(s.name, s.seq) for s in chunk_sequences])
         logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(chunk_sequences)))
-        output = extern.run(cmd, stdin=stdin)
+        output = extern.run(cmd, stdin=">dummy\n{}\n{}".format('A'*min_orf_length,stdin))
         logging.debug("Finished command: {}".format(cmd))
 
         # Convert to AlignedProteinSequence
