@@ -159,43 +159,57 @@ def _extract_reads_by_diamond_for_package_and_sample(
         )
 
     # Run orfm |hmmalign
-    cmd = "orfm -m {} | hmmalign '{}' /dev/stdin".format(
-        min_orf_length, spkg.graftm_package().alignment_hmm_path()
-    )
-    stdin = '\n'.join(
-        [">{}\n{}".format(s.name, s.seq) for s in sequences])
-    logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(sequences)))
-    output = extern.run(cmd, stdin=stdin)
-    logging.debug("Finished command: {}".format(cmd))
+    #
+    # hmmalign can require a lot more memory than you'd expect, and the amount
+    # used increases with amount of sequence provided to it. To counter this, we
+    # chunk the sequences up only giving hmmalign a subset of sequences at a
+    # time.
+    chunk_size = 5000 #=> Appoximately 100MB of RAM needed
+    window_seqs = []
+    # For each chunk
+    for i in range(0, len(sequences), chunk_size):
+        chunk_sequences = sequences[i:i + chunk_size]
+        cmd = "orfm -m {} | hmmalign '{}' /dev/stdin".format(
+            min_orf_length, spkg.graftm_package().alignment_hmm_path()
+        )
+        stdin = '\n'.join(
+            [">{}\n{}".format(s.name, s.seq) for s in chunk_sequences])
+        logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(chunk_sequences)))
+        output = extern.run(cmd, stdin=stdin)
+        logging.debug("Finished command: {}".format(cmd))
 
-    # Convert to AlignedProteinSequence
-    protein_alignment = []
-    for record in SeqIO.parse(StringIO(output), 'stockholm'):
-        protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
-    if len(protein_alignment) > 0:
-        logging.debug("Read in %i aligned sequences e.g. %s %s" % (
-            len(protein_alignment),
-            protein_alignment[0].name,
-            protein_alignment[0].seq))
-    else:
-        logging.debug("No aligned sequences found for this HMM")
+        # Convert to AlignedProteinSequence
+        protein_alignment = []
+        for record in SeqIO.parse(StringIO(output), 'stockholm'):
+            protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
 
-    # Extract OTU sequences
-    nucleotide_sequence_hash = {}
-    for s in sequences:
-        nucleotide_sequence_hash[s.name] = s.seq
-    windows_seqs = MetagenomeOtuFinder().find_windowed_sequences(
-        protein_alignment,
-        nucleotide_sequence_hash,
-        spkg.window_size(),
-        include_inserts,
-        spkg.is_protein_package(), # Always true
-        best_position=spkg.singlem_position())
-    logging.debug("Finished finding window seuqences for spkg {}".format(spkg.base_directory()))
+        if len(protein_alignment) > 0:
+            logging.debug("Read in %i aligned sequences from this chunk e.g. %s %s" % (
+                len(protein_alignment),
+                protein_alignment[0].name,
+                protein_alignment[0].seq))
+        else:
+            logging.debug("No aligned sequences found for this HMM")
 
+        # Extract OTU sequences
+        nucleotide_sequence_hash = {}
+        for s in sequences:
+            nucleotide_sequence_hash[s.name] = s.seq
+        logging.debug("First sequence: {} / {}".format(protein_alignment[0].name, protein_alignment[0].seq))
+        # Window sequences must be found for each chunk, otherwise the
+        # alignments won't line up re insert characters, between chunks.
+        window_seqs.extend(MetagenomeOtuFinder().find_windowed_sequences(
+            protein_alignment,
+            nucleotide_sequence_hash,
+            spkg.window_size(),
+            include_inserts,
+            spkg.is_protein_package(), # Always true
+            best_position=spkg.singlem_position()))
+        
+    logging.debug("Found {} window seuqences for spkg {}".format(len(window_seqs),spkg.base_directory()))
     return ExtractedReadSet(
         sample_name, spkg,
-        sequences, [], windows_seqs
+        sequences, [], window_seqs
     )
 
 
