@@ -82,6 +82,8 @@ class MetagenomeOtuFinder:
         for pro in protein_alignment:
             for i, aa in enumerate(pro.seq):
                 if lower_case_chars.match(aa):
+                    if i >= len(lower_cases):
+                        raise Exception("Unexpectedly found sequence with long length in alignment: {} / {}", pro.name, pro.seq)
                     lower_cases[i] = True
         return [i for i, is_lower in enumerate(lower_cases) if is_lower]
 
