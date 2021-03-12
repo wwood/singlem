@@ -148,13 +148,10 @@ def _align_proteins_to_hmm(protein_sequences, hmm_file):
     return protein_alignment
 
 def _extract_reads_by_diamond_for_package_and_sample(
-    spkg_to_sequences, spkg, sample_name, min_orf_length, include_inserts):
+    sequences, spkg, sample_name, min_orf_length, include_inserts):
 
-    try:
-        sequences = spkg_to_sequences[spkg.base_directory()]
-    except KeyError:
-        # Happens when there is no hits
-        sequences = []
+    # Happens when there is no hits
+    if sequences is None or sequences == []:
         # Add something so that when analysing pairs and one side has no hits, indexing errors don't happen.
         return ExtractedReadSet(
             sample_name, spkg,
@@ -194,6 +191,7 @@ def _extract_reads_by_diamond_for_package_and_sample(
         include_inserts,
         spkg.is_protein_package(), # Always true
         best_position=spkg.singlem_position())
+    logging.debug("Finished finding window seuqences for spkg {}".format(spkg.base_directory()))
 
     return ExtractedReadSet(
         sample_name, spkg,
@@ -312,10 +310,14 @@ class PipeSequenceExtractor:
         # Align each read via hmmsearch and pick windowed sequences
         extraction_of_read_set_processes = []
         for spkg in singlem_package_database:
+            try:
+                sequences = spkg_to_sequences[spkg.base_directory()]
+            except KeyError:
+                sequences = []
             extraction_of_read_set_processes.append(
                 pool.apply_async(
                     _extract_reads_by_diamond_for_package_and_sample, args=(
-                spkg_to_sequences, spkg, sample_name, min_orf_length, include_inserts)))
+                sequences, spkg, sample_name, min_orf_length, include_inserts)))
 
         return extraction_of_read_set_processes
 
