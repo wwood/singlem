@@ -131,3 +131,11 @@ class OtuTable:
         archive.fields = self.fields
         archive.data = self.data
         return archive
+
+    def rename_samples(self, renaming_dict):
+        '''Rename samples according to the hash, mutating the state of the data in this object
+        '''
+        sample_column = self.fields.index('sample')
+        for d in self.data:
+            if d[sample_column] in renaming_dict:
+                d[sample_column] = renaming_dict[d[sample_column]]

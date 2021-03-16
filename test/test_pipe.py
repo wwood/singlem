@@ -945,6 +945,23 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    def test_genome(self):
+        expected = [
+            "\t".join(self.headers),
+            'S1.13.ribosomal_protein_S15P_S13e	uap2	AAGGATTTGAGTGCAAAAAGAGGACTCGATTTTACAGAGGCAAAGATAAGAAAACTTGGA	1	1.15	Root; d__Archaea; p__Halobacterota; c__Methanomicrobia; o__Methanomicrobiales; f__Methanocullaceae; g__Methanoculleus',
+            '']
+
+        cmd = '{} pipe --genome-fasta-files {}//uap2.fna --singlem-packages {}/S1.13.chainsaw.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --diamond-prefilter --assignment-method diamond'.format(
+            path_to_script,
+            path_to_data,
+            path_to_data,
+        )
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
+
+
+
 
 
 
