@@ -85,9 +85,14 @@ With paired read input:
   singlem pipe --forward <fastq_or_fasta1> --reverse <fastq_or_fasta2> \\
     --otu-table <output.otu_table.tsv>
 
-Or with other input sequence types:
+With unpaired read input:
 
-  singlem pipe --sequences <input_fastq_or_fasta> \\
+  singlem pipe --forward <fastq_or_fasta1> \\
+    --otu-table <output.otu_table.tsv>
+
+Or with genomic fasta input sequences:
+
+  singlem pipe --genome-fasta-files <input_fastq_or_fasta> \\
     --otu-table <output.otu_table.tsv>
 
 '''+bcolors.HEADER+'Popular options:'+bcolors.ENDC+'''
