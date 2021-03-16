@@ -1,3 +1,4 @@
+from singlem.singlem import FastaNameToSampleName
 import tempdir
 import logging
 import os.path
@@ -10,7 +11,7 @@ import re
 from Bio import SeqIO
 from io import StringIO
 
-from .singlem import HmmDatabase, TaxonomyFile, OrfMUtils
+from .singlem import HmmDatabase, TaxonomyFile, OrfMUtils, FastaNameToSampleName
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .metagenome_otu_finder import MetagenomeOtuFinder
@@ -35,6 +36,7 @@ NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 
 class SearchPipe:
     DEFAULT_MIN_ORF_LENGTH = 96
+    DEFAULT_GENOME_MIN_ORF_LENGTH = 300
     DEFAULT_FILTER_MINIMUM_PROTEIN = 28
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
 
@@ -75,8 +77,9 @@ class SearchPipe:
 
     def run_to_otu_table(self, **kwargs):
         '''Run the pipe, '''
-        forward_read_files = kwargs.pop('sequences')
+        forward_read_files = kwargs.pop('sequences', [])
         reverse_read_files = kwargs.pop('reverse_read_files', None)
+        genome_fasta_files = kwargs.pop('genomes', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
@@ -111,6 +114,11 @@ class SearchPipe:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
             graftm_assignment_method = singlem_assignment_method
+
+        if genome_fasta_files and forward_read_files:
+            raise Exception("Cannot process reads and genomes in the same run")
+        if genome_fasta_files:
+            forward_read_files = []
 
         analysing_pairs = reverse_read_files is not None
         if analysing_pairs:
@@ -167,9 +175,6 @@ class SearchPipe:
         logging.debug("Using working directory %s" % working_directory)
         self._working_directory = working_directory
         extracted_reads = None
-        def return_cleanly():
-            if using_temporary_working_directory: tmp.dissolve()
-            logging.info("Finished")
         # Set a tempfile directory in the working directory so that temporary
         # files can be generated (with delete=False), and then immediately
         # closed so that the file exists but the stream is not open, to avoid
@@ -177,6 +182,24 @@ class SearchPipe:
         tempfile_directory = os.path.join(self._working_directory, 'tmp')
         os.mkdir(tempfile_directory)
         tempfile.tempdir = tempfile_directory
+
+        #### Preprocess genomes into transcripts to speed the rest of the pipeline
+        transcript_tempfiles = []
+        transcript_tempfile_name_to_desired_name = {}
+        if genome_fasta_files:
+            logging.info("Calling rough transcriptome of genome FASTA files")
+            for fasta in genome_fasta_files:
+                transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-{}'.format(os.path.basename(fasta)), suffix='.fasta')
+                extern.run('orfm -m {} -t {} {} >/dev/null'.format(self._min_orf_length, transcripts_path.name, fasta))
+                transcript_tempfiles.append(transcripts_path)
+                forward_read_files.append(transcripts_path.name)
+                transcript_tempfile_name_to_desired_name[FastaNameToSampleName().fasta_to_name(transcripts_path.name)] = FastaNameToSampleName().fasta_to_name(fasta)
+
+        def return_cleanly():
+            for tf in transcript_tempfiles:
+                tf.close()
+            if using_temporary_working_directory: tmp.dissolve()
+            logging.info("Finished")
 
         #### Search
         self._singlem_package_database = hmms
@@ -278,6 +301,8 @@ class SearchPipe:
                 otu_table_object,
                 package_to_taxonomy_bihash)
 
+        if len(transcript_tempfile_name_to_desired_name) > 0:
+            otu_table_object.rename_samples(transcript_tempfile_name_to_desired_name)
         return_cleanly()
         return otu_table_object
 

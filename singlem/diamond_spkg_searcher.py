@@ -2,6 +2,8 @@ import os
 import logging
 import extern
 
+from .singlem import FastaNameToSampleName
+
 class DiamondSpkgSearcher:
     def __init__(self, num_threads, working_directory):
         self._num_threads = num_threads
@@ -99,9 +101,4 @@ class DiamondSearchResult:
         self.best_hits = best_hits
 
     def sample_name(self):
-        sample_name = os.path.basename(self.query_sequences_file)
-        for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
-            if sample_name.endswith(extension):
-                sample_name = sample_name[0:(len(sample_name)-len(extension))]
-                break
-        return sample_name
+        return FastaNameToSampleName().fasta_to_name(self.query_sequences_file)

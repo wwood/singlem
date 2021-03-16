@@ -241,11 +241,15 @@ if __name__ == '__main__':
 
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
-        argument_group.add_argument('--sequences', '--forward',
-                                    required=True,
+        sequence_input_group = argument_group.add_mutually_exclusive_group(required=True)
+        sequence_input_group.add_argument('--forward','--reads','--sequences',
                                     nargs='+',
                                     metavar='sequence_file(s)',
-                                    help='nucleotide sequence(s) to be searched')
+                                    help='nucleotide read sequence(s) (forward or unpaired) to be searched')
+        sequence_input_group.add_argument('--genome-fasta-files',
+                                    nargs='+',
+                                    metavar='sequence_file(s)',
+                                    help='nucleotide genome sequence(s) to be searched')
         argument_group.add_argument('--reverse',
                                     nargs='+',
                                     metavar='sequence_file(s)',
@@ -278,8 +282,8 @@ if __name__ == '__main__':
         argument_group.add_argument('--evalue', help='GraftM e-value cutoff [default: the GraftM default]')
         argument_group.add_argument('--min-orf-length','--min_orf_length',
                                     metavar='length',
-                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i]' % SearchPipe.DEFAULT_MIN_ORF_LENGTH,
-                                    type=int, default=SearchPipe.DEFAULT_MIN_ORF_LENGTH)
+                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i for reads, %i for genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH,SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
+                                    type=int)
         argument_group.add_argument('--restrict-read-length','--restrict_read_length',
                                     metavar='length',
                                     help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
@@ -514,11 +518,22 @@ if __name__ == '__main__':
 
     logging.info("SingleM v{}".format(singlem.__version__))
 
+    def get_min_orf_length(args):
+        if args.min_orf_length:
+            return args.min_orf_length
+        elif args.forward:
+            return SearchPipe.DEFAULT_MIN_ORF_LENGTH
+        elif args.genome_fasta_files:
+            return SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH
+        else:
+            raise Exception("Programming error")
+
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
         singlem.pipe.SearchPipe().run(
-            sequences = args.sequences,
+            sequences = args.forward,
             reverse_read_files = args.reverse,
+            genomes = args.genome_fasta_files,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             threads = args.threads,
@@ -526,7 +541,7 @@ if __name__ == '__main__':
             assignment_method = args.assignment_method,
             output_jplace = args.output_jplace,
             evalue = args.evalue,
-            min_orf_length = args.min_orf_length,
+            min_orf_length = get_min_orf_length(args),
             restrict_read_length = args.restrict_read_length,
             filter_minimum_protein = args.filter_minimum_protein,
             filter_minimum_nucleotide = args.filter_minimum_nucleotide,
@@ -574,7 +589,7 @@ if __name__ == '__main__':
             Renew().renew(
                 input_otus=otus,
 
-                sequences = args.sequences,
+                sequences = args.forward,
                 otu_table = args.otu_table,
                 archive_otu_table = args.archive_otu_table,
                 threads = args.threads,
@@ -582,7 +597,7 @@ if __name__ == '__main__':
                 assignment_method = args.assignment_method,
                 output_jplace = args.output_jplace,
                 evalue = args.evalue,
-                min_orf_length = args.min_orf_length,
+                min_orf_length = get_min_orf_length(args),
                 restrict_read_length = args.restrict_read_length,
                 filter_minimum_protein = args.filter_minimum_protein,
                 filter_minimum_nucleotide = args.filter_minimum_nucleotide,
