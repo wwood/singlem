@@ -1,27 +1,25 @@
 [![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/singlem) [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
-<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-refresh-toc -->
 **Table of Contents**
-
 - [SingleM](#singlem)
   - [Generating an OTU table](#generating-an-otu-table)
   - [Further processing of OTU tables](#further-processing-of-otu-tables)
     - [Summarising OTU tables by rarefying, clustering, etc.](#summarising-otu-tables-by-rarefying-clustering-etc)
     - [Calculating beta diversity between samples](#calculating-beta-diversity-between-samples)
+      - [OTU-based beta diversity measures](#otu-based-beta-diversity-measures)
+      - [Phylogenetic tree-based beta diversity measures](#phylogenetic-tree-based-beta-diversity-measures)
     - [Creating and querying SingleM databases](#creating-and-querying-singlem-databases)
     - [Appraising assembly and genome recovery efforts](#appraising-assembly-and-genome-recovery-efforts)
-    - [Installation](#installation)
-      - [Installation via GNU Guix](#installation-via-gnu-guix)
-      - [Installation via DockerHub](#installation-via-dockerhub)
-      - [Installation via conda](#installation-via-conda)
-      - [Installation via PyPI](#installation-via-pypi)
+  - [Installation](#installation)
+    - [Installation via conda](#installation-via-conda)
+    - [Installation via DockerHub](#installation-via-dockerhub)
+    - [Installation via PyPI](#installation-via-pypi)
   - [Help](#help)
     - [FAQ](#faq)
       - [Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?](#can-you-target-the-16s-rrna-gene-instead-of-the-default-set-of-ribosomal-proteins-with-singlem)
       - [How should SingleM be run on multiple samples?](#how-should-singlem-be-run-on-multiple-samples)
   - [License](#license)
 
-<!-- markdown-toc end -->
 # SingleM
 Welcome.
 
@@ -178,16 +176,16 @@ because it has a representative fraction of OTUs binned, assembled and
 unassembled.
 
 
-### Installation
+## Installation
 
-#### Installation via conda
+### Installation via conda
 SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
 
 ```
-conda install -c bioconda singlem
+conda create -c bioconda --name singlem singlem
 ```
 
-#### Installation via DockerHub
+### Installation via DockerHub
 A docker image generated from the conda package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
 ```
 docker pull wwood/singlem:[RELEASE_TAG]
@@ -197,7 +195,7 @@ If the sequence data to be analyzed is in the current working directory, SingleM
 docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu_table `pwd`/my.otu_table.csv --threads 14
 ```
 
-#### Installation via PyPI
+### Installation via PyPI
 SingleM has migrated to Python 3. To install the Python libraries required:
 ```
 pip install graftm
