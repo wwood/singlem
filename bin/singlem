@@ -61,7 +61,7 @@ class bcolors:
     #     self.ENDC = ''
 
 class MyParser(argparse.ArgumentParser):
-    FULL_HELP_FLAG = 'full_help'
+    FULL_HELP_FLAG = 'full-help'
 
     PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.PPLACER_ASSIGNMENT_METHOD
 
@@ -231,7 +231,7 @@ if __name__ == '__main__':
                                        parents=[parent_parser])
         subpar.add_argument(
             '--%s' % MyParser.FULL_HELP_FLAG,
-            '--%s' % MyParser.FULL_HELP_FLAG.replace('_','-'),
+            '--%s' % MyParser.FULL_HELP_FLAG.replace('-','_'),
             action='store_true', default=False, help='display all help options')
         subparser_name_to_parser[parser_name] = subpar
         return subpar
@@ -499,7 +499,7 @@ if __name__ == '__main__':
     else:
         # Determine whether --full_help was specified before argument parsing.
         if ('--%s' % MyParser.FULL_HELP_FLAG in sys.argv or \
-            '--%s' % MyParser.FULL_HELP_FLAG.replace('_','-') in sys.argv) and \
+            '--%s' % MyParser.FULL_HELP_FLAG.replace('-','_') in sys.argv) and \
             sys.argv[1] in subparser_name_to_parser:
             subcommand = sys.argv[1]
             subparser = subparser_name_to_parser[subcommand]
