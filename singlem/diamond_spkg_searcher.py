@@ -3,6 +3,7 @@ import logging
 import extern
 
 from .singlem import FastaNameToSampleName
+from .run_via_os_system import run_via_os_system
 
 class DiamondSpkgSearcher:
     def __init__(self, num_threads, working_directory):
@@ -64,23 +65,23 @@ class DiamondSpkgSearcher:
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
             
-            cmd = "zcat -f %s | " \
-                  "diamond blastx " \
+            cmd = "diamond blastx " \
                   "--outfmt 6 qseqid full_qseq sseqid " \
                   "--max-target-seqs 1 " \
                   "--evalue 0.01 " \
                   "--block-size 0.5 " \
                   "--threads %i " \
-                  "--query - " \
+                  "--query %s " \
                   "--db %s " \
                   "| tee >(sed 's/^/>/; s/\\t/\\n/; s/\\t.*//' > %s) " \
                   "| awk '{print $1,$3}'" % (
-                      file,
                       self._num_threads,
+                      file,
                       diamond_database,
                       fasta_path)
 
-            qseqid_sseqid = extern.run(cmd)
+            # Run via os.system rather than normal extern so reads can be piped in to singlem.
+            qseqid_sseqid = run_via_os_system(cmd)
             best_hits = {}
             for line in qseqid_sseqid.splitlines():
                 try:
