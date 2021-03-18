@@ -10,7 +10,7 @@ class DiamondSpkgSearcher:
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
 
@@ -25,14 +25,14 @@ class DiamondSpkgSearcher:
                     "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
         
         dmnd = hmms.get_dmnd()
-        fwds = self._prefilter(dmnd, forward_read_files, False)
+        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters)
         revs = None
         if reverse_read_files != None:
-            revs = self._prefilter(dmnd, reverse_read_files, True)
+            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters)
 
         return (fwds, revs)
 
-    def _prefilter(self, diamond_database, read_files, is_reverse_reads):
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters):
         '''Find all reads that match the DIAMOND database in the 
         singlem_package database.
         Parameters
@@ -69,12 +69,13 @@ class DiamondSpkgSearcher:
                   "--outfmt 6 qseqid full_qseq sseqid " \
                   "--max-target-seqs 1 " \
                   "--evalue 0.01 " \
-                  "--block-size 0.5 " \
+                  "%s " \
                   "--threads %i " \
                   "--query %s " \
                   "--db %s " \
                   "| tee >(sed 's/^/>/; s/\\t/\\n/; s/\\t.*//' > %s) " \
                   "| awk '{print $1,$3}'" % (
+                      performance_parameters,
                       self._num_threads,
                       file,
                       diamond_database,
