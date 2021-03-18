@@ -6,23 +6,26 @@
   - [Further processing of OTU tables](#further-processing-of-otu-tables)
     - [Summarising OTU tables by rarefying, clustering, etc.](#summarising-otu-tables-by-rarefying-clustering-etc)
     - [Calculating beta diversity between samples](#calculating-beta-diversity-between-samples)
+      - [OTU-based beta diversity measures](#otu-based-beta-diversity-measures)
+      - [Phylogenetic tree-based beta diversity measures](#phylogenetic-tree-based-beta-diversity-measures)
     - [Creating and querying SingleM databases](#creating-and-querying-singlem-databases)
     - [Appraising assembly and genome recovery efforts](#appraising-assembly-and-genome-recovery-efforts)
-    - [Installation](#installation)
-      - [Installation via conda](#installation-via-conda)
-      - [Installation via DockerHub](#installation-via-dockerhub)
-      - [Installation via PyPI](#installation-via-pypi)
+  - [Installation](#installation)
+    - [Installation via conda](#installation-via-conda)
+    - [Installation via DockerHub](#installation-via-dockerhub)
+    - [Installation via PyPI](#installation-via-pypi)
   - [Help](#help)
     - [FAQ](#faq)
       - [Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?](#can-you-target-the-16s-rrna-gene-instead-of-the-default-set-of-ribosomal-proteins-with-singlem)
       - [How should SingleM be run on multiple samples?](#how-should-singlem-be-run-on-multiple-samples)
   - [License](#license)
 
-<!-- markdown-toc end -->
 # SingleM
 Welcome.
 
 SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data, without heavy reliance on reference sequence databases. It is able to differentiate closely related species even if those species are from lineages new to science.
+
+SingleM finds sequences (reads or genomic fragments) that encode conserved single copy marker genes. It specifically finds reads which cover short (20 amino acid / 60 base pair) highly conserved sections. These small sections are used as OTU sequences, that exist independent of taxonomy. Focusing on just those sequences that cover conserved stretches of singlem copy marker genes allows a variety of analyses become tractable.
 
 Where [GraftM](https://github.com/geronimp/graftM) can give a taxonomic overview of your community e.g. proportion of a community from a particular taxonomic family, SingleM finds sequence-based OTUs from raw, untrimmed metagenomic reads.
 
@@ -90,6 +93,9 @@ singlem summarise --input-otu-tables otu_table.csv other_samples.otu_table.csv -
 This generates a BIOM table for each marker gene e.g. `myprefix.4.12.ribosomal_protein_L11_rplK.biom`.
 
 ### Calculating beta diversity between samples
+Ecological [beta-diversity](https://en.wikipedia.org/wiki/Beta_diversity) metrics, which measure differences between two microbial communities, can be calculated from SingleM profiles using OTU-based or phylogenetic tree-based approaches.
+
+#### OTU-based beta diversity measures
 As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using `singlem summarise`. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.
 ```
 singlem summarise --input-otu-table otu_table.csv --unifrac-by-otu otu_table.unifrac
@@ -101,6 +107,7 @@ To calculate beta diversity that does not account for the phylogenetic relations
 convertToEBD.py otu_table.unifrac.4.12.ribosomal_protein_L11_rplK.unifrac otu_table.ebd
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
+#### Phylogenetic tree-based beta diversity measures
 Phylogenetic tree-based methods of calculating beta diversity can also be calculated, but `pipe` must be used to generate a new OTU table using the `diamond_example` taxonomy assignment method so that each OTU is assigned to a single leaf in the tree:
 ```
 singlem pipe --sequences my_sequences.fastq.gz --otu-table otu_table.diamond_example.csv --threads 24 --assignment-method diamond_example
@@ -171,16 +178,16 @@ because it has a representative fraction of OTUs binned, assembled and
 unassembled.
 
 
-### Installation
+## Installation
 
-#### Installation via conda
+### Installation via conda
 SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
 
 ```
-conda install -c bioconda singlem
+conda create -c bioconda --name singlem singlem
 ```
 
-#### Installation via DockerHub
+### Installation via DockerHub
 A docker image generated from the conda package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
 ```
 docker pull wwood/singlem:[RELEASE_TAG]
@@ -190,7 +197,7 @@ If the sequence data to be analyzed is in the current working directory, SingleM
 docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz --otu-table `pwd`/my.otu_table.csv --threads 14
 ```
 
-#### Installation via PyPI
+### Installation via PyPI
 SingleM has migrated to Python 3. To install the Python libraries required:
 ```
 pip install graftm
