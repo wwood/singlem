@@ -25,6 +25,8 @@ Welcome.
 
 SingleM is a tool to find the abundances of discrete operational taxonomic units (OTUs) directly from shotgun metagenome data, without heavy reliance on reference sequence databases. It is able to differentiate closely related species even if those species are from lineages new to science.
 
+SingleM finds sequences (reads or genomic fragments) that encode conserved single copy marker genes. It specifically finds reads which cover short (20 amino acid / 60 base pair) highly conserved sections. These small sections are used as OTU sequences, that exist independent of taxonomy. Focusing on just those sequences that cover conserved stretches of singlem copy marker genes allows a variety of analyses become tractable.
+
 Where [GraftM](https://github.com/geronimp/graftM) can give a taxonomic overview of your community e.g. proportion of a community from a particular taxonomic family, SingleM finds sequence-based OTUs from raw, untrimmed metagenomic reads.
 
 This gives you the ability to answer questions such as:
