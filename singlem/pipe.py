@@ -39,6 +39,7 @@ class SearchPipe:
     DEFAULT_GENOME_MIN_ORF_LENGTH = 300
     DEFAULT_FILTER_MINIMUM_PROTEIN = 28
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
+    DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5"
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -94,6 +95,7 @@ class SearchPipe:
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
         diamond_prefilter = kwargs.pop('diamond_prefilter')
+        diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_package_assignment = kwargs.pop('diamond_package_assignment')
 
         working_directory = kwargs.pop('working_directory')
@@ -214,7 +216,7 @@ class SearchPipe:
             logging.info("Filtering sequence files through DIAMOND blastx")
             (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                 self._num_threads, self._working_directory).run_diamond(
-                hmms, forward_read_files, reverse_read_files)
+                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters)
             found_a_hit = False
             if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                 found_a_hit = True

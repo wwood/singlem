@@ -52,14 +52,6 @@ class bcolors:
     FAIL = '\033[91m'
     ENDC = '\033[0m'
 
-    # def disable(self):
-    #     self.HEADER = ''
-    #     self.OKBLUE = ''
-    #     self.OKGREEN = ''
-    #     self.WARNING = ''
-    #     self.FAIL = ''
-    #     self.ENDC = ''
-
 class MyParser(argparse.ArgumentParser):
     FULL_HELP_FLAG = 'full-help'
 
@@ -314,6 +306,9 @@ if __name__ == '__main__':
         argument_group.add_argument('--diamond-prefilter', '--diamond_prefilter', action='store_true',
                                     help='Parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: not compatible with nucleotide packages [default: not set]',
                                     default=False)
+        argument_group.add_argument('--diamond-prefilter-performance-parameters', '--diamond_prefilter_performance_parameters',
+                                    help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM runs in <4GB of RAM. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
+                                    default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
         argument_group.add_argument('--diamond-package-assignment', '--diamond_package_assignment', action='store_true',
                                     help='Assign each sequence to a SingleM package using the best hit result of the DIAMOND prefilter. Implies --diamond-prefilter. [default: not set]',
                                     default=False)
@@ -559,6 +554,7 @@ if __name__ == '__main__':
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy,
             diamond_prefilter = args.diamond_prefilter or args.diamond_package_assignment,
+            diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
             diamond_package_assignment = args.diamond_package_assignment)
 
     else:
@@ -615,7 +611,8 @@ if __name__ == '__main__':
                 assign_taxonomy = not args.no_assign_taxonomy,
                 known_sequence_taxonomy = args.known_sequence_taxonomy,
                 diamond_prefilter = False,
-                diamond_package_assignment = False)
+                diamond_package_assignment = False,
+                diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters)
 
         elif args.subparser_name=='makedb':
             if not args.otu_tables and not args.archive_otu_tables:
