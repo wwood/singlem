@@ -97,6 +97,7 @@ class SearchPipe:
         diamond_prefilter = kwargs.pop('diamond_prefilter')
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_package_assignment = kwargs.pop('diamond_package_assignment')
+        diamond_prefilter_db = kwargs.pop('diamond_prefilter_db')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -216,7 +217,8 @@ class SearchPipe:
             logging.info("Filtering sequence files through DIAMOND blastx")
             (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                 self._num_threads, self._working_directory).run_diamond(
-                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters)
+                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
+                diamond_prefilter_db)
             found_a_hit = False
             if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                 found_a_hit = True

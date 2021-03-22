@@ -10,9 +10,12 @@ class DiamondSpkgSearcher:
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
+
+        diamond_db: None or str
+            path to provide to DIAMOND for its DB (or None to create on the fly)
 
         Returns
         -------
@@ -24,7 +27,10 @@ class DiamondSpkgSearcher:
                 raise Exception(
                     "DIAMOND prefilter cannot be used with nucleotide SingleM packages")
         
-        dmnd = hmms.get_dmnd()
+        if diamond_db is None:
+            dmnd = hmms.get_dmnd()
+        else:
+            dmnd = diamond_db
         fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters)
         revs = None
         if reverse_read_files != None:
