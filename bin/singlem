@@ -449,10 +449,11 @@ if __name__ == '__main__':
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = new_subparser(subparsers, 'chainsaw', chainsaw_description)
+    chainsaw_parser.add_argument('--keep-tree', '--keep_tree', action='store_true', help="Stop tree info from being removed", default=False)
     
     required_chainsaw_arguments = chainsaw_parser.add_argument_group("required arguments")
     
-    required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info from this package")
+    required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info and trim unaligned sequences from this package")
     required_chainsaw_arguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
 
@@ -875,7 +876,8 @@ if __name__ == '__main__':
             Chainsaw().chainsaw(
                 input_singlem_package_path = args.input_singlem_package,
                 output_singlem_package_path = args.output_singlem_package,
-                sequence_prefix = args.sequence_prefix)
+                sequence_prefix = args.sequence_prefix,
+                keep_tree = args.keep_tree)
 
         else:
             raise Exception("Programming error")
