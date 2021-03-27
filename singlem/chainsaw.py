@@ -62,8 +62,6 @@ class Chainsaw:
                 shutil.copyfile(
                     os.path.join(input_spkg.graftm_package().reference_package_path(), filename),
                     os.path.join(refpkg_path, filename))
-            # Add sequence prefix to tree and tree.log
-            logging.info("Adding sequence prefix to refpkg contents")
             with open(os.path.join(refpkg_path,'CONTENTS.json')) as f:
                 contents = json.load(f)
                 aln_fasta = contents["files"]["aln_fasta"]
@@ -76,7 +74,8 @@ class Chainsaw:
             if sequence_prefix != "":
                 # add prefix to aligned_deduplicated fasta
                 extern.run("sed -i 's/>/>{}/g' {}".format(sequence_prefix, os.path.join(refpkg_path, aln_fasta)))
-                # add prefix to tree and tree.log files
+                # Add sequence prefix to tree and tree.log
+                logging.info("Adding sequence prefix to refpkg contents")
                 cmd = "sed -i 's/GCA_/{}GCA_/g' {}"
                 extern.run(cmd.format(sequence_prefix, os.path.join(refpkg_path, tree)))
                 extern.run(cmd.format(sequence_prefix, os.path.join(refpkg_path, tree_log)))
