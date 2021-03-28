@@ -135,6 +135,33 @@ class OtuTableCollection:
                     otu_table.add([o])
         return otu_table
 
+    def exclude_off_target_hits(self, singlem_packages):
+        '''Return an OTU table that only contains hits from the target domain.
+        
+        Parameters
+        ----------
+        singlem_packages: SingleMPackage objects (version 3+)
+        '''
+        to_return = OtuTable()
+        package_to_targets = {}
+        for pkg in singlem_packages:
+            package_to_targets[pkg.graftm_package_basename()] = pkg.target_domains()
+        for otu in self:
+            if otu.marker not in package_to_targets:
+                raise Exception("No SingleM package named '{}' was provided".format(otu.marker))
+            if not otu.taxonomy.startswith('Root'):
+                raise Exception("Unexpected taxonomy string encountered: {}".format(tax))
+            tax = otu.taxonomy.split('; ')
+            targets = package_to_targets[otu.marker]
+            if tax == ['Root']:
+                continue
+            elif not tax[1].startswith('d__'):
+                raise Exception("Unexpected taxonomy string encountered: {}".format(tax))
+            elif tax[1].replace('d__','') in targets:
+                to_return.add([otu])
+            else:
+                logging.debug("Excluding OTU {} as not being in the target taxonomy".format(otu))
+        return to_return
 
 class StreamingOtuTableCollection:
     def __init__(self):

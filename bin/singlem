@@ -376,6 +376,8 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--unifrac-by-taxonomy', '--unifrac_by_taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
     summarise_output_args.add_argument('--biom-prefix', '--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered-output-otu-table', '--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
+    summarise_output_args.add_argument('--exclude-off-target-hits', '--exclude_off_target_hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
+    summarise_output_args.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Packages used in the creation of the OTU tables")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = new_subparser(subparsers, 'renew', renew_description)
@@ -581,6 +583,7 @@ if __name__ == '__main__':
         from singlem.renew import Renew
         from singlem.singlem import HmmDatabase
         from singlem.chainsaw import Chainsaw
+        from singlem.singlem_package import SingleMPackage
 
         if args.subparser_name == 'seqs':
             seqs(args)
@@ -693,6 +696,8 @@ if __name__ == '__main__':
                 raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
             if not args.input_otu_tables and not args.input_archive_otu_tables:
                 raise Exception("Summary requires input OTU tables or archive tables")
+            if args.exclude_off_target_hits and not args.singlem_packages:
+                raise Exception("--exclude_off_target_hits currently --singlem-packages to be defined")
 
             otus = OtuTableCollection()
             otus.set_target_taxonomy_by_string(args.taxonomy)
@@ -716,6 +721,18 @@ if __name__ == '__main__':
                 logging.info("Collapsing forward and reverse read OTU tables")
                 o2 = OtuTableCollection()
                 o2.otu_table_objects.append(otus.collapse_coupled())
+                otus = o2
+
+            if args.exclude_off_target_hits:
+                logging.info("Removing hits that are not assigned to their target domains")
+                o2 = OtuTableCollection()
+                pkgs = []
+                for p in args.singlem_packages:
+                    pkg = SingleMPackage.acquire(p)
+                    if pkg.version != 3:
+                        raise Exception("Version 3 SingleM packages are required for --exclude_off_target_hits")
+                    pkgs.append(pkg)
+                o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs))
                 otus = o2
 
             if args.krona:
