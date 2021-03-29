@@ -40,6 +40,7 @@ class SearchPipe:
     DEFAULT_FILTER_MINIMUM_PROTEIN = 28
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5"
+    DEFAULT_ASSIGNMENT_THREADS = 1
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -84,6 +85,7 @@ class SearchPipe:
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
+        assignment_threads = kwargs.pop('assignment_threads')
         output_jplace = kwargs.pop('output_jplace')
         evalue = kwargs.pop('evalue')
         min_orf_length = kwargs.pop('min_orf_length')
@@ -275,7 +277,7 @@ class SearchPipe:
             else:
                 logging.info("Running taxonomic assignment with GraftM ..")
                 assignment_result = self._assign_taxonomy(
-                    extracted_reads, graftm_assignment_method)
+                    extracted_reads, graftm_assignment_method, assignment_threads)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -913,7 +915,7 @@ class SearchPipe:
             search_result.samples_with_hits(),
             analysing_pairs)
 
-    def _assign_taxonomy(self, extracted_reads, assignment_method):
+    def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads):
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
@@ -1026,7 +1028,7 @@ class SearchPipe:
                         ' '.join(tmpnames))
                     commands.append(cmd)
 
-        extern.run_many(commands, num_threads=1)
+        extern.run_many(commands, num_threads=assignment_threads)
         logging.info("Finished running taxonomic assignment with GraftM")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 

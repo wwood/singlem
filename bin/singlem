@@ -314,6 +314,9 @@ if __name__ == '__main__':
                                     default=False)
         argument_group.add_argument('--diamond-prefilter-db', '--diamond_prefilter_db',
                                     help='Use this DB when running DIAMOND prefilter [default: not set, generate one from the SingleM packages]')
+        argument_group.add_argument('--assignment-threads', '--assignment_threads', type=int,
+                                    help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
+                                    default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
@@ -544,6 +547,7 @@ if __name__ == '__main__':
             threads = args.threads,
             known_otu_tables = args.known_otu_tables,
             assignment_method = args.assignment_method,
+            assignment_threads = args.assignment_threads,
             output_jplace = args.output_jplace,
             evalue = args.evalue,
             min_orf_length = get_min_orf_length(args),
