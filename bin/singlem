@@ -624,7 +624,8 @@ if __name__ == '__main__':
                 diamond_prefilter = False,
                 diamond_package_assignment = False,
                 diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
-                diamond_prefilter_db = args.diamond_prefilter_db)
+                diamond_prefilter_db = args.diamond_prefilter_db,
+                include_off_target_hits = args.include_off_target_hits)
 
         elif args.subparser_name=='makedb':
             if not args.otu_tables and not args.archive_otu_tables:
