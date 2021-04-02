@@ -192,6 +192,8 @@ class SearchPipe:
         transcript_tempfiles = []
         transcript_tempfile_name_to_desired_name = {}
         if genome_fasta_files:
+            if diamond_package_assignment:
+                raise Exception("Currently diamond package assignment cannot be used with genome fasta input")
             logging.info("Calling rough transcriptome of genome FASTA files")
             for fasta in genome_fasta_files:
                 transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-{}'.format(os.path.basename(fasta)), suffix='.fasta')
@@ -259,7 +261,8 @@ class SearchPipe:
             logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
             extracted_reads = self._find_and_extract_reads_by_hmmsearch(
                 hmms, forward_read_files, reverse_read_files,
-                known_taxes, known_otu_tables, include_inserts)
+                known_taxes, known_otu_tables, include_inserts,
+                genome_fasta_files)
             if extracted_reads is None:
                 return_cleanly()
                 return OtuTable()
@@ -314,7 +317,8 @@ class SearchPipe:
 
     def _find_and_extract_reads_by_hmmsearch(self,
         hmms, forward_read_files, reverse_read_files,
-        known_taxes, known_otu_tables, include_inserts):
+        known_taxes, known_otu_tables, include_inserts,
+        restrict_to_first_frame):
 
         search_result = self._search(hmms, forward_read_files, reverse_read_files)
         sample_names = search_result.samples_with_hits()
