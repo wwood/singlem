@@ -607,6 +607,7 @@ if __name__ == '__main__':
                 threads = args.threads,
                 known_otu_tables = args.known_otu_tables,
                 assignment_method = args.assignment_method,
+                assignment_threads = args.assignment_threads,
                 output_jplace = args.output_jplace,
                 evalue = args.evalue,
                 min_orf_length = get_min_orf_length(args),
