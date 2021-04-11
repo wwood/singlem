@@ -11,7 +11,8 @@ import re
 from Bio import SeqIO
 from io import StringIO
 
-from .singlem import HmmDatabase, TaxonomyFile, OrfMUtils, FastaNameToSampleName
+from .metapackage import Metapackage
+from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .metagenome_otu_finder import MetagenomeOtuFinder
@@ -74,7 +75,7 @@ class SearchPipe:
                     otu_table_object.write_to(f, regular_output_fields)
         if archive_otu_table:
             with open(archive_otu_table, 'w') as f:
-                otu_table_object.archive(HmmDatabase(singlem_packages)).write_to(f)
+                otu_table_object.archive(Metapackage(singlem_packages)).write_to(f)
 
 
     def run_to_otu_table(self, **kwargs):
@@ -114,7 +115,7 @@ class SearchPipe:
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
 
-        hmms = HmmDatabase(singlem_packages)
+        hmms = Metapackage(singlem_packages)
         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
@@ -803,7 +804,7 @@ class SearchPipe:
         singlem_package_database.
         Parameters
         ----------
-        singlem_package_database: HmmDatabase
+        singlem_package_database: Metapackage
             packages to search the reads for
         forward_read_files: list of str
             paths to the sequences to be searched
