@@ -428,6 +428,11 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--intermediate-bacteria-graftm-package', '--intermediate_bacteria_graftm_package', required=True)
     required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True)
 
+    metapackage_description = 'Utilities for dealing with multiple singlem packages'
+    metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
+    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages", required=True)
+    metapackage_parser.add_argument('--output-prefilter-fasta', '--output_prefilter_fasta', help="Output FASTA file to use for prefiltering", required=True)
+
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
     appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
@@ -500,6 +505,7 @@ if __name__ == '__main__':
         print('    get_tree     -> %s' % get_tree_description)
         print('    regenerate   -> %s' % regenerate_description)
         print('    chainsaw     -> %s' % chainsaw_description)
+        print('    metapackage  -> %s' % metapackage_description)
 
         print('\n  Use singlem <command> -h for command-specific help.\n'\
             '  Some commands also have an extended --full-help flag.\n')
@@ -585,7 +591,7 @@ if __name__ == '__main__':
         from singlem.regenerator import Regenerator
         from singlem.taxonomy import Taxonomy
         from singlem.renew import Renew
-        from singlem.singlem import HmmDatabase
+        from singlem.metapackage import Metapackage
         from singlem.chainsaw import Chainsaw
         from singlem.singlem_package import SingleMPackage
 
@@ -876,7 +882,7 @@ if __name__ == '__main__':
                 min_aligned_percent = args.min_aligned_percent)
 
         elif args.subparser_name == 'get_tree':
-            hmm_db = HmmDatabase(args.singlem_packages)
+            hmm_db = Metapackage(args.singlem_packages)
             print("marker\ttree_file")
             for pkg in hmm_db.singlem_packages:
                 print("{}\t{}".format(
@@ -900,6 +906,11 @@ if __name__ == '__main__':
                 output_singlem_package_path = args.output_singlem_package,
                 sequence_prefix = args.sequence_prefix,
                 keep_tree = args.keep_tree)
+
+        elif args.subparser_name == 'metapackage':
+            Metapackage(args.singlem_packages).create_on_target_prefilter_fasta(
+                args.output_prefilter_fasta
+            )
 
         else:
             raise Exception("Programming error")
