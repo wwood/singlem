@@ -50,6 +50,8 @@ class Condenser:
             if target_domains[domain] in [1, 2]:
                 raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. Only {} markers for domain '{}' found".format(target_domains[domain], domain))
         
+        excluded_markers = set()
+        
         logging.info("Reading input OTU table.")
         with open(input_otu_table) as csvfile:
             reader = csv.DictReader(csvfile, delimiter = "\t")
@@ -59,7 +61,10 @@ class Condenser:
                 taxonomy = line["taxonomy"]
                 coverage = float(line["coverage"])
                 if gene not in markers:
-                    raise Exception("Gene: {} missing from SingleM packages.".format(gene))
+                    if gene not in excluded_markers:
+                        logging.info("Gene: {} not in SingleM packages, excluding hits from this marker...".format(gene))
+                        excluded_markers.add(gene)
+                    continue
                 tax_split = taxonomy.split('; ')
                 # ensure OTU is assigned to the domain level or higher
                 if len(tax_split) < 2:  # contains at least Root; d__DOMAIN
@@ -171,8 +176,7 @@ class Condenser:
                     # calculate otu coverage
                     if otu["coverage"] == 0 or count == 0:
                         continue
-                    otu["coverage"] = str((otu["coverage"]) * (target_domains[domain] / count) / 
-                                          target_domains[domain])
+                    otu["coverage"] = str((otu["coverage"]) / target_domains[domain])
                     # write otu to otu tables
                     csv_writer.writerow(otu)
                     tax_split = otu["taxonomy"].split('; ')
