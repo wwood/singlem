@@ -1,6 +1,8 @@
 import logging
 import os
 import shutil
+import json
+import extern
 
 from singlem.sequence_classes import SeqReader, Sequence
 from .metagenome_otu_finder import MetagenomeOtuFinder
@@ -15,6 +17,7 @@ class Chainsaw:
         input_singlem_package_path = kwargs.pop('input_singlem_package_path')
         output_singlem_package_path = kwargs.pop('output_singlem_package_path')
         sequence_prefix = kwargs.pop('sequence_prefix')
+        keep_tree = kwargs.pop('keep_tree')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -40,9 +43,56 @@ class Chainsaw:
         # mkdir refpkg folder
         refpkg_path = os.path.join(graftm_path, os.path.basename(input_spkg.graftm_package().reference_package_path()))
         os.mkdir(refpkg_path)
-        shutil.copyfile(
-            os.path.join(input_spkg.graftm_package().reference_package_path(), 'CONTENTS.json'),
-            os.path.join(refpkg_path,'CONTENTS.json'))
+        # Change the seqinfo adding the prefix
+        seqinfo_basename = os.path.basename(input_spkg.graftm_package().taxtastic_seqinfo_path())
+        seqnames = []
+        with open(os.path.join(refpkg_path,seqinfo_basename),'w') as out:
+            first = True
+            for line in open(input_spkg.graftm_package().taxtastic_seqinfo_path()):
+                if first:
+                    out.write(line)
+                    first = False
+                else:
+                    # removing the "GCA_" check fixes a (hopefully) rare bug but probably makes an already horribly inefficient code section way worse 
+                    if keep_tree and "GCA_" not in line:
+                        seqnames.append(line.split(',')[0])
+                    out.write("{}{}".format(sequence_prefix,line))
+        if keep_tree:
+            for filename in os.listdir(os.path.join(input_spkg.graftm_package().reference_package_path())):
+                shutil.copyfile(
+                    os.path.join(input_spkg.graftm_package().reference_package_path(), filename),
+                    os.path.join(refpkg_path, filename))
+            with open(os.path.join(refpkg_path,'CONTENTS.json')) as f:
+                contents = json.load(f)
+                aln_fasta = contents["files"]["aln_fasta"]
+                tree = contents["files"]["tree"]
+                tree_log = contents["files"]["tree_stats"]
+                try:
+                    rollback_tree = contents["rollback"]["files"]["tree"]
+                except TypeError:
+                    rollback_tree = False
+            if sequence_prefix != "":
+                # add prefix to aligned_deduplicated fasta
+                extern.run("sed -i 's/>/>{}/g' {}".format(sequence_prefix, os.path.join(refpkg_path, aln_fasta)))
+                # Add sequence prefix to tree and tree.log
+                logging.info("Adding sequence prefix to refpkg contents")
+                cmd = "sed -i 's/GCA_/{}GCA_/g' {}"
+                extern.run(cmd.format(sequence_prefix, os.path.join(refpkg_path, tree)))
+                extern.run(cmd.format(sequence_prefix, os.path.join(refpkg_path, tree_log)))
+                if rollback_tree:
+                    extern.run(cmd.format(sequence_prefix, os.path.join(refpkg_path, rollback_tree)))
+                for seq in seqnames:
+                    # unfortunately unable to find a way that isn't horrible and slow for this
+                    cmd = "sed -i 's/{}/{}/g' {}"
+                    extern.run(cmd.format(seq, sequence_prefix+seq, os.path.join(refpkg_path, tree)))
+                    extern.run(cmd.format(seq, sequence_prefix+seq, os.path.join(refpkg_path, tree_log)))
+                    if rollback_tree:
+                        extern.run(cmd.format(seq, sequence_prefix+seq, os.path.join(refpkg_path, rollback_tree)))
+                    
+        else:
+            shutil.copyfile(
+                os.path.join(input_spkg.graftm_package().reference_package_path(), 'CONTENTS.json'),
+                os.path.join(refpkg_path,'CONTENTS.json'))
         # Copy the taxonomy file and the contents file
         taxonomy = input_spkg.graftm_package().taxtastic_taxonomy_path()
         shutil.copyfile(taxonomy, os.path.join(refpkg_path, os.path.basename(taxonomy)))
@@ -101,19 +151,8 @@ class Chainsaw:
             for entry in trimmed_output:
                 out.write(entry.fasta())
 
-        # Change the seqinfo adding the prefix
-        seqinfo_basename = os.path.basename(input_spkg.graftm_package().taxtastic_seqinfo_path())
-        with open(os.path.join(refpkg_path,seqinfo_basename),'w') as out:
-            first = True
-            for line in open(input_spkg.graftm_package().taxtastic_seqinfo_path()):
-                if first:
-                    out.write(line)
-                    first = False
-                else:
-                    out.write("{}{}".format(sequence_prefix,line))
-
         logging.info("Remaking DIAMOND db ..")
         new_graftm = GraftMPackage.acquire(graftm_path)
-        dmnd = new_graftm.create_diamond_db()
+        new_graftm.create_diamond_db()
 
         logging.info("Chainsaw stopping.")

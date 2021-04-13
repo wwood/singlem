@@ -1,6 +1,6 @@
 import logging
 
-from .singlem import HmmDatabase
+from .metapackage import Metapackage
 
 
 class Chancer:
@@ -13,7 +13,7 @@ class Chancer:
         '''Yield a RecoveryPrediction for each sample'''
         metagenomes = kwargs.pop('metagenomes')
         target_taxonomy = kwargs.pop('target_taxonomy') # A list
-        hmmdb = kwargs.pop('hmm_database', HmmDatabase())
+        hmmdb = kwargs.pop('hmm_database', Metapackage())
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
