@@ -41,7 +41,8 @@ class Tests(unittest.TestCase):
                 input_singlem_package_path = os.path.join(
                     path_to_data, '4.11.22seqs.gpkg.spkg'),
                 output_singlem_package_path = 'chainsaw.spkg',
-                sequence_prefix = "4.11~")
+                sequence_prefix = "4.11~",
+                keep_tree = False)
             self.assertTrue(os.path.isdir("chainsaw.spkg"))
             self.assertListEqual(
                 list(io.open("chainsaw.spkg/4.11.22seqs/singlem_package_creatorB2tZGH.fasta")), 

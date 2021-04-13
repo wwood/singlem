@@ -312,6 +312,11 @@ if __name__ == '__main__':
         argument_group.add_argument('--diamond-package-assignment', '--diamond_package_assignment', action='store_true',
                                     help='Assign each sequence to a SingleM package using the best hit result of the DIAMOND prefilter. Implies --diamond-prefilter. [default: not set]',
                                     default=False)
+        argument_group.add_argument('--diamond-prefilter-db', '--diamond_prefilter_db',
+                                    help='Use this DB when running DIAMOND prefilter [default: not set, generate one from the SingleM packages]')
+        argument_group.add_argument('--assignment-threads', '--assignment_threads', type=int,
+                                    help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
+                                    default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
@@ -374,6 +379,8 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--unifrac-by-taxonomy', '--unifrac_by_taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
     summarise_output_args.add_argument('--biom-prefix', '--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered-output-otu-table', '--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
+    summarise_output_args.add_argument('--exclude-off-target-hits', '--exclude_off_target_hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
+    summarise_output_args.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Packages used in the creation of the OTU tables")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = new_subparser(subparsers, 'renew', renew_description)
@@ -421,6 +428,11 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--intermediate-bacteria-graftm-package', '--intermediate_bacteria_graftm_package', required=True)
     required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True)
 
+    metapackage_description = 'Utilities for dealing with multiple singlem packages'
+    metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
+    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages", required=True)
+    metapackage_parser.add_argument('--output-prefilter-fasta', '--output_prefilter_fasta', help="Output FASTA file to use for prefiltering", required=True)
+
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
     appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
@@ -447,10 +459,11 @@ if __name__ == '__main__':
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = new_subparser(subparsers, 'chainsaw', chainsaw_description)
+    chainsaw_parser.add_argument('--keep-tree', '--keep_tree', action='store_true', help="Stop tree info from being removed", default=False)
     
     required_chainsaw_arguments = chainsaw_parser.add_argument_group("required arguments")
     
-    required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info from this package")
+    required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info and trim unaligned sequences from this package")
     required_chainsaw_arguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
     
@@ -505,6 +518,7 @@ if __name__ == '__main__':
         print('    get_tree     -> %s' % get_tree_description)
         print('    regenerate   -> %s' % regenerate_description)
         print('    chainsaw     -> %s' % chainsaw_description)
+        print('    metapackage  -> %s' % metapackage_description)
 
         print('\n  Use singlem <command> -h for command-specific help.\n'\
             '  Some commands also have an extended --full-help flag.\n')
@@ -552,6 +566,7 @@ if __name__ == '__main__':
             threads = args.threads,
             known_otu_tables = args.known_otu_tables,
             assignment_method = args.assignment_method,
+            assignment_threads = args.assignment_threads,
             output_jplace = args.output_jplace,
             evalue = args.evalue,
             min_orf_length = get_min_orf_length(args),
@@ -568,7 +583,8 @@ if __name__ == '__main__':
             known_sequence_taxonomy = args.known_sequence_taxonomy,
             diamond_prefilter = args.diamond_prefilter or args.diamond_package_assignment,
             diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
-            diamond_package_assignment = args.diamond_package_assignment)
+            diamond_package_assignment = args.diamond_package_assignment,
+            diamond_prefilter_db = args.diamond_prefilter_db)
 
     else:
         # Only import some things as reuqired here, so that pipe can run in a smaller conda environment, and startup faster.
@@ -588,9 +604,10 @@ if __name__ == '__main__':
         from singlem.regenerator import Regenerator
         from singlem.taxonomy import Taxonomy
         from singlem.renew import Renew
-        from singlem.singlem import HmmDatabase
+        from singlem.metapackage import Metapackage
         from singlem.chainsaw import Chainsaw
         from singlem.condense import Condenser
+        from singlem.singlem_package import SingleMPackage
 
         if args.subparser_name == 'seqs':
             seqs(args)
@@ -610,6 +627,7 @@ if __name__ == '__main__':
                 threads = args.threads,
                 known_otu_tables = args.known_otu_tables,
                 assignment_method = args.assignment_method,
+                assignment_threads = args.assignment_threads,
                 output_jplace = args.output_jplace,
                 evalue = args.evalue,
                 min_orf_length = get_min_orf_length(args),
@@ -626,7 +644,8 @@ if __name__ == '__main__':
                 known_sequence_taxonomy = args.known_sequence_taxonomy,
                 diamond_prefilter = False,
                 diamond_package_assignment = False,
-                diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters)
+                diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
+                diamond_prefilter_db = args.diamond_prefilter_db)
 
         elif args.subparser_name=='makedb':
             if not args.otu_tables and not args.archive_otu_tables:
@@ -702,6 +721,8 @@ if __name__ == '__main__':
                 raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
             if not args.input_otu_tables and not args.input_archive_otu_tables:
                 raise Exception("Summary requires input OTU tables or archive tables")
+            if args.exclude_off_target_hits and not args.singlem_packages:
+                raise Exception("--exclude_off_target_hits currently --singlem-packages to be defined")
 
             otus = OtuTableCollection()
             otus.set_target_taxonomy_by_string(args.taxonomy)
@@ -725,6 +746,18 @@ if __name__ == '__main__':
                 logging.info("Collapsing forward and reverse read OTU tables")
                 o2 = OtuTableCollection()
                 o2.otu_table_objects.append(otus.collapse_coupled())
+                otus = o2
+
+            if args.exclude_off_target_hits:
+                logging.info("Removing hits that are not assigned to their target domains")
+                o2 = OtuTableCollection()
+                pkgs = []
+                for p in args.singlem_packages:
+                    pkg = SingleMPackage.acquire(p)
+                    if pkg.version != 3:
+                        raise Exception("Version 3 SingleM packages are required for --exclude_off_target_hits")
+                    pkgs.append(pkg)
+                o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs))
                 otus = o2
 
             if args.krona:
@@ -863,7 +896,7 @@ if __name__ == '__main__':
                 min_aligned_percent = args.min_aligned_percent)
 
         elif args.subparser_name == 'get_tree':
-            hmm_db = HmmDatabase(args.singlem_packages)
+            hmm_db = Metapackage(args.singlem_packages)
             print("marker\ttree_file")
             for pkg in hmm_db.singlem_packages:
                 print("{}\t{}".format(
@@ -885,7 +918,13 @@ if __name__ == '__main__':
             Chainsaw().chainsaw(
                 input_singlem_package_path = args.input_singlem_package,
                 output_singlem_package_path = args.output_singlem_package,
-                sequence_prefix = args.sequence_prefix)
+                sequence_prefix = args.sequence_prefix,
+                keep_tree = args.keep_tree)
+
+        elif args.subparser_name == 'metapackage':
+            Metapackage(args.singlem_packages).create_on_target_prefilter_fasta(
+                args.output_prefilter_fasta
+            )
 
         elif args.subparser_name == 'condense':
             Condenser().condense(

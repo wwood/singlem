@@ -11,7 +11,8 @@ import re
 from Bio import SeqIO
 from io import StringIO
 
-from .singlem import HmmDatabase, TaxonomyFile, OrfMUtils, FastaNameToSampleName
+from .metapackage import Metapackage
+from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .metagenome_otu_finder import MetagenomeOtuFinder
@@ -40,6 +41,7 @@ class SearchPipe:
     DEFAULT_FILTER_MINIMUM_PROTEIN = 28
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5"
+    DEFAULT_ASSIGNMENT_THREADS = 1
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -73,7 +75,7 @@ class SearchPipe:
                     otu_table_object.write_to(f, regular_output_fields)
         if archive_otu_table:
             with open(archive_otu_table, 'w') as f:
-                otu_table_object.archive(HmmDatabase(singlem_packages)).write_to(f)
+                otu_table_object.archive(Metapackage(singlem_packages)).write_to(f)
 
 
     def run_to_otu_table(self, **kwargs):
@@ -84,6 +86,7 @@ class SearchPipe:
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
+        assignment_threads = kwargs.pop('assignment_threads')
         output_jplace = kwargs.pop('output_jplace')
         evalue = kwargs.pop('evalue')
         min_orf_length = kwargs.pop('min_orf_length')
@@ -97,6 +100,7 @@ class SearchPipe:
         diamond_prefilter = kwargs.pop('diamond_prefilter')
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_package_assignment = kwargs.pop('diamond_package_assignment')
+        diamond_prefilter_db = kwargs.pop('diamond_prefilter_db')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -111,7 +115,7 @@ class SearchPipe:
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
 
-        hmms = HmmDatabase(singlem_packages)
+        hmms = Metapackage(singlem_packages)
         if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
             graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
         else:
@@ -216,7 +220,8 @@ class SearchPipe:
             logging.info("Filtering sequence files through DIAMOND blastx")
             (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                 self._num_threads, self._working_directory).run_diamond(
-                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters)
+                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
+                diamond_prefilter_db)
             found_a_hit = False
             if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                 found_a_hit = True
@@ -273,7 +278,7 @@ class SearchPipe:
             else:
                 logging.info("Running taxonomic assignment with GraftM ..")
                 assignment_result = self._assign_taxonomy(
-                    extracted_reads, graftm_assignment_method)
+                    extracted_reads, graftm_assignment_method, assignment_threads)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -799,7 +804,7 @@ class SearchPipe:
         singlem_package_database.
         Parameters
         ----------
-        singlem_package_database: HmmDatabase
+        singlem_package_database: Metapackage
             packages to search the reads for
         forward_read_files: list of str
             paths to the sequences to be searched
@@ -911,7 +916,7 @@ class SearchPipe:
             search_result.samples_with_hits(),
             analysing_pairs)
 
-    def _assign_taxonomy(self, extracted_reads, assignment_method):
+    def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads):
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
@@ -1024,7 +1029,7 @@ class SearchPipe:
                         ' '.join(tmpnames))
                     commands.append(cmd)
 
-        extern.run_many(commands, num_threads=1)
+        extern.run_many(commands, num_threads=assignment_threads)
         logging.info("Finished running taxonomic assignment with GraftM")
         return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
 
