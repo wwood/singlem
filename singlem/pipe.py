@@ -41,6 +41,7 @@ class SearchPipe:
     DEFAULT_FILTER_MINIMUM_PROTEIN = 28
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5"
+    DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = ""
     DEFAULT_ASSIGNMENT_THREADS = 1
 
     def run(self, **kwargs):
@@ -101,6 +102,7 @@ class SearchPipe:
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_package_assignment = kwargs.pop('diamond_package_assignment')
         diamond_prefilter_db = kwargs.pop('diamond_prefilter_db')
+        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
@@ -278,7 +280,8 @@ class SearchPipe:
             else:
                 logging.info("Running taxonomic assignment with GraftM ..")
                 assignment_result = self._assign_taxonomy(
-                    extracted_reads, graftm_assignment_method, assignment_threads)
+                    extracted_reads, graftm_assignment_method, assignment_threads,
+                    diamond_taxonomy_assignment_performance_parameters)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -916,7 +919,9 @@ class SearchPipe:
             search_result.samples_with_hits(),
             analysing_pairs)
 
-    def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads):
+    def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads,
+        diamond_taxonomy_assignment_performance_parameters):
+        
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
@@ -998,6 +1003,9 @@ class SearchPipe:
                           self._num_threads,
                           singlem_package.graftm_package_path(),
                           assignment_method)
+                if assignment_method == 'diamond' and diamond_taxonomy_assignment_performance_parameters != '':
+                    cmd += " --diamond_performance_parameters '{}' ".format(
+                        diamond_taxonomy_assignment_performance_parameters)
                 if extracted_reads.analysing_pairs:
                     if assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         cmd += "--output_directory {}/{} ".format(

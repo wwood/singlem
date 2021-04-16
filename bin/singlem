@@ -317,6 +317,9 @@ if __name__ == '__main__':
         argument_group.add_argument('--assignment-threads', '--assignment_threads', type=int,
                                     help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
                                     default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
+        argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters', '--diamond_taxonomy_assignment_performance_parameters',
+                                    help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
+                                    default=SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
@@ -584,7 +587,8 @@ if __name__ == '__main__':
             diamond_prefilter = args.diamond_prefilter or args.diamond_package_assignment,
             diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
             diamond_package_assignment = args.diamond_package_assignment,
-            diamond_prefilter_db = args.diamond_prefilter_db)
+            diamond_prefilter_db = args.diamond_prefilter_db,
+            diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters)
 
     else:
         # Only import some things as reuqired here, so that pipe can run in a smaller conda environment, and startup faster.
@@ -645,7 +649,8 @@ if __name__ == '__main__':
                 diamond_prefilter = False,
                 diamond_package_assignment = False,
                 diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
-                diamond_prefilter_db = args.diamond_prefilter_db)
+                diamond_prefilter_db = args.diamond_prefilter_db,
+                diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters)
 
         elif args.subparser_name=='makedb':
             if not args.otu_tables and not args.archive_otu_tables:
