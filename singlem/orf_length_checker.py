@@ -1,4 +1,4 @@
-import extern
+import subprocess
 
 class OrfLengthChecker:
     '''GraftM croaks when no ORFs are found that meet the minimum length cutoff.
@@ -8,9 +8,11 @@ class OrfLengthChecker:
     def check_sequence_file_contains_an_orf(path, min_orf_length):
         '''Returns True or False. Files used here cannot be further used for
         streaming. Only checks the first 1000 lines of the sequence file.'''
-        result = extern.run("cat '%s' |zcat --stdout -f  |head -n1000 |orfm -m %i |head -n2" %(
+
+        # Cannot use extern here because the SIGPIPE signals generated
+        result = subprocess.check_output(['bash','-c',"cat '%s' |zcat --stdout -f  |head -n1000 |orfm -m %i |head -n2" %(
             path, min_orf_length
-        ))
+        )])
         if result != '':
             return True
         else:
