@@ -13,7 +13,7 @@ class OrfLengthChecker:
         result = subprocess.check_output(['bash','-c',"cat '%s' |zcat --stdout -f  |head -n1000 |orfm -m %i |head -n2" %(
             path, min_orf_length
         )])
-        if result != '':
+        if len(result) == 0:
             return True
         else:
             return False
