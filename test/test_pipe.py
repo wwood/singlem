@@ -938,19 +938,25 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             extern.run(cmd))
 
     def test_prefilter_piped_in_input(self):
-        expected = [
-            "\t".join(self.headers),
-            '4.11.22seqs	63	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
-            '']
+        with tempfile.NamedTemporaryFile(suffix='.mkfifo.fna') as fifo:
+            with tempfile.NamedTemporaryFile(suffix='.mkfifo.fna') as script:
+                script.write("mkfifo {}\n".format(fifo.name).encode())
+                script.write("cat {}/1_pipe/small.fa > {} &\n".format(path_to_data, fifo.name).encode())
+                script.write('{} pipe --forward {} --singlem-packages {}/4.11.22seqs.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --diamond-prefilter --assignment-method diamond'.format(
+                    path_to_script,
+                    fifo.name,
+                    path_to_data,
+                ).encode())
+                script.flush()
 
-        cmd = '{} pipe --forward <(cat {}/1_pipe/small.fa) --singlem-packages {}/4.11.22seqs.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --diamond-prefilter --assignment-method diamond'.format(
-            path_to_script,
-            path_to_data,
-            path_to_data,
-        )
-        self.assertEqualOtuTable(
-            list([line.split("\t") for line in expected]),
-            extern.run(cmd))
+                expected = [
+                    "\t".join(self.headers),
+                    '4.11.22seqs	{}	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179'.format(os.path.basename(fifo.name.replace('.fna',''))),
+                    '']
+                
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run('bash {}'.format(script.name)))
 
 
 
