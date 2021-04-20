@@ -149,6 +149,9 @@ class OtuTableCollection:
         for otu in self:
             if otu.marker not in package_to_targets:
                 raise Exception("No SingleM package named '{}' was provided".format(otu.marker))
+            if otu.taxonomy == '':
+                logging.warn("Row {} contained no taxonomy, excluding it".format(otu))
+                continue
             if not otu.taxonomy.startswith('Root'):
                 raise Exception("Unexpected taxonomy string encountered: '{}'".format(otu.taxonomy))
             tax = otu.taxonomy.split('; ')
