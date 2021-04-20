@@ -14,6 +14,6 @@ class OrfLengthChecker:
             path, min_orf_length
         )])
         if len(result) == 0:
-            return True
-        else:
             return False
+        else:
+            return True
