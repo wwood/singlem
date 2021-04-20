@@ -280,7 +280,7 @@ class SearchPipe:
                     diamond_forward_search_results, diamond_reverse_search_results)
                 reuse_diamond_taxonomy = True
             else:
-                logging.info("Running taxonomic assignment with GraftM ..")
+                logging.info("Running taxonomic assignment ..")
                 assignment_result = self._assign_taxonomy(
                     extracted_reads, graftm_assignment_method, assignment_threads,
                     diamond_taxonomy_assignment_performance_parameters)
@@ -1065,7 +1065,7 @@ class SearchPipe:
                     raise Exception("Programming error")
 
         extern.run_many(commands, num_threads=assignment_threads)
-        logging.info("Finished running taxonomic assignment with GraftM")
+        logging.info("Finished running taxonomic assignment")
         if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
             return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
         elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
