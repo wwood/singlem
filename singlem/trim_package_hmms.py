@@ -7,6 +7,7 @@ import json
 
 from Bio import AlignIO
 import extern
+from graftm.graftm_package import GraftMPackage
 
 from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
@@ -26,11 +27,15 @@ class PackageHmmTrimmer:
         shutil.copytree(input_package_path, output_package_path)
         output_package = SingleMPackage.acquire(output_package_path)
 
-        # Replace search HMM for each of Archaea and Bacteria according to target taxonomy
-        if len(input_package.target_domains()) != len(input_package.graftm_package().search_hmm_paths()):
-            raise Exception("Different number of search HMMs to target domains")
+        # Delete the current search HMMs, and make new files, because sometimes
+        # the number of search HMMs is different to the number of target domains
+        for hmm in output_package.graftm_package().search_hmm_paths():
+            os.remove(hmm)
+
+        # Create search HMM for each of Archaea and Bacteria according to target taxonomy
         tax_hash = input_package.graftm_package().taxonomy_hash()
-        for (target_taxonomy, hmm_path) in zip(input_package.target_domains(), output_package.graftm_package().search_hmm_paths()):
+        search_hmm_paths = []
+        for target_taxonomy in input_package.target_domains():
             num_hits = 0
             total_hits = 0
             with tempfile.NamedTemporaryFile() as f:
@@ -43,11 +48,25 @@ class PackageHmmTrimmer:
                 logging.info("Found {} of {} hits for domain {}. Generating new search HMM ..".format(num_hits,total_hits,target_taxonomy))
                 f.flush()
 
-                extern.run("mafft-linsi {} |seqmagick convert --input-format fasta --output-format stockholm - - |hmmbuild --informat stockholm --amino -n {} {} -"
+                # GraftM requires each search HMM basename to be unique, so put
+                # the name of the package in the search HMM filename. Also
+                # replace dots with underscores as graftm removes everything
+                # after the first dot.
+                hmm_path = os.path.join(output_package.graftm_package_path(), 
+                    "search_{}_{}.hmm".format(
+                        target_taxonomy, output_package.graftm_package_basename().replace('.','_')))
+                search_hmm_paths.append(os.path.basename(hmm_path))
+
+                extern.run("mafft --thread 8 {} |seqmagick convert --input-format fasta --output-format stockholm - - |hmmbuild --informat stockholm --amino -n {} {} -".format(
                     f.name,
                     "{}.{}".format(input_package.graftm_package_basename(), target_taxonomy),
                     hmm_path
                 ))
+        # Recreate output graftm package search HMM reference in contents
+        output_package.graftm_package()._contents_hash[GraftMPackage.SEARCH_HMM_KEY] = search_hmm_paths
+        # save contents file
+        with open(output_package.graftm_package().contents_file_path(), 'w') as j:
+            json.dump(output_package.graftm_package()._contents_hash, j)
 
         logging.info("Attempting to create new alignment HMM ..")
         with tempfile.NamedTemporaryFile() as intermediate_hmm:
