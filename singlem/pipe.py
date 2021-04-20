@@ -474,27 +474,48 @@ class SearchPipe:
                     elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                         if analysing_pairs:
-                            taxonomies = best_hit_hash[1]
-                            taxonomies.update(best_hit_hash[0])
+                            taxonomies = {}
+                            for (name, best_hits) in best_hit_hash[1].items():
+                                taxonomies[name] = best_hits[0]
+                            for (name, best_hits) in best_hit_hash[0].items():
+                                # Overwrite reverse hit with the forward hit
+                                taxonomies[name] = best_hits[0]
                         else:
-                            taxonomies = best_hit_hash
+                            # Take the first hit from all recorded hits. This
+                            # could be streamlined so that only a single hit is
+                            # recorded for each sequence, but meh, that would
+                            # complicate the code somewhat.
+                            taxonomies = {}
+                            for (name, best_hits) in best_hit_hash.items():
+                                taxonomies[name] = best_hits[0]
 
                     elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                         best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                         # Convert best hit IDs to taxonomies
                         tax_hash = assignment_result.taxonomy_hash(singlem_package)
+
+                        def lca_taxonomy(tax_hash, hits):
+                            lca = []
+                            hit_taxonomies = list([tax_hash[h] for h in hits])
+                            for (i, taxon) in enumerate(hit_taxonomies[0]):
+                                if all([len(h) > i and h[i]==taxon for h in hit_taxonomies]):
+                                    lca.append(taxon)
+                                else:
+                                    break
+                            return 'Root; '+';'.join(lca)
+
                         if analysing_pairs:
                             taxonomies = {}
-                            for (name, hit_id) in best_hit_hash[1].items():
+                            for (name, hit_ids) in best_hit_hash[1].items():
                                 # Add 'Root; ' here to be consistent with GraftM (and pplacer)
-                                taxonomies[name] = 'Root; '+';'.join(tax_hash[hit_id])
+                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
                             # Prefer forward hit taxonomies
-                            for (name, hit_id) in best_hit_hash[0].items():
-                                taxonomies[name] = 'Root; '+';'.join(tax_hash[hit_id])
+                            for (name, hit_ids) in best_hit_hash[0].items():
+                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
                         else:
                             taxonomies = {}
-                            for (name, hit_id) in best_hit_hash.items():
-                                taxonomies[name] = 'Root; '+';'.join(tax_hash[hit_id])
+                            for (name, hit_ids) in best_hit_hash.items():
+                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         bihash_key = singlem_package.base_directory()
@@ -969,13 +990,27 @@ class SearchPipe:
                         diamond_result = extern.run(cmd2)
                         reader = csv.reader(diamond_result.splitlines(), delimiter='\t')
                         best_hits = {}
+                        best_hit_bitscores = {}
                         for row in reader:
-                            best_hits[row[0]] = row[1]
+                            query = row[0]
+                            subject = row[1]
+                            bitscore = float(row[2])
+                            if query in best_hit_bitscores: # If already a hit recorded for this sequence
+                                if bitscore > best_hit_bitscores[query]:
+                                    raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
+                                elif bitscore == best_hit_bitscores[query]:
+                                    best_hits[query].append(subject)
+                                else:
+                                    # Close but no cigar for this hit, not exactly the same bitscore
+                                    pass
+                            else:
+                                best_hits[query] = [subject]
+                                best_hit_bitscores[query] = bitscore
                         return best_hits
 
                     cmd_stub = "diamond blastx " \
-                        "--outfmt 6 qseqid sseqid " \
-                        "--max-target-seqs 1 " \
+                        "--outfmt 6 qseqid sseqid bitscore " \
+                        "--top 1 " \
                         "--evalue 0.01 " \
                         "--threads %i " \
                         "%s " % (
