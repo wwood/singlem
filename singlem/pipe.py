@@ -627,7 +627,7 @@ class SearchPipe:
                         # happens sometimes when HMMER picks up something where
                         # diamond does not, or when --no_assign_taxonomy is specified.
                         logging.debug("Did not find any taxonomy information for %s" % s.name)
-                        tax = ''
+                        tax = 'Root'
 
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
