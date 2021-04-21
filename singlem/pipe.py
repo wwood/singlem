@@ -502,7 +502,10 @@ class SearchPipe:
                                     lca.append(taxon)
                                 else:
                                     break
-                            return 'Root; '+';'.join(lca)
+                            if lca == []:
+                                return 'Root'
+                            else:
+                                return 'Root; '+';'.join(lca)
 
                         if analysing_pairs:
                             taxonomies = {}
@@ -657,7 +660,7 @@ class SearchPipe:
                 seq_to_collected_info[s.aligned_sequence] = collected_info
 
             collected_info.count += 1
-            if per_read_taxonomies: collected_info.taxonomies.append(tax)
+            if per_read_taxonomies is not None: collected_info.taxonomies.append(tax)
             collected_info.names.append(s.name)
             collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
