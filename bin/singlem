@@ -374,6 +374,7 @@ if __name__ == '__main__':
     summarise_transformation_args.add_argument('--collapse-coupled', '--collapse_coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
     summarise_output_args = summarise_parser.add_argument_group('output')
     summarise_output_args.add_argument('--output-otu-table', '--output_otu_table', help="Output combined OTU table to this file")
+    summarise_output_args.add_argument('--output-translated-otu-table', '--output_translated_otu_table', help="Output combined OTU table to this file, with seqeunces translated into amino acids")
     summarise_output_args.add_argument('--output-extras', '--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
     summarise_output_args.add_argument('--krona', help="Name of krona file to generate")
     summarise_output_args.add_argument('--wide-format-otu-table', '--wide_format_otu_table', help="Name of output species by site CSV file")
@@ -712,6 +713,7 @@ if __name__ == '__main__':
             if args.unifrac_by_taxonomy: num_output_types += 1
             if args.biom_prefix: num_output_types += 1
             if args.output_otu_table: num_output_types += 1
+            if args.output_translated_otu_table: num_output_types += 1
             if args.clustered_output_otu_table: num_output_types += 1
             if args.rarefied_output_otu_table: num_output_types += 1
             if args.wide_format_otu_table: num_output_types += 1
@@ -798,6 +800,10 @@ if __name__ == '__main__':
                     table_collection = otus,
                     output_table_io = open(args.rarefied_output_otu_table,'w'),
                     number_to_choose = args.number_to_choose)
+            elif args.output_translated_otu_table:
+                Summariser.write_translated_otu_table(
+                    table_collection = otus,
+                    output_table_io = open(args.output_translated_otu_table,'w'))
 
             else: raise Exception("Programming error")
             logging.info("Finished")

@@ -5,6 +5,7 @@ from collections import OrderedDict
 import logging
 import biom
 import pandas
+import Bio
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
@@ -263,6 +264,23 @@ class Summariser:
         logging.info("Rarefying OTU table to max %i sequences per sample/gene combination and writing to %s" % (number_to_choose, output_table_io.name))
         OtuTable.write_otus_to(Rarefier().rarefy(table_collection, number_to_choose),
                                output_table_io)
+
+    @staticmethod
+    def write_translated_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        count = 0
+        for otu in table_collection:
+            count += 1
+            otu.data[2] = str(
+                Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(otu.sequence)).translate().seq
+            )
+            OtuTable.write_otus_to([otu], output_table_io)
+        logging.info("Printed {} OTUs".format(count))
+
 
     @staticmethod
     def write_biom_otu_tables(**kwargs):
