@@ -54,11 +54,11 @@ if __name__ == '__main__':
     reverses = []
     unpaireds = []
 
-    unpaired_re = re.compile('.*\d+\.fastq$')
+    unpaired_re = re.compile('.*\d+\.fastq')
     for path in passable_paths:
-        if path.endswith('_1.fastq'):
+        if path.endswith('_1.fastq') or path.endswith('_1.fastq.gz'):
             forwards.append(path)
-        elif path.endswith('_2.fastq'):
+        elif path.endswith('_2.fastq') or path.endswith('_2.fastq.gz'):
             reverses.append(path)
         elif unpaired_re.match(path):
             unpaireds.append(path)
