@@ -39,6 +39,7 @@ from singlem.otu_table_collection import OtuTableCollection
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
     output_headers = str.split('type gene sample difference_in_bp sequence num_hits coverage taxonomy')
+    maxDiff = None
 
     def assertEqualOtuTable(self, expected_array, observed_string):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])
@@ -257,6 +258,20 @@ minimal2	0.2
             os.path.join(path_to_data,'small.otu_table.4.11.22seqs.json'))
         observed = extern.run(cmd)
         self.assertEqualOtuTable(list([line.split("\t") for line in expected]), observed)
+
+    def test_translate(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.ribosomal_protein_L10	small	LRSQLREAGVEYKVYKNTMV	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus',
+            '4.11.ribosomal_protein_L10	small	KRSQLREAGVEYKVYKNTMV	5	10.4	Root; d__Bacteria',
+            '4.12.ribosomal_protein_L11_rplK	small	PAGKANPAPPVGPALGQAGV	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
+            '']
+        cmd = "{} summarise --input_otu_table {} --output_translated_otu_table /dev/stdout".format(
+            path_to_script,
+            os.path.join(path_to_data,'small_will_collapse.otu_table.csv'))
+        observed = extern.run(cmd)
+        self.assertEqualOtuTable(list([line.split("\t") for line in expected]), observed)
+
         
 
 if __name__ == "__main__":
