@@ -13,6 +13,7 @@ import logging
 import sys
 import os
 import math
+import gzip
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 
@@ -363,8 +364,10 @@ if __name__ == '__main__':
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
     summarise_io_args = summarise_parser.add_argument_group('input')
-    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Summarise these tables")
     summarise_io_args.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
+        help="Summarise the list of newline-separated gzip-compressed archive OTU tables specified in this file")
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_transformation_args.add_argument('--cluster-id', '--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -719,7 +722,7 @@ if __name__ == '__main__':
             if args.wide_format_otu_table: num_output_types += 1
             if num_output_types != 1:
                 raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
-            if not args.input_otu_tables and not args.input_archive_otu_tables:
+            if not args.input_otu_tables and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
                 raise Exception("Summary requires input OTU tables or archive tables")
             if args.exclude_off_target_hits and not args.singlem_packages:
                 raise Exception("--exclude_off_target_hits currently --singlem-packages to be defined")
@@ -732,6 +735,10 @@ if __name__ == '__main__':
             if args.input_archive_otu_tables:
                 for o in args.input_archive_otu_tables:
                     otus.add_archive_otu_table(open(o))
+            if args.input_gzip_archive_otu_table_list:
+                with open(args.input_gzip_archive_otu_table_list) as f:
+                    for arc in f.readlines():
+                        otus.add_archive_otu_table(gzip.open(arc.strip()))
 
             if args.cluster:
                 logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
