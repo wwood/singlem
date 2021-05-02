@@ -9,9 +9,11 @@ import tempfile
 import json
 import re
 import csv
+import subprocess
 
 from Bio import SeqIO
 from io import StringIO
+from extern import ExternCalledProcessError
 
 from .metapackage import Metapackage
 from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
@@ -992,11 +994,14 @@ class SearchPipe:
                         cmd2 = cmd_stub+"-q '%s' -d '%s'" % (
                             query, singlem_package.graftm_package().diamond_database_path()
                         )
-                        diamond_result = extern.run(cmd2)
-                        reader = csv.reader(diamond_result.splitlines(), delimiter='\t')
+                        p = subprocess.Popen(
+                            ['bash','-c',cmd2],
+                            stdout=subprocess.PIPE,
+                            bufsize=1,
+                            universal_newlines=True)
                         best_hits = {}
                         best_hit_bitscores = {}
-                        for row in reader:
+                        for row in csv.reader(p.stdout, delimiter='\t'):
                             query = row[0]
                             subject = row[1]
                             bitscore = float(row[2])
@@ -1011,6 +1016,9 @@ class SearchPipe:
                             else:
                                 best_hits[query] = [subject]
                                 best_hit_bitscores[query] = bitscore
+                        p.wait()
+                        if p.returncode != 0:
+                            raise ExternCalledProcessError(p, cmd2)
                         return best_hits
 
                     cmd_stub = "diamond blastx " \
