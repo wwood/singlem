@@ -473,6 +473,18 @@ if __name__ == '__main__':
     required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info and trim unaligned sequences from this package")
     required_chainsaw_arguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
+    
+    condense_description = 'Combine OTU tables across different markers into a single OTU table.'
+    condense_parser = new_subparser(subparsers, 'condense', condense_description)
+    condense_parser.add_argument('--trim-percent', '--trim_percent', type=float, default=5, help="percentage of markers to be trimmed for each taxonomy [default: 5]")
+    
+    required_condense_arguments = condense_parser.add_argument_group("required arguments")
+    
+    required_condense_arguments.add_argument('--input-otu-table', '--input_otu_table', metavar='filename', help="condense this table. Note: cannot use archive OTU tables", required=True)
+    required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.", required=True)
+    required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table", required=True)
+    required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.', required=True)
+    
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = new_subparser(subparsers, 'trim_package_hmms', trim_package_hmms_description)
@@ -506,6 +518,7 @@ if __name__ == '__main__':
         print('    pipe         -> %s' % pipe_description)
         print('    summarise    -> %s' % summarise_description)
         print('    renew        -> %s' % renew_description)
+        print('    condense     -> %s' % condense_description)
 
         print('\n  Databases (of OTU sequences):')
         print('    makedb       -> %s' % makedb_description)
@@ -609,6 +622,7 @@ if __name__ == '__main__':
         from singlem.renew import Renew
         from singlem.metapackage import Metapackage
         from singlem.chainsaw import Chainsaw
+        from singlem.condense import Condenser
         from singlem.singlem_package import SingleMPackage
         from singlem.trim_package_hmms import PackageHmmTrimmer
 
@@ -950,6 +964,14 @@ if __name__ == '__main__':
                 args.output_singlem_package,
             )
 
+        elif args.subparser_name == 'condense':
+            Condenser().condense(
+                input_otu_table = args.input_otu_table,
+                singlem_packages = args.singlem_packages,
+                trim_percent = args.trim_percent,
+                output_otu_table = args.output_otu_table,
+                krona = args.krona)
+            
         else:
             raise Exception("Programming error")
 
