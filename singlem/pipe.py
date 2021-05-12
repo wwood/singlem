@@ -991,40 +991,37 @@ class SearchPipe:
             if len(tmp_files) > 0:
                 if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
-                        cmd2 = cmd_stub+"-q '%s' -d '%s'" % (
-                            query, singlem_package.graftm_package().diamond_database_path()
-                        )
-                        logging.debug("Running taxonomic assignment command: {}".format(cmd2))
-                        p = subprocess.Popen(
-                            ['bash','-c',cmd2],
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                            universal_newlines=True)
-                        best_hits = {}
-                        best_hit_bitscores = {}
-                        for row in csv.reader(p.stdout, delimiter='\t'):
-                            if len(row) != 3:
-                                raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
-                            query = row[0]
-                            subject = row[1]
-                            bitscore = float(row[2])
-                            if query in best_hit_bitscores: # If already a hit recorded for this sequence
-                                if bitscore > best_hit_bitscores[query]:
-                                    raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
-                                elif bitscore == best_hit_bitscores[query]:
-                                    best_hits[query].append(subject)
-                                else:
-                                    # Close but no cigar for this hit, not exactly the same bitscore
-                                    pass
-                            else:
-                                best_hits[query] = [subject]
-                                best_hit_bitscores[query] = bitscore
-                        p.wait()
-                        if p.returncode != 0:
-                            raise Exception("Command %s returned non-zero exit status %i.\n"\
-                                "STDERR was: %sSTDOUT was: %s" % (
-                                    cmd2, p.returncode, p.stderr.read(), p.stdout.read()))
-                        return best_hits
+                        with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment') as diamond_out:
+                            cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
+                                query, singlem_package.graftm_package().diamond_database_path(), diamond_out.name
+                            )
+                            logging.debug("Running taxonomic assignment command: {}".format(cmd2))
+                            # Run with an output file instead of streaming
+                            # stdout as a potential fix for large runs (40Gbp+)
+                            # e.g. SRR11833493 failing on GCP/Terra
+                            extern.run(cmd2)
+
+                            best_hits = {}
+                            best_hit_bitscores = {}
+                            with open(diamond_out.name) as d:
+                                for row in csv.reader(d, delimiter='\t'):
+                                    if len(row) != 3:
+                                        raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
+                                    query = row[0]
+                                    subject = row[1]
+                                    bitscore = float(row[2])
+                                    if query in best_hit_bitscores: # If already a hit recorded for this sequence
+                                        if bitscore > best_hit_bitscores[query]:
+                                            raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
+                                        elif bitscore == best_hit_bitscores[query]:
+                                            best_hits[query].append(subject)
+                                        else:
+                                            # Close but no cigar for this hit, not exactly the same bitscore
+                                            pass
+                                    else:
+                                        best_hits[query] = [subject]
+                                        best_hit_bitscores[query] = bitscore
+                            return best_hits
 
                     cmd_stub = "diamond blastx " \
                         "--outfmt 6 qseqid sseqid bitscore " \
