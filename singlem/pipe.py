@@ -994,14 +994,17 @@ class SearchPipe:
                         cmd2 = cmd_stub+"-q '%s' -d '%s'" % (
                             query, singlem_package.graftm_package().diamond_database_path()
                         )
+                        logging.debug("Running taxonomic assignment command: {}".format(cmd2))
                         p = subprocess.Popen(
                             ['bash','-c',cmd2],
                             stdout=subprocess.PIPE,
-                            bufsize=1,
+                            stderr=subprocess.PIPE,
                             universal_newlines=True)
                         best_hits = {}
                         best_hit_bitscores = {}
                         for row in csv.reader(p.stdout, delimiter='\t'):
+                            if len(row) != 3:
+                                raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
                             query = row[0]
                             subject = row[1]
                             bitscore = float(row[2])
@@ -1018,7 +1021,9 @@ class SearchPipe:
                                 best_hit_bitscores[query] = bitscore
                         p.wait()
                         if p.returncode != 0:
-                            raise ExternCalledProcessError(p, cmd2)
+                            raise Exception("Command %s returned non-zero exit status %i.\n"\
+                                "STDERR was: %sSTDOUT was: %s" % (
+                                    cmd2, p.returncode, p.stderr.read(), p.stdout.read()))
                         return best_hits
 
                     cmd_stub = "diamond blastx " \
