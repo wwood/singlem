@@ -17,6 +17,8 @@ class Condenser:
         trim_percent = kwargs.pop('trim_percent') / 100
         output_otu_table = kwargs.pop('output_otu_table')
         krona_output_file = kwargs.pop('krona')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         markers = {} # list of markers used
         marker_set = set() # set of markers to check if all markers are included
@@ -48,10 +50,13 @@ class Condenser:
                 
         for domain in target_domains:
             if target_domains[domain] in [1, 2]:
-                raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. Only {} markers for domain '{}' found".format(target_domains[domain], domain))
+                raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. "\
+                    "Only {} markers for domain '{}' found".format(target_domains[domain], domain))
         
         excluded_markers = set()
         
+        # Read OTU table, excluding entries not targeted and genes not in
+        # input package list.
         logging.info("Reading input OTU table.")
         with open(input_otu_table) as csvfile:
             reader = csv.DictReader(csvfile, delimiter = "\t")
@@ -85,7 +90,7 @@ class Condenser:
                 # this taxonomy has been added already?
                 taxbuilder = "Root"
                 priority = 0
-                # process taxonomy levels in ascending order
+                # process taxonomy levels in domain to species order
                 for tax in tax_split[1:]:
                     taxbuilder += "; " + tax
                     priority += 1
@@ -105,7 +110,7 @@ class Condenser:
                         raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. Only {} markers for domain '{}' found".format(target_domains[domain], domain))
         
         ### Trim the taxonomy coverages
-        logging.info("Trimming constructed taxonomy trees.")
+        logging.info("Trimming constructed taxonomy trees ..")
         for sample in queues:
             while not queues[sample].empty():
                 taxonomy = queues[sample].get()[1] # tuple: (priority, taxonomy)
@@ -113,7 +118,7 @@ class Condenser:
                 domain = tax_split[1].strip("d__")
                 genes = {}
                 for gene in samples[sample]:
-                    node = samples[sample][gene].get_tree(taxonomy.split("; "))
+                    node = samples[sample][gene] get_node(taxonomy.split("; "))
                     # node returns False if it does not exist
                     if node:
                         cov = node.get_full_coverage()
@@ -139,9 +144,9 @@ class Condenser:
                             break
                         i += 1
                     for gene in genes:
-                        node = samples[sample][gene].get_tree(tax_split)
+                        node = samples[sample][gene] get_node(tax_split)
                         if node.is_key():
-                            samples[sample][gene].get_tree(new_tax.split("; ")).coverage += node.coverage
+                            samples[sample][gene] get_node(new_tax.split("; ")).coverage += node.coverage
                             node.coverage = 0
                             taxon_counter[sample][new_tax].add(gene)
                             taxon_counter[sample][taxonomy].remove(gene)
@@ -168,7 +173,7 @@ class Condenser:
                     count = 0
                     otu = OrderedDict({"sample": sample, "coverage": 0, "taxonomy": taxonomy})
                     for marker in taxon_counter[sample][taxonomy]:
-                        node = samples[sample][marker].get_tree(taxonomy.split("; "))
+                        node = samples[sample][marker] get_node(taxonomy.split("; "))
                         if node:
                             if node.is_key():
                                 otu["coverage"] += node.coverage
@@ -258,14 +263,14 @@ class WordNode:
         else:
             raise Exception("Word %s does not match current node %s" % (word_list[0]), self.word)
     
-    def get_tree(self, word_list):
+    def get_node(self, word_list):
         """ 
         Gets node associated with this taxonomy. 
         """
         if word_list[0] == self.word:
             if len(word_list) > 1:
                 if word_list[1] in self.children:
-                    return self.children[word_list[1]].get_tree(word_list[1:])
+                    return self.children[word_list[1]] get_node(word_list[1:])
             else:
                 return self
         # tree not present
@@ -276,7 +281,7 @@ class WordNode:
         Removes node and descendants described by the word list
         from this tree. 
         """
-        parent_node = self.get_tree(word_list[:-1])
+        parent_node = self get_node(word_list[:-1])
         child = word_list[-1]
         if parent_node:
             if child in parent_node.children:
