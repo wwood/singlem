@@ -942,6 +942,9 @@ class SearchPipe:
             for readset in readsets:
                 if extracted_reads.analysing_pairs:
                     if len(readset[0].sequences + readset[1].sequences) > 0:
+                        forward_tmp = generate_tempfile_for_readset(readset[0])
+                        reverse_tmp = generate_tempfile_for_readset(readset[1])
+
                         # Some pairs will only have one side of the pair
                         # aligned, some pairs both. Fill in the forward and
                         # reverse files with dummy data as necessary
@@ -950,8 +953,8 @@ class SearchPipe:
                         # >min_orf_length bases because otherwise if there are
                         # >no sequences, hmmsearch inside graftm croaks.
                         dummy_sequence = 'ATG'+''.join(['A']*self._min_orf_length)
-                        forward_tmp = generate_tempfile_for_readset(readset[0])
-                        reverse_tmp = generate_tempfile_for_readset(readset[1])
+                        reverse_tmp.write(">dummy\n{}\n".format(dummy_sequence))
+                        forward_tmp.write(">dummy\n{}\n".format(dummy_sequence))
 
                         forward_seq_names = {}
                         for (i, s) in enumerate(readset[0].sequences):
@@ -966,15 +969,11 @@ class SearchPipe:
                                 # from dict.
                                 seqio.write_fasta(
                                     [reverse_name_to_seq.pop(name)], reverse_tmp)
-                            else:
-                                # Forward read matched only
-                                reverse_tmp.write(">{}\n{}\n".format(
-                                    name, dummy_sequence))
                         for name, seq in reverse_name_to_seq.items():
                             # Reverse read matched only
-                            forward_tmp.write(">{}\n{}\n".format(
-                                name, dummy_sequence))
                             seqio.write_fasta([seq], reverse_tmp)
+
+                        # Write dummy seqs_list
 
                         # Close immediately to avoid the "too many open files" error.
                         forward_tmp.close()
