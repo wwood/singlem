@@ -1039,7 +1039,7 @@ class SearchPipe:
                                 current_chunk_count += 1
                                 current_chunk_sequences_fh.write(">{}\n{}\n".format(name, seq).encode())
                                 # If we at the limit, run diamond and collect
-                                if current_chunk_count == 100:
+                                if current_chunk_count == 1000:
                                     current_chunk_sequences_fh.flush()
                                     run_diamond_chunk(current_chunk_sequences_fh.name)
                                     current_chunk_sequences_fh.close()
