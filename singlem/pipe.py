@@ -990,36 +990,66 @@ class SearchPipe:
             if len(tmp_files) > 0:
                 if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
-                        with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment') as diamond_out:
-                            cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
-                                query, singlem_package.graftm_package().diamond_database_path(), diamond_out.name
-                            )
-                            logging.debug("Running taxonomic assignment command: {}".format(cmd2))
-                            # Run with an output file instead of streaming
-                            # stdout as a potential fix for large runs (40Gbp+)
-                            # e.g. SRR11833493 failing on GCP/Terra
-                            extern.run(cmd2)
+                        # Running DIAMOND from here uses too much RAM when there
+                        # are very many sequences to assign taxonomy to (>4000?)
+                        # when RAM is limited as it is in the cloud. So only
+                        # write a limited number of query sequences at a time,
+                        # chunking through.
 
-                            best_hits = {}
-                            best_hit_bitscores = {}
-                            with open(diamond_out.name) as d:
-                                for row in csv.reader(d, delimiter='\t'):
-                                    if len(row) != 3:
-                                        raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
-                                    query = row[0]
-                                    subject = row[1]
-                                    bitscore = float(row[2])
-                                    if query in best_hit_bitscores: # If already a hit recorded for this sequence
-                                        if bitscore > best_hit_bitscores[query]:
-                                            raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
-                                        elif bitscore == best_hit_bitscores[query]:
-                                            best_hits[query].append(subject)
+                        # Run diamond runs per chunk, collecting best hits
+                        best_hits = {}
+                        best_hit_bitscores = {}
+
+                        def run_diamond_chunk(query_file_path):
+                            with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
+                                cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
+                                    query_file_path, singlem_package.graftm_package().diamond_database_path(), diamond_out.name
+                                )
+                                logging.debug("Running taxonomic assignment command: {}".format(cmd2))
+                                # Run with an output file instead of streaming
+                                # stdout as a potential fix for large runs
+                                # (40Gbp+) e.g. SRR11833493 failing on
+                                # GCP/Terra. That wasn't enough to stop the
+                                # error though.
+                                extern.run(cmd2)
+
+                                with open(diamond_out.name) as d:
+                                    for row in csv.reader(d, delimiter='\t'):
+                                        if len(row) != 3:
+                                            raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
+                                        query = row[0]
+                                        subject = row[1]
+                                        bitscore = float(row[2])
+                                        if query in best_hit_bitscores: # If already a hit recorded for this sequence
+                                            if bitscore > best_hit_bitscores[query]:
+                                                raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
+                                            elif bitscore == best_hit_bitscores[query]:
+                                                best_hits[query].append(subject)
+                                            else:
+                                                # Close but no cigar for this hit, not exactly the same bitscore
+                                                pass
                                         else:
-                                            # Close but no cigar for this hit, not exactly the same bitscore
-                                            pass
-                                    else:
-                                        best_hits[query] = [subject]
-                                        best_hit_bitscores[query] = bitscore
+                                            best_hits[query] = [subject]
+                                            best_hit_bitscores[query] = bitscore
+
+                        with open(query) as query_in:
+                            current_chunk_count = 0
+                            current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk')
+                            for (name, seq, _) in SeqReader().readfq(query_in):
+                                current_chunk_count += 1
+                                current_chunk_sequences_fh.write(">{}\n{}\n".format(name, seq).encode())
+                                # If we at the limit, run diamond and collect
+                                if current_chunk_count == 100:
+                                    current_chunk_sequences_fh.flush()
+                                    run_diamond_chunk(current_chunk_sequences_fh.name)
+                                    current_chunk_sequences_fh.close()
+                                    current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk')
+                                    current_chunk_count = 0
+                            if current_chunk_count > 0:
+                                current_chunk_sequences_fh.flush()
+                                run_diamond_chunk(current_chunk_sequences_fh.name)
+                            current_chunk_sequences_fh.close()
+                                
                             return best_hits
 
                     cmd_stub = "diamond blastx " \
