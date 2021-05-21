@@ -28,6 +28,7 @@ from .placement_parser import PlacementParser
 from .taxonomy_bihash import TaxonomyBihash
 from .diamond_spkg_searcher import DiamondSpkgSearcher
 from .pipe_sequence_extractor import PipeSequenceExtractor, ExtractedReads
+from .kingfisher_sra import KingfisherSra
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -87,6 +88,7 @@ class SearchPipe:
         '''Run the pipe, '''
         forward_read_files = kwargs.pop('sequences', [])
         reverse_read_files = kwargs.pop('reverse_read_files', None)
+        input_sra_files = kwargs.pop('input_sra_files',None)
         genome_fasta_files = kwargs.pop('genomes', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
@@ -215,7 +217,10 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
-        if analysing_pairs:
+        if input_sra_files is not None:
+            logging.info("Using as input %i different .SRA format sequence files e.g. %s" % (
+                len(input_sra_files), input_sra_files[0]))
+        elif analysing_pairs:
             logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
                 len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
         else:
@@ -223,11 +228,58 @@ class SearchPipe:
                 len(forward_read_files), forward_read_files[0]))
 
         if diamond_prefilter:
+            if input_sra_files:
+                # Create a named pipe which is called the same as the .sra file
+                # minus the .sra bit. Then call kingfisher --stdout --unsorted
+                # in the background to dump it towards that named pipe. Then run
+                # the DIAMOND prefilter with that named pipe as input.
+                forward_read_files = []
+                sra_extraction_commands = []
+                sra_extraction_processes = []
+                for sra in input_sra_files:
+                    new_name = os.path.join(
+                        tempfile_directory,
+                        os.path.basename(sra))
+                    logging.debug("Creating FIFO at {}".format(new_name))
+                    os.mkfifo(new_name)
+                    forward_read_files.append(new_name)
+                    
+                    # kingfisher extract --unsorted --stdout -r
+                    cmd = "vdb-dump -f fasta {} >{}".format(
+                        os.path.abspath(sra), new_name)
+                    logging.debug("Running kingfisher extraction command: {}".format(cmd))
+                    sra_extraction_commands.append(cmd)
+
+                    sra_extraction_process = subprocess.Popen(
+                        ['bash','-c',cmd],
+                        stdout=None,
+                        stderr=subprocess.PIPE,
+                        universal_newlines=True)
+                    sra_extraction_processes.append(sra_extraction_process)
+
+            def finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands):
+                for p, cmd in zip(sra_extraction_processes,sra_extraction_commands):
+                    p.wait()
+                    if p.returncode != 0:
+                        raise Exception("Command %s returned non-zero exit status %i.\n"\
+                            "STDERR was: %s" % (
+                                cmd, p.returncode, p.stderr.read()))
+
             logging.info("Filtering sequence files through DIAMOND blastx")
-            (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
-                self._num_threads, self._working_directory).run_diamond(
-                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                diamond_prefilter_db)
+            try:
+                (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
+                    self._num_threads, self._working_directory).run_diamond(
+                    hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
+                    diamond_prefilter_db)
+            except extern.ExternCalledProcessError as e:
+                logging.error("Process (DIAMOND?) failed")
+                if input_sra_files:
+                    finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
+                raise e
+
+            if input_sra_files:
+                finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
+
             found_a_hit = False
             if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                 found_a_hit = True
@@ -241,6 +293,30 @@ class SearchPipe:
                 logging.info("No reads identified in any samples, stopping")
                 return_cleanly()
                 return OtuTable()
+
+            if input_sra_files:
+                # DIAMOND was run to get a new all combined file. But we want 2
+                # separate files so that it works easily with the rest of the
+                # pipeline.
+                logging.info("Splitting potentially paired reads into separate files ..")
+                analysing_pairs = False
+                possible_reverse_read_files = []
+                split_fasta_directory = os.path.join(working_directory, 'sra_splits')
+                os.mkdir(split_fasta_directory)
+                for fasta in forward_read_files:
+                    output_directory = os.path.join(split_fasta_directory, os.path.basename(fasta))
+                    os.mkdir(output_directory)
+                    (fwd, rev) = KingfisherSra().split_fasta(
+                        fasta,
+                        output_directory)
+                    if rev == None:
+                        possible_reverse_read_files.append(None)
+                    else:
+                        possible_reverse_read_files.append(rev)
+                        analysing_pairs = True
+                if analysing_pairs:
+                    reverse_read_files = possible_reverse_read_files
+                logging.info("Finished splitting potentially paired reads")
 
         ### Extract reads that have already known taxonomy
         if known_otu_tables:
