@@ -244,10 +244,14 @@ if __name__ == '__main__':
                                     nargs='+',
                                     metavar='sequence_file(s)',
                                     help='nucleotide read sequence(s) (forward or unpaired) to be searched')
-        sequence_input_group.add_argument('--genome-fasta-files',
+        sequence_input_group.add_argument('--genome-fasta-files','--genome_fasta_files',
                                     nargs='+',
                                     metavar='sequence_file(s)',
                                     help='nucleotide genome sequence(s) to be searched')
+        sequence_input_group.add_argument('--sra-files','--sra_files',
+                                    nargs='+',
+                                    metavar='sra_file(s)',
+                                    help='.sra format files to be searched')
         argument_group.add_argument('--reverse',
                                     nargs='+',
                                     metavar='sequence_file(s)',
@@ -498,6 +502,8 @@ if __name__ == '__main__':
             raise Exception("Currently --jplace-output cannot be used with --reverse")
         if args.working_directory and args.working_directory_tmpdir:
             raise Exception("Cannot specify both --working-directory and --working-directory-tmpdir")
+        if args.sra_files and not args.diamond_prefilter:
+            raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
         print('')
@@ -550,7 +556,7 @@ if __name__ == '__main__':
     def get_min_orf_length(args):
         if args.min_orf_length:
             return args.min_orf_length
-        elif args.forward:
+        elif args.forward or args.sra_files:
             return SearchPipe.DEFAULT_MIN_ORF_LENGTH
         elif args.genome_fasta_files:
             return SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH
@@ -563,6 +569,7 @@ if __name__ == '__main__':
             sequences = args.forward,
             reverse_read_files = args.reverse,
             genomes = args.genome_fasta_files,
+            input_sra_files = args.sra_files,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             threads = args.threads,

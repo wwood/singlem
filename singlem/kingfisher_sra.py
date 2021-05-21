@@ -11,8 +11,8 @@ class KingfisherSra:
         signify (unpaired), (forward or unpaired) and (reverse) respectively.
 
         This function creates new files for (forward or unpaired) and (reverse)
-        in the output directory, and returns a tuple of (forward_path,
-        reverse_path)
+        in the output directory where the .X is removed, and returns a tuple of
+        (forward_path, reverse_path)
         '''
         forward_output = None
         reverse_output = None
