@@ -1022,7 +1022,7 @@ class SearchPipe:
                                         best_hit_bitscores[query] = bitscore
                             return best_hits
 
-                    cmd_stub = "diamond blastx " \
+                    cmd_stub = "gdb --ex=r -return-child-result -batch -ex bt --args diamond blastx " \
                         "--outfmt 6 qseqid sseqid bitscore " \
                         "--top 1 " \
                         "--evalue 0.01 " \
