@@ -274,18 +274,10 @@ class SearchPipe:
         #### Taxonomic assignment
         reuse_diamond_taxonomy = False
         if assign_taxonomy:
-            if diamond_package_assignment and (
-                singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD or 
-                singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD):
-                logging.info("Using DIAMOND taxonomic assignment from prefilter step ..")
-                assignment_result = SingleMPipeDiamondTaxonomicAssignmentResult(
-                    diamond_forward_search_results, diamond_reverse_search_results)
-                reuse_diamond_taxonomy = True
-            else:
-                logging.info("Running taxonomic assignment ..")
-                assignment_result = self._assign_taxonomy(
-                    extracted_reads, graftm_assignment_method, assignment_threads,
-                    diamond_taxonomy_assignment_performance_parameters)
+            logging.info("Running taxonomic assignment ..")
+            assignment_result = self._assign_taxonomy(
+                extracted_reads, graftm_assignment_method, assignment_threads,
+                diamond_taxonomy_assignment_performance_parameters)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
