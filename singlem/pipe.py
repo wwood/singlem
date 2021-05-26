@@ -15,6 +15,8 @@ from Bio import SeqIO
 from io import StringIO
 from extern import ExternCalledProcessError
 
+from memory_profiler import profile
+
 from .metapackage import Metapackage
 from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
 from .otu_table import OtuTable
@@ -83,7 +85,7 @@ class SearchPipe:
             with open(archive_otu_table, 'w') as f:
                 otu_table_object.archive(Metapackage(singlem_packages)).write_to(f)
 
-
+    @profile
     def run_to_otu_table(self, **kwargs):
         '''Run the pipe, '''
         forward_read_files = kwargs.pop('sequences', [])
