@@ -186,15 +186,6 @@ def _filter_sequences_through_hmmsearch(sequences, graftm_package, min_orf_lengt
         if seq.name in seqs_to_extract:
             yield seq
 
-def _grouper_it(n, iterable):
-    it = iter(iterable)
-    while True:
-        chunk_it = itertools.islice(it, n)
-        try:
-            first_el = next(chunk_it)
-        except StopIteration:
-            return
-        yield itertools.chain((first_el,), chunk_it)
 
 def _extract_reads_by_diamond_for_package_and_sample(
     sequences, spkg, sample_name, min_orf_length, include_inserts):
