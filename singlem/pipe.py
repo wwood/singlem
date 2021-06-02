@@ -294,7 +294,7 @@ class SearchPipe:
                 return_cleanly()
                 return OtuTable()
 
-            if input_sra_files:
+            if input_sra_files and not diamond_package_assignment:
                 # DIAMOND was run to get a new all combined file. But we want 2
                 # separate files so that it works easily with the rest of the
                 # pipeline.
@@ -338,6 +338,10 @@ class SearchPipe:
                 logging.info("No reads found")
                 return_cleanly()
                 return OtuTable()
+            if input_sra_files:
+                # If SRA was input, then we need to split up forward and reverse.
+                analysing_pairs, extracted_reads = KingfisherSra().split_extracted_reads(extracted_reads)
+                
         else:
             logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
             extracted_reads = self._find_and_extract_reads_by_hmmsearch(
