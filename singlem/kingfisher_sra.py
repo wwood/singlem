@@ -3,8 +3,12 @@ import os
 import logging
 
 from .sequence_classes import SeqReader
+from .pipe_sequence_extractor import ExtractedReads, ExtractedReadSet
 
 class KingfisherSra:
+    def _split_regex(self):
+        return re.compile('^(.*)\.([012])$')
+
     def split_fasta(self, fasta_path, output_directory):
         '''fasta_path points to a fasta sequence that contains unordered
         sequences with names like "<seq_id>.X" where X is 0, 1 or 2, which
@@ -17,7 +21,7 @@ class KingfisherSra:
         forward_output = None
         reverse_output = None
 
-        regex = re.compile('^(.*)\.([012])$')
+        regex = self._split_regex()
         forward_count = 0
         reverse_count = 0
 
@@ -60,5 +64,89 @@ class KingfisherSra:
             reverse_output.close()
             to_return_reverse =  reverse_output.name
         return (to_return_forward, to_return_reverse)
+
+    def split_extracted_reads(self, extracted_reads):
+        """Given an ExtractedReads object, return a copy of the data that has
+        been split into forward and reverse (if necessary) and sequences have
+        been renamed accordingly.
+        """
+        regex = self._split_regex()
+
+        # Go through the sequences objects from all the samples. If any end in
+        # .2 we are paired.
+        analysing_pairs = False
+        for readset in extracted_reads:
+            for s in readset.sequences:
+                m = regex.match(s.name)
+                if m is None:
+                    raise Exception("Unexpected format for kingfisher SRA readname: {}".format(
+                        s.name
+                    ))
+                elif m[2] == '2':
+                    analysing_pairs = True
+                    break
+            if analysing_pairs:
+                break
+        logging.debug("split_extracted_reads: Found analysing pairs {}".format(analysing_pairs))
+
+        to_return = ExtractedReads(analysing_pairs)
+
+        for readset in extracted_reads:
+            # Go through the unaligned sequences, renaming them and putting them
+            # into the correct thing.
+            new_unknown_sequences_forward = []
+            new_unknown_sequences_reverse = []
+            for u in readset.unknown_sequences:
+                m = regex.match(u.name)
+                if m is None:
+                    raise Exception("Unexpected format for kingfisher SRA readname: {}".format(
+                        u.name
+                    ))
+                u.name = m[1]
+                if analysing_pairs and m[2] == '2':
+                    new_unknown_sequences_reverse.append(u)
+                else:
+                    new_unknown_sequences_forward.append(u)
+
+            # Rename the sequences as well
+            new_sequences_forward = []
+            new_sequences_reverse = []
+            for u in readset.sequences:
+                m = regex.match(u.name)
+                if m is None:
+                    raise Exception("Unexpected format for kingfisher SRA readname: {}".format(
+                        u.name
+                    ))
+                u.name = m[1]
+                if analysing_pairs and m[2] == '2':
+                    new_sequences_reverse.append(u)
+                else:
+                    new_sequences_forward.append(u)
+            
+            if analysing_pairs:
+                to_return.add([
+                    ExtractedReadSet(
+                        readset.sample_name,
+                        readset.singlem_package,
+                        new_sequences_forward,
+                        readset.known_sequences,
+                        new_unknown_sequences_forward),
+                    ExtractedReadSet(
+                        readset.sample_name,
+                        readset.singlem_package,
+                        new_sequences_reverse,
+                        readset.known_sequences,
+                        new_unknown_sequences_reverse)
+                ])
+            else:
+                to_return.add(ExtractedReadSet(
+                    readset.sample_name,
+                    readset.singlem_package,
+                    new_sequences_forward,
+                    readset.known_sequences,
+                    new_unknown_sequences_forward
+                ))
+        
+        return analysing_pairs, to_return
 
 
