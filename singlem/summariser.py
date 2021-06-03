@@ -5,6 +5,7 @@ from collections import OrderedDict
 import logging
 import biom
 import pandas
+import Bio
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
@@ -263,6 +264,68 @@ class Summariser:
         logging.info("Rarefying OTU table to max %i sequences per sample/gene combination and writing to %s" % (number_to_choose, output_table_io.name))
         OtuTable.write_otus_to(Rarefier().rarefy(table_collection, number_to_choose),
                                output_table_io)
+
+    @staticmethod
+    def write_translated_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
+        table_collection = kwargs.pop('table_collection')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        printed_header = False
+        def print_chunk(printed_header, seq_to_otus, output_table_io):
+            if not printed_header:
+                eg_otu = list(seq_to_otus.values())[0][0]
+                output_table_io.write('\t'.join(
+                    eg_otu.fields
+                )+'\n')
+            for (translated, to_collapse) in seq_to_otus.items():
+                total_num_hits = 0
+                total_coverage = 0
+                max_hits = 0
+                max_hits_taxonomy = 'programming error'
+                for otu in to_collapse:
+                    total_num_hits += otu.count
+                    total_coverage += otu.coverage
+                    if otu.count > max_hits:
+                        max_hits_taxonomy = otu.taxonomy
+                output_table_io.write('\t'.join([
+                    otu.marker,
+                    otu.sample_name,
+                    translated,
+                    str(total_num_hits),
+                    str(total_coverage),
+                    max_hits_taxonomy
+                ])+'\n')
+
+        original_count = 0
+        collapsed_count = 0
+        seq_to_otus = {}
+        last_sample_and_marker = None
+        for otu in table_collection:
+            original_count += 1
+
+            if last_sample_and_marker is None:
+                last_sample_and_marker = [otu.sample_name, otu.marker]
+            elif last_sample_and_marker != [otu.sample_name, otu.marker]:
+                collapsed_count += len(seq_to_otus)
+                print_chunk(printed_header, seq_to_otus, output_table_io)
+                if not printed_header:
+                    printed_header = True
+                seq_to_otus = {}
+
+            seq = str(Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(otu.sequence)).translate().seq)
+            if seq in seq_to_otus:
+                seq_to_otus[seq].append(otu)
+            else:
+                seq_to_otus[seq] = [otu]
+
+        collapsed_count += len(seq_to_otus)
+        print_chunk(printed_header, seq_to_otus, output_table_io)
+        logging.info("Printed {} collapsed OTUs from {} original OTUs".format(
+            collapsed_count, original_count
+        ))
+
 
     @staticmethod
     def write_biom_otu_tables(**kwargs):

@@ -8,8 +8,12 @@ import itertools
 import tempfile
 import json
 import re
+import csv
+import subprocess
+
 from Bio import SeqIO
 from io import StringIO
+from extern import ExternCalledProcessError
 
 from .metapackage import Metapackage
 from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
@@ -24,6 +28,7 @@ from .placement_parser import PlacementParser
 from .taxonomy_bihash import TaxonomyBihash
 from .diamond_spkg_searcher import DiamondSpkgSearcher
 from .pipe_sequence_extractor import PipeSequenceExtractor, ExtractedReads
+from .kingfisher_sra import KingfisherSra
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -83,6 +88,7 @@ class SearchPipe:
         '''Run the pipe, '''
         forward_read_files = kwargs.pop('sequences', [])
         reverse_read_files = kwargs.pop('reverse_read_files', None)
+        input_sra_files = kwargs.pop('input_sra_files',None)
         genome_fasta_files = kwargs.pop('genomes', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
@@ -211,7 +217,10 @@ class SearchPipe:
 
         #### Search
         self._singlem_package_database = hmms
-        if analysing_pairs:
+        if input_sra_files is not None:
+            logging.info("Using as input %i different .SRA format sequence files e.g. %s" % (
+                len(input_sra_files), input_sra_files[0]))
+        elif analysing_pairs:
             logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
                 len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
         else:
@@ -219,11 +228,58 @@ class SearchPipe:
                 len(forward_read_files), forward_read_files[0]))
 
         if diamond_prefilter:
+            if input_sra_files:
+                # Create a named pipe which is called the same as the .sra file
+                # minus the .sra bit. Then call kingfisher --stdout --unsorted
+                # in the background to dump it towards that named pipe. Then run
+                # the DIAMOND prefilter with that named pipe as input.
+                forward_read_files = []
+                sra_extraction_commands = []
+                sra_extraction_processes = []
+                for sra in input_sra_files:
+                    new_name = os.path.join(
+                        tempfile_directory,
+                        os.path.basename(sra))
+                    logging.debug("Creating FIFO at {}".format(new_name))
+                    os.mkfifo(new_name)
+                    forward_read_files.append(new_name)
+                    
+                    # kingfisher extract --unsorted --stdout -r
+                    cmd = "vdb-dump -f fasta {} >{}".format(
+                        os.path.abspath(sra), new_name)
+                    logging.debug("Running kingfisher extraction command: {}".format(cmd))
+                    sra_extraction_commands.append(cmd)
+
+                    sra_extraction_process = subprocess.Popen(
+                        ['bash','-c',cmd],
+                        stdout=None,
+                        stderr=subprocess.PIPE,
+                        universal_newlines=True)
+                    sra_extraction_processes.append(sra_extraction_process)
+
+            def finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands):
+                for p, cmd in zip(sra_extraction_processes,sra_extraction_commands):
+                    p.wait()
+                    if p.returncode != 0:
+                        raise Exception("Command %s returned non-zero exit status %i.\n"\
+                            "STDERR was: %s" % (
+                                cmd, p.returncode, p.stderr.read()))
+
             logging.info("Filtering sequence files through DIAMOND blastx")
-            (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
-                self._num_threads, self._working_directory).run_diamond(
-                hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                diamond_prefilter_db)
+            try:
+                (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
+                    self._num_threads, self._working_directory).run_diamond(
+                    hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
+                    diamond_prefilter_db)
+            except extern.ExternCalledProcessError as e:
+                logging.error("Process (DIAMOND?) failed")
+                if input_sra_files:
+                    finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
+                raise e
+
+            if input_sra_files:
+                finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
+
             found_a_hit = False
             if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                 found_a_hit = True
@@ -237,6 +293,30 @@ class SearchPipe:
                 logging.info("No reads identified in any samples, stopping")
                 return_cleanly()
                 return OtuTable()
+
+            if input_sra_files and not diamond_package_assignment:
+                # DIAMOND was run to get a new all combined file. But we want 2
+                # separate files so that it works easily with the rest of the
+                # pipeline.
+                logging.info("Splitting potentially paired reads into separate files ..")
+                analysing_pairs = False
+                possible_reverse_read_files = []
+                split_fasta_directory = os.path.join(working_directory, 'sra_splits')
+                os.mkdir(split_fasta_directory)
+                for fasta in forward_read_files:
+                    output_directory = os.path.join(split_fasta_directory, os.path.basename(fasta))
+                    os.mkdir(output_directory)
+                    (fwd, rev) = KingfisherSra().split_fasta(
+                        fasta,
+                        output_directory)
+                    if rev == None:
+                        possible_reverse_read_files.append(None)
+                    else:
+                        possible_reverse_read_files.append(rev)
+                        analysing_pairs = True
+                if analysing_pairs:
+                    reverse_read_files = possible_reverse_read_files
+                logging.info("Finished splitting potentially paired reads")
 
         ### Extract reads that have already known taxonomy
         if known_otu_tables:
@@ -258,6 +338,10 @@ class SearchPipe:
                 logging.info("No reads found")
                 return_cleanly()
                 return OtuTable()
+            if input_sra_files:
+                # If SRA was input, then we need to split up forward and reverse.
+                analysing_pairs, extracted_reads = KingfisherSra().split_extracted_reads(extracted_reads)
+                
         else:
             logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
             extracted_reads = self._find_and_extract_reads_by_hmmsearch(
@@ -270,18 +354,10 @@ class SearchPipe:
         #### Taxonomic assignment
         reuse_diamond_taxonomy = False
         if assign_taxonomy:
-            if diamond_package_assignment and (
-                singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD or 
-                singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD):
-                logging.info("Using DIAMOND taxonomic assignment from prefilter step ..")
-                assignment_result = SingleMPipeDiamondTaxonomicAssignmentResult(
-                    diamond_forward_search_results, diamond_reverse_search_results)
-                reuse_diamond_taxonomy = True
-            else:
-                logging.info("Running taxonomic assignment with GraftM ..")
-                assignment_result = self._assign_taxonomy(
-                    extracted_reads, graftm_assignment_method, assignment_threads,
-                    diamond_taxonomy_assignment_performance_parameters)
+            logging.info("Running taxonomic assignment ..")
+            assignment_result = self._assign_taxonomy(
+                extracted_reads, graftm_assignment_method, assignment_threads,
+                diamond_taxonomy_assignment_performance_parameters)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -470,67 +546,53 @@ class SearchPipe:
                             taxonomies = process_taxonomy(readset, assignment_result, None)
 
                     elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                        best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                         if analysing_pairs:
-                            taxonomy1 = DiamondResultParser(
-                                assignment_result.forward_diamond_assignment_file(
-                                    sample_name, singlem_package, readset[0].tmpfile_basename))
-                            taxonomy2 = DiamondResultParser(
-                                assignment_result.reverse_diamond_assignment_file(
-                                    sample_name, singlem_package, readset[1].tmpfile_basename))
-                            taxonomies = taxonomy2
-                            taxonomies.sequence_to_hit_id.update(
-                                taxonomy1.sequence_to_hit_id)
+                            taxonomies = {}
+                            for (name, best_hits) in best_hit_hash[1].items():
+                                taxonomies[name] = best_hits[0]
+                            for (name, best_hits) in best_hit_hash[0].items():
+                                # Overwrite reverse hit with the forward hit
+                                taxonomies[name] = best_hits[0]
                         else:
-                            tax_file = assignment_result.diamond_assignment_file(
-                                sample_name, singlem_package, readset.tmpfile_basename)
-                            taxonomies = DiamondResultParser(tax_file)
+                            # Take the first hit from all recorded hits. This
+                            # could be streamlined so that only a single hit is
+                            # recorded for each sequence, but meh, that would
+                            # complicate the code somewhat.
+                            taxonomies = {}
+                            for (name, best_hits) in best_hit_hash.items():
+                                taxonomies[name] = best_hits[0]
 
                     elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-                        def process_taxonomy_file(taxonomy_file_path, is_forward):
-                            if not os.path.isfile(taxonomy_file_path):
-                                if is_forward is None:
-                                    to_add = ''
-                                elif is_forward == True:
-                                    to_add = ' (forward)'
-                                elif is_forward == False:
-                                    to_add = ' (reverse)'
-                                logging.warn(
-                                    "Unable to find tax file for gene {} from sample {}{} "
-                                    "(likely do to min length filtering), skipping".format(
-                                        os.path.basename(singlem_package.base_directory()),
-                                        sample_name,
-                                        to_add))
-                                return None
+                        best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
+                        # Convert best hit IDs to taxonomies
+                        tax_hash = assignment_result.taxonomy_hash(singlem_package)
+
+                        def lca_taxonomy(tax_hash, hits):
+                            lca = []
+                            hit_taxonomies = list([tax_hash[h] for h in hits])
+                            for (i, taxon) in enumerate(hit_taxonomies[0]):
+                                if all([len(h) > i and h[i]==taxon for h in hit_taxonomies]):
+                                    lca.append(taxon)
+                                else:
+                                    break
+                            if lca == []:
+                                return 'Root'
                             else:
-                                return TaxonomyFile(taxonomy_file_path)
+                                return 'Root; '+';'.join(lca)
 
                         if analysing_pairs:
-                            taxonomy1 = process_taxonomy_file(
-                                assignment_result.forward_read_tax_file(
-                                    sample_name, singlem_package, readset[0].tmpfile_basename),
-                                True)
-                            taxonomy2 = process_taxonomy_file(
-                                assignment_result.reverse_read_tax_file(
-                                    sample_name, singlem_package, readset[1].tmpfile_basename),
-                                False)
-                            if taxonomy1 is None:
-                                if taxonomy2 is None:
-                                    taxonomies = {}
-                                else:
-                                    taxonomies = taxonomy2
-                            elif taxonomy2 is None:
-                                taxonomies = taxonomy1
-                            else:
-                                taxonomies = taxonomy1
-                                taxonomies.merge(taxonomy2)
-
+                            taxonomies = {}
+                            for (name, hit_ids) in best_hit_hash[1].items():
+                                # Add 'Root; ' here to be consistent with GraftM (and pplacer)
+                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
+                            # Prefer forward hit taxonomies
+                            for (name, hit_ids) in best_hit_hash[0].items():
+                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
                         else:
-                            taxonomies = process_taxonomy_file(
-                                assignment_result.read_tax_file(
-                                    sample_name, singlem_package, readset.tmpfile_basename),
-                                None)
-                            if taxonomies is None:
-                                taxonomies = {}
+                            taxonomies = {}
+                            for (name, hit_ids) in best_hit_hash.items():
+                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         bihash_key = singlem_package.base_directory()
@@ -571,6 +633,8 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
+
+
 
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
@@ -650,18 +714,19 @@ class SearchPipe:
         seq_to_collected_info = {}
         for s in sequences:
             if s.aligned_sequence in otu_sequence_assigned_taxonomies or \
-               per_read_taxonomies is None:
-                tax = None
+                per_read_taxonomies is None:
+                    tax = None
             else:
                 try:
                     tax = per_read_taxonomies[s.name]
                 except KeyError:
+                    tax = ''
                     if assignment_method != NO_ASSIGNMENT_METHOD and \
                        assignment_method != PPLACER_ASSIGNMENT_METHOD:
                         # happens sometimes when HMMER picks up something where
                         # diamond does not, or when --no_assign_taxonomy is specified.
                         logging.debug("Did not find any taxonomy information for %s" % s.name)
-                        tax = ''
+                        tax = 'Root'
 
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
@@ -670,7 +735,8 @@ class SearchPipe:
                 seq_to_collected_info[s.aligned_sequence] = collected_info
 
             collected_info.count += 1
-            if per_read_taxonomies: collected_info.taxonomies.append(tax)
+            if per_read_taxonomies is not None:
+                collected_info.taxonomies.append(tax)
             collected_info.names.append(s.name)
             collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
@@ -942,11 +1008,15 @@ class SearchPipe:
         # fewer open files are needed, so that the open file count limit is
         # eased.
         seqio = SequenceIO()
+        diamond_results = []
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
                 if extracted_reads.analysing_pairs:
                     if len(readset[0].sequences + readset[1].sequences) > 0:
+                        forward_tmp = generate_tempfile_for_readset(readset[0])
+                        reverse_tmp = generate_tempfile_for_readset(readset[1])
+
                         # Some pairs will only have one side of the pair
                         # aligned, some pairs both. Fill in the forward and
                         # reverse files with dummy data as necessary
@@ -955,8 +1025,8 @@ class SearchPipe:
                         # >min_orf_length bases because otherwise if there are
                         # >no sequences, hmmsearch inside graftm croaks.
                         dummy_sequence = 'ATG'+''.join(['A']*self._min_orf_length)
-                        forward_tmp = generate_tempfile_for_readset(readset[0])
-                        reverse_tmp = generate_tempfile_for_readset(readset[1])
+                        reverse_tmp.write(">dummy\n{}\n".format(dummy_sequence))
+                        forward_tmp.write(">dummy\n{}\n".format(dummy_sequence))
 
                         forward_seq_names = {}
                         for (i, s) in enumerate(readset[0].sequences):
@@ -971,75 +1041,153 @@ class SearchPipe:
                                 # from dict.
                                 seqio.write_fasta(
                                     [reverse_name_to_seq.pop(name)], reverse_tmp)
-                            else:
-                                # Forward read matched only
-                                reverse_tmp.write(">{}\n{}\n".format(
-                                    name, dummy_sequence))
                         for name, seq in reverse_name_to_seq.items():
                             # Reverse read matched only
-                            forward_tmp.write(">{}\n{}\n".format(
-                                name, dummy_sequence))
                             seqio.write_fasta([seq], reverse_tmp)
+
+                        # Write dummy seqs_list
 
                         # Close immediately to avoid the "too many open files" error.
                         forward_tmp.close()
                         reverse_tmp.close()
-                        tmp_files.append([forward_tmp, reverse_tmp])
+                        tmp_files.append([readset[0].sample_name, forward_tmp, reverse_tmp])
                 else:
                     if len(readset.sequences) > 0:
                         tmp = generate_tempfile_for_readset(readset)
                         seqio.write_fasta(readset.sequences, tmp)
-                        tmp_files.append(tmp)
+                        tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
 
             if len(tmp_files) > 0:
-                cmd = "%s "\
-                      "--threads %i "\
-                      "--graftm_package %s "\
-                      "--max_samples_for_krona 0 "\
-                      "--assignment_method %s " % (
-                          self._graftm_command_prefix(singlem_package.is_protein_package()),
-                          self._num_threads,
-                          singlem_package.graftm_package_path(),
-                          assignment_method)
-                if assignment_method == 'diamond' and diamond_taxonomy_assignment_performance_parameters != '':
-                    cmd += " --diamond_performance_parameters '{}' ".format(
-                        diamond_taxonomy_assignment_performance_parameters)
-                if extracted_reads.analysing_pairs:
-                    if assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                    def run_diamond_to_hash(cmd_stub, query, singlem_package):
+                        # Running DIAMOND from here uses too much RAM when there
+                        # are very many sequences to assign taxonomy to (>4000?)
+                        # when RAM is limited as it is in the cloud. So only
+                        # write a limited number of query sequences at a time,
+                        # chunking through.
+
+                        # Run diamond runs per chunk, collecting best hits
+                        best_hits = {}
+                        best_hit_bitscores = {}
+
+                        def run_diamond_chunk(query_file_path):
+                            with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
+                                cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
+                                    query_file_path, singlem_package.graftm_package().diamond_database_path(), diamond_out.name
+                                )
+                                logging.debug("Running taxonomic assignment command: {}".format(cmd2))
+                                # Run with an output file instead of streaming
+                                # stdout as a potential fix for large runs
+                                # (40Gbp+) e.g. SRR11833493 failing on
+                                # GCP/Terra. That wasn't enough to stop the
+                                # error though.
+                                extern.run(cmd2)
+
+                                with open(diamond_out.name) as d:
+                                    for row in csv.reader(d, delimiter='\t'):
+                                        if len(row) != 3:
+                                            raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
+                                        query = row[0]
+                                        subject = row[1]
+                                        bitscore = float(row[2])
+                                        if query in best_hit_bitscores: # If already a hit recorded for this sequence
+                                            if bitscore > best_hit_bitscores[query]:
+                                                raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
+                                            elif bitscore == best_hit_bitscores[query]:
+                                                best_hits[query].append(subject)
+                                            else:
+                                                # Close but no cigar for this hit, not exactly the same bitscore
+                                                pass
+                                        else:
+                                            best_hits[query] = [subject]
+                                            best_hit_bitscores[query] = bitscore
+
+                        with open(query) as query_in:
+                            current_chunk_count = 0
+                            current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk')
+                            for (name, seq, _) in SeqReader().readfq(query_in):
+                                current_chunk_count += 1
+                                current_chunk_sequences_fh.write(">{}\n{}\n".format(name, seq).encode())
+                                # If we at the limit, run diamond and collect
+                                if current_chunk_count == 1000:
+                                    current_chunk_sequences_fh.flush()
+                                    run_diamond_chunk(current_chunk_sequences_fh.name)
+                                    current_chunk_sequences_fh.close()
+                                    current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk')
+                                    current_chunk_count = 0
+                            if current_chunk_count > 0:
+                                current_chunk_sequences_fh.flush()
+                                run_diamond_chunk(current_chunk_sequences_fh.name)
+                            current_chunk_sequences_fh.close()
+                                
+                            return best_hits
+
+                    cmd_stub = "diamond blastx " \
+                        "--outfmt 6 qseqid sseqid bitscore " \
+                        "--top 1 " \
+                        "--evalue 0.01 " \
+                        "--threads %i " \
+                        "%s " % (
+                            self._num_threads,
+                            diamond_taxonomy_assignment_performance_parameters)
+                    # Run serially for the moment, coz lazy
+                    if extracted_reads.analysing_pairs:
+                        forward_results = []
+                        reverse_results = []
+                        sample_names = []
+                        for (sample_name, t0, t1) in tmp_files:
+                            sample_names.append(sample_name)
+                            forward_results.append(run_diamond_to_hash(cmd_stub, t0.name, singlem_package))
+                            reverse_results.append(run_diamond_to_hash(cmd_stub, t1.name, singlem_package))
+                        diamond_results.append([singlem_package,sample_names,[forward_results,reverse_results]])
+                    else:
+                        single_results = []
+                        sample_names = []
+                        for (sample_name, t) in tmp_files:
+                            sample_names.append(sample_name)
+                            single_results.append(run_diamond_to_hash(cmd_stub, t.name, singlem_package))
+                        diamond_results.append([singlem_package,sample_names,single_results])
+
+                elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                    cmd = "%s "\
+                        "--threads %i "\
+                        "--graftm_package %s "\
+                        "--max_samples_for_krona 0 "\
+                        "--assignment_method %s " % (
+                            self._graftm_command_prefix(singlem_package.is_protein_package()),
+                            self._num_threads,
+                            singlem_package.graftm_package_path(),
+                            assignment_method)
+                    if extracted_reads.analysing_pairs:
                         cmd += "--output_directory {}/{} ".format(
                             graftm_align_directory_base,
                             singlem_package.graftm_package_basename())
                         cmd += " --forward {} --reverse {}".format(
-                            ' '.join(t[0].name for t in tmp_files),
-                            ' '.join(t[1].name for t in tmp_files))
+                            ' '.join(t0.name for (_, t0, t1) in tmp_files),
+                            ' '.join(t1.name for (_, t0, t1) in tmp_files))
                         commands.append(cmd)
-                    elif assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-                        # GraftM ignores reverse reads with diamond assignment
-                        # method, so run forward and reverse individually.
-                        cmd1 = cmd + "--forward {} --output_directory {}".format(
-                            ' '.join(t[0].name for t in tmp_files),
-                            self._diamond_assign_taxonomy_paired_output_directory(
-                                graftm_align_directory_base, singlem_package, True))
-                        cmd2 = cmd + "--forward {} --output_directory {}".format(
-                            ' '.join(t[1].name for t in tmp_files),
-                            self._diamond_assign_taxonomy_paired_output_directory(
-                                graftm_align_directory_base, singlem_package, False))
-                        commands.append(cmd1)
-                        commands.append(cmd2)
+                    else:
+                        cmd += "--output_directory {}/{} ".format(
+                            graftm_align_directory_base,
+                            singlem_package.graftm_package_basename())
+                        tmpnames = list([tg.name for (_, tg) in tmp_files])
+                        cmd += " --forward {} ".format(
+                            ' '.join(tmpnames))
+                        commands.append(cmd)
+
                 else:
-                    cmd += "--output_directory {}/{} ".format(
-                        graftm_align_directory_base,
-                        singlem_package.graftm_package_basename())
-                    tmpnames = list([tg.name for tg in tmp_files])
-                    cmd += " --forward {} ".format(
-                        ' '.join(tmpnames))
-                    commands.append(cmd)
+                    raise Exception("Programming error")
 
         extern.run_many(commands, num_threads=assignment_threads)
-        logging.info("Finished running taxonomic assignment with GraftM")
-        return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
+        logging.info("Finished running taxonomic assignment")
+        if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+            return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
+        elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
+            return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
+        else:
+            raise Exception("Programming error")
 
     def _diamond_assign_taxonomy_paired_output_directory(
             self, graftm_align_directory_base, singlem_package, is_forward):
@@ -1259,29 +1407,23 @@ class SingleMPipeTaxonomicAssignmentResult:
         return os.path.join(self._base_dir(sample_name, singlem_package, tmpbase),
                             'placements.jplace')
 
-class SingleMPipeDiamondTaxonomicAssignmentResult:
-    def __init__(self, diamond_forward_search_results, diamond_reverse_search_results):
+class DiamondTaxonomicAssignmentResult:
+    def __init__(self, best_hit_results, analysing_pairs):
         self._singlem_package_taxonomy_hashes = {}
-        if diamond_reverse_search_results is None:
-            self._sample_name_to_diamond_result = {}
-            for res in diamond_forward_search_results:
-                self._sample_name_to_diamond_result[res.sample_name()] = res
-        else:
-            self._sample_name_to_diamond_result_forward = {}
-            for res in diamond_forward_search_results:
-                self._sample_name_to_diamond_result_forward[res.sample_name()] = res
-            self._sample_name_to_diamond_result_reverse = {}
-            for res in diamond_reverse_search_results:
-                self._sample_name_to_diamond_result_reverse[res.sample_name()] = res
+        self._package_to_sample_to_best_hits = {}
+        for (singlem_package, sample_names, best_hits) in best_hit_results:
+            pkg = singlem_package.base_directory()
+            if pkg not in self._package_to_sample_to_best_hits:
+                self._package_to_sample_to_best_hits[pkg] = {}
+            if analysing_pairs:
+                for (sample_name, bests0, bests1) in zip(sample_names, best_hits[0], best_hits[1]):
+                    self._package_to_sample_to_best_hits[pkg][sample_name] = [bests0, bests1]
+            else:
+                for (sample_name, bests) in zip(sample_names, best_hits):
+                    self._package_to_sample_to_best_hits[pkg][sample_name] = bests
 
-    def diamond_result_for_unpaired_sample(self, sample_name):
-        return self._sample_name_to_diamond_result[sample_name]
-
-    def diamond_result_for_paired_sample_forward(self, sample_name):
-        return self._sample_name_to_diamond_result_forward[sample_name]
-
-    def diamond_result_for_paired_sample_reverse(self, sample_name):
-        return self._sample_name_to_diamond_result_reverse[sample_name]
+    def get_best_hits(self, singlem_package, sample_name):
+        return self._package_to_sample_to_best_hits[singlem_package.base_directory()][sample_name]
 
     def taxonomy_hash(self, singlem_package):
         '''Acts as a cache so taxonomies are not read in multiple times'''
@@ -1292,3 +1434,4 @@ class SingleMPipeDiamondTaxonomicAssignmentResult:
             tax = singlem_package.graftm_package().taxonomy_hash()
             self._singlem_package_taxonomy_hashes[key] = tax
             return tax
+
