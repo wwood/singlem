@@ -1,6 +1,7 @@
 import logging
 import re
 from collections import OrderedDict
+import gzip
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table import OtuTable
@@ -149,8 +150,11 @@ class OtuTableCollection:
         for otu in self:
             if otu.marker not in package_to_targets:
                 raise Exception("No SingleM package named '{}' was provided".format(otu.marker))
+            if otu.taxonomy == '':
+                logging.warn("Row {} contained no taxonomy, excluding it".format(otu))
+                continue
             if not otu.taxonomy.startswith('Root'):
-                raise Exception("Unexpected taxonomy string encountered: {}".format(tax))
+                raise Exception("Unexpected taxonomy string encountered: '{}'".format(otu.taxonomy))
             tax = otu.taxonomy.split('; ')
             targets = package_to_targets[otu.marker]
             if tax == ['Root']:
@@ -169,6 +173,7 @@ class StreamingOtuTableCollection:
         self._archive_table_io_objects = []
         self._otu_table_file_paths = []
         self._archive_table_file_paths = []
+        self._gzip_archive_table_file_paths = []
 
     def add_otu_table(self, input_otu_table_io):
         '''Add a regular style OTU table to the collection.
@@ -193,6 +198,9 @@ class StreamingOtuTableCollection:
     def add_archive_otu_table_file(self, file_path):
         self._archive_table_file_paths.append(file_path)
 
+    def add_gzip_archive_otu_table_file(self, file_path):
+        self._gzip_archive_table_file_paths.append(file_path)
+
     def __iter__(self):
         '''Iterate over all the OTUs from all the tables. This can only be done once
         since the data is streamed in.
@@ -208,4 +216,7 @@ class StreamingOtuTableCollection:
                 yield otu
         for file_path in self._otu_table_file_paths:
             for otu in OtuTable.each(open(file_path)):
+                yield otu
+        for io in self._gzip_archive_table_file_paths:
+            for otu in ArchiveOtuTable.read(gzip.open(io)):
                 yield otu

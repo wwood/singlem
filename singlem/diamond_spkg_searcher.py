@@ -87,8 +87,11 @@ class DiamondSpkgSearcher:
                       diamond_database,
                       fasta_path)
 
-            # Run via os.system rather than normal extern so reads can be piped in to singlem.
-            qseqid_sseqid = run_via_os_system(cmd)
+            # Originially, we ran here via os.system rather than normal extern
+            # so reads can be piped in to singlem. However, this meant that
+            # errors and failed commands were ignored, sometimes causing
+            # successful return of singlem but an empty OTU table.
+            qseqid_sseqid = extern.run(cmd)
             best_hits = {}
             for line in qseqid_sseqid.splitlines():
                 try:

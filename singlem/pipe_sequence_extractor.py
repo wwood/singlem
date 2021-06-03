@@ -4,10 +4,16 @@ import extern
 from Bio import SeqIO
 from io import StringIO
 import multiprocessing
+import itertools
+import tempfile
+
+from graftm.hmmsearcher import HmmSearcher
 
 from .sequence_classes import SeqReader, AlignedProteinSequence, Sequence
 from .metagenome_otu_finder import MetagenomeOtuFinder
 from . import sequence_extractor as singlem_sequence_extractor
+from .streaming_hmm_search_result import StreamingHMMSearchResult
+from .singlem import OrfMUtils
 
 # Must be defined outside a class so that it is pickle-able, so multiprocessing can work
 def _run_individual_extraction(sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy):
@@ -147,6 +153,40 @@ def _align_proteins_to_hmm(protein_sequences, hmm_file):
         logging.debug("No aligned sequences found for this HMM")
     return protein_alignment
 
+
+def _filter_sequences_through_hmmsearch(sequences, graftm_package, min_orf_length):
+    """Return a generator of Sequence objects that match one or more of the
+    search HMMs in the graftm_package."""
+
+    # Can re-use HmmSearcher, useful for when there is >1 search HMM
+    searcher = HmmSearcher(len(graftm_package.search_hmm_paths()), '--domE 1e-5')
+
+    output_tempfiles = list([
+        tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch') for _ in graftm_package.search_hmm_paths()
+    ])
+    with tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch_input') as input_tf:
+        for seq in sequences:
+            input_tf.write(">{}\n{}\n".format(seq.name, seq.seq).encode())
+        input_tf.flush()
+
+        # With some hoop jumping it should be possible to stream this, but eh
+        # for now.
+        searcher.hmmsearch(
+            'orfm -m {} {}'.format(min_orf_length, input_tf.name),
+            graftm_package.search_hmm_paths(),
+            list([tf.name for tf in output_tempfiles]))
+
+    # Stream reading of the hmmout file. Only need the query ID?
+    seqs_to_extract = set()
+    for output_tempfile in output_tempfiles:
+        for orfm_seq_id in StreamingHMMSearchResult.yield_from_hmmsearch_table(output_tempfile.name):
+            seqs_to_extract.add(OrfMUtils().un_orfm_name(orfm_seq_id))
+
+    for seq in sequences:
+        if seq.name in seqs_to_extract:
+            yield seq
+
+
 def _extract_reads_by_diamond_for_package_and_sample(
     sequences, spkg, sample_name, min_orf_length, include_inserts):
 
@@ -157,6 +197,14 @@ def _extract_reads_by_diamond_for_package_and_sample(
             sample_name, spkg,
             sequences, [], []
         )
+
+    # Sequences have to be run through hmmsearch, because sometimes DIAMOND
+    # returns some less than good quality hits, and taking those hits directly
+    # to hmmalign causes odd sequences to be counted in.
+    sequences = list(_filter_sequences_through_hmmsearch(
+        sequences,
+        spkg.graftm_package(),
+        min_orf_length))
 
     # Run orfm |hmmalign
     #
@@ -205,7 +253,7 @@ def _extract_reads_by_diamond_for_package_and_sample(
             include_inserts,
             spkg.is_protein_package(), # Always true
             best_position=spkg.singlem_position()))
-        
+
     logging.debug("Found {} window seuqences for spkg {}".format(len(window_seqs),spkg.base_directory()))
     return ExtractedReadSet(
         sample_name, spkg,
@@ -248,11 +296,11 @@ class PipeSequenceExtractor:
         return extracted_reads
 
     def extract_relevant_reads_from_diamond_prefilter(self,
-        num_threads, singlem_package_database, 
-        diamond_forward_search_results, diamond_reverse_search_results, 
+        num_threads, singlem_package_database,
+        diamond_forward_search_results, diamond_reverse_search_results,
         analysing_pairs, include_inserts, min_orf_length):
         '''Return an ExtractedReads object built by running hmmalign on
-        sequences, aligning to each HMM only sequences that 
+        sequences, aligning to each HMM only sequences that
         have a best hit to sequences from that singlem package
 
         Returns
@@ -296,7 +344,7 @@ class PipeSequenceExtractor:
                     extracted_reads.add(fwd.get())
         pool.close()
         pool.join()
-        
+
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
@@ -320,7 +368,7 @@ class PipeSequenceExtractor:
                 except KeyError:
                     spkg_to_sequences[spkg_key] = [Sequence(qseqid,seq)]
                     spkg_key_to_spkg[spkg_key] = spkg
-        
+
         # Align each read via hmmsearch and pick windowed sequences
         extraction_of_read_set_processes = []
         for spkg in singlem_package_database:
