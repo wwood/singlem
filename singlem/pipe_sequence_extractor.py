@@ -157,6 +157,8 @@ def _align_proteins_to_hmm(protein_sequences, hmm_file):
 def _filter_sequences_through_hmmsearch(sequences, graftm_package, min_orf_length):
     """Return a generator of Sequence objects that match one or more of the
     search HMMs in the graftm_package."""
+    #if len(sequences) > 0:
+    logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(len(sequences), sequences[0].name))
 
     # Can re-use HmmSearcher, useful for when there is >1 search HMM
     searcher = HmmSearcher(len(graftm_package.search_hmm_paths()), '--domE 1e-5')
