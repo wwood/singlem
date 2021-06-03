@@ -1,3 +1,7 @@
+if __name__ == '__main__':
+    import os, sys
+    sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
+
 from singlem.singlem import FastaNameToSampleName
 import tempdir
 import logging
@@ -17,20 +21,20 @@ from extern import ExternCalledProcessError
 
 from memory_profiler import profile
 
-from .metapackage import Metapackage
-from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
-from .otu_table import OtuTable
-from .known_otu_table import KnownOtuTable
-from .metagenome_otu_finder import MetagenomeOtuFinder
-from .sequence_classes import SeqReader, AlignedProteinSequence
-from .diamond_parser import DiamondResultParser
-from .graftm_result import GraftMResult
-from . import sequence_extractor as singlem_sequence_extractor
-from .placement_parser import PlacementParser
-from .taxonomy_bihash import TaxonomyBihash
-from .diamond_spkg_searcher import DiamondSpkgSearcher
-from .pipe_sequence_extractor import PipeSequenceExtractor, ExtractedReads
-from .kingfisher_sra import KingfisherSra
+from singlem.metapackage import Metapackage
+from singlem.singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
+from singlem.otu_table import OtuTable
+from singlem.known_otu_table import KnownOtuTable
+from singlem.metagenome_otu_finder import MetagenomeOtuFinder
+from singlem.sequence_classes import SeqReader, AlignedProteinSequence
+from singlem.diamond_parser import DiamondResultParser
+from singlem.graftm_result import GraftMResult
+import singlem.sequence_extractor as singlem_sequence_extractor
+from singlem.placement_parser import PlacementParser
+from singlem.taxonomy_bihash import TaxonomyBihash
+from singlem.diamond_spkg_searcher import DiamondSpkgSearcher
+from singlem.pipe_sequence_extractor import PipeSequenceExtractor, ExtractedReads
+from singlem.kingfisher_sra import KingfisherSra
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -413,7 +417,7 @@ class SearchPipe:
 
         return extracted_reads
 
-
+    @profile
     def _process_taxonomically_assigned_reads(
             self,
             # inputs
@@ -1390,3 +1394,121 @@ class DiamondTaxonomicAssignmentResult:
 
     def get_best_hits(self, singlem_package, sample_name):
         return self._package_to_sample_to_best_hits[singlem_package.base_directory()][sample_name]
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+    SearchPipe().run(
+        **{
+        'sequences': None,
+        'reverse_read_files': None,
+        'genomes': None,
+        'input_sra_files': ['/home/woodcrob/s/59_large_run_fix3/ERR2092774.sra'],
+        'otu_table': None,
+        'archive_otu_table': '/home/woodcrob/s/59_large_run_fix3/ERR2092774.sra-mprof.json',
+        'threads': 1,
+        'known_otu_tables': None,
+        'assignment_method': 'diamond',
+        'assignment_threads': 1,
+        'output_jplace': None,
+        'evalue': None,
+        'min_orf_length': 72,
+        'restrict_read_length': None,
+        'filter_minimum_protein': 28,
+        'filter_minimum_nucleotide': 95,
+        'output_extras': False,
+        'include_inserts': False,
+        'working_directory': None,
+        'working_directory_tmpdir': True,
+        'force': False,
+        'singlem_packages': ['/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.1.ribosomal_protein_L2_rplB.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.2.ribosomal_protein_L3_rplC.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.3.ribosomal_protein_L5_rplE.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.4.ribosomal_protein_L6_rplF.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.5.ribosomal_protein_L11_rplK.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.6.ribosomal_protein_L14b_L23e_rplN.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.7.ribosomal_protein_L16_L10E_rplP.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.8.ribosomal_protein_S2_rpsB.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.9.ribosomal_protein_S5.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.10.ribosomal_protein_S7.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.11.ribosomal_protein_S10_rpsJ.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.12.ribosomal_protein_S12_S23.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.13.ribosomal_protein_S15P_S13e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.14.ribosomal_protein_S19_rpsS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.15.hisS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.16.pheS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.17.PyrG.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.18.ribosomal_L1.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.19.ribosomal_S9.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.20.alaS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.21.argS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.22.DnaA.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.23.L11_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.24.L3_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.25.leuS_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.26.NusA.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.27.nusB.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.28.pheT_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.29.recR.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.30.RNA_pol_A_bac.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.31.rplA_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.32.rplB_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.33.rplD_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.34.rplO_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.35.rplT_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.36.rplV_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.37.rpoA.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.38.rpsB_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.39.rpsC_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.40.rpsD_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.41.rpsE_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.42.ruvA.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.43.serS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.44.TIGR00006.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.45.TIGR00042.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.46.trmD.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.47.TruB.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.48.tsf.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.49.uS11_bact.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.50.uvrb.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.51.arCOG04150.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.52.dph5.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.53.EIF_2_alpha.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.54.eIF_5A.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.55.eS8.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.56.Fibrillarin.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.57.ftsY.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.58.gatD_arch.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.59.glyS_dimeric.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.60.ileS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.61.KOW_elon_Spt5.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.62.Nop.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.63.recomb_radA.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.64.ribosomal_L15e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.65.ribosomal_L19e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.66.ribosomal_L21e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.67.ribosomal_L31e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.68.ribosomal_L32e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.69.ribosomal_S19e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.70.ribosomal_S24e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.71.ribosomal_S28e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.72.ribosomal_S4e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.73.ribosomal_S6e.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.74.RNA_SBDS.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.75.SRP_SPB.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.76.top6b.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.77.uL16_euk_arch.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.78.uL22_arch_euk.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.79.uS10_euk_arch.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.80.uS19_arch.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.81.uS2_euk_arch.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.82.uS4_arch.gpkg.spkg',
+        '/home/woodcrob/git/singlem/db/2.0-attempt4-chainsaw-keep-tree.trim5.chainsaw/S2.83.uS7_euk_arch.gpkg.spkg'],
+        'assign_taxonomy': True,
+        'known_sequence_taxonomy': None,
+        'diamond_prefilter': True,
+        'diamond_prefilter_performance_parameters': '--block-size 0.5 --target-indexed -c1 --min-orf 24',
+        'diamond_package_assignment': True,
+        'diamond_prefilter_db': '/home/woodcrob/git/singlem/db/53_db2.0-attempt4.0.60.faa.dmnd',
+        'diamond_taxonomy_assignment_performance_parameters': '--block-size 0.5 --target-indexed -c1'}
+    )
