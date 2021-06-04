@@ -334,6 +334,8 @@ class SearchPipe:
                 self._num_threads, hmms,
                 diamond_forward_search_results, diamond_reverse_search_results, 
                 analysing_pairs, include_inserts, min_orf_length)
+            del diamond_forward_search_results
+            del diamond_reverse_search_results
             if extracted_reads.empty():
                 logging.info("No reads found")
                 return_cleanly()
