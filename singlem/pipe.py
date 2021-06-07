@@ -350,6 +350,7 @@ class SearchPipe:
                 return OtuTable()
 
         #### Taxonomic assignment
+        reuse_diamond_taxonomy = False
         if assign_taxonomy:
             logging.info("Running taxonomic assignment ..")
             assignment_result = self._assign_taxonomy(
@@ -376,6 +377,7 @@ class SearchPipe:
                 known_sequence_taxonomy,
                 assign_taxonomy,
                 singlem_assignment_method,
+                reuse_diamond_taxonomy,
                 assignment_result if assign_taxonomy else None,
                 output_jplace,
                 known_sequence_tax if known_sequence_taxonomy else None,
@@ -421,6 +423,7 @@ class SearchPipe:
             known_sequence_taxonomy,
             assign_taxonomy,
             singlem_assignment_method,
+            reuse_diamond_taxonomy,
             assignment_result,
             output_jplace,
             known_sequence_tax,
@@ -1388,3 +1391,14 @@ class DiamondTaxonomicAssignmentResult:
 
     def get_best_hits(self, singlem_package, sample_name):
         return self._package_to_sample_to_best_hits[singlem_package.base_directory()][sample_name]
+
+    def taxonomy_hash(self, singlem_package):
+        '''Acts as a cache so taxonomies are not read in multiple times'''
+        key = singlem_package.base_directory()
+        if key in self._singlem_package_taxonomy_hashes:
+            return self._singlem_package_taxonomy_hashes[key]
+        else:
+            tax = singlem_package.graftm_package().taxonomy_hash()
+            self._singlem_package_taxonomy_hashes[key] = tax
+            return tax
+
