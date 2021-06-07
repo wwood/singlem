@@ -124,10 +124,6 @@ class SearchPipe:
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
 
         hmms = Metapackage(singlem_packages)
-        if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-            graftm_assignment_method = DIAMOND_ASSIGNMENT_METHOD
-        else:
-            graftm_assignment_method = singlem_assignment_method
 
         if genome_fasta_files and forward_read_files:
             raise Exception("Cannot process reads and genomes in the same run")
@@ -357,7 +353,7 @@ class SearchPipe:
         if assign_taxonomy:
             logging.info("Running taxonomic assignment ..")
             assignment_result = self._assign_taxonomy(
-                extracted_reads, graftm_assignment_method, assignment_threads,
+                extracted_reads, singlem_assignment_method, assignment_threads,
                 diamond_taxonomy_assignment_performance_parameters)
 
         if known_sequence_taxonomy:
@@ -509,59 +505,10 @@ class SearchPipe:
 
                 if assign_taxonomy:
                     # Add usage of prefilter results here
-                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                        best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
-                        if analysing_pairs:
-                            taxonomies = {}
-                            for (name, best_hits) in best_hit_hash[1].items():
-                                taxonomies[name] = best_hits[0]
-                            for (name, best_hits) in best_hit_hash[0].items():
-                                # Overwrite reverse hit with the forward hit
-                                taxonomies[name] = best_hits[0]
-                        else:
-                            # Take the first hit from all recorded hits. This
-                            # could be streamlined so that only a single hit is
-                            # recorded for each sequence, but meh, that would
-                            # complicate the code somewhat.
-                            taxonomies = {}
-                            for (name, best_hits) in best_hit_hash.items():
-                                taxonomies[name] = best_hits[0]
+                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD or \
+                        singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
 
-                    elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-                        best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
-
-                        # Convert best hit IDs to taxonomies. Previously this
-                        # was cached, but it takes ~600MB of RAM for this hash
-                        # across 83 packages, so for the sake of RAM saving we
-                        # don't cache, and so each time a new sample is anlaysed
-                        # it is read in again.
-                        tax_hash = singlem_package.graftm_package().taxonomy_hash()
-
-                        def lca_taxonomy(tax_hash, hits):
-                            lca = []
-                            hit_taxonomies = list([tax_hash[h] for h in hits])
-                            for (i, taxon) in enumerate(hit_taxonomies[0]):
-                                if all([len(h) > i and h[i]==taxon for h in hit_taxonomies]):
-                                    lca.append(taxon)
-                                else:
-                                    break
-                            if lca == []:
-                                return 'Root'
-                            else:
-                                return 'Root; '+';'.join(lca)
-
-                        if analysing_pairs:
-                            taxonomies = {}
-                            for (name, hit_ids) in best_hit_hash[1].items():
-                                # Add 'Root; ' here to be consistent with GraftM (and pplacer)
-                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
-                            # Prefer forward hit taxonomies
-                            for (name, hit_ids) in best_hit_hash[0].items():
-                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
-                        else:
-                            taxonomies = {}
-                            for (name, hit_ids) in best_hit_hash.items():
-                                taxonomies[name] = lca_taxonomy(tax_hash, hit_ids)
+                        taxonomies = assignment_result.get_best_hits(singlem_package, sample_name)
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         bihash_key = singlem_package.base_directory()
@@ -647,6 +594,19 @@ class SearchPipe:
 
         new_infos = process_readset(maybe_paired_readset, analysing_pairs)
         add_info(new_infos, otu_table_object, not assign_taxonomy)
+
+    def lca_taxonomy(self, tax_hash, hits):
+        lca = []
+        hit_taxonomies = list([tax_hash[h] for h in hits])
+        for (i, taxon) in enumerate(hit_taxonomies[0]):
+            if all([len(h) > i and h[i]==taxon for h in hit_taxonomies]):
+                lca.append(taxon)
+            else:
+                break
+        if lca == []:
+            return 'Root'
+        else:
+            return 'Root; '+';'.join(lca)
 
     def _seqs_to_counts_and_taxonomy(self, sequences,
                                      assignment_method,
@@ -1029,7 +989,8 @@ class SearchPipe:
                         tmp.close()
 
             if len(tmp_files) > 0:
-                if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                if assignment_method == DIAMOND_ASSIGNMENT_METHOD or \
+                    assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
                         # Running DIAMOND from here uses too much RAM when there
                         # are very many sequences to assign taxonomy to (>4000?)
@@ -1039,7 +1000,17 @@ class SearchPipe:
 
                         # Run diamond runs per chunk, collecting best hits
                         best_hits = {}
-                        best_hit_bitscores = {}
+
+                        # To save even further RAM, process to an LCA each
+                        # taxonomy of the hits, rather than summarising it later
+                        # on, unless of course we only want an example.
+                        if assignment_method != DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                            # Convert best hit IDs to taxonomies. Previously this
+                            # was cached, but it takes ~600MB of RAM for this hash
+                            # across 83 packages, so for the sake of RAM saving we
+                            # don't cache, and so each time a new sample is analysed
+                            # it is read in again.
+                            tax_hash = singlem_package.graftm_package().taxonomy_hash()
 
                         def run_diamond_chunk(query_file_path):
                             with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
@@ -1054,6 +1025,9 @@ class SearchPipe:
                                 # error though.
                                 extern.run(cmd2)
 
+                                chunk_best_hits = {}
+                                chunk_best_hit_bitscores = {}
+
                                 with open(diamond_out.name) as d:
                                     for row in csv.reader(d, delimiter='\t'):
                                         if len(row) != 3:
@@ -1061,17 +1035,29 @@ class SearchPipe:
                                         query = row[0]
                                         subject = row[1]
                                         bitscore = float(row[2])
-                                        if query in best_hit_bitscores: # If already a hit recorded for this sequence
-                                            if bitscore > best_hit_bitscores[query]:
+                                        if query in chunk_best_hit_bitscores: # If already a hit recorded for this sequence
+                                            if bitscore > chunk_best_hit_bitscores[query]:
                                                 raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
-                                            elif bitscore == best_hit_bitscores[query]:
-                                                best_hits[query].append(subject)
+                                            elif bitscore == chunk_best_hit_bitscores[query]:
+                                                chunk_best_hits[query].append(subject)
                                             else:
                                                 # Close but no cigar for this hit, not exactly the same bitscore
                                                 pass
                                         else:
-                                            best_hits[query] = [subject]
-                                            best_hit_bitscores[query] = bitscore
+                                            chunk_best_hits[query] = [subject]
+                                            chunk_best_hit_bitscores[query] = bitscore
+
+                                # Summarise this chunk to LCA
+                                if assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                                    for (query, best_hit_ids) in chunk_best_hits.items():
+                                        best_hits[query] = best_hit_ids[0]
+                                elif assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                                    for (query, best_hit_ids) in chunk_best_hits.items():
+                                        best_hits[query] = self.lca_taxonomy(tax_hash, best_hit_ids)
+                                else:
+                                    raise Exception("Programming error")
+
+
 
                         with open(query) as query_in:
                             current_chunk_count = 0
@@ -1151,7 +1137,7 @@ class SearchPipe:
 
         extern.run_many(commands, num_threads=assignment_threads)
         logging.info("Finished running taxonomic assignment")
-        if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+        if assignment_method == DIAMOND_ASSIGNMENT_METHOD or assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
             return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
         elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
             return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
