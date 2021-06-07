@@ -507,8 +507,17 @@ class SearchPipe:
                     # Add usage of prefilter results here
                     if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD or \
                         singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-
-                        taxonomies = assignment_result.get_best_hits(singlem_package, sample_name)
+                            best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
+                            taxonomies = {}
+                            if analysing_pairs:
+                                for (name, best_hits) in best_hit_hash[1].items():
+                                    taxonomies[name] = best_hits
+                                for (name, best_hits) in best_hit_hash[0].items():
+                                    # Overwrite reverse hit with the forward hit
+                                    taxonomies[name] = best_hits
+                            else:
+                                for (name, best_hits) in best_hit_hash.items():
+                                    taxonomies[name] = best_hits
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         bihash_key = singlem_package.base_directory()
