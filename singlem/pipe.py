@@ -354,7 +354,6 @@ class SearchPipe:
                 return OtuTable()
 
         #### Taxonomic assignment
-        reuse_diamond_taxonomy = False
         if assign_taxonomy:
             logging.info("Running taxonomic assignment ..")
             assignment_result = self._assign_taxonomy(
@@ -381,7 +380,6 @@ class SearchPipe:
                 known_sequence_taxonomy,
                 assign_taxonomy,
                 singlem_assignment_method,
-                reuse_diamond_taxonomy,
                 assignment_result if assign_taxonomy else None,
                 output_jplace,
                 known_sequence_tax if known_sequence_taxonomy else None,
@@ -427,7 +425,6 @@ class SearchPipe:
             known_sequence_taxonomy,
             assign_taxonomy,
             singlem_assignment_method,
-            reuse_diamond_taxonomy,
             assignment_result,
             output_jplace,
             known_sequence_tax,
@@ -512,42 +509,7 @@ class SearchPipe:
 
                 if assign_taxonomy:
                     # Add usage of prefilter results here
-                    if reuse_diamond_taxonomy == True:
-                        def process_taxonomy(singular_readset, assignment_result, forward):
-                            logging.debug("Reusing prefilter DIAMOND results for taxonomy assignment for sample {}".format(singular_readset.sample_name))
-                            # Information flow: readset -> sequences -> name -> prefilter_result for sample -> best_hits[sseqid]
-                            # And readset -> singlem_package -> graftm_package -> taxonomy_hash
-                            taxonomies = {}
-                            sample_name = singular_readset.sample_name
-                            if forward == None:
-                                diamond_res = assignment_result.diamond_result_for_unpaired_sample(sample_name)
-                            elif forward == True:
-                                diamond_res = assignment_result.diamond_result_for_paired_sample_forward(sample_name)
-                            elif forward == False:
-                                diamond_res = assignment_result.diamond_result_for_paired_sample_reverse(sample_name)
-                            else:
-                                raise Exception("Programming error")
-                            for s in singular_readset.sequences:
-                                best_hit = diamond_res.best_hits[s.name]
-                                if s.name in taxonomies:
-                                    raise Exception("Unexpectedly found >1 input sequence with the same name: {}".format(s.name))
-                                if singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
-                                    graftm_package_taxonomy = assignment_result.taxonomy_hash(singular_readset.singlem_package)
-                                    taxonomies[s.name] = 'Root; ' + '; '.join(graftm_package_taxonomy[best_hit])
-                                elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                                    taxonomies[s.name] = best_hit
-                                else:
-                                    raise Exception("Programming error")
-                            return taxonomies
-
-                        if analysing_pairs:
-                            fwd_taxonomies = process_taxonomy(readset[0], assignment_result, True)
-                            taxonomies = process_taxonomy(readset[1], assignment_result, False)
-                            taxonomies.update(fwd_taxonomies)
-                        else:
-                            taxonomies = process_taxonomy(readset, assignment_result, None)
-
-                    elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                         best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                         if analysing_pairs:
                             taxonomies = {}
@@ -567,8 +529,13 @@ class SearchPipe:
 
                     elif singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                         best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
-                        # Convert best hit IDs to taxonomies
-                        tax_hash = assignment_result.taxonomy_hash(singlem_package)
+
+                        # Convert best hit IDs to taxonomies. Previously this
+                        # was cached, but it takes ~600MB of RAM for this hash
+                        # across 83 packages, so for the sake of RAM saving we
+                        # don't cache, and so each time a new sample is anlaysed
+                        # it is read in again.
+                        tax_hash = singlem_package.graftm_package().taxonomy_hash()
 
                         def lca_taxonomy(tax_hash, hits):
                             lca = []
@@ -1426,14 +1393,3 @@ class DiamondTaxonomicAssignmentResult:
 
     def get_best_hits(self, singlem_package, sample_name):
         return self._package_to_sample_to_best_hits[singlem_package.base_directory()][sample_name]
-
-    def taxonomy_hash(self, singlem_package):
-        '''Acts as a cache so taxonomies are not read in multiple times'''
-        key = singlem_package.base_directory()
-        if key in self._singlem_package_taxonomy_hashes:
-            return self._singlem_package_taxonomy_hashes[key]
-        else:
-            tax = singlem_package.graftm_package().taxonomy_hash()
-            self._singlem_package_taxonomy_hashes[key] = tax
-            return tax
-
