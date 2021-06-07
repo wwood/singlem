@@ -176,6 +176,8 @@ def _filter_sequences_through_hmmsearch(
         count, example = _generate_package_specific_fasta_input(target_sequence_ids, prefilter_result, input_tf)
         logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(count, example))
         input_tf.flush()
+        if count == 0:
+            return
 
         # With some hoop jumping it should be possible to stream this, but eh
         # for now.
