@@ -1404,8 +1404,8 @@ if __name__ == '__main__':
         'sequences': None,
         'reverse_read_files': None,
         'genomes': None,
-        'input_sra_files': ['/home/woodcrob/s/59_large_run_fix3/ERR1877729.sra'], #small
-        # 'input_sra_files': ['/home/woodcrob/s/59_large_run_fix3/ERR2092774.sra'], # 58GB big
+        # 'input_sra_files': ['/home/woodcrob/s/59_large_run_fix3/ERR1877729.sra'], #small
+        'input_sra_files': ['/home/woodcrob/s/59_large_run_fix3/ERR2092774.sra'], # 58GB big
         'otu_table': None,
         'archive_otu_table': '/home/woodcrob/s/59_large_run_fix3/blah.sra-mprof.json',
         'threads': 1,
