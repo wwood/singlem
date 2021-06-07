@@ -154,21 +154,27 @@ def _align_proteins_to_hmm(protein_sequences, hmm_file):
     return protein_alignment
 
 
-def _filter_sequences_through_hmmsearch(sequences, graftm_package, min_orf_length):
+def _filter_sequences_through_hmmsearch(
+    singlem_package,
+    prefilter_result,
+    min_orf_length):
     """Return a generator of Sequence objects that match one or more of the
-    search HMMs in the graftm_package."""
-    #if len(sequences) > 0:
-    logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(len(sequences), sequences[0].name))
+    search HMMs in the graftm_package. To save RAM, the full set of sequences is
+    never read in.
+    """
+    
+    graftm_package = singlem_package.graftm_package()
+    target_sequence_ids = set(singlem_package.get_sequence_ids())
 
     # Can re-use HmmSearcher, useful for when there is >1 search HMM
     searcher = HmmSearcher(len(graftm_package.search_hmm_paths()), '--domE 1e-5')
-
+    
     output_tempfiles = list([
         tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch') for _ in graftm_package.search_hmm_paths()
     ])
     with tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch_input') as input_tf:
-        for seq in sequences:
-            input_tf.write(">{}\n{}\n".format(seq.name, seq.seq).encode())
+        count, example = _generate_package_specific_fasta_input(target_sequence_ids, prefilter_result, input_tf)
+        logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(count, example))
         input_tf.flush()
 
         # With some hoop jumping it should be possible to stream this, but eh
@@ -184,28 +190,51 @@ def _filter_sequences_through_hmmsearch(sequences, graftm_package, min_orf_lengt
         for orfm_seq_id in StreamingHMMSearchResult.yield_from_hmmsearch_table(output_tempfile.name):
             seqs_to_extract.add(OrfMUtils().un_orfm_name(orfm_seq_id))
 
-    for seq in sequences:
-        if seq.name in seqs_to_extract:
-            yield seq
+    for (qseqid, seq) in _yield_target_sequences(target_sequence_ids, prefilter_result):
+        if qseqid in seqs_to_extract:
+            yield Sequence(qseqid, seq)
+
+def _yield_target_sequences(target_sequence_ids, prefilter_result):
+    with open(prefilter_result.query_sequences_file) as f:
+        for (qseqid, seq, _) in SeqReader().readfq(f):
+            if prefilter_result.best_hits[qseqid] in target_sequence_ids:
+                yield (qseqid, seq)
+
+def _generate_package_specific_fasta_input(
+    target_sequence_ids, prefilter_result, output_io):
+    """Write sequences that are in the prefilter result that match the singlem
+    package to output_io.
+    """
+    
+    count = 0
+    example = None
+
+    for (qseqid, seq) in _yield_target_sequences(target_sequence_ids, prefilter_result):
+        count += 1
+        if example is not None:
+            example = qseqid
+        output_io.write(">{}\n{}\n".format(qseqid, seq).encode())
+
+    return count, example
 
 
-def _extract_reads_by_diamond_for_package_and_sample(
-    sequences, spkg, sample_name, min_orf_length, include_inserts):
+def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
+    sample_name, min_orf_length, include_inserts):
 
     # Happens when there is no hits
-    if sequences is None or sequences == []:
+    if len(prefilter_result.best_hits) == 0:
         # Add something so that when analysing pairs and one side has no hits, indexing errors don't happen.
         return ExtractedReadSet(
             sample_name, spkg,
-            sequences, [], []
+            [], [], []
         )
 
     # Sequences have to be run through hmmsearch, because sometimes DIAMOND
     # returns some less than good quality hits, and taking those hits directly
     # to hmmalign causes odd sequences to be counted in.
     sequences = list(_filter_sequences_through_hmmsearch(
-        sequences,
-        spkg.graftm_package(),
+        spkg,
+        prefilter_result,
         min_orf_length))
 
     # Run orfm |hmmalign
@@ -264,8 +293,8 @@ def _extract_reads_by_diamond_for_package_and_sample(
 
 
 class PipeSequenceExtractor:
-    '''Part of the singlem pipe, abstracted out here so that it can be run in parallel
-
+    '''Part of the singlem pipe, abstracted out here so that it can be run in
+    parallel
     '''
 
     def extract_relevant_reads_from_separate_search_result(self, singlem_package_database, num_threads, separate_search_result, include_inserts, known_taxonomy):
@@ -309,11 +338,6 @@ class PipeSequenceExtractor:
         -------
         ExtractedReads object
         '''
-
-        # Cache spkg sequence ID to spkg object
-        logging.debug("Extracting reads IDs from each package ..")
-        spkgs_sequence_id_to_spkg = self._read_spkg_sequence_ids(singlem_package_database)
-
         extracted_reads = ExtractedReads(analysing_pairs)
 
         pool = multiprocessing.Pool(num_threads)
@@ -322,7 +346,7 @@ class PipeSequenceExtractor:
         forward_extraction_process_lists_per_sample = []
         for diamond_search_result in diamond_forward_search_results:
             extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-                pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
+                pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length
             )
             forward_extraction_process_lists_per_sample.append(extraction_processes)
 
@@ -331,7 +355,7 @@ class PipeSequenceExtractor:
         if analysing_pairs:
             for diamond_search_result in diamond_reverse_search_results:
                 extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-                    pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length
+                    pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length
                 )
                 reverse_extraction_process_lists_per_sample.append(extraction_processes)
 
@@ -350,54 +374,21 @@ class PipeSequenceExtractor:
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-            self, pool, singlem_package_database, spkgs_sequence_id_to_spkg, diamond_search_result, include_inserts, min_orf_length):
+            self, pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length):
 
         # Determine sample name. In order to have compatible sample names with
         # the hmmsearch mode, remove filename suffixes.
         sample_name = diamond_search_result.sample_name()
 
-        # From diamond search result, collect the hit sequences, parsing them
-        # into collections for each spkg
-        spkg_to_sequences = {}
-        spkg_key_to_spkg = {}
-        with open(diamond_search_result.query_sequences_file) as f:
-            for (qseqid, seq, _) in SeqReader().readfq(f):
-                sseqid = diamond_search_result.best_hits[qseqid]
-                spkg = spkgs_sequence_id_to_spkg[sseqid]
-                spkg_key = spkg.base_directory()
-                try:
-                    spkg_to_sequences[spkg_key].append(Sequence(qseqid,seq))
-                except KeyError:
-                    spkg_to_sequences[spkg_key] = [Sequence(qseqid,seq)]
-                    spkg_key_to_spkg[spkg_key] = spkg
-
         # Align each read via hmmsearch and pick windowed sequences
         extraction_of_read_set_processes = []
         for spkg in singlem_package_database:
-            try:
-                sequences = spkg_to_sequences[spkg.base_directory()]
-            except KeyError:
-                sequences = []
             extraction_of_read_set_processes.append(
                 pool.apply_async(
                     _extract_reads_by_diamond_for_package_and_sample, args=(
-                sequences, spkg, sample_name, min_orf_length, include_inserts)))
+                diamond_search_result, spkg, sample_name, min_orf_length, include_inserts)))
 
         return extraction_of_read_set_processes
-
-
-    def _read_spkg_sequence_ids(self, singlem_package_database):
-        # For each of the fwd search results, make lists of sequences that best
-        # hit each of the packages, then mfqe out from the fasta file each of
-        # those hits Do the same for the reverse reads if required
-        spkgs_sequence_id_to_spkg = {}
-        for spkg in singlem_package_database:
-            for name in spkg.get_sequence_ids():
-                if name in spkgs_sequence_id_to_spkg:
-                    raise Exception("Found a sequence name that is present in multiple packages: "
-                        "{}, so cannot use DIAMOND to distinguish".format(name))
-                spkgs_sequence_id_to_spkg[name] = spkg
-        return spkgs_sequence_id_to_spkg
 
 
 class ExtractedReads:
@@ -474,3 +465,4 @@ class ExtractedReadSet:
         self.tmpfile_basename = None # Used as part of pipe, making this object
                                      # not suitable for use outside that
                                      # setting.
+
