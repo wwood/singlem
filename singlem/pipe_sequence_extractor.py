@@ -342,7 +342,11 @@ class PipeSequenceExtractor:
         '''
         extracted_reads = ExtractedReads(analysing_pairs)
 
-        pool = multiprocessing.Pool(num_threads)
+        if num_threads > 1:
+            # Multiprocessing incurs a RAM overhead, so only do it if required.
+            pool = multiprocessing.Pool(num_threads)
+        else:
+            pool = None
 
         logging.debug("Aligning and extracting forward reads ..")
         forward_extraction_process_lists_per_sample = []
@@ -361,22 +365,37 @@ class PipeSequenceExtractor:
                 )
                 reverse_extraction_process_lists_per_sample.append(extraction_processes)
 
-        logging.debug("Finished aligning and extracting reads")
         if analysing_pairs:
             for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
                 for (fwd, rev) in zip(fwds, revs):
-                    extracted_reads.add((fwd.get(), rev.get()))
+                    if pool is None:
+                        extracted_reads.add((fwd, rev))
+                    else:
+                        extracted_reads.add((fwd.get(), rev.get()))
         else:
             for fwds in forward_extraction_process_lists_per_sample:
                 for fwd in fwds:
-                    extracted_reads.add(fwd.get())
-        pool.close()
-        pool.join()
+                    if pool is None:
+                        extracted_reads.add(fwd)
+                    else:
+                        extracted_reads.add(fwd.get())
+        if pool is not None:
+            pool.close()
+            pool.join()
+        logging.debug("Finished aligning and extracting reads")
 
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
             self, pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length):
+        '''Return results for one search result (sample). If pool is a
+        multiprocessing pool, run individual extractions with that, otherwise it
+        should be None, which means just run each extraction serially without
+        invoking multiprocessing at all.
+
+        Returns array of ExtractedReadSet objects or multiprocessing processes
+        that yield those objects.
+        '''
 
         # Determine sample name. In order to have compatible sample names with
         # the hmmsearch mode, remove filename suffixes.
@@ -385,10 +404,15 @@ class PipeSequenceExtractor:
         # Align each read via hmmsearch and pick windowed sequences
         extraction_of_read_set_processes = []
         for spkg in singlem_package_database:
-            extraction_of_read_set_processes.append(
-                pool.apply_async(
-                    _extract_reads_by_diamond_for_package_and_sample, args=(
-                diamond_search_result, spkg, sample_name, min_orf_length, include_inserts)))
+            if pool is None:
+                extraction_of_read_set_processes.append(
+                    _extract_reads_by_diamond_for_package_and_sample(
+                        diamond_search_result, spkg, sample_name, min_orf_length, include_inserts))
+            else:
+                extraction_of_read_set_processes.append(
+                    pool.apply_async(
+                        _extract_reads_by_diamond_for_package_and_sample, args=(
+                    diamond_search_result, spkg, sample_name, min_orf_length, include_inserts)))
 
         return extraction_of_read_set_processes
 

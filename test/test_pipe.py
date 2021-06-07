@@ -113,6 +113,26 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
 
+    def test_fast_protein_package_diamond_package_assignment_multithreaded(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            # By specifying --threads 2 multiprocessing is used in package assignment, even if there is only 1 package
+            cmd = "%s pipe --threads 2 --sequences %s --otu_table /dev/stdout --diamond-package-assignment --singlem_packages %s" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+
     def test_fast_protein_package_diamond_package_assignment_paired_both_hit(self):
         expected = [
             "\t".join(self.headers),
