@@ -287,7 +287,7 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
             spkg.is_protein_package(), # Always true
             best_position=spkg.singlem_position()))
 
-    logging.debug("Found {} window seuqences for spkg {}".format(len(window_seqs),spkg.base_directory()))
+    logging.debug("Found {} window sequences for spkg {}".format(len(window_seqs),spkg.base_directory()))
     return ExtractedReadSet(
         sample_name, spkg,
         sequences, [], window_seqs
@@ -483,6 +483,11 @@ class ExtractedReads:
 class ExtractedReadSet:
     def __init__(self, sample_name, singlem_package, sequences,
                  known_sequences, unknown_sequences):
+        '''
+        * sequences: list of Sequence objects
+        * unknown_sequences: list of UnalignedAlignedProteinSequence objects
+        '''
+
         self.sample_name = sample_name
         self.singlem_package = singlem_package
         self.sequences = sequences
