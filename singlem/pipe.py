@@ -349,11 +349,41 @@ class SearchPipe:
                 return_cleanly()
                 return OtuTable()
 
-        #### Taxonomic assignment
+        #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
+        otu_table_object = self.assign_taxonomy_and_process(
+            extracted_reads=extracted_reads,
+            analysing_pairs=analysing_pairs,
+            assign_taxonomy=assign_taxonomy,
+            singlem_assignment_method=singlem_assignment_method,
+            threads=assignment_threads,
+            diamond_taxonomy_assignment_performance_parameters=diamond_taxonomy_assignment_performance_parameters,
+            known_sequence_taxonomy=known_sequence_taxonomy,
+            known_taxes=known_taxes,
+            output_jplace=output_jplace,
+        )
+
+        if len(transcript_tempfile_name_to_desired_name) > 0:
+            otu_table_object.rename_samples(transcript_tempfile_name_to_desired_name)
+        return_cleanly()
+        return otu_table_object
+
+    def assign_taxonomy_and_process(self, **kwargs):        
+        extracted_reads = kwargs.pop('extracted_reads')
+        analysing_pairs = kwargs.pop('analysing_pairs')
+        assign_taxonomy = kwargs.pop('assign_taxonomy')
+        singlem_assignment_method = kwargs.pop('singlem_assignment_method')
+        threads = kwargs.pop('threads')
+        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
+        known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
+        known_taxes = kwargs.pop('known_taxes')
+        output_jplace = kwargs.pop('output_jplace')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
         if assign_taxonomy:
             logging.info("Running taxonomic assignment ..")
             assignment_result = self._assign_taxonomy(
-                extracted_reads, singlem_assignment_method, assignment_threads,
+                extracted_reads, singlem_assignment_method, threads,
                 diamond_taxonomy_assignment_performance_parameters)
 
         if known_sequence_taxonomy:
@@ -382,10 +412,6 @@ class SearchPipe:
                 # outputs
                 otu_table_object,
                 package_to_taxonomy_bihash)
-
-        if len(transcript_tempfile_name_to_desired_name) > 0:
-            otu_table_object.rename_samples(transcript_tempfile_name_to_desired_name)
-        return_cleanly()
         return otu_table_object
 
     def _find_and_extract_reads_by_hmmsearch(self,
