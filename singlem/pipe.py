@@ -85,7 +85,7 @@ class SearchPipe:
 
 
     def run_to_otu_table(self, **kwargs):
-        '''Run the pipe, '''
+        '''Run the pipe'''
         forward_read_files = kwargs.pop('sequences', [])
         reverse_read_files = kwargs.pop('reverse_read_files', None)
         input_sra_files = kwargs.pop('input_sra_files',None)
