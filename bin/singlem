@@ -600,8 +600,26 @@ if __name__ == '__main__':
             diamond_prefilter_db = args.diamond_prefilter_db,
             diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters)
 
+    elif args.subparser_name=='renew':
+        from singlem.renew import Renew
+        Renew().renew(
+            input_archive_otu_table=args.input_archive_otu_table,
+            otu_table = args.otu_table,
+            output_archive_otu_table = args.archive_otu_table,
+            threads = args.threads,
+            assignment_method = args.assignment_method,
+            output_jplace = args.output_jplace,
+            output_extras = args.output_extras,
+            singlem_packages = args.singlem_packages,
+            diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
+            evalue = args.evalue,
+            min_orf_length = get_min_orf_length(args, subparser='renew'),
+            restrict_read_length = args.restrict_read_length,
+            filter_minimum_protein = args.filter_minimum_protein,
+            )
+
     else:
-        # Only import some things as reuqired here, so that pipe can run in a smaller conda environment, and startup faster.
+        # Only import some things as reuqired here, so that pipe/renew can run in a smaller conda environment, and startup faster.
         import singlem.sequence_database
         import singlem.query_formatters
         from singlem.summariser import Summariser
@@ -617,7 +635,6 @@ if __name__ == '__main__':
         from singlem.chancer import Chancer
         from singlem.regenerator import Regenerator
         from singlem.taxonomy import Taxonomy
-        from singlem.renew import Renew
         from singlem.metapackage import Metapackage
         from singlem.chainsaw import Chainsaw
         from singlem.singlem_package import SingleMPackage
@@ -625,22 +642,6 @@ if __name__ == '__main__':
 
         if args.subparser_name == 'seqs':
             seqs(args)
-        elif args.subparser_name=='renew':
-            Renew().renew(
-                input_archive_otu_table=args.input_archive_otu_table,
-                otu_table = args.otu_table,
-                output_archive_otu_table = args.archive_otu_table,
-                threads = args.threads,
-                assignment_method = args.assignment_method,
-                output_jplace = args.output_jplace,
-                output_extras = args.output_extras,
-                singlem_packages = args.singlem_packages,
-                diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
-                evalue = args.evalue,
-                min_orf_length = get_min_orf_length(args, subparser='renew'),
-                restrict_read_length = args.restrict_read_length,
-                filter_minimum_protein = args.filter_minimum_protein,
-                )
 
         elif args.subparser_name=='makedb':
             if not args.otu_tables and not args.archive_otu_tables and not args.gzip_archive_otu_table_list:
