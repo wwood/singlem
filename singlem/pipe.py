@@ -349,6 +349,14 @@ class SearchPipe:
                 return_cleanly()
                 return OtuTable()
 
+        #### Clean up super-rare instances where individual sequences are assigned to 2 different OTUs of the same gene.
+        for readset in extracted_reads:
+            if analysing_pairs:
+                self._remove_single_sequence_duplicates(readset[0])
+                self._remove_single_sequence_duplicates(readset[1])
+            else:
+                self._remove_single_sequence_duplicates(readset)
+
         #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
         otu_table_object = self.assign_taxonomy_and_process(
             extracted_reads=extracted_reads,
@@ -1185,6 +1193,47 @@ class SearchPipe:
             graftm_align_directory_base,
             singlem_package.graftm_package_basename(),
             "read1" if is_forward else "read2")
+
+    def _remove_single_sequence_duplicates(self, readset):
+        '''In extremely rare circumstances, a single read can have >1 OTU
+        sequence that aligns to the same marker gene. Remove these in-place,
+        choosing as the right one the one that has the least gaps.'''
+        num_unique_names = len(set([u.name for u in readset.unknown_sequences]))
+        if num_unique_names < len(readset.unknown_sequences):
+            logging.info("Found at {} instance(s) where 2 different translations align to the 1 marker gene/window, removing duplicates.".format(
+                len(readset.unknown_sequences)-num_unique_names
+            ))
+            readname_to_otus = {}
+            for un in readset.unknown_sequences:
+                try:
+                    readname_to_otus[un.name].append(un.aligned_sequence)
+                except KeyError:
+                    readname_to_otus[un.name] = [un.aligned_sequence]
+            to_delete = {}
+            for (readname, window_sequences) in readname_to_otus.items():
+                if len(window_sequences) > 1:
+                    min_gaps_otu = None
+                    for window_sequence in window_sequences:
+                        if min_gaps_otu is None:
+                            min_gaps_otu = window_sequence
+                        elif min_gaps_otu.count('-') > window_sequence.count('-'):
+                            # Mark previous min for deletion
+                            if min_gaps_otu in to_delete:
+                                to_delete[min_gaps_otu].append(readname)
+                            else:
+                                to_delete[min_gaps_otu] = [readname]
+                            min_gaps_otu = window_sequence
+                        else:
+                            # Mark current for deletion
+                            if window_sequence in to_delete:
+                                to_delete[window_sequence].append(readname)
+                            else:
+                                to_delete[window_sequence] = [readname]
+            readset.unknown_sequences = list(
+                [un for un in readset.unknown_sequences if not (un.aligned_sequence in to_delete and un.name in to_delete[un.aligned_sequence])])
+                
+                        
+
 
 class SingleMPipeSearchResult:
     def __init__(self, graftm_protein_result, graftm_nucleotide_result, analysing_pairs):
