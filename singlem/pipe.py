@@ -1200,7 +1200,7 @@ class SearchPipe:
         choosing as the right one the one that has the least gaps.'''
         num_unique_names = len(set([u.name for u in readset.unknown_sequences]))
         if num_unique_names < len(readset.unknown_sequences):
-            logging.info("Found at {} instance(s) where 2 different translations align to the 1 marker gene/window, removing duplicates.".format(
+            logging.debug("Found at {} instance(s) where 2 different translations align to the 1 marker gene/window, removing duplicates.".format(
                 len(readset.unknown_sequences)-num_unique_names
             ))
             readname_to_otus = {}
