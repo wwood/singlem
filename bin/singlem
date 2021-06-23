@@ -315,11 +315,11 @@ if __name__ == '__main__':
                                 default=False)
     less_common_pipe_arguments.add_argument('--known-sequence-taxonomy', '--known_sequence_taxonomy', metavar='FILE',
                                 help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
-    less_common_pipe_arguments.add_argument('--diamond-prefilter', '--diamond_prefilter', action='store_true',
-                                help='Parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: not compatible with nucleotide packages [default: not set]',
+    less_common_pipe_arguments.add_argument('--no-diamond-prefilter', '--no_diamond_prefilter', action='store_true',
+                                help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: ignored for nucleotide packages [default: use the prefilter]',
                                 default=False)
     less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters', '--diamond_prefilter_performance_parameters',
-                                help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM runs in <4GB of RAM. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
+                                help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
                                 default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
     less_common_pipe_arguments.add_argument('--diamond-package-assignment', '--diamond_package_assignment', action='store_true',
                                 help='Assign each sequence to a SingleM package using the best hit result of the DIAMOND prefilter. Implies --diamond-prefilter. [default: not set]',
@@ -504,7 +504,7 @@ if __name__ == '__main__':
             raise Exception("Currently --jplace-output cannot be used with --reverse")
         if args.working_directory and args.working_directory_tmpdir:
             raise Exception("Cannot specify both --working-directory and --working-directory-tmpdir")
-        if args.sra_files and not args.diamond_prefilter:
+        if args.sra_files and args.no_diamond_prefilter:
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
@@ -594,7 +594,7 @@ if __name__ == '__main__':
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy,
-            diamond_prefilter = args.diamond_prefilter or args.diamond_package_assignment,
+            diamond_prefilter = (not args.no_diamond_prefilter) or args.diamond_package_assignment,
             diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
             diamond_package_assignment = args.diamond_package_assignment,
             diamond_prefilter_db = args.diamond_prefilter_db,
