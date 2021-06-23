@@ -241,7 +241,7 @@ class SearchPipe:
                     forward_read_files.append(new_name)
                     
                     # kingfisher extract --unsorted --stdout -r
-                    cmd = "vdb-dump -f fasta {} >{}".format(
+                    cmd = "kingfisher extract --sra {} --stdout -f fasta --unsorted >{}".format(
                         os.path.abspath(sra), new_name)
                     logging.debug("Running kingfisher extraction command: {}".format(cmd))
                     sra_extraction_commands.append(cmd)
