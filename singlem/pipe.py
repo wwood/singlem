@@ -45,7 +45,7 @@ class SearchPipe:
     DEFAULT_GENOME_MIN_ORF_LENGTH = 300
     DEFAULT_FILTER_MINIMUM_PROTEIN = 28
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 95
-    DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5"
+    DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = ""
     DEFAULT_ASSIGNMENT_THREADS = 1
 
@@ -222,6 +222,10 @@ class SearchPipe:
         else:
             logging.info("Using as input %i different sequence files e.g. %s" % (
                 len(forward_read_files), forward_read_files[0]))
+
+        if not all([p.is_protein_package() for p in hmms]):
+            logging.debug("Not using diamond prefilter as there is a nucleotide spkg")
+            diamond_prefilter = False
 
         if diamond_prefilter:
             if input_sra_files:

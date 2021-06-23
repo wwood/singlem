@@ -69,7 +69,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
+            cmd = "%s pipe --sequences %s --no_diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -87,7 +87,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -195,7 +195,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -214,7 +214,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond" % (
+            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -237,7 +237,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                 n2.write(inseqs)
                 n2.flush()
 
-                cmd = "%s pipe --sequences %s %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond" % (
+                cmd = "%s pipe --sequences %s %s --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond" % (
                     path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
@@ -255,7 +255,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --forward %s --reverse %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond" % (
+            cmd = "%s pipe --forward %s --reverse %s --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond" % (
                 path_to_script, n.name, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -274,7 +274,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --forward %s --reverse %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond_example" % (
+            cmd = "%s pipe --forward %s --reverse %s --otu_table /dev/stdout --singlem_packages %s --assignment-method diamond_example" % (
                 path_to_script, n.name, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -286,7 +286,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
+        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --no_diamond_prefilter --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
         
@@ -296,7 +296,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --diamond_prefilter --otu_table /dev/stdout --threads 4" % (path_to_script,
+        cmd = "%s --debug pipe --sequences %s/1_pipe/minimal.fa --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
@@ -304,7 +304,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --no_diamond_prefilter --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
     
@@ -312,7 +312,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --diamond_prefilter --otu_table /dev/stdout --threads 4" % (path_to_script,
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/insert.fna --otu_table /dev/stdout --threads 4" % (path_to_script,
                                                                                                     path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
@@ -336,7 +336,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
              '2','4.88','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s --quiet pipe --sequences %s/1_pipe/small.fa --otu_table /dev/stdout --threads 4 --singlem_packages %s" % (
+        cmd = "%s --quiet pipe --sequences %s/1_pipe/small.fa --no-diamond-prefilter --otu_table /dev/stdout --threads 4 --singlem_packages %s" % (
             path_to_script,
             path_to_data,
             self.two_packages)
@@ -355,7 +355,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             t.write('\n'.join(["\t".join(x) for x in expected[:2]]))
             t.flush()
 
-            cmd = "%s --quiet pipe --sequences %s/1_pipe/small.fa --otu_table /dev/stdout --threads 4 --known_otu_tables %s --singlem_packages %s"\
+            cmd = "%s --quiet pipe --sequences %s/1_pipe/small.fa --no-diamond-prefilter --otu_table /dev/stdout --threads 4 --known_otu_tables %s --singlem_packages %s"\
                  % (path_to_script,
                     path_to_data,
                     t.name,
@@ -497,7 +497,7 @@ GATATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGTAACTGACGCTGATGTGCGAAAGCGTGGGGATCAAACA
             n.write(inseqs)
             n.flush()
             try:
-                cmd = "%s pipe --sequences %s --diamond_prefilter --otu_table /dev/stdout --singlem_packages %s" % (
+                cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s" % (
                     path_to_script, n.name, os.path.join(path_to_data,'61_otus.v3.gpkg.spkg'))
                 self.fail() # this is meant to fail
             except:
@@ -607,7 +607,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                 taxf.write("another\tmytax; yeh; 2\n")
                 taxf.flush()
 
-                cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem_packages %s "\
+                cmd = "%s pipe --sequences %s --no-diamond-prefilter --otu_table /dev/stdout --singlem_packages %s "\
                       "--no_assign_taxonomy --known_sequence_taxonomy %s"% (
                           path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
                           taxf.name)
@@ -934,7 +934,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         expected = [
             "\t".join(self.headers),
             '']
-        cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {} --diamond-prefilter".format(
+        cmd = "{} pipe --sequences {} --otu_table /dev/stdout --singlem_packages {}".format(
             path_to_script,
             os.path.join(path_to_data, 'random.fna'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
@@ -948,7 +948,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             'S1.13.ribosomal_protein_S15P_S13e	uap2	AAGGATTTGAGTGCAAAAAGAGGACTCGATTTTACAGAGGCAAAGATAAGAAAACTTGGA	1	1.15	Root; d__Archaea; p__Halobacterota; c__Methanomicrobia; o__Methanomicrobiales; f__Methanocullaceae; g__Methanoculleus',
             '']
 
-        cmd = '{} pipe --genome-fasta-files {}//uap2.fna --singlem-packages {}/S1.13.chainsaw.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --diamond-prefilter --assignment-method diamond'.format(
+        cmd = '{} pipe --genome-fasta-files {}//uap2.fna --singlem-packages {}/S1.13.chainsaw.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --assignment-method diamond'.format(
             path_to_script,
             path_to_data,
             path_to_data,
@@ -962,7 +962,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             with tempfile.NamedTemporaryFile(suffix='.mkfifo.fna') as script:
                 script.write("mkfifo {}\n".format(fifo.name).encode())
                 script.write("cat {}/1_pipe/small.fa > {} &\n".format(path_to_data, fifo.name).encode())
-                script.write('{} pipe --forward {} --singlem-packages {}/4.11.22seqs.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --diamond-prefilter --assignment-method diamond'.format(
+                script.write('{} pipe --forward {} --singlem-packages {}/4.11.22seqs.gpkg.spkg --otu_table /dev/stdout --assignment-method diamond --assignment-method diamond'.format(
                     path_to_script,
                     fifo.name,
                     path_to_data,
