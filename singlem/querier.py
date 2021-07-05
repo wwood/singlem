@@ -8,6 +8,7 @@ from orator.exceptions.query import QueryException
 from Bio import pairwise2
 
 from .sequence_database import SequenceDatabase
+from . import sequence_database
 from .sequence_classes import SeqReader
 from .query_formatters import SparseResultFormatter
 from .otu_table_collection import OtuTableCollection
@@ -143,7 +144,7 @@ class Querier:
             logging.info("Querying index for {}".format(marker))
 
             for q in subqueries:
-                kNN = index.knnQuery(SequenceDatabase.nucleotides_to_binary(q.sequence), 1000)
+                kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), 1000)
 
                 for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                     div = int(hamming_distance / 2)
@@ -248,9 +249,6 @@ class QueryInputSequence:
         self.name = name
         self.sequence = sequence
         self.marker = marker
-
-    def hamming_representation(self):
-        SequenceDatabase._nucleotides_to_binary(self.sequence)
 
 class QueryResult:
     def __init__(self, query, subject, divergence):

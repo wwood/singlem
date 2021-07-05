@@ -15,6 +15,7 @@ from masoniteorm.connections import ConnectionResolver
 from masoniteorm.query import QueryBuilder
 
 import nmslib
+import numba
 
 from .otu_table import OtuTableEntry, OtuTable
 
@@ -125,68 +126,59 @@ class SequenceDatabase:
         return itertools.zip_longest(*args, fillvalue=None)
 
     @staticmethod
-    def _base_to_binary(x):
-        if x == 'A':
-            return '1 0 0 0 0'
-        elif x == 'T':
-            return '0 1 0 0 0'
-        elif x == 'C':
-            return '0 0 1 0 0'
-        elif x == 'G':
-            return '0 0 0 1 0'
+    def create_from_otu_table(db_path, otu_table_collection, pregenerated_sqlite3_db=None):
+        if pregenerated_sqlite3_db:
+            sqlite_db_path = pregenerated_sqlite3_db
+
+            marker_list = set()
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select("UNIQUE(marker) as m").get():
+                marker_list.append(row['m'])
+
         else:
-            return '0 0 0 0 1'
-        
-    @staticmethod
-    def nucleotides_to_binary(seq):
-        return ' '.join([SequenceDatabase._base_to_binary(b) for b in seq])
+            # ensure db does not already exist
+            if os.path.exists(db_path):
+                raise Exception("Cowardly refusing to overwrite already-existing database path '%s'" % db_path)
+            logging.info("Creating SingleM database at {}".format(db_path))
+            os.makedirs(db_path)
 
-    @staticmethod
-    def create_from_otu_table(db_path, otu_table_collection):
-        # ensure db does not already exist
-        if os.path.exists(db_path):
-            raise Exception("Cowardly refusing to overwrite already-existing database path '%s'" % db_path)
-        logging.info("Creating SingleM database at {}".format(db_path))
-        os.makedirs(db_path)
+            # Create contents file
+            contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
+            with open(contents_file_path, 'w') as f:
+                json.dump({
+                    SequenceDatabase.VERSION_KEY: 4,
+                }, f)
 
-        # Create contents file
-        contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
-        with open(contents_file_path, 'w') as f:
-            json.dump({
-                SequenceDatabase.VERSION_KEY: 4,
-            }, f)
+            # setup sqlite DB
+            sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+            logging.debug("Connecting to db %s" % sqlite_db_path)
+            db = sqlite3.connect(sqlite_db_path)
+            c = db.cursor()
+            c.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    " marker text, sample_name text,"
+                    " sequence text, num_hits int, coverage float, taxonomy text)")
+            db.commit()
 
-        # setup sqlite DB
-        sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-        logging.debug("Connecting to db %s" % sqlite_db_path)
-        db = sqlite3.connect(sqlite_db_path)
-        c = db.cursor()
-        c.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                  " marker text, sample_name text,"
-                  " sequence text, num_hits int, coverage float, taxonomy text)")
-        db.commit()
+            marker_list = set()
 
-        marker_list = set()
+            logging.info("Creating database table with all OTU observations ..")
+            chunksize = 10000 # Run in chunks for sqlite insert performance.
+            for chunk in SequenceDatabase._grouper(otu_table_collection, chunksize):
+                chunk_list = []
+                for entry in chunk:
+                    if entry is not None: # Is None when padded in last chunk.
+                        chunk_list.append((entry.marker, entry.sample_name, entry.sequence, entry.count,
+                            entry.coverage, entry.taxonomy))
+                        marker_list.add(entry.marker)
 
+                c.executemany("INSERT INTO otus(marker, sample_name, sequence, num_hits, "
+                            "coverage, taxonomy) VALUES(?,?,?,?,?,?)",
+                            chunk_list)
 
-        chunksize = 10000 # Run in chunks for sqlite insert performance.
-        for chunk in SequenceDatabase._grouper(otu_table_collection, chunksize):
-            chunk_list = []
-            for entry in chunk:
-                if entry is not None: # Is None when padded in last chunk.
-                    chunk_list.append((entry.marker, entry.sample_name, entry.sequence, entry.count,
-                        entry.coverage, entry.taxonomy))
-                    marker_list.add(entry.marker)
-
-            c.executemany("INSERT INTO otus(marker, sample_name, sequence, num_hits, "
-                          "coverage, taxonomy) VALUES(?,?,?,?,?,?)",
-                          chunk_list)
-
-        logging.info("Creating SQLite indices")
-        c.execute("CREATE INDEX otu_id on otus (id)")
-        c.execute("CREATE INDEX otu_sequence on otus (sequence)")
-        c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
-        db.commit()
+            logging.info("Creating SQLite indices ..")
+            c.execute("CREATE INDEX otu_id on otus (id)")
+            c.execute("CREATE INDEX otu_sequence on otus (sequence)")
+            c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
+            db.commit()
 
         # Create nucleotide index files
         logging.info("Creating nucleotide indices ..")
@@ -201,10 +193,11 @@ class SequenceDatabase:
             count = 0
 
             for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select('id, sequence').order_by('sequence, id').where('marker', marker_name).get():
+                # select (first(id), distinct(sequence)) from otus where marker = blah
                 if row['sequence'] != previous_sequence:
                     # Add unique sequences only
                     logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
-                    index.addDataPoint(row['id'], SequenceDatabase.nucleotides_to_binary(row['sequence']))
+                    index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
                     count += 1
                 previous_sequence = row['sequence']
 
@@ -238,3 +231,20 @@ class SequenceDatabase:
                 otu.coverage = entry['coverage']
                 otu.taxonomy = entry['taxonomy']
                 print(str(otu))
+
+@numba.njit()
+def _base_to_binary(x):
+    if x == 'A':
+        return '1 0 0 0 0'
+    elif x == 'T':
+        return '0 1 0 0 0'
+    elif x == 'C':
+        return '0 0 1 0 0'
+    elif x == 'G':
+        return '0 0 0 1 0'
+    else:
+        return '0 0 0 0 1'
+    
+@numba.njit()
+def nucleotides_to_binary(seq):
+    return ' '.join([_base_to_binary(b) for b in seq])
