@@ -351,7 +351,6 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', '--gzip_archive_otu_table_list',
         help="Make a db from the gzip'd archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--db', '--db-path', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
-    required_makedb_arguments.add_argument('--clustering-divergence', '--clustering_divergence', type=int, help="Cluster DB to reduce RAM usage (no loss in precision)", default=0)
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
@@ -548,9 +547,11 @@ if __name__ == '__main__':
     if args.debug:
         loglevel = logging.DEBUG
     elif args.quiet:
+        logging.getLogger('nmslib').setLevel(logging.ERROR)
         loglevel = logging.ERROR
     else:
         loglevel = logging.INFO
+        logging.getLogger('nmslib').setLevel(logging.WARN)
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     logging.info("SingleM v{}".format(singlem.__version__))
@@ -659,7 +660,7 @@ if __name__ == '__main__':
                         otus.add_gzip_archive_otu_table_file(arc.strip())
                         
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-                (args.db, otus, args.clustering_divergence)
+                (args.db, otus)
         elif args.subparser_name=='query':
             querier = Querier()
             if args.db and args.subject_otu_tables:

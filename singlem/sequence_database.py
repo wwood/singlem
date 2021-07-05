@@ -6,76 +6,81 @@ import sqlite3
 import glob
 import json
 import itertools
+import sys
 
-from orator import DatabaseManager, Model
+# Import masonite, pretty clunky
+sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
+import config.database
+from masoniteorm.connections import ConnectionResolver
+from masoniteorm.query import QueryBuilder
+
+import nmslib
 
 from .otu_table import OtuTableEntry, OtuTable
 
 
-class DBSequence(OtuTableEntry):
-    sequence_id = None
-
-    def fasta_defline(self):
-        '''return the name of the sequence with all the info encoded'''
-        return "|".join([
-            self.marker,
-            self.sample_name,
-            str(self.count),
-            self.taxonomy])
-
-    @staticmethod
-    def parse_from_fasta_define(defline):
-        '''The opposite of fasta_define(), parse info into instance variables in
-        an array of DBSequence objects
-        '''
-        splits = defline.split(' ')
-        if (splits) < 2: raise Exception("Parse exception: %s" % defline)
-        sequence_id = int(splits[0].replace('lcl|',''))
-
-        splits = ' '.join(splits[1:])
-        to_return = []
-        for subsplit in splits.split(SequenceDatabase.DEFLINE_DELIMITER_CHARACTER):
-            splits2 = subsplit.split('|')
-            if len(splits2) != 4: raise Exception("Parse exception 2: %s" % defline)
-            dbseq = DBSequence()
-            dbseq.sequence_id = sequence_id
-            dbseq.marker,\
-            dbseq.sample_name,\
-            dbseq.count,\
-            dbseq.taxonomy = splits2
-            dbseq.count = int(dbseq.count)
-            to_return.append(dbseq)
-        return to_return
-
 class SequenceDatabase:
-    version = 3
+    version = 4
     SQLITE_DB_NAME = 'otus.sqlite3'
-    DEFAULT_CLUSTERING_DIVERGENCE = 3
-    _marker_to_smafadb = {}
+    _marker_to_nucleotide_index_file = {}
 
     _CONTENTS_FILE_NAME = 'CONTENTS.json'
 
     VERSION_KEY = 'singlem_database_version'
-    SMAFA_CLUSTER_DIVERGENCE_KEY = 'smafa_clustering_divergence'
 
-    _REQUIRED_KEYS = {3: [VERSION_KEY, SMAFA_CLUSTER_DIVERGENCE_KEY]}
+    _REQUIRED_KEYS = {4: [VERSION_KEY]}
 
-    def add_smafa_db(self, marker_name, smafa_db):
-        self._marker_to_smafadb[marker_name] = smafa_db
+    def add_nucleotide_db(self, marker_name, db_path):
+        self._marker_to_nucleotide_index_file[marker_name] = db_path
 
-    def get_smafa_db(self, marker_name):
-        if marker_name in self._marker_to_smafadb:
-            return self._marker_to_smafadb[marker_name]
+    def get_nucleotide_index(self, marker_name):
+        if marker_name in self._marker_to_nucleotide_index_file:
+            index_path = self._marker_to_nucleotide_index_file[marker_name]
+            index = SequenceDatabase._nucleotide_nmslib_init()
+            logging.debug("Loading index for {} from {}".format(marker_name, index_path))
+            index.loadIndex(index_path, load_data=True)
+            return index
         else:
-            logging.debug("No smafa DB found for %s" % marker_name)
+            logging.debug("No nucleotide index DB found for %s" % marker_name)
             return None
 
-    def smafa_dbs(self):
-        return list(self._marker_to_smafadb.values())
+    @staticmethod
+    def _nucleotide_nmslib_init():
+        return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
 
-    def smafa_clustering_divergence(self):
-        return self._contents_hash[
-            SequenceDatabase.SMAFA_CLUSTER_DIVERGENCE_KEY]
+    def query_builder(self, check=False):
+        return SequenceDatabase._query_builder(self.sqlite_file, check=check)
+
+    @staticmethod
+    def _query_builder(sqlite_db_path, check=False):
+        '''setup config and return a query builder. If check==True, then make sure there the connection is alive, raising an exception otherwise'''
+        if check:
+            logging.debug("Connecting to DB {}".format(sqlite_db_path))        
+            if not os.path.exists(sqlite_db_path):
+                raise Exception("SQLite3 database does not appear to exist in the SingleM database - perhaps it is the wrong version?")
+
+        DB = ConnectionResolver().set_connection_details({
+            'default': 'singlem',
+            'singlem': {
+                'driver': 'sqlite',
+                'database': sqlite_db_path,
+                'prefix': '',
+                'log_queries': False
+            }
+        })
+        config.database.DB = DB
+
+        qb = QueryBuilder(connection='singlem', connection_details=DB.get_connection_details())
+
+        if check:
+            try:
+                len(qb.table('otus').limit(1).get())
+                qb = QueryBuilder(connection='singlem', connection_details=DB.get_connection_details())
+            except Exception as e:
+                logging.error("Failure to extract any data from the otus table of the SQ Lite DB indicates this SingleM DB is either too old or is corrupt.")
+                raise(e)
+
+        return qb
 
     @staticmethod
     def acquire(path):
@@ -95,7 +100,7 @@ class SequenceDatabase:
         found_version = db._contents_hash[SequenceDatabase.VERSION_KEY]
         logging.debug("Loading version {} SingleM database: {}".format(
             found_version, path))
-        if found_version == 3:
+        if found_version == 4:
             for key in SequenceDatabase._REQUIRED_KEYS[found_version]:
                 if key not in db._contents_hash:
                     raise Exception(
@@ -105,25 +110,42 @@ class SequenceDatabase:
             raise Exception("Unexpected SingleM DB version found: {}".format(found_version))
 
         db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
-        smafas = glob.glob("%s/*.smafadb" % path)
-        logging.debug("Found smafadbs: %s" % ", ".join(smafas))
-        if len(smafas) == 0: raise Exception("No smafa DBs found in DB")
-        for g in smafas:
-            marker = os.path.basename(g).replace('.smafadb','')
-            db.add_smafa_db(marker, g)
+
+        nucleotide_index_files = glob.glob("%s/nucleotide_indices/*.nmslib_index" % path)
+        logging.debug("Found nucleotide_index_files: %s" % ", ".join(nucleotide_index_files))
+        if len(nucleotide_index_files) == 0: raise Exception("No nucleotide_index_files found in DB")
+        for g in nucleotide_index_files:
+            marker = os.path.basename(g).replace('.nmslib_index','')
+            db.add_nucleotide_db(marker, g)
         return db
 
     @staticmethod
-    def grouper(iterable, n):
+    def _grouper(iterable, n):
         args = [iter(iterable)] * n
         return itertools.zip_longest(*args, fillvalue=None)
 
     @staticmethod
-    def create_from_otu_table(db_path, otu_table_collection,
-                              clustering_divergence=DEFAULT_CLUSTERING_DIVERGENCE):
+    def _base_to_binary(x):
+        if x == 'A':
+            return '1 0 0 0 0'
+        elif x == 'T':
+            return '0 1 0 0 0'
+        elif x == 'C':
+            return '0 0 1 0 0'
+        elif x == 'G':
+            return '0 0 0 1 0'
+        else:
+            return '0 0 0 0 1'
+        
+    @staticmethod
+    def nucleotides_to_binary(seq):
+        return ' '.join([SequenceDatabase._base_to_binary(b) for b in seq])
+
+    @staticmethod
+    def create_from_otu_table(db_path, otu_table_collection):
         # ensure db does not already exist
         if os.path.exists(db_path):
-            raise Exception("Cowardly refusing to overwrite already-existing database file '%s'" % db_path)
+            raise Exception("Cowardly refusing to overwrite already-existing database path '%s'" % db_path)
         logging.info("Creating SingleM database at {}".format(db_path))
         os.makedirs(db_path)
 
@@ -131,8 +153,7 @@ class SequenceDatabase:
         contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
         with open(contents_file_path, 'w') as f:
             json.dump({
-                SequenceDatabase.VERSION_KEY: 3,
-                SequenceDatabase.SMAFA_CLUSTER_DIVERGENCE_KEY: clustering_divergence
+                SequenceDatabase.VERSION_KEY: 4,
             }, f)
 
         # setup sqlite DB
@@ -140,95 +161,80 @@ class SequenceDatabase:
         logging.debug("Connecting to db %s" % sqlite_db_path)
         db = sqlite3.connect(sqlite_db_path)
         c = db.cursor()
-        c.execute("CREATE TABLE otus (marker text, sample_name text,"
+        c.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                  " marker text, sample_name text,"
                   " sequence text, num_hits int, coverage float, taxonomy text)")
-        c.execute("CREATE TABLE clusters (member text, representative text)")
         db.commit()
 
-        gene_to_tempfile = {}
+        marker_list = set()
+
 
         chunksize = 10000 # Run in chunks for sqlite insert performance.
-        for chunk in SequenceDatabase.grouper(otu_table_collection, chunksize):
+        for chunk in SequenceDatabase._grouper(otu_table_collection, chunksize):
             chunk_list = []
             for entry in chunk:
                 if entry is not None: # Is None when padded in last chunk.
                     chunk_list.append((entry.marker, entry.sample_name, entry.sequence, entry.count,
                         entry.coverage, entry.taxonomy))
-                    dbseq = DBSequence()
-                    dbseq.marker = entry.marker
-                    dbseq.sample_name = entry.sample_name
-                    dbseq.sequence = entry.sequence
-                    dbseq.count = entry.count
-                    dbseq.taxonomy = entry.taxonomy
-
-                    if entry.marker not in gene_to_tempfile:
-                        gene_to_tempfile[entry.marker] = \
-                            tempfile.NamedTemporaryFile(
-                                prefix='singlem-makedb', mode='w')
-                    tf = gene_to_tempfile[entry.marker]
-                    tf.write("%s\n" % entry.sequence)
+                    marker_list.add(entry.marker)
 
             c.executemany("INSERT INTO otus(marker, sample_name, sequence, num_hits, "
                           "coverage, taxonomy) VALUES(?,?,?,?,?,?)",
                           chunk_list)
 
         logging.info("Creating SQLite indices")
+        c.execute("CREATE INDEX otu_id on otus (id)")
         c.execute("CREATE INDEX otu_sequence on otus (sequence)")
         c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
         db.commit()
 
-        # Run smafa on each of the genomes
-        logging.info("Running smafas")
-        for marker_name, tf in gene_to_tempfile.items():
-            smafa = "%s.smafadb" % os.path.join(db_path, marker_name)
-            tf.flush()
-            cmd = "sort -S20% '{}' |uniq |awk '{{print \">1\\n\" $1}}' |smafa cluster --fragment-method /dev/stdin --divergence {} |tee >(cut -f2 |sort -S20% |uniq |awk '{{print \">1\\n\" $1}}' |smafa makedb /dev/stdin '{}')" \
-                .format(tf.name, clustering_divergence, smafa)
-            logging.debug("Running cmd: %s", cmd)
-            logging.info("Formatting smafa database %s .." % smafa)
-            # Use streaming technique from
-            # https://stackoverflow.com/questions/2715847/python-read-streaming-input-from-subprocess-communicate#17698359
-            p = subprocess.Popen(
-                ['bash','-c',cmd],
-                stdout=subprocess.PIPE,
-                bufsize=1,
-                universal_newlines=True)
-            for line in p.stdout:
-                splits = line.rstrip().split("\t")
-                if len(splits) != 2:
-                    raise Exception("Unexpected smafa cluster output: {}".format(line))
-                c.execute("INSERT INTO clusters VALUES (?,?)",splits)
-            p.wait()
-            db.commit()
-            tf.close()
-        logging.info("Generating cluster SQL index ..")
-        c.execute("CREATE INDEX clusters_representative on clusters(representative)")
-        logging.info("Finished")
+        # Create nucleotide index files
+        logging.info("Creating nucleotide indices ..")
+        nucleotide_db_dir = os.path.join(db_path, 'nucleotide_indices')
+        os.makedirs(nucleotide_db_dir)
+        
+        for marker_name in marker_list:
+            index = SequenceDatabase._nucleotide_nmslib_init()
 
+            logging.info("Tabulating unique sequences for {}..".format(marker_name))
+            previous_sequence = None
+            count = 0
+
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select('id, sequence').order_by('sequence, id').where('marker', marker_name).get():
+                if row['sequence'] != previous_sequence:
+                    # Add unique sequences only
+                    logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
+                    index.addDataPoint(row['id'], SequenceDatabase.nucleotides_to_binary(row['sequence']))
+                    count += 1
+                previous_sequence = row['sequence']
+
+            # TODO: Tweak index creation parameters?
+            logging.info("Creating binary index from {} unique sequences ..".format(count))
+            index.createIndex()
+
+            logging.info("Writing index to disk ..")
+            db_path = os.path.join(nucleotide_db_dir, "%s.nmslib_index" % marker_name)
+            index.saveIndex(db_path, save_data=True)
+            logging.info("Finished writing index to disk")
+
+        logging.info("Finished singlem DB creation")
+    
     @staticmethod
     def dump(db_path):
         """Dump the DB contents to STDOUT, requiring only that the DB is a version that
-        has an otus table in sqlite3 form (i.e. version 2 and 3 at least).
+        has an otus table in sqlite3 form (i.e. version 2 at least).
 
         """
-        sqlite_db = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-        logging.debug("Connecting to DB {}".format(sqlite_db))
-        if not os.path.exists(sqlite_db):
-            raise Exception("SQLite3 database does not appear to exist in the SingleM database - perhaps it is the wrong version?")
-        db = DatabaseManager({
-        'sqlite3': {
-            'driver': 'sqlite',
-            'database': sqlite_db
-        }})
-        Model.set_connection_resolver(db)
+        sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+        
         print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        for chunk in db.table('otus').chunk(1000):
+        for chunk in SequenceDatabase._query_builder(sqlite_db_path).table('otus').chunk(1000):
             for entry in chunk:
                 otu = OtuTableEntry()
-                otu.marker = entry.marker
-                otu.sample_name = entry.sample_name
-                otu.sequence = entry.sequence
-                otu.count = entry.num_hits
-                otu.coverage = entry.coverage
-                otu.taxonomy = entry.taxonomy
+                otu.marker = entry['marker']
+                otu.sample_name = entry['sample_name']
+                otu.sequence = entry['sequence']
+                otu.count = entry['num_hits']
+                otu.coverage = entry['coverage']
+                otu.taxonomy = entry['taxonomy']
                 print(str(otu))
