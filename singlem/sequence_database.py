@@ -128,11 +128,13 @@ class SequenceDatabase:
     @staticmethod
     def create_from_otu_table(db_path, otu_table_collection, pregenerated_sqlite3_db=None):
         if pregenerated_sqlite3_db:
+            logging.info("Re-using previous SQLite database {}".format(pregenerated_sqlite3_db))
             sqlite_db_path = pregenerated_sqlite3_db
 
             marker_list = set()
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select("UNIQUE(marker) as m").get():
-                marker_list.append(row['m'])
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select_raw("distinct(marker) as marker").get():
+                marker_list.add(row['marker'])
+            logging.info("Found {} markers e.g. {}".format(len(marker_list), list(marker_list)[0]))
 
         else:
             # ensure db does not already exist
@@ -175,9 +177,10 @@ class SequenceDatabase:
                             chunk_list)
 
             logging.info("Creating SQLite indices ..")
-            c.execute("CREATE INDEX otu_id on otus (id)")
+            c.execute("CREATE UNIQUE INDEX otu_id on otus (id)")
             c.execute("CREATE INDEX otu_sequence on otus (sequence)")
             c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
+            c.execute("CREATE INDEX otu_marker on otus (marker)")
             db.commit()
 
         # Create nucleotide index files
@@ -189,17 +192,12 @@ class SequenceDatabase:
             index = SequenceDatabase._nucleotide_nmslib_init()
 
             logging.info("Tabulating unique sequences for {}..".format(marker_name))
-            previous_sequence = None
             count = 0
 
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select('id, sequence').order_by('sequence, id').where('marker', marker_name).get():
-                # select (first(id), distinct(sequence)) from otus where marker = blah
-                if row['sequence'] != previous_sequence:
-                    # Add unique sequences only
-                    logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
-                    index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
-                    count += 1
-                previous_sequence = row['sequence']
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').group_by('sequence').min('id').select('sequence').where('marker', marker_name).get():
+                # logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
+                index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
+                count += 1
 
             # TODO: Tweak index creation parameters?
             logging.info("Creating binary index from {} unique sequences ..".format(count))

@@ -351,6 +351,8 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', '--gzip_archive_otu_table_list',
         help="Make a db from the gzip'd archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--db', '--db-path', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
+    makedb_other_args = makedb_parser.add_argument_group('Other arguments')
+    makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
@@ -660,7 +662,7 @@ if __name__ == '__main__':
                         otus.add_gzip_archive_otu_table_file(arc.strip())
                         
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-                (args.db, otus)
+                (args.db, otus, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db)
         elif args.subparser_name=='query':
             querier = Querier()
             if args.db and args.subject_otu_tables:
