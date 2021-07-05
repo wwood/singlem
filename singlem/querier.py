@@ -107,8 +107,9 @@ class Querier:
                 otus.add_otu_table(f)
                 for e in otus:
                     queries.append(QueryInputSequence(
-                        ';'.join([e.sample_name,e.marker]),
-                        e.sequence))
+                        ';'.join([e.sample_name]),
+                        e.sequence,
+                        e.marker))
         elif query_fasta:
             queries = []
             with open(query_fasta) as f:
@@ -119,91 +120,44 @@ class Querier:
             raise Exception("No query option specified, cannot continue")
         return queries
 
-    def _connect_to_sqlite(self, db):
-        sqlite_db_path = db.sqlite_file
-        if not os.path.exists(sqlite_db_path):
-            raise Exception("Sqlite database not found at '%s', indicating that either the SingleM database was built with an out-dated SingleM version, or that the database is corrupt. Please generate a new database with the current version of SingleM.")
-        logging.debug("Connecting to %s" % sqlite_db_path)
-        dbm = DatabaseManager({
-        'sqlite3': {
-            'driver': 'sqlite',
-            'database': sqlite_db_path
-        }})
-        Model.set_connection_resolver(dbm)
-        try:
-            len(dbm.table('otus').limit(1).get())
-        except Exception as e:
-            logging.error("Failure to extract any data from the otus table of the SQ Lite DB indicates this SingleM DB is either too old or is corrupt.")
-            raise(e)
-        try:
-            len(dbm.table('clusters').limit(1).get())
-        except QueryException:
-            logging.error("Failure to extract any data from the 'clusters' table indicates this SingleM DB is out-dated, and cannot be used with query implemented in this version of SingleM")
-            sys.exit(1)
-        return dbm
-
-    def query_with_queries(self, queries, db, max_divergence):
-        dbm = self._connect_to_sqlite(db)
+    def query_with_queries(self, queries, sdb, max_divergence):
+        sdb.query_builder(check=True)
         if max_divergence == 0:
-            return self.query_by_sqlite(queries, dbm)
+            return self.query_by_sqlite(queries, sdb)
         else:
-            return self.query_by_smafa(
-                queries, db, dbm, max_divergence)
+            return self.query_by_sequence_similarity(
+                queries, sdb, max_divergence)
 
 
-    def query_by_smafa(self, queries, sdb, sqlite_db,  max_divergence):
-        # Generate a tempfile of all the queries
-        with tempfile.NamedTemporaryFile(prefix='singlem_query_smafa',mode='w') as infile:
-            for query in queries:
-                infile.write(">%s\n" % query.name)
-                infile.write(query.sequence+"\n")
-                infile.flush()
-            infile.flush()
+    def query_by_sequence_similarity(self, queries, sdb, max_divergence):
+        marker_to_queries = {}
+        results = []
 
-            results = []
-            for smafa_db in sdb.smafa_dbs():
-                logging.info("Querying smafadb {}".format(smafa_db))
-                # Query with at least the divergence of the clustering + max_divergence,
-                # otherwise there may be false negatives.
-                smafa_divergence = max_divergence
-                min_divergence = sdb.smafa_clustering_divergence() + max_divergence
-                if smafa_divergence < min_divergence:
-                    smafa_divergence = min_divergence
-                cmd = "smafa query -q -d %i '%s' '%s'" % (smafa_divergence, smafa_db, infile.name)
-                logging.debug("Running cmd with popen: %s" % cmd)
-                proc = subprocess.Popen(
-                    cmd,
-                    shell=True,
-                    stdout=subprocess.PIPE,
-                    universal_newlines=True)
-                for line in proc.stdout:
-                    query_name, query_sequence, subject_sequence, divergence = line.split("\t")[:4]
-                    logging.debug("smafa query with {} returned hit sequence {}".format(
-                        query_name, subject_sequence))
-                    # Query for OTUs that have a cluster representative that is the hit sequence
-                    for entry in sqlite_db \
-                        .table('otus') \
-                        .join('clusters','clusters.member','=','otus.sequence') \
-                        .where('clusters.representative',subject_sequence).get():
-                        logging.debug(
-                            "Returned a potential hit through through clustering table: {} (divergence {})".format(
-                                entry.sequence, divergence))
+        for query in queries:
+            if query.marker not in marker_to_queries:
+                marker_to_queries[query.marker] = []
+            marker_to_queries[query.marker].append(query)
 
-                        if sdb.smafa_clustering_divergence() == 0:
-                            div = int(divergence)
-                        else:
-                            div = self.divergence(query_sequence, entry.sequence)
-                            logging.debug("Calculated divergence to be {}".format(div))
-                        if div <= max_divergence:
-                            #NOTE: Not the same objects as the original query objects.
-                            query = QueryInputSequence(query_name, query_sequence)
+        for marker, subqueries in marker_to_queries.items():
+            index = sdb.get_nucleotide_index(marker)
+            logging.info("Querying index for {}".format(marker))
+
+            for q in subqueries:
+                kNN = index.knnQuery(SequenceDatabase.nucleotides_to_binary(q.sequence), 1000)
+
+                for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
+                    div = int(hamming_distance / 2)
+                    if div <= max_divergence:
+                        hit_sequence = sdb.query_builder().table('otus').where('id',str(hit_index)).first()['sequence']
+
+                        for entry in sdb.query_builder().table('otus').where('sequence',hit_sequence).get():
                             otu = OtuTableEntry()
-                            otu.marker = entry.marker
-                            otu.sample_name = entry.sample_name
-                            otu.sequence = entry.sequence
-                            otu.count = entry.num_hits
-                            otu.coverage = entry.coverage
-                            otu.taxonomy = entry.taxonomy
+                            otu.marker = entry['marker']
+                            otu.sample_name = entry['sample_name']
+                            otu.sequence = entry['sequence']
+                            otu.count = entry['num_hits']
+                            otu.coverage = entry['coverage']
+                            otu.taxonomy = entry['taxonomy']
                             results.append(QueryResult(query, otu, div))
         return results
 
@@ -290,9 +244,13 @@ class Querier:
 
 
 class QueryInputSequence:
-    def __init__(self, name, sequence):
+    def __init__(self, name, sequence, marker):
         self.name = name
         self.sequence = sequence
+        self.marker = marker
+
+    def hamming_representation(self):
+        SequenceDatabase._nucleotides_to_binary(self.sequence)
 
 class QueryResult:
     def __init__(self, query, subject, divergence):
