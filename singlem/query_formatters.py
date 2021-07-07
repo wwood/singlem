@@ -20,5 +20,5 @@ class SparseResultFormatter:
                 res.subject.sample_name,
                 res.subject.marker,
                 res.subject.sequence,
-                res.subject.taxonomy
+                str(res.subject.taxonomy)
             ])+"\n")

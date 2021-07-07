@@ -16,6 +16,8 @@ from masoniteorm.query import QueryBuilder
 
 import nmslib
 import numba
+from numba.core import types
+import Bio.Data.CodonTable
 
 from .otu_table import OtuTableEntry, OtuTable
 
@@ -42,7 +44,7 @@ class SequenceDatabase:
             index.loadIndex(index_path, load_data=True)
             return index
         else:
-            logging.debug("No nucleotide index DB found for %s" % marker_name)
+            logging.warn("No nucleotide index DB found for %s" % marker_name)
             return None
 
     @staticmethod
@@ -160,8 +162,6 @@ class SequenceDatabase:
                     " sequence text, num_hits int, coverage float, taxonomy text)")
             db.commit()
 
-            marker_list = set()
-
             logging.info("Creating database table with all OTU observations ..")
             chunksize = 10000 # Run in chunks for sqlite insert performance.
             for chunk in SequenceDatabase._grouper(otu_table_collection, chunksize):
@@ -170,7 +170,6 @@ class SequenceDatabase:
                     if entry is not None: # Is None when padded in last chunk.
                         chunk_list.append((entry.marker, entry.sample_name, entry.sequence, entry.count,
                             entry.coverage, entry.taxonomy))
-                        marker_list.add(entry.marker)
 
                 c.executemany("INSERT INTO otus(marker, sample_name, sequence, num_hits, "
                             "coverage, taxonomy) VALUES(?,?,?,?,?,?)",
@@ -183,29 +182,132 @@ class SequenceDatabase:
             c.execute("CREATE INDEX otu_marker on otus (marker)")
             db.commit()
 
+            logging.info("Creating markers table ..")
+            c.execute("CREATE TABLE markers ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "marker text)")
+            c.execute("INSERT INTO markers(marker) SELECT DISTINCT(marker) from otus ORDER BY marker")
+            db.commit()
+            c.execute("CREATE INDEX markers_marker on markers (marker)")
+            db.commit()
+
+            logging.info("Adding marker_id column to otus ..")
+            c.execute('ALTER TABLE otus ADD COLUMN marker_id int')
+            c.execute('UPDATE otus SET marker_id = daily.id FROM (SELECT id, marker from markers) AS daily WHERE otus.marker = daily.marker')
+            db.commit()
+            c.execute("DROP INDEX otu_marker")
+            c.execute("ALTER table otus DROP COLUMN marker")
+            db.commit()
+            c.execute("CREATE INDEX otu_marker_id on otus (marker_id)")
+            db.commit()
+
+            logging.info("Creating nucleotide sequences table ..")
+            c.execute("CREATE TABLE nucleotides ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "marker_id int,"
+                "sequence text)")
+            db.commit()
+            c.execute("INSERT INTO nucleotides(marker_id, sequence) SELECT marker_id, sequence from otus GROUP BY marker_id, sequence")
+            db.commit()
+            c.execute("CREATE INDEX nucleotides_marker_id on nucleotides (marker_id)")
+            c.execute("CREATE INDEX nucleotides_sequence on nucleotides (sequence)")
+            db.commit()
+            logging.info("Creating nucleotides foreign key in otus table ..")
+            # Doing this takes way long, so instead we create a new table to replace otus
+            # c.execute('ALTER TABLE otus ADD COLUMN nucleotides_id int')
+            # c.execute('UPDATE otus SET nucleotides_id = daily.id FROM (SELECT id, marker_id, sequence from nucleotides) AS daily WHERE otus.marker_id = daily.marker_id and otus.sequence = daily.sequence')
+            # 
+            c.execute('ALTER TABLE otus RENAME to otus_previous')
+            c.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    " marker_id int, sample_name text,"
+                    " nucleotides_id, num_hits int, coverage float, taxonomy text)")
+            c.execute("INSERT INTO otus(marker_id, sample_name, num_hits, coverage, taxonomy, nucleotides_id) "
+                "SELECT nucleotides.marker_id, sample_name, num_hits, coverage, taxonomy, nucleotides.id "
+                "FROM otus_previous JOIN nucleotides ON otus_previous.sequence = nucleotides.sequence AND otus_previous.marker_id = nucleotides.marker_id")
+            db.commit()
+            c.execute("DROP TABLE otus_previous")
+            db.commit()
+            c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
+            c.execute("CREATE INDEX otu_marker_id on otus (marker_id)")
+            c.execute("CREATE INDEX otu_nucleotide_id on otus (nucleotides_id)")
+            db.commit()
+            # TODO? Use ROW_NUMBER() with PARTITION to make sequential index for each marker? Only needed for Annoy? For proteins too?
+            # https://www.sqlitetutorial.net/sqlite-window-functions/sqlite-row_number/
+
+            logging.info("Creating protein sequences table ..")
+            c.execute("CREATE TABLE proteins ("
+                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                "marker_id int,"
+                "nucleotide_id int,"
+                "sequence text)")
+            chunksize = 10000 # Run in chunks for sqlite insert performance.
+            for chunk in SequenceDatabase._grouper(
+                SequenceDatabase._query_builder(sqlite_db_path).table('nucleotides').select('id, marker_id, sequence').get(),
+                chunksize):
+
+                chunk_list = []
+                for entry in chunk:
+                    if entry is not None: # Is None when padded in last chunk.
+                        chunk_list.append((entry['marker_id'], entry['id'], nucleotides_to_protein(entry['sequence'])))
+
+                c.executemany("INSERT INTO proteins(marker_id, nucleotide_id, sequence) VALUES(?,?,?)",
+                            chunk_list)
+            db.commit()
+            c.execute("CREATE INDEX proteins_marker_id on proteins (marker_id)")
+            c.execute("CREATE INDEX proteins_nucleotide_id on proteins (nucleotide_id)")
+            db.commit()
+            
+            
+
         # Create nucleotide index files
-        logging.info("Creating nucleotide indices ..")
+        logging.info("Creating nucleotide sequence indices ..")
         nucleotide_db_dir = os.path.join(db_path, 'nucleotide_indices')
         os.makedirs(nucleotide_db_dir)
         
-        for marker_name in marker_list:
-            index = SequenceDatabase._nucleotide_nmslib_init()
+        for marker_row in SequenceDatabase._query_builder(sqlite_db_path).table('markers').get():
+            nucleotide_index = SequenceDatabase._nucleotide_nmslib_init()
 
-            logging.info("Tabulating unique sequences for {}..".format(marker_name))
+            marker_name = marker_row['marker']
+            logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').group_by('sequence').min('id').select('sequence').where('marker', marker_name).get():
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('nucleotides').select('sequence').select('id').where('marker_id', marker_row['id']).get():
                 # logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
-                index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
+                nucleotide_index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
                 count += 1
 
             # TODO: Tweak index creation parameters?
-            logging.info("Creating binary index from {} unique sequences ..".format(count))
-            index.createIndex()
+            logging.info("Creating binary nucleotide index from {} unique sequences ..".format(count))
+            nucleotide_index.createIndex()
 
             logging.info("Writing index to disk ..")
-            db_path = os.path.join(nucleotide_db_dir, "%s.nmslib_index" % marker_name)
-            index.saveIndex(db_path, save_data=True)
+            nucleotide_db_path = os.path.join(nucleotide_db_dir, "%s.nmslib_index" % marker_name)
+            nucleotide_index.saveIndex(nucleotide_db_path, save_data=True)
+            logging.info("Finished writing index to disk")
+
+
+        logging.info("Creating protein sequence indices ..")
+        protein_db_dir = os.path.join(db_path, 'protein_indices')
+        os.makedirs(protein_db_dir)
+        for marker_row in SequenceDatabase._query_builder(sqlite_db_path).table('markers').get():
+            protein_index = SequenceDatabase._nucleotide_nmslib_init()
+
+            marker_name = marker_row['marker']
+            logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
+            count = 0
+
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('proteins').select('sequence').select_raw('min(id) as id').group_by('sequence').where('marker_id', marker_row['id']).get():
+                # logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
+                protein_index.addDataPoint(row['id'], protein_to_binary(row['sequence']))
+                count += 1
+
+            # TODO: Tweak index creation parameters?
+            logging.info("Creating binary protein index from {} unique sequences ..".format(count))
+            protein_index.createIndex()
+
+            logging.info("Writing index to disk ..")
+            protein_db_path = os.path.join(protein_db_dir, "%s.nmslib_index" % marker_name)
+            protein_index.saveIndex(protein_db_path, save_data=True)
             logging.info("Finished writing index to disk")
 
         logging.info("Finished singlem DB creation")
@@ -246,3 +348,48 @@ def _base_to_binary(x):
 @numba.njit()
 def nucleotides_to_binary(seq):
     return ' '.join([_base_to_binary(b) for b in seq])
+
+@numba.njit()
+def _aa_to_binary(x):
+    aas = ['W',
+        'H',
+        'Q',
+        'M',
+        'K',
+        'G',
+        'A',
+        'I',
+        'F',
+        'S',
+        'L',
+        'Y',
+        'T',
+        'D',
+        'E',
+        'R',
+        'P',
+        'V',
+        'N',
+        'C',
+
+        '-',
+        'X']
+    return ' '.join(['1' if aa == x else '0' for aa in aas])
+
+@numba.njit()
+def protein_to_binary(seq):
+    return ' '.join([_aa_to_binary(b) for b in seq])
+
+# @numba.njit() # would like to do this, but better to move to lists not dict for codon table
+def nucleotides_to_protein(seq):
+    aas = []
+    codon_table=Bio.Data.CodonTable.standard_dna_table.forward_table
+    for i in range(0, len(seq), 3):
+        codon = seq[i:(i+3)]
+        if codon == '---':
+            aas.append('-')
+        elif codon in codon_table:
+            aas.append(codon_table[codon])
+        else:
+            aas.append('X')
+    return ''.join(aas)

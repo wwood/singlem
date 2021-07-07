@@ -141,6 +141,8 @@ class Querier:
 
         for marker, subqueries in marker_to_queries.items():
             index = sdb.get_nucleotide_index(marker)
+            if index is None:
+                raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
             logging.info("Querying index for {}".format(marker))
 
             for q in subqueries:
@@ -149,12 +151,15 @@ class Querier:
                 for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                     div = int(hamming_distance / 2)
                     if div <= max_divergence:
-                        hit_sequence = sdb.query_builder().table('otus').where('id',str(hit_index)).first()['sequence']
+                        for entry in sdb.query_builder().table('otus'). \
+                            join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
+                            where('nucleotides_id', int(hit_index)). \
+                            join('nucleotides','nucleotides_id','=','nucleotides.id'). \
+                            get():
 
-                        for entry in sdb.query_builder().table('otus').where('sequence',hit_sequence).get():
                             otu = OtuTableEntry()
                             otu.marker = entry['marker']
-                            otu.sample_name = entry['sample_name']
+                            otu.sample_name = 'dummy'#entry['sample_name']
                             otu.sequence = entry['sequence']
                             otu.count = entry['num_hits']
                             otu.coverage = entry['coverage']
