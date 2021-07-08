@@ -7,6 +7,8 @@ import glob
 import json
 import itertools
 import sys
+import csv
+import extern
 
 # Import masonite, pretty clunky
 sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
@@ -152,111 +154,143 @@ class SequenceDatabase:
                     SequenceDatabase.VERSION_KEY: 4,
                 }, f)
 
-            # setup sqlite DB
-            sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-            logging.debug("Connecting to db %s" % sqlite_db_path)
-            db = sqlite3.connect(sqlite_db_path)
-            c = db.cursor()
-            c.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    " marker text, sample_name text,"
-                    " sequence text, num_hits int, coverage float, taxonomy text)")
-            db.commit()
+            # Dumping the table into SQL and then modifying it form there is
+            # taking too long (or I don't understand SQL well enough). The main
+            # issue is that creating a table with (id, sequence) take a while to
+            # construct, and then a while to insert the foreign keys into the
+            # main table. So instead take a more hacky approach and generate
+            # them through GNU sort, which is multi-threaded.
 
-            logging.info("Creating database table with all OTU observations ..")
-            chunksize = 10000 # Run in chunks for sqlite insert performance.
-            for chunk in SequenceDatabase._grouper(otu_table_collection, chunksize):
-                chunk_list = []
-                for entry in chunk:
-                    if entry is not None: # Is None when padded in last chunk.
-                        chunk_list.append((entry.marker, entry.sample_name, entry.sequence, entry.count,
-                            entry.coverage, entry.taxonomy))
+            with tempfile.TemporaryDirectory() as my_tempdir:
 
-                c.executemany("INSERT INTO otus(marker, sample_name, sequence, num_hits, "
-                            "coverage, taxonomy) VALUES(?,?,?,?,?,?)",
-                            chunk_list)
+                total_otu_count = 0
+                # create tempdir
+                sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
+                proc = subprocess.Popen(['bash','-c','sort --parallel=8 --buffer-size=20% > {}'.format(sorted_path)],
+                    stdin=subprocess.PIPE,
+                    stdout=None,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True)
+                for entry in otu_table_collection:
+                    total_otu_count += 1
+                    print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
+                                str(entry.coverage), entry.taxonomy)), file=proc.stdin)
+                logging.info("Sorting {} OTU observations ..".format(total_otu_count))
+                proc.stdin.close()
+                proc.wait()
+                if proc.returncode != 0:
+                    raise Exception("Sort command returned non-zero exit status %i.\n"\
+                        "STDERR was: %s" % (
+                            proc.returncode, proc.stderr.read()))
 
-            logging.info("Creating SQLite indices ..")
-            c.execute("CREATE UNIQUE INDEX otu_id on otus (id)")
-            c.execute("CREATE INDEX otu_sequence on otus (sequence)")
-            c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
-            c.execute("CREATE INDEX otu_marker on otus (marker)")
-            db.commit()
+                logging.info("Creating numbered OTU table tsv")
+                marker_index = 0
+                sequence_index = 0
+                numbered_table_file = os.path.join(my_tempdir,'makedb_numbered_output.tsv')
+                numbered_marker_and_sequence_file = os.path.join(my_tempdir,'number_and_sequence_file')
+                with open(sorted_path) as csvfile_in:
+                    reader = csv.reader(csvfile_in, delimiter="\t")
+                    last_marker = None
+                    last_sequence = None
+                    with open(numbered_table_file,'w') as otus_output_table_io:
+                        with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
+                            for i, row in enumerate(reader):
+                                if last_marker != row[0]:
+                                    last_marker = row[0]
+                                    marker_index += 1
+                                    last_sequence = row[1]
+                                    sequence_index += 1
+                                elif last_sequence != row[1]:
+                                    last_sequence = row[1]
+                                    sequence_index += 1
+                                print("\t".join([str(i+1)]+row[2:]+[str(marker_index),str(sequence_index)]), file=otus_output_table_io)
+                                print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
 
-            logging.info("Creating markers table ..")
-            c.execute("CREATE TABLE markers ("
-                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "marker text)")
-            c.execute("INSERT INTO markers(marker) SELECT DISTINCT(marker) from otus ORDER BY marker")
-            db.commit()
-            c.execute("CREATE INDEX markers_marker on markers (marker)")
-            db.commit()
+                logging.info("Importing OTU table into SQLite ..")
+                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        " sample_name text, num_hits int, coverage float, taxonomy text, marker_id, sequence_id);\n"
+                        '.separator "\\t"\n'
+                        ".import {} otus".format(numbered_table_file))
 
-            logging.info("Adding marker_id column to otus ..")
-            c.execute('ALTER TABLE otus ADD COLUMN marker_id int')
-            c.execute('UPDATE otus SET marker_id = daily.id FROM (SELECT id, marker from markers) AS daily WHERE otus.marker = daily.marker')
-            db.commit()
-            c.execute("DROP INDEX otu_marker")
-            c.execute("ALTER table otus DROP COLUMN marker")
-            db.commit()
-            c.execute("CREATE INDEX otu_marker_id on otus (marker_id)")
-            db.commit()
+                logging.info("Creating markers and nucleotide table TSV files ..")
+                numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
+                numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
+                with open(numbered_marker_and_sequence_file) as csvfile_in:
+                    reader = csv.reader(csvfile_in, delimiter="\t")
+                    last_marker_id = None
+                    last_sequence_id = None
+                    with open(numbered_markers_file,'w') as markers_output_table_io:
+                        with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
+                            for row in reader:
+                                if last_marker_id != row[0]:
+                                    print("\t".join([row[0], row[2]]), file=markers_output_table_io)
+                                    print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
+                                    last_marker_id = row[0]
+                                    last_sequence_id = row[1]
+                                elif last_sequence_id != row[1]:
+                                    print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
+                                    last_sequence_id = row[1]
 
-            logging.info("Creating nucleotide sequences table ..")
-            c.execute("CREATE TABLE nucleotides ("
-                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "marker_id int,"
-                "sequence text)")
-            db.commit()
-            c.execute("INSERT INTO nucleotides(marker_id, sequence) SELECT marker_id, sequence from otus GROUP BY marker_id, sequence")
-            db.commit()
-            c.execute("CREATE INDEX nucleotides_marker_id on nucleotides (marker_id)")
-            c.execute("CREATE INDEX nucleotides_sequence on nucleotides (sequence)")
-            db.commit()
-            logging.info("Creating nucleotides foreign key in otus table ..")
-            # Doing this takes way long, so instead we create a new table to replace otus
-            # c.execute('ALTER TABLE otus ADD COLUMN nucleotides_id int')
-            # c.execute('UPDATE otus SET nucleotides_id = daily.id FROM (SELECT id, marker_id, sequence from nucleotides) AS daily WHERE otus.marker_id = daily.marker_id and otus.sequence = daily.sequence')
-            # 
-            c.execute('ALTER TABLE otus RENAME to otus_previous')
-            c.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    " marker_id int, sample_name text,"
-                    " nucleotides_id, num_hits int, coverage float, taxonomy text)")
-            c.execute("INSERT INTO otus(marker_id, sample_name, num_hits, coverage, taxonomy, nucleotides_id) "
-                "SELECT nucleotides.marker_id, sample_name, num_hits, coverage, taxonomy, nucleotides.id "
-                "FROM otus_previous JOIN nucleotides ON otus_previous.sequence = nucleotides.sequence AND otus_previous.marker_id = nucleotides.marker_id")
-            db.commit()
-            c.execute("DROP TABLE otus_previous")
-            db.commit()
-            c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
-            c.execute("CREATE INDEX otu_marker_id on otus (marker_id)")
-            c.execute("CREATE INDEX otu_nucleotide_id on otus (nucleotides_id)")
-            db.commit()
-            # TODO? Use ROW_NUMBER() with PARTITION to make sequential index for each marker? Only needed for Annoy? For proteins too?
-            # https://www.sqlitetutorial.net/sqlite-window-functions/sqlite-row_number/
+                logging.info("Importing markers table into SQLite ..")
+                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE markers (id INTEGER PRIMARY KEY,"
+                        " marker text);\n"
+                        '.separator "\\t"\n'
+                        ".import {} markers".format(numbered_markers_file))
 
-            logging.info("Creating protein sequences table ..")
-            c.execute("CREATE TABLE proteins ("
-                "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                "marker_id int,"
-                "nucleotide_id int,"
-                "sequence text)")
-            chunksize = 10000 # Run in chunks for sqlite insert performance.
-            for chunk in SequenceDatabase._grouper(
-                SequenceDatabase._query_builder(sqlite_db_path).table('nucleotides').select('id, marker_id, sequence').get(),
-                chunksize):
+                logging.info("Importing sequence table into SQLite ..")
+                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE nucleotides (id INTEGER PRIMARY KEY,"
+                        " marker_id int, sequence text);\n"
+                        '.separator "\\t"\n'
+                        ".import {} nucleotides".format(numbered_sequences_file))
 
-                chunk_list = []
-                for entry in chunk:
-                    if entry is not None: # Is None when padded in last chunk.
-                        chunk_list.append((entry['marker_id'], entry['id'], nucleotides_to_protein(entry['sequence'])))
 
-                c.executemany("INSERT INTO proteins(marker_id, nucleotide_id, sequence) VALUES(?,?,?)",
-                            chunk_list)
-            db.commit()
-            c.execute("CREATE INDEX proteins_marker_id on proteins (marker_id)")
-            c.execute("CREATE INDEX proteins_nucleotide_id on proteins (nucleotide_id)")
-            db.commit()
-            
+                logging.info("Creating SQL indexes on otus ..")
+                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                logging.debug("Connecting to db %s" % sqlite_db_path)
+                db = sqlite3.connect(sqlite_db_path)
+                c = db.cursor()
+
+                c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
+                c.execute("CREATE INDEX otu_taxonomy on otus (taxonomy)")
+                c.execute("CREATE INDEX otu_marker on otus (marker_id)")
+                c.execute("CREATE INDEX otu_sequence on otus (sequence_id)")
+
+                c.execute("CREATE INDEX markers_marker on markers (marker)")
+
+                logging.info("Creating SQL indexes on nucleotides ..")
+                c.execute("CREATE INDEX nucleotides_marker_id on nucleotides (marker_id)")
+                c.execute("CREATE INDEX nucleotides_sequence on nucleotides (sequence)")
+                db.commit()
+
+
+                logging.info("Creating protein sequences table ..")
+                numbered_proteins_file = os.path.join(my_tempdir,'makedb_numbered_proteins.tsv')
+                with open(numbered_sequences_file) as csvfile_in:
+                    reader = csv.reader(csvfile_in, delimiter="\t")
+                    last_marker_id = None
+                    last_sequence_id = None
+                    with open(numbered_proteins_file,'w') as numbered_proteins_file_io:
+                        for i, row in enumerate(reader):
+                            print("\t".join([str(i), row[0], row[1], nucleotides_to_protein(row[2])]), file=numbered_proteins_file_io)
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE proteins ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "marker_id int,"
+                    "nucleotide_id int,"
+                    "sequence text);\n"
+                        '.separator "\\t"\n'
+                        ".import {} proteins".format(numbered_proteins_file))
+                db.commit()
+                c.execute("CREATE INDEX proteins_marker_id on proteins (marker_id)")
+                c.execute("CREATE INDEX proteins_nucleotide_id on proteins (nucleotide_id)")
+                c.execute("CREATE INDEX proteins_sequence on proteins (sequence)")
+                db.commit()
             
 
         # Create nucleotide index files
