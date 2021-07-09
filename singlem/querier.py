@@ -153,13 +153,13 @@ class Querier:
                     if div <= max_divergence:
                         for entry in sdb.query_builder().table('otus'). \
                             join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
-                            where('nucleotides_id', int(hit_index)). \
-                            join('nucleotides','nucleotides_id','=','nucleotides.id'). \
+                            where('sequence_id', int(hit_index)). \
+                            join('nucleotides','sequence_id','=','nucleotides.id'). \
                             get():
 
                             otu = OtuTableEntry()
                             otu.marker = entry['marker']
-                            otu.sample_name = 'dummy'#entry['sample_name']
+                            otu.sample_name = entry['sample_name']
                             otu.sequence = entry['sequence']
                             otu.count = entry['num_hits']
                             otu.coverage = entry['coverage']

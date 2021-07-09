@@ -210,7 +210,7 @@ class SequenceDatabase:
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " sample_name text, num_hits int, coverage float, taxonomy text, marker_id, sequence_id);\n"
+                        " sample_name text, num_hits int, coverage float, taxonomy text, marker_id int, sequence_id int);\n"
                         '.separator "\\t"\n'
                         ".import {} otus".format(numbered_table_file))
 
