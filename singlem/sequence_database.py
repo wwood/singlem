@@ -163,91 +163,91 @@ class SequenceDatabase:
 
             with tempfile.TemporaryDirectory() as my_tempdir:
 
-                total_otu_count = 0
-                # create tempdir
-                sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
-                proc = subprocess.Popen(['bash','-c','sort --parallel=8 --buffer-size=20% > {}'.format(sorted_path)],
-                    stdin=subprocess.PIPE,
-                    stdout=None,
-                    stderr=subprocess.PIPE,
-                    universal_newlines=True)
-                for entry in otu_table_collection:
-                    total_otu_count += 1
-                    print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
-                                str(entry.coverage), entry.taxonomy)), file=proc.stdin)
-                logging.info("Sorting {} OTU observations ..".format(total_otu_count))
-                proc.stdin.close()
-                proc.wait()
-                if proc.returncode != 0:
-                    raise Exception("Sort command returned non-zero exit status %i.\n"\
-                        "STDERR was: %s" % (
-                            proc.returncode, proc.stderr.read()))
+                # total_otu_count = 0
+                # # create tempdir
+                # sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
+                # proc = subprocess.Popen(['bash','-c','sort --parallel=8 --buffer-size=20% > {}'.format(sorted_path)],
+                #     stdin=subprocess.PIPE,
+                #     stdout=None,
+                #     stderr=subprocess.PIPE,
+                #     universal_newlines=True)
+                # for entry in otu_table_collection:
+                #     total_otu_count += 1
+                #     print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
+                #                 str(entry.coverage), entry.taxonomy)), file=proc.stdin)
+                # logging.info("Sorting {} OTU observations ..".format(total_otu_count))
+                # proc.stdin.close()
+                # proc.wait()
+                # if proc.returncode != 0:
+                #     raise Exception("Sort command returned non-zero exit status %i.\n"\
+                #         "STDERR was: %s" % (
+                #             proc.returncode, proc.stderr.read()))
 
-                logging.info("Creating numbered OTU table tsv")
-                marker_index = 0
-                sequence_index = 0
-                numbered_table_file = os.path.join(my_tempdir,'makedb_numbered_output.tsv')
-                numbered_marker_and_sequence_file = os.path.join(my_tempdir,'number_and_sequence_file')
-                with open(sorted_path) as csvfile_in:
-                    reader = csv.reader(csvfile_in, delimiter="\t")
-                    last_marker = None
-                    last_sequence = None
-                    with open(numbered_table_file,'w') as otus_output_table_io:
-                        with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
-                            for i, row in enumerate(reader):
-                                if last_marker != row[0]:
-                                    last_marker = row[0]
-                                    marker_index += 1
-                                    last_sequence = row[1]
-                                    sequence_index += 1
-                                elif last_sequence != row[1]:
-                                    last_sequence = row[1]
-                                    sequence_index += 1
-                                print("\t".join([str(i+1)]+row[2:]+[str(marker_index),str(sequence_index)]), file=otus_output_table_io)
-                                print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
+                # logging.info("Creating numbered OTU table tsv")
+                # marker_index = 0
+                # sequence_index = 0
+                # numbered_table_file = os.path.join(my_tempdir,'makedb_numbered_output.tsv')
+                # numbered_marker_and_sequence_file = os.path.join(my_tempdir,'number_and_sequence_file')
+                # with open(sorted_path) as csvfile_in:
+                #     reader = csv.reader(csvfile_in, delimiter="\t")
+                #     last_marker = None
+                #     last_sequence = None
+                #     with open(numbered_table_file,'w') as otus_output_table_io:
+                #         with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
+                #             for i, row in enumerate(reader):
+                #                 if last_marker != row[0]:
+                #                     last_marker = row[0]
+                #                     marker_index += 1
+                #                     last_sequence = row[1]
+                #                     sequence_index += 1
+                #                 elif last_sequence != row[1]:
+                #                     last_sequence = row[1]
+                #                     sequence_index += 1
+                #                 print("\t".join([str(i+1)]+row[2:]+[str(marker_index),str(sequence_index)]), file=otus_output_table_io)
+                #                 print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
 
-                logging.info("Importing OTU table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " sample_name text, num_hits int, coverage float, taxonomy text, marker_id int, sequence_id int);\n"
-                        '.separator "\\t"\n'
-                        ".import {} otus".format(numbered_table_file))
+                # logging.info("Importing OTU table into SQLite ..")
+                # sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                # extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                #     "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                #         " sample_name text, num_hits int, coverage float, taxonomy text, marker_id int, sequence_id int);\n"
+                #         '.separator "\\t"\n'
+                #         ".import {} otus".format(numbered_table_file))
 
-                logging.info("Creating markers and nucleotide table TSV files ..")
-                numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
-                numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
-                with open(numbered_marker_and_sequence_file) as csvfile_in:
-                    reader = csv.reader(csvfile_in, delimiter="\t")
-                    last_marker_id = None
-                    last_sequence_id = None
-                    with open(numbered_markers_file,'w') as markers_output_table_io:
-                        with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
-                            for row in reader:
-                                if last_marker_id != row[0]:
-                                    print("\t".join([row[0], row[2]]), file=markers_output_table_io)
-                                    print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
-                                    last_marker_id = row[0]
-                                    last_sequence_id = row[1]
-                                elif last_sequence_id != row[1]:
-                                    print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
-                                    last_sequence_id = row[1]
+                # logging.info("Creating markers and nucleotide table TSV files ..")
+                # numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
+                # numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
+                # with open(numbered_marker_and_sequence_file) as csvfile_in:
+                #     reader = csv.reader(csvfile_in, delimiter="\t")
+                #     last_marker_id = None
+                #     last_sequence_id = None
+                #     with open(numbered_markers_file,'w') as markers_output_table_io:
+                #         with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
+                #             for row in reader:
+                #                 if last_marker_id != row[0]:
+                #                     print("\t".join([row[0], row[2]]), file=markers_output_table_io)
+                #                     print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
+                #                     last_marker_id = row[0]
+                #                     last_sequence_id = row[1]
+                #                 elif last_sequence_id != row[1]:
+                #                     print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
+                #                     last_sequence_id = row[1]
 
-                logging.info("Importing markers table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE markers (id INTEGER PRIMARY KEY,"
-                        " marker text);\n"
-                        '.separator "\\t"\n'
-                        ".import {} markers".format(numbered_markers_file))
+                # logging.info("Importing markers table into SQLite ..")
+                # sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                # extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                #     "CREATE TABLE markers (id INTEGER PRIMARY KEY,"
+                #         " marker text);\n"
+                #         '.separator "\\t"\n'
+                #         ".import {} markers".format(numbered_markers_file))
 
-                logging.info("Importing sequence table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE nucleotides (id INTEGER PRIMARY KEY,"
-                        " marker_id int, sequence text);\n"
-                        '.separator "\\t"\n'
-                        ".import {} nucleotides".format(numbered_sequences_file))
+                # logging.info("Importing sequence table into SQLite ..")
+                # sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                # extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                #     "CREATE TABLE nucleotides (id INTEGER PRIMARY KEY,"
+                #         " marker_id int, sequence text);\n"
+                #         '.separator "\\t"\n'
+                #         ".import {} nucleotides".format(numbered_sequences_file))
 
 
                 logging.info("Creating SQL indexes on otus ..")
@@ -269,28 +269,28 @@ class SequenceDatabase:
                 db.commit()
 
 
-                logging.info("Creating protein sequences table ..")
-                numbered_proteins_file = os.path.join(my_tempdir,'makedb_numbered_proteins.tsv')
-                with open(numbered_sequences_file) as csvfile_in:
-                    reader = csv.reader(csvfile_in, delimiter="\t")
-                    last_marker_id = None
-                    last_sequence_id = None
-                    with open(numbered_proteins_file,'w') as numbered_proteins_file_io:
-                        for i, row in enumerate(reader):
-                            print("\t".join([str(i), row[0], row[1], nucleotides_to_protein(row[2])]), file=numbered_proteins_file_io)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE proteins ("
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "marker_id int,"
-                    "nucleotide_id int,"
-                    "sequence text);\n"
-                        '.separator "\\t"\n'
-                        ".import {} proteins".format(numbered_proteins_file))
-                db.commit()
-                c.execute("CREATE INDEX proteins_marker_id on proteins (marker_id)")
-                c.execute("CREATE INDEX proteins_nucleotide_id on proteins (nucleotide_id)")
-                c.execute("CREATE INDEX proteins_sequence on proteins (sequence)")
-                db.commit()
+                # logging.info("Creating protein sequences table ..")
+                # numbered_proteins_file = os.path.join(my_tempdir,'makedb_numbered_proteins.tsv')
+                # with open(numbered_sequences_file) as csvfile_in:
+                #     reader = csv.reader(csvfile_in, delimiter="\t")
+                #     last_marker_id = None
+                #     last_sequence_id = None
+                #     with open(numbered_proteins_file,'w') as numbered_proteins_file_io:
+                #         for i, row in enumerate(reader):
+                #             print("\t".join([str(i), row[0], row[1], nucleotides_to_protein(row[2])]), file=numbered_proteins_file_io)
+                # extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                #     "CREATE TABLE proteins ("
+                #     "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                #     "marker_id int,"
+                #     "nucleotide_id int,"
+                #     "sequence text);\n"
+                #         '.separator "\\t"\n'
+                #         ".import {} proteins".format(numbered_proteins_file))
+                # db.commit()
+                # c.execute("CREATE INDEX proteins_marker_id on proteins (marker_id)")
+                # c.execute("CREATE INDEX proteins_nucleotide_id on proteins (nucleotide_id)")
+                # c.execute("CREATE INDEX proteins_sequence on proteins (sequence)")
+                # db.commit()
             
 
         # Create nucleotide index files
