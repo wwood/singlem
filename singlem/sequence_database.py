@@ -20,6 +20,7 @@ import nmslib
 import numba
 from numba.core import types
 import Bio.Data.CodonTable
+from annoy import AnnoyIndex
 
 from .otu_table import OtuTableEntry, OtuTable
 
@@ -90,6 +91,7 @@ class SequenceDatabase:
     @staticmethod
     def acquire(path):
         db = SequenceDatabase()
+        db.base_directory = path
 
         contents_path = os.path.join(
             path, SequenceDatabase._CONTENTS_FILE_NAME)
@@ -221,17 +223,20 @@ class SequenceDatabase:
                     reader = csv.reader(csvfile_in, delimiter="\t")
                     last_marker_id = None
                     last_sequence_id = None
+                    last_marker_wise_sequence_id = None
                     with open(numbered_markers_file,'w') as markers_output_table_io:
                         with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
                             for row in reader:
                                 if last_marker_id != row[0]:
+                                    last_marker_wise_sequence_id = 1
                                     print("\t".join([row[0], row[2]]), file=markers_output_table_io)
-                                    print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
+                                    print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
                                     last_marker_id = row[0]
                                     last_sequence_id = row[1]
                                 elif last_sequence_id != row[1]:
-                                    print("\t".join([row[1], row[0], row[3]]), file=nucleotides_output_table_io)
+                                    print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
                                     last_sequence_id = row[1]
+                                last_marker_wise_sequence_id += 1
 
                 logging.info("Importing markers table into SQLite ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
@@ -245,7 +250,7 @@ class SequenceDatabase:
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE nucleotides (id INTEGER PRIMARY KEY,"
-                        " marker_id int, sequence text);\n"
+                        " marker_id int, sequence text, marker_wise_id int);\n"
                         '.separator "\\t"\n'
                         ".import {} nucleotides".format(numbered_sequences_file))
 
@@ -344,7 +349,42 @@ class SequenceDatabase:
             protein_index.saveIndex(protein_db_path, save_data=True)
             logging.info("Finished writing index to disk")
 
+        SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes()
+
         logging.info("Finished singlem DB creation")
+
+    def create_annoy_nucleotide_indexes(self, ntrees=None):
+        example_seq = self.query_builder().table('nucleotides').limit(1).first()['sequence']
+        ndim = len(example_seq)*5
+        logging.debug("Creating {} dimensional annoy indices ..".format(ndim))
+
+        logging.info("Creating annoy nucleotide sequence indices ..")
+        nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_annoy')
+        os.makedirs(nucleotide_db_dir)
+
+        for marker_row in self.query_builder().table('markers').get():
+            annoy_index = AnnoyIndex(ndim, 'hamming')
+
+            marker_name = marker_row['marker']
+            logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
+            count = 0
+
+            for row in self.query_builder().table('nucleotides').select('sequence').select('marker_wise_id').where('marker_id', marker_row['id']).get():
+                logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['sequence']))
+                annoy_index.add_item(row['marker_wise_id'], nucleotides_to_binary_array(row['sequence']))
+                count += 1
+
+            # TODO: Tweak index creation parameters?
+            if ntrees is None:
+                ntrees = int(count / 10) #complete guess atm
+                if ntrees < 1:
+                    ntrees = 1
+            logging.info("Creating binary nucleotide index from {} unique sequences and ntress={}..".format(count, ntrees))
+            annoy_index.build(ntrees)
+
+            logging.info("Writing index to disk ..")
+            annoy_index.save(os.path.join(nucleotide_db_dir, "%s.annoy_index" % marker_name))
+            logging.info("Finished writing index to disk")
     
     @staticmethod
     def dump(db_path):
@@ -382,6 +422,23 @@ def _base_to_binary(x):
 @numba.njit()
 def nucleotides_to_binary(seq):
     return ' '.join([_base_to_binary(b) for b in seq])
+    
+@numba.njit()
+def _base_to_binary_array(x):
+    if x == 'A':
+        return [1,0,0,0,0]
+    elif x == 'T':
+        return [0,1,0,0,0]
+    elif x == 'C':
+        return [0,0,1,0,0]
+    elif x == 'G':
+        return [0,0,0,1,0]
+    else:
+        return [0,0,0,0,1]
+    
+# @numba.njit()
+def nucleotides_to_binary_array(seq):
+    return list(itertools.chain(*[_base_to_binary_array(b) for b in seq]))
 
 @numba.njit()
 def _aa_to_binary(x):
