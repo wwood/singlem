@@ -286,27 +286,71 @@ class SequenceDatabase:
                 db.commit()
 
 
-                logging.info("Creating protein sequences table ..")
-                numbered_proteins_file = os.path.join(my_tempdir,'makedb_numbered_proteins.tsv')
+                logging.info("Creating sorted protein sequences data ..")
+                # Write a file of nucleotide id + protein sequence, and sort
+                sorted_proteins_path = os.path.join(my_tempdir,'makedb_sort_output_protein')
+                proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
+                    stdin=subprocess.PIPE,
+                    stdout=None,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True)
                 with open(numbered_sequences_file) as csvfile_in:
                     reader = csv.reader(csvfile_in, delimiter="\t")
-                    last_marker_id = None
-                    last_sequence_id = None
-                    with open(numbered_proteins_file,'w') as numbered_proteins_file_io:
-                        for i, row in enumerate(reader):
-                            print("\t".join([str(i), row[0], row[1], nucleotides_to_protein(row[2])]), file=numbered_proteins_file_io)
+
+                    for row in reader:
+                        # id INTEGER PRIMARY KEY,"
+                        # " marker_id int, sequence text, marker_wise_id int
+                        nucleotide_id = row[0]
+                        sequence = row[2]
+                        print("\t".join([nucleotides_to_protein(row[2]), nucleotide_id]), file=proc.stdin)
+                proc.stdin.close()
+                proc.wait()
+                if proc.returncode != 0:
+                    raise Exception("Sort command returned non-zero exit status %i.\n"\
+                        "STDERR was: %s" % (
+                            proc.returncode, proc.stderr.read()))
+
+                logging.info("Creating protein sequence data for import ..")
+                # Write a file with unique protein IDs, and the join table between nuc and prot
+                proteins_file = os.path.join(my_tempdir,'makedb_numbered_proteins.tsv')
+                nucleotide_proteins_file = os.path.join(my_tempdir,'nucleotides_proteins.tsv')
+                with open(sorted_proteins_path) as csvfile_in:
+                    reader = csv.reader(csvfile_in, delimiter="\t")
+                    last_protein = None
+                    last_protein_id = 0
+
+                    with open(proteins_file,'w') as proteins_file_io:
+                        with open(nucleotide_proteins_file,'w') as nucleotide_proteins_file_io:
+                            for i, row in enumerate(reader):
+                                current_protein_sequence = row[0]
+                                nucleotide_id = row[1]
+                                if current_protein_sequence != last_protein:
+                                    last_protein = current_protein_sequence
+                                    last_protein_id += 1
+                                    print("\t".join([str(last_protein_id), current_protein_sequence]), file=proteins_file_io)
+                                print("\t".join([str(i), str(last_protein_id), nucleotide_id]), file=nucleotide_proteins_file_io)
+                logging.info("Running imports of proteins and protein_nucleotides ..")
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE proteins ("
                     "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "marker_id int,"
-                    "nucleotide_id int,"
-                    "sequence text);\n"
+                    "protein_sequence int);\n"
                         '.separator "\\t"\n'
-                        ".import {} proteins".format(numbered_proteins_file))
+                        ".import {} proteins".format(proteins_file))
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE nucleotides_proteins ("
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                    "nucleotide_id int,"
+                    "protein_id int);\n"
+                        '.separator "\\t"\n'
+                        ".import {} nucleotides_proteins".format(nucleotide_proteins_file))
+
+                logging.info("Creating proteins indices ..")
+                c.execute("CREATE INDEX proteins_sequence on proteins (protein_sequence)")
                 db.commit()
-                c.execute("CREATE INDEX proteins_marker_id on proteins (marker_id)")
-                c.execute("CREATE INDEX proteins_nucleotide_id on proteins (nucleotide_id)")
-                c.execute("CREATE INDEX proteins_sequence on proteins (sequence)")
+
+                logging.info("Creating nucleotides_proteins indices ..")
+                c.execute("CREATE INDEX nucleotides_proteins_protein_id on nucleotides_proteins (protein_id)")
+                c.execute("CREATE INDEX nucleotides_proteins_nucleotide_id on nucleotides_proteins (nucleotide_id)")
                 db.commit()
             
 
@@ -347,9 +391,11 @@ class SequenceDatabase:
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('proteins').select('sequence').select_raw('min(id) as id').group_by('sequence').where('marker_id', marker_row['id']).get():
-                # logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
-                protein_index.addDataPoint(row['id'], protein_to_binary(row['sequence']))
+            for row in SequenceDatabase._query_builder(sqlite_db_path).table('proteins'). \
+                select_raw('proteins.id as id, protein_sequence').join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
+                    join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
+                        where('nucleotides.marker_id', marker_row['id']).get():
+                protein_index.addDataPoint(row['id'], protein_to_binary(row['protein_sequence']))
                 count += 1
 
             # TODO: Tweak index creation parameters?
