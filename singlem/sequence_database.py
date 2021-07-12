@@ -134,7 +134,13 @@ class SequenceDatabase:
         return itertools.zip_longest(*args, fillvalue=None)
 
     @staticmethod
-    def create_from_otu_table(db_path, otu_table_collection, num_threads=DEFAULT_NUM_THREADS, pregenerated_sqlite3_db=None):
+    def create_from_otu_table(
+        db_path,
+        otu_table_collection, 
+        num_threads=DEFAULT_NUM_THREADS,
+        pregenerated_sqlite3_db=None,
+        tmpdir=None):
+
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
         if pregenerated_sqlite3_db:
@@ -168,6 +174,8 @@ class SequenceDatabase:
             # them through GNU sort, which is multi-threaded.
 
             with tempfile.TemporaryDirectory() as my_tempdir:
+                if tmpdir is not None:
+                    my_tempdir = tmpdir
 
                 total_otu_count = 0
                 # create tempdir
