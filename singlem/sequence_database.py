@@ -24,6 +24,8 @@ from annoy import AnnoyIndex
 
 from .otu_table import OtuTableEntry, OtuTable
 
+DEFAULT_NUM_THREADS = 1
+
 
 class SequenceDatabase:
     version = 4
@@ -132,7 +134,9 @@ class SequenceDatabase:
         return itertools.zip_longest(*args, fillvalue=None)
 
     @staticmethod
-    def create_from_otu_table(db_path, otu_table_collection, pregenerated_sqlite3_db=None):
+    def create_from_otu_table(db_path, otu_table_collection, num_threads=DEFAULT_NUM_THREADS, pregenerated_sqlite3_db=None):
+        if num_threads is None:
+            num_threads = DEFAULT_NUM_THREADS
         if pregenerated_sqlite3_db:
             logging.info("Re-using previous SQLite database {}".format(pregenerated_sqlite3_db))
             sqlite_db_path = pregenerated_sqlite3_db
@@ -168,7 +172,7 @@ class SequenceDatabase:
                 total_otu_count = 0
                 # create tempdir
                 sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
-                proc = subprocess.Popen(['bash','-c','sort --parallel=8 --buffer-size=20% > {}'.format(sorted_path)],
+                proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_path)],
                     stdin=subprocess.PIPE,
                     stdout=None,
                     stderr=subprocess.PIPE,
