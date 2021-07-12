@@ -215,7 +215,7 @@ class Querier:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        dbm = self._connect_to_sqlite(db)
+        dbm = db.query_builder()
 
         max_set_size = 999 # Cannot query sqlite with > 999 '?' entries, so
                            # query in batches.
@@ -225,24 +225,24 @@ class Querier:
             query_chunks = [taxonomy]
         otus = OtuTable()
         total_printed = 0
-        for chunk in SequenceDatabase.grouper(query_chunks, max_set_size):
+        for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
-                it = dbm.table('otus').where_in(
+                it = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where_in(
                     'sample_name', [sample for sample in chunk if sample is not None]).get()
             elif taxonomy:
-                it = dbm.table('otus').where(
+                it = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where(
                     'taxonomy', 'like', "%%%s%%" % taxonomy).get()
             else:
                 raise Exception("Programming error")
 
             for entry in it:
                 otu = OtuTableEntry()
-                otu.marker = entry.marker
-                otu.sample_name = entry.sample_name
-                otu.sequence = entry.sequence
-                otu.count = entry.num_hits
-                otu.coverage = entry.coverage
-                otu.taxonomy = entry.taxonomy
+                otu.marker = entry['marker']
+                otu.sample_name = entry['sample_name']
+                otu.sequence = entry['sequence']
+                otu.count = entry['num_hits']
+                otu.coverage = entry['coverage']
+                otu.taxonomy = entry['taxonomy']
                 otus.add([otu])
                 total_printed += 1
         otus.write_to(output_io)
