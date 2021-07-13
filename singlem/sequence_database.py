@@ -408,6 +408,7 @@ class SequenceDatabase:
             logging.info("Finished writing index to disk")
 
         SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes()
+        SequenceDatabase.acquire(db_path).create_annoy_protein_indexes()
 
         logging.info("Finished singlem DB creation")
 
@@ -437,11 +438,48 @@ class SequenceDatabase:
                 ntrees = int(count / 10) #complete guess atm
                 if ntrees < 1:
                     ntrees = 1
-            logging.info("Creating binary nucleotide index from {} unique sequences and ntress={}..".format(count, ntrees))
+            logging.info("Creating binary nucleotide index from {} unique sequences and ntrees={}..".format(count, ntrees))
             annoy_index.build(ntrees)
 
             logging.info("Writing index to disk ..")
             annoy_index.save(os.path.join(nucleotide_db_dir, "%s.annoy_index" % marker_name))
+            logging.info("Finished writing index to disk")
+
+    def create_annoy_protein_indexes(self, ntrees=None):
+        example_seq = self.query_builder().table('proteins').limit(1).first()['protein_sequence']
+        ndim = len(example_seq)*len(AA_ORDER)
+        logging.debug("Creating {} dimensional annoy indices ..".format(ndim))
+
+        logging.info("Creating annoy protein sequence indices ..")
+        protein_db_dir = os.path.join(self.base_directory, 'protein_indices_annoy')
+        os.makedirs(protein_db_dir)
+
+        for marker_row in self.query_builder().table('markers').get():
+            annoy_index = AnnoyIndex(ndim, 'hamming')
+
+            marker_name = marker_row['marker']
+            logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
+            count = 0
+
+            for row in self.query_builder().table('proteins'). \
+                join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
+                join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
+                select('protein_sequence').select_raw('nucleotides.marker_wise_id as marker_wise_id'). \
+                where('nucleotides.marker_id', marker_row['id']).get():
+                logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['protein_sequence']))
+                annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
+                count += 1
+
+            # TODO: Tweak index creation parameters?
+            if ntrees is None:
+                ntrees = int(count / 10) #complete guess atm
+                if ntrees < 1:
+                    ntrees = 1
+            logging.info("Creating binary protein index from {} unique sequences and ntrees={}..".format(count, ntrees))
+            annoy_index.build(ntrees)
+
+            logging.info("Writing index to disk ..")
+            annoy_index.save(os.path.join(protein_db_dir, "%s.annoy_index" % marker_name))
             logging.info("Finished writing index to disk")
     
     @staticmethod
@@ -498,9 +536,7 @@ def _base_to_binary_array(x):
 def nucleotides_to_binary_array(seq):
     return list(itertools.chain(*[_base_to_binary_array(b) for b in seq]))
 
-@numba.njit()
-def _aa_to_binary(x):
-    aas = ['W',
+AA_ORDER = ['W',
         'H',
         'Q',
         'M',
@@ -523,11 +559,18 @@ def _aa_to_binary(x):
 
         '-',
         'X']
-    return ' '.join(['1' if aa == x else '0' for aa in aas])
 
-@numba.njit()
+def _aa_to_binary(x):
+    return ' '.join(['1' if aa == x else '0' for aa in AA_ORDER])
+
 def protein_to_binary(seq):
     return ' '.join([_aa_to_binary(b) for b in seq])
+    
+def _aa_to_binary_array(x):
+    return list([1 if aa == x else 0 for aa in AA_ORDER])
+
+def protein_to_binary_array(seq):
+    return list(itertools.chain(*[_aa_to_binary_array(b) for b in seq]))
 
 # @numba.njit() # would like to do this, but better to move to lists not dict for codon table
 def nucleotides_to_protein(seq):
