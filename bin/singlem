@@ -354,6 +354,10 @@ if __name__ == '__main__':
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
+    DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
+    makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES)
+    DEFAULT_ANNOY_PROTEIN_NTREES = 10
+    makedb_other_args.add_argument('--num-annoy-protein-trees', help='make annoy protein sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_PROTEIN_NTREES),default=DEFAULT_ANNOY_PROTEIN_NTREES)
     makedb_other_args.add_argument('--tmpdir', help='[for internal usage] use this directory internally for working')
 
     query_description = 'Find closely related sequences in a database.'
@@ -665,7 +669,9 @@ if __name__ == '__main__':
                         otus.add_gzip_archive_otu_table_file(arc.strip())
                         
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-                (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db)
+                (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
+                num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
+                num_annoy_protein_trees=args.num_annoy_protein_trees)
         elif args.subparser_name=='query':
             querier = Querier()
             if args.db and args.subject_otu_tables:

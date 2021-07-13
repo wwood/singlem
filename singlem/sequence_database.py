@@ -220,7 +220,9 @@ class SequenceDatabase:
         otu_table_collection, 
         num_threads=DEFAULT_NUM_THREADS,
         pregenerated_sqlite3_db=None,
-        tmpdir=None):
+        tmpdir=None,
+        num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
+        num_annoy_protein_trees = 10):
 
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
@@ -497,7 +499,7 @@ class SequenceDatabase:
             protein_index.saveIndex(protein_db_path, save_data=True)
             logging.info("Finished writing index to disk")
 
-    def create_annoy_nucleotide_indexes(self, ntrees=None):
+    def create_annoy_nucleotide_indexes(self, ntrees):
         logging.info("Creating annoy nucleotide sequence indices ..")
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_annoy')
         os.makedirs(nucleotide_db_dir)
@@ -515,10 +517,6 @@ class SequenceDatabase:
                 count += 1
 
             # TODO: Tweak index creation parameters?
-            if ntrees is None:
-                ntrees = int(count / 10) #complete guess atm
-                if ntrees < 1:
-                    ntrees = 1
             logging.info("Creating binary nucleotide index from {} unique sequences and ntrees={}..".format(count, ntrees))
             annoy_index.build(ntrees)
 
@@ -526,7 +524,7 @@ class SequenceDatabase:
             annoy_index.save(os.path.join(nucleotide_db_dir, "%s.annoy_index" % marker_name))
             logging.info("Finished writing index to disk")
 
-    def create_annoy_protein_indexes(self, ntrees=None):
+    def create_annoy_protein_indexes(self, ntrees):
         logging.info("Creating annoy protein sequence indices ..")
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_annoy')
         os.makedirs(protein_db_dir)
@@ -548,10 +546,6 @@ class SequenceDatabase:
                 count += 1
 
             # TODO: Tweak index creation parameters?
-            if ntrees is None:
-                ntrees = int(count / 10) #complete guess atm
-                if ntrees < 1:
-                    ntrees = 1
             logging.info("Creating binary protein index from {} unique sequences and ntrees={}..".format(count, ntrees))
             annoy_index.build(ntrees)
 
