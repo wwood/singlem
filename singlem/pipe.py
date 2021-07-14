@@ -199,7 +199,8 @@ class SearchPipe:
         if genome_fasta_files:
             logging.info("Calling rough transcriptome of genome FASTA files")
             for fasta in genome_fasta_files:
-                transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-{}'.format(os.path.basename(fasta)), suffix='.fasta')
+                # Make a tempfile with delete=False because it is in a tmpdir already, and useful for debug to keep around with --working-directory
+                transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-{}'.format(os.path.basename(fasta)), suffix='.fasta', delete=False)
                 extern.run('orfm -m {} -t {} {} >/dev/null'.format(self._min_orf_length, transcripts_path.name, fasta))
                 transcript_tempfiles.append(transcripts_path)
                 forward_read_files.append(transcripts_path.name)
