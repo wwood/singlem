@@ -24,6 +24,7 @@ class Querier:
         query_otu_table = kwargs.pop('query_otu_table')
         query_fasta = kwargs.pop('query_fasta')
         num_threads = kwargs.pop('num_threads')
+        search_method = kwargs.pop('search_method')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -36,7 +37,7 @@ class Querier:
             query_sequence, query_otu_table, query_fasta)
         logging.info("Read in %i queries" % len(queries))
 
-        query_results = self.query_with_queries(queries, db, max_divergence)
+        query_results = self.query_with_queries(queries, db, max_divergence, search_method)
         logging.info("Printing %i hits" % len(query_results))
 
         if output_style == 'sparse':
@@ -121,18 +122,56 @@ class Querier:
             raise Exception("No query option specified, cannot continue")
         return queries
 
-    def query_with_queries(self, queries, sdb, max_divergence):
+    def query_with_queries(self, queries, sdb, max_divergence, search_method):
         sdb.query_builder(check=True)
         if max_divergence == 0:
             return self.query_by_sqlite(queries, sdb)
-        else:
-            return self.query_by_sequence_similarity(
+        elif search_method == 'naive':
+            return self.query_by_sequence_similarity_naively(
                 queries, sdb, max_divergence)
+        elif search_method == 'annoy':
+            return self.query_by_sequence_similarity_with_annoy(
+                queries, sdb, max_divergence)
+        elif search_method == 'nmslib':
+            return self.query_by_sequence_similarity_with_nmslib(
+                queries, sdb, max_divergence)
+        else:
+            raise Exception("Unknown search method {}".format(search_method))
 
-
-    def query_by_sequence_similarity(self, queries, sdb, max_divergence):
+    def query_by_sequence_similarity_naively(self, queries, sdb, max_divergence):
         marker_to_queries = {}
         results = []
+        logging.info("Searching by nucleotide sequence with (unoptimised) naive search ..")
+
+        for query in queries:
+            if query.marker not in marker_to_queries:
+                marker_to_queries[query.marker] = []
+            marker_to_queries[query.marker].append(query)
+
+        for marker, subqueries in marker_to_queries.items():
+            for entry in sdb.query_builder().table('otus'). \
+                join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
+                join('nucleotides','sequence_id','=','nucleotides.id'). \
+                get():
+
+                for q in subqueries:
+                    div = self.divergence(q.sequence, entry['sequence'])
+                    if div <= max_divergence:
+                        otu = OtuTableEntry()
+                        otu.marker = entry['marker']
+                        otu.sample_name = entry['sample_name']
+                        otu.sequence = entry['sequence']
+                        otu.count = entry['num_hits']
+                        otu.coverage = entry['coverage']
+                        otu.taxonomy = entry['taxonomy']
+                        results.append(QueryResult(query, otu, div))
+        return results
+
+
+    def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence):
+        marker_to_queries = {}
+        results = []
+        logging.info("Searching with nmslib by nucleotide sequence ..")
 
         for query in queries:
             if query.marker not in marker_to_queries:
@@ -154,6 +193,44 @@ class Querier:
                         for entry in sdb.query_builder().table('otus'). \
                             join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
                             where('sequence_id', int(hit_index)). \
+                            join('nucleotides','sequence_id','=','nucleotides.id'). \
+                            get():
+
+                            otu = OtuTableEntry()
+                            otu.marker = entry['marker']
+                            otu.sample_name = entry['sample_name']
+                            otu.sequence = entry['sequence']
+                            otu.count = entry['num_hits']
+                            otu.coverage = entry['coverage']
+                            otu.taxonomy = entry['taxonomy']
+                            results.append(QueryResult(query, otu, div))
+        return results
+
+    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence):
+        marker_to_queries = {}
+        results = []
+        logging.info("Searching with annoy by nucleotide sequence ..")
+
+        for query in queries:
+            if query.marker not in marker_to_queries:
+                marker_to_queries[query.marker] = []
+            marker_to_queries[query.marker].append(query)
+
+        for marker, subqueries in marker_to_queries.items():
+            index = sdb.get_sequence_index(marker, 'annoy', 'nucleotide')
+            if index is None:
+                raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
+            logging.info("Querying index for {}".format(marker))
+
+            for q in subqueries:
+                kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), 1000, include_distances=True)
+
+                for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
+                    div = int(hamming_distance / 2)
+                    if div <= max_divergence:
+                        for entry in sdb.query_builder().table('otus'). \
+                            join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
+                            where('nucleotides.marker_wise_id', int(hit_index)). \
                             join('nucleotides','sequence_id','=','nucleotides.id'). \
                             get():
 
