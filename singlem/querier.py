@@ -140,7 +140,7 @@ class Querier:
             marker_to_queries[query.marker].append(query)
 
         for marker, subqueries in marker_to_queries.items():
-            index = sdb.get_nucleotide_index(marker)
+            index = sdb.get_sequence_index(marker, 'nmslib', 'nucleotide')
             if index is None:
                 raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
             logging.info("Querying index for {}".format(marker))
