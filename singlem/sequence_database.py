@@ -122,7 +122,6 @@ class SequenceDatabase:
 
         nucleotide_index_files = glob.glob("%s/nucleotide_indices/*.nmslib_index" % path)
         logging.debug("Found nucleotide_index_files: %s" % ", ".join(nucleotide_index_files))
-        if len(nucleotide_index_files) == 0: raise Exception("No nucleotide_index_files found in DB")
         for g in nucleotide_index_files:
             marker = os.path.basename(g).replace('.nmslib_index','')
             db.add_nucleotide_db(marker, g)
@@ -355,18 +354,27 @@ class SequenceDatabase:
             
 
         # Create nucleotide index files
-        logging.info("Creating nucleotide sequence indices ..")
-        nucleotide_db_dir = os.path.join(db_path, 'nucleotide_indices')
+        SequenceDatabase.acquire(db_path).create_nmslib_nucleotide_indexes()
+        SequenceDatabase.acquire(db_path).create_nmslib_protein_indexes()
+
+        SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes()
+        SequenceDatabase.acquire(db_path).create_annoy_protein_indexes()
+
+        logging.info("Finished singlem DB creation")
+
+    def create_nmslib_nucleotide_indexes(self):
+        logging.info("Creating nmslib nucleotide sequence indices ..")
+        nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices')
         os.makedirs(nucleotide_db_dir)
         
-        for marker_row in SequenceDatabase._query_builder(sqlite_db_path).table('markers').get():
+        for marker_row in self.query_builder().table('markers').get():
             nucleotide_index = SequenceDatabase._nucleotide_nmslib_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('nucleotides').select('sequence').select('id').where('marker_id', marker_row['id']).get():
+            for row in self.query_builder().table('nucleotides').select('sequence').select('id').where('marker_id', marker_row['id']).get():
                 # logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
                 nucleotide_index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
                 count += 1
@@ -380,18 +388,18 @@ class SequenceDatabase:
             nucleotide_index.saveIndex(nucleotide_db_path, save_data=True)
             logging.info("Finished writing index to disk")
 
-
-        logging.info("Creating protein sequence indices ..")
-        protein_db_dir = os.path.join(db_path, 'protein_indices')
+    def create_nmslib_protein_indexes(self):
+        logging.info("Creating nmslib protein sequence indices ..")
+        protein_db_dir = os.path.join(self.base_directory, 'protein_indices')
         os.makedirs(protein_db_dir)
-        for marker_row in SequenceDatabase._query_builder(sqlite_db_path).table('markers').get():
+        for marker_row in self.query_builder().table('markers').get():
             protein_index = SequenceDatabase._nucleotide_nmslib_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('proteins'). \
+            for row in self.query_builder().table('proteins'). \
                 select_raw('proteins.id as id, protein_sequence').join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
                     join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                         where('nucleotides.marker_id', marker_row['id']).get():
@@ -406,11 +414,6 @@ class SequenceDatabase:
             protein_db_path = os.path.join(protein_db_dir, "%s.nmslib_index" % marker_name)
             protein_index.saveIndex(protein_db_path, save_data=True)
             logging.info("Finished writing index to disk")
-
-        SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes()
-        SequenceDatabase.acquire(db_path).create_annoy_protein_indexes()
-
-        logging.info("Finished singlem DB creation")
 
     def create_annoy_nucleotide_indexes(self, ntrees=None):
         example_seq = self.query_builder().table('nucleotides').limit(1).first()['sequence']
