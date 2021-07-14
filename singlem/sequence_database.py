@@ -80,9 +80,19 @@ class SequenceDatabase:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         elif index_format == 'annoy':
             if sequence_type == 'nucleotide':
-                raise NotImplementedException()
+                if marker_name in self._marker_to_annoy_nucleotide_index_file:
+                    index_path = self._marker_to_annoy_nucleotide_index_file[marker_name]
+                    index = self._nucleotide_annoy_init()
+                    logging.debug("Loading index for {} from {}".format(marker_name, index_path))
+                    index.load(index_path)
+                    return index
             elif sequence_type == 'protein':
-                raise NotImplementedException()
+                if marker_name in self._marker_to_annoy_protein_index_file:
+                    index_path = self._marker_to_annoy_protein_index_file[marker_name]
+                    index = self._protein_annoy_init()
+                    logging.debug("Loading index for {} from {}".format(marker_name, index_path))
+                    index.load(index_path)
+                    return index
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         else:
@@ -94,6 +104,20 @@ class SequenceDatabase:
     @staticmethod
     def _nucleotide_nmslib_init():
         return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
+
+    @staticmethod
+    def _protein_nmslib_init():
+        return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
+
+    def _nucleotide_annoy_init(self):
+        example_seq = self.query_builder().table('nucleotides').limit(1).first()['sequence']
+        ndim = len(example_seq)*5
+        return AnnoyIndex(ndim, 'hamming')
+
+    def _protein_annoy_init(self):
+        example_seq = self.query_builder().table('proteins').limit(1).first()['protein_sequence']
+        ndim = len(example_seq)*len(AA_ORDER)
+        return AnnoyIndex(ndim, 'hamming')
 
     def query_builder(self, check=False):
         return SequenceDatabase._query_builder(self.sqlite_file, check=check)
@@ -433,7 +457,7 @@ class SequenceDatabase:
             count = 0
 
             for row in self.query_builder().table('nucleotides').select('sequence').select('id').where('marker_id', marker_row['id']).get():
-                # logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
+                logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
                 nucleotide_index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
                 count += 1
 
@@ -451,7 +475,7 @@ class SequenceDatabase:
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_nmslib')
         os.makedirs(protein_db_dir)
         for marker_row in self.query_builder().table('markers').get():
-            protein_index = SequenceDatabase._nucleotide_nmslib_init()
+            protein_index = SequenceDatabase._protein_nmslib_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
@@ -474,16 +498,12 @@ class SequenceDatabase:
             logging.info("Finished writing index to disk")
 
     def create_annoy_nucleotide_indexes(self, ntrees=None):
-        example_seq = self.query_builder().table('nucleotides').limit(1).first()['sequence']
-        ndim = len(example_seq)*5
-        logging.debug("Creating {} dimensional annoy indices ..".format(ndim))
-
         logging.info("Creating annoy nucleotide sequence indices ..")
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_annoy')
         os.makedirs(nucleotide_db_dir)
 
         for marker_row in self.query_builder().table('markers').get():
-            annoy_index = AnnoyIndex(ndim, 'hamming')
+            annoy_index = self._nucleotide_annoy_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
@@ -507,16 +527,12 @@ class SequenceDatabase:
             logging.info("Finished writing index to disk")
 
     def create_annoy_protein_indexes(self, ntrees=None):
-        example_seq = self.query_builder().table('proteins').limit(1).first()['protein_sequence']
-        ndim = len(example_seq)*len(AA_ORDER)
-        logging.debug("Creating {} dimensional annoy indices ..".format(ndim))
-
         logging.info("Creating annoy protein sequence indices ..")
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_annoy')
         os.makedirs(protein_db_dir)
 
         for marker_row in self.query_builder().table('markers').get():
-            annoy_index = AnnoyIndex(ndim, 'hamming')
+            annoy_index = self._protein_annoy_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
