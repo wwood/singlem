@@ -48,9 +48,9 @@ class Tests(unittest.TestCase):
                 trim_percent = 5,
                 output_otu_table = 'small_condense_output.csv',
                 krona = '/dev/null')
-            self.assertListEqual(
-                list(io.open('small_condense_output.csv')), 
-                list(io.open(os.path.join(path_to_data, 'small_condense_output.csv'))))
+            with open('small_condense_output.csv') as observed:
+                with open(os.path.join(path_to_data, 'small_condense_output.csv')) as expected:
+                    self.assertListEqual(list(observed), list(expected))
 
 if __name__ == "__main__":
     unittest.main()

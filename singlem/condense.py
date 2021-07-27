@@ -13,16 +13,18 @@ class Condenser:
     @staticmethod
     def condense(**kwargs):
         input_otu_table = kwargs.pop('input_otu_table')
-        singlem_packages = kwargs['singlem_packages']
+        singlem_packages = kwargs.pop('singlem_packages')
         trim_percent = kwargs.pop('trim_percent') / 100
         output_otu_table = kwargs.pop('output_otu_table')
         krona_output_file = kwargs.pop('krona')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
         
-        markers = {} # list of markers used
+        markers = {} # set of markers used to the domains they target
         marker_set = set() # set of markers to check if all markers are included
         samples = {} # otu tables may contain more than one sample ~ {sampleID:{gene:wordtree}}}
         taxon_counter = {} # count number of genes for each taxonomy before removal
-        queues = {} # PriorityQueues for processing taxonomy levels in ascending order
+        queues = {} # PriorityQueues for processing taxonomy levels in root to tip order
         target_domains = {"Archaea": 0, "Bacteria": 0, "Eukaryota": 0}
         
         count = 0
@@ -85,7 +87,7 @@ class Condenser:
                 # this taxonomy has been added already?
                 taxbuilder = "Root"
                 priority = 0
-                # process taxonomy levels in ascending order
+                # process taxonomy levels in root to tip order
                 for tax in tax_split[1:]:
                     taxbuilder += "; " + tax
                     priority += 1
