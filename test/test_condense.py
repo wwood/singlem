@@ -29,7 +29,7 @@ import io
 
 from singlem.condense import Condenser
 
-path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data/condense')
+path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data','condense')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
@@ -38,7 +38,7 @@ class Tests(unittest.TestCase):
     
     def test_condense_small(self): #TODO add singlem packages, example input and output comparators
         with tempdir.in_tempdir():
-            Condenser.condense(
+            Condenser().condense(
                 input_otu_table = os.path.join(
                     path_to_data, 'small_condense_input.csv'),
                 singlem_packages = [
