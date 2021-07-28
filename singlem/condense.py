@@ -18,8 +18,10 @@ class Condenser:
         condensed_table = self.condense_to_otu_table(**kwargs)
 
         if output_otu_table is not None:
+            logging.info("Writing OTU table to {}".format(output_otu_table))
             condensed_table.write_to_file(output_otu_table)
         if krona_output_file is not None:
+            logging.info("Writing Krona to {}".format(krona_output_file))
             condensed_table.write_krona(krona_output_file)
 
         logging.info("Finished condense")

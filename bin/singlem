@@ -496,8 +496,8 @@ if __name__ == '__main__':
     
     required_condense_arguments.add_argument('--input-otu-table', '--input_otu_table', metavar='filename', help="condense this table. Note: cannot use archive OTU tables", required=True)
     required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.", required=True)
-    required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table", required=True)
-    required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.', required=True)
+    required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
+    required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
     
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
@@ -964,6 +964,8 @@ if __name__ == '__main__':
             )
 
         elif args.subparser_name == 'condense':
+            if not args.output_otu_table and not args.krona:
+                raise Exception("Either a krona or OTU table output must be specified for condense.")
             Condenser().condense(
                 input_otu_table = args.input_otu_table,
                 singlem_packages = args.singlem_packages,
