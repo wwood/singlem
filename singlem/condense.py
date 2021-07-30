@@ -110,7 +110,7 @@ class Condenser:
 
             # for each domain
             for domain, targetted_genes in target_domains.items():
-                total_num_markers = len(target_domains)
+                total_num_markers = len(targetted_genes)
 
                 # Extract an initial set of nodes, the marker-wise trees for
                 # this domain
@@ -138,6 +138,7 @@ class Condenser:
                         [m.get_full_coverage() for m in node_list],
                         total_num_markers,
                         trim_percent)
+                    # import IPython; IPython.embed()
                     # print()
                     # print(node_list)
                     # print("Found abundance {} for taxon {}".format(abundance, node_list[0].get_taxonomy()))
@@ -164,13 +165,18 @@ class Condenser:
         for sample, sample_summary_tree in sample_to_summarised_taxon_counts.items():
             for node in sample_summary_tree:
                 children_coverage = sum([c.coverage for c in node.children.values()])
+                # import IPython; IPython.embed()
                 if node.word != 'Root':
                     node.coverage = node.coverage - children_coverage
 
         return CondensedCommunityProfile(sample_to_summarised_taxon_counts)
 
     def calculate_abundance(self, coverages, total_num_measures, proportiontocut):
-        return _tmean(coverages+([0]*(total_num_measures-len(coverages))), proportiontocut)
+        if proportiontocut == 0:
+            # the below method does not handle this case correctly
+            return sum(coverages) / total_num_measures
+        else:
+            return _tmean(coverages+([0]*(total_num_measures-len(coverages))), proportiontocut)
 
 def _tmean(data, proportiontocut):
     """
@@ -263,10 +269,10 @@ class CondensedCommunityProfile:
             final_otu.write("\t".join(["sample", "coverage", "taxonomy"])+"\n")
             for sample, sample_summary_tree in self.sample_to_tree.items():
                 for node in sample_summary_tree:
-                    if node.coverage != 0:
+                    if round(node.coverage,2) != 0:
                         final_otu.write("\t".join([
                             sample,
-                            str(node.coverage.round(2)),
+                            str(round(node.coverage,2)),
                             '; '.join(node.get_taxonomy())
                         ])+"\n")
 
