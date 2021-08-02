@@ -348,6 +348,8 @@ if __name__ == '__main__':
 
     required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', nargs='+', help="Make a db from these OTU tables")
     required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
+    required_makedb_arguments.add_argument('--archive-otu-table-list', '--archive_otu_table_list',
+        help="Make a db from the archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', '--gzip_archive_otu_table_list',
         help="Make a db from the gzip'd archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--db', '--db-path', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
@@ -668,7 +670,8 @@ if __name__ == '__main__':
             seqs(args)
 
         elif args.subparser_name=='makedb':
-            if not args.otu_tables and not args.archive_otu_tables and not args.gzip_archive_otu_table_list:
+            if not args.otu_tables and not args.archive_otu_tables and \
+                not args.archive_otu_table_list and not args.gzip_archive_otu_table_list:
                 raise Exception("Making a database requires input OTU tables or archive tables")
             otus = StreamingOtuTableCollection()
             if args.otu_tables:
@@ -677,6 +680,10 @@ if __name__ == '__main__':
             if args.archive_otu_tables:
                 for o in args.archive_otu_tables:
                     otus.add_archive_otu_table_file(o)
+            if args.archive_otu_table_list:
+                with open(args.archive_otu_table_list) as f:
+                    for o in f.readlines():
+                        otus.add_archive_otu_table_file(o)
             if args.gzip_archive_otu_table_list:
                 with open(args.gzip_archive_otu_table_list) as f:
                     for arc in f.readlines():
