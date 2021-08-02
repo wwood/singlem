@@ -138,6 +138,7 @@ class Condenser:
                         [m.get_full_coverage() for m in node_list],
                         total_num_markers,
                         trim_percent)
+                    # abundance_individuals = list([m])
                     # import IPython; IPython.embed()
                     # print()
                     # print(node_list)
@@ -165,9 +166,10 @@ class Condenser:
         for sample, sample_summary_tree in sample_to_summarised_taxon_counts.items():
             for node in sample_summary_tree:
                 children_coverage = sum([c.coverage for c in node.children.values()])
-                # import IPython; IPython.embed()
                 if node.word != 'Root':
                     node.coverage = node.coverage - children_coverage
+                    # if node.coverage > 0:
+                    #     node.add_words([node.word, otu_name], cov)
 
         return CondensedCommunityProfile(sample_to_summarised_taxon_counts)
 
@@ -177,6 +179,9 @@ class Condenser:
             return sum(coverages) / total_num_measures
         else:
             return _tmean(coverages+([0]*(total_num_measures-len(coverages))), proportiontocut)
+
+    def calculate_otu_level_abundance(self, coverages):
+        return coverages
 
 def _tmean(data, proportiontocut):
     """
@@ -196,6 +201,7 @@ class WordNode:
         self.word = word
         self.children = {}
         self.coverage = 0
+        self.coverage_individuals = []
     
     def add_words(self, word_list, coverage):
         """
@@ -225,6 +231,7 @@ class WordNode:
             else:
                 # last word
                 self.coverage += coverage
+                self.coverage_individuals.append(coverage)
         else:
             raise Exception("Word %s does not match current node %s" % (word_list[0]), self.word)
     
