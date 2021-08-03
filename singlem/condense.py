@@ -15,19 +15,26 @@ class Condenser:
         output_otu_table = kwargs.pop('output_otu_table')
         krona_output_file = kwargs.pop('krona')
 
-        condensed_table = self.condense_to_otu_table(**kwargs)
-
-        if output_otu_table is not None:
-            logging.info("Writing OTU table to {}".format(output_otu_table))
-            condensed_table.write_to_file(output_otu_table)
+        to_yield = self.condense_to_otu_table(**kwargs)
         if krona_output_file is not None:
             logging.info("Writing Krona to {}".format(krona_output_file))
-            condensed_table.write_krona(krona_output_file)
+            # Cache profiles if we need them twice, otherwise attempt to be
+            # low-memory by streaming
+            if output_otu_table:
+                to_yield = list(to_yield)
+            CondensedCommunityProfileKronaWriter.write_krona(to_yield, krona_output_file)
+        
+        if output_otu_table is not None:
+            logging.info("Writing OTU table to {}".format(output_otu_table))
+            with open(output_otu_table,'w') as final_otu:
+                final_otu.write("\t".join(["sample", "coverage", "taxonomy"])+"\n")
+                for condensed_table in to_yield:
+                    condensed_table.write_data_to(final_otu)
 
         logging.info("Finished condense")
 
     def condense_to_otu_table(self, **kwargs):
-        input_otu_table = kwargs.pop('input_otu_table')
+        input_otu_table = kwargs.pop('input_streaming_otu_table')
         singlem_packages = kwargs.pop('singlem_packages')
         trim_percent = kwargs.pop('trim_percent') / 100
         if len(kwargs) > 0:
@@ -35,7 +42,6 @@ class Condenser:
         
         markers = {} # set of markers used to the domains they target
         marker_set = set() # set of markers to check if all markers are included
-        sample_to_marker_to_taxon_counts = {} # otu tables may contain more than one sample ~ {sampleID:{gene:wordtree}}}
         taxon_counter = {} # count number of genes for each taxonomy before removal
         queues = {} # PriorityQueues for processing taxonomy levels in root to tip order
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
@@ -68,22 +74,20 @@ class Condenser:
 
         # Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
-        logging.info("Reading input OTU table.")
-        with open(input_otu_table) as csvfile:
-            reader = csv.DictReader(csvfile, delimiter = "\t")
-            for line in reader:
-                gene = line["gene"]
-                sample = line["sample"]
-                taxonomy = line["taxonomy"]
-                coverage = float(line["coverage"])
+        for sample, sample_otus in input_otu_table.each_sample_otus():
+            logging.debug("Processing sample {} ..".format(sample))
+            marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
+
+            for otu in sample_otus:
+                gene = otu.marker
+                coverage = otu.coverage
+                tax_split = otu.taxonomy_array()
 
                 if gene not in markers:
                     if gene not in excluded_markers:
-                        logging.info("Gene: {} not in SingleM packages, excluding hits from this marker...".format(gene))
+                        logging.warning("Gene: {} not in SingleM packages, excluding hits from this marker...".format(gene))
                         excluded_markers.add(gene)
                     continue
-
-                tax_split = taxonomy.split('; ')
                 
                 # ensure OTU is assigned to the domain level or higher
                 if len(tax_split) < 2:  # contains at least Root; d__DOMAIN
@@ -94,22 +98,16 @@ class Condenser:
                 if domain not in markers[gene]: 
                     continue
 
-                if sample not in sample_to_marker_to_taxon_counts:
-                    sample_to_marker_to_taxon_counts[sample] = {}
-                if gene not in sample_to_marker_to_taxon_counts[sample]:
+                if gene not in marker_to_taxon_counts:
                     # create new tree for this marker
-                    sample_to_marker_to_taxon_counts[sample][gene] = WordNode(None, "Root")
+                    marker_to_taxon_counts[gene] = WordNode(None, "Root")
 
-                sample_to_marker_to_taxon_counts[sample][gene].add_words(tax_split, coverage)
+                marker_to_taxon_counts[gene].add_words(tax_split, coverage)
 
-        # Summarise the abundance across the markers for each lineage
-        sample_to_summarised_taxon_counts = {}
-        for sample, marker_to_taxon_counts in sample_to_marker_to_taxon_counts.items():
+            # Summarise the abundance across the markers for each lineage
             sample_summary_root_node = WordNode(None, "Root")
-            sample_to_summarised_taxon_counts[sample] = sample_summary_root_node
 
-            # for each domain
-            for domain, targetted_genes in target_domains.items():
+            for domain, targetted_genes in target_domains.items(): # for each domain
                 total_num_markers = len(targetted_genes)
 
                 # Extract an initial set of nodes, the marker-wise trees for
@@ -161,15 +159,13 @@ class Condenser:
                             # print("adding {}".format(child_set))
                             node_list_queue.put(child_set)
 
-        # Correct the coverages by accounting for each node's children
-        for sample, sample_summary_tree in sample_to_summarised_taxon_counts.items():
-            for node in sample_summary_tree:
+            # Correct the coverages by accounting for each node's children
+            for node in sample_summary_root_node:
                 children_coverage = sum([c.coverage for c in node.children.values()])
-                # import IPython; IPython.embed()
                 if node.word != 'Root':
                     node.coverage = node.coverage - children_coverage
 
-        return CondensedCommunityProfile(sample_to_summarised_taxon_counts)
+            yield CondensedCommunityProfile(sample, sample_summary_root_node)
 
     def calculate_abundance(self, coverages, total_num_measures, proportiontocut):
         if proportiontocut == 0:
@@ -261,36 +257,37 @@ class WordNode:
             return node
 
 class CondensedCommunityProfile:
-    def __init__(self, sample_to_tree):
-        self.sample_to_tree = sample_to_tree
+    def __init__(self, sample, tree):
+        self.sample = sample
+        self.tree = tree
 
-    def write_to_file(self, output_file):
-        with open(output_file,'w') as final_otu:
-            final_otu.write("\t".join(["sample", "coverage", "taxonomy"])+"\n")
-            for sample, sample_summary_tree in self.sample_to_tree.items():
-                for node in sample_summary_tree:
-                    if round(node.coverage,2) != 0:
-                        final_otu.write("\t".join([
-                            sample,
-                            str(round(node.coverage,2)),
-                            '; '.join(node.get_taxonomy())
-                        ])+"\n")
+    def write_data_to(self, output_file_io):
+        '''Write data to file - IO object is neither opened no closed.'''
+        for node in self.tree:
+            if round(node.coverage,2) != 0:
+                output_file_io.write("\t".join([
+                    self.sample,
+                    str(round(node.coverage,2)),
+                    '; '.join(node.get_taxonomy())
+                ])+"\n")
 
-    def write_krona(self, output_file):
+class CondensedCommunityProfileKronaWriter:
+    @staticmethod
+    def write_krona(self, condensed_profiles, output_file):
         cmd = 'ktImportText -o %s' % output_file
         sample_tempfiles = []
-        for sample, tree in self.sample_to_tree.items():
+        for prof in condensed_profiles:
             f = tempfile.NamedTemporaryFile(prefix='singlem_condense_for_krona',mode='w')
             sample_tempfiles.append(f)
 
-            for node in tree:
+            for node in prof.tree:
                 if node.coverage > 0:
                     f.write("\t".join([
                         str(node.coverage),
                         '\t'.join(node.get_taxonomy())
                     ])+"\n")
             f.flush()
-            cmd += " %s,'%s'" % (f.name, sample)
+            cmd += " %s,'%s'" % (f.name, prof.sample)
         extern.run(cmd)
         for f in sample_tempfiles:
             f.close()

@@ -220,3 +220,20 @@ class StreamingOtuTableCollection:
         for io in self._gzip_archive_table_file_paths:
             for otu in ArchiveOtuTable.read(gzip.open(io)):
                 yield otu
+
+    def each_sample_otus(self):
+        '''Yield over a set of OTU tables, where each set contains all the OTUs
+        from a single sample. The sample name and an OtuTable is yielded each
+        time. Assumes that the input OTUs are ordered by sample name. This can
+        only be done once since the data is streamed in.'''
+
+        current_otus = OtuTable()
+        current_sample = None
+        for otu in self:
+            if otu.sample_name != current_sample:
+                if current_sample is not None:
+                    yield current_sample, current_otus
+                current_sample = otu.sample_name
+            current_otus.add([otu])
+        if current_sample is not None:
+            yield current_sample, current_otus
