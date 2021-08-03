@@ -496,7 +496,13 @@ if __name__ == '__main__':
     
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
     
-    required_condense_arguments.add_argument('--input-otu-table', '--input_otu_table', metavar='filename', help="condense this table. Note: cannot use archive OTU tables", required=True)
+    required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Condense these table(s).")
+    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Condense from these archive tables")
+    required_condense_arguments.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
+        help="Condense from the archive tables newline separated in this file")
+    required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
+        help="Condense from the gzip'd archive tables newline separated in this file")
+
     required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.", required=True)
     required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
@@ -528,6 +534,39 @@ if __name__ == '__main__':
             raise Exception("Cannot specify both --working-directory and --working-directory-tmpdir")
         if args.sra_files and args.no_diamond_prefilter:
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
+
+    def generate_streaming_otu_table_from_args(args, input_prefix=False):
+        if input_prefix:
+            otu_tables = args.input_otu_tables
+            archive_otu_tables = args.input_archive_otu_tables
+            archive_otu_table_list = args.input_archive_otu_table_list
+            gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list
+        else:
+            otu_tables = args.otu_tables
+            archive_otu_tables = args.archive_otu_tables
+            archive_otu_table_list = args.archive_otu_table_list
+            gzip_archive_otu_table_list = args.gzip_archive_otu_table_list
+
+        if not otu_tables and not archive_otu_tables and \
+            not archive_otu_table_list and not gzip_archive_otu_table_list:
+            raise Exception("{} requires input OTU tables or archive tables".format(args.subparser_name))
+        otus = StreamingOtuTableCollection()
+        if otu_tables:
+            for o in otu_tables:
+                otus.add_otu_table_file(o)
+        if archive_otu_tables:
+            for o in archive_otu_tables:
+                otus.add_archive_otu_table_file(o)
+        if archive_otu_table_list:
+            with open(archive_otu_table_list) as f:
+                for o in f.readlines():
+                    otus.add_archive_otu_table_file(o)
+        if gzip_archive_otu_table_list:
+            with open(gzip_archive_otu_table_list) as f:
+                for arc in f.readlines():
+                    otus.add_gzip_archive_otu_table_file(arc.strip())
+        return otus
+
 
     if (len(sys.argv) == 1 or sys.argv[1] == '-h' or sys.argv[1] == '--help'):
         print('')
@@ -670,24 +709,7 @@ if __name__ == '__main__':
             seqs(args)
 
         elif args.subparser_name=='makedb':
-            if not args.otu_tables and not args.archive_otu_tables and \
-                not args.archive_otu_table_list and not args.gzip_archive_otu_table_list:
-                raise Exception("Making a database requires input OTU tables or archive tables")
-            otus = StreamingOtuTableCollection()
-            if args.otu_tables:
-                for o in args.otu_tables:
-                    otus.add_otu_table_file(o)
-            if args.archive_otu_tables:
-                for o in args.archive_otu_tables:
-                    otus.add_archive_otu_table_file(o)
-            if args.archive_otu_table_list:
-                with open(args.archive_otu_table_list) as f:
-                    for o in f.readlines():
-                        otus.add_archive_otu_table_file(o)
-            if args.gzip_archive_otu_table_list:
-                with open(args.gzip_archive_otu_table_list) as f:
-                    for arc in f.readlines():
-                        otus.add_gzip_archive_otu_table_file(arc.strip())
+            otus = generate_streaming_otu_table_from_args(args)
                         
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
                 (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
@@ -971,10 +993,11 @@ if __name__ == '__main__':
             )
 
         elif args.subparser_name == 'condense':
+            otus = generate_streaming_otu_table_from_args(args, input_prefix=True)
             if not args.output_otu_table and not args.krona:
                 raise Exception("Either a krona or OTU table output must be specified for condense.")
             Condenser().condense(
-                input_otu_table = args.input_otu_table,
+                input_streaming_otu_table = otus,
                 singlem_packages = args.singlem_packages,
                 trim_percent = args.trim_percent,
                 output_otu_table = args.output_otu_table,
