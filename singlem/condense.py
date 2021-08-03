@@ -273,7 +273,7 @@ class CondensedCommunityProfile:
 
 class CondensedCommunityProfileKronaWriter:
     @staticmethod
-    def write_krona(self, condensed_profiles, output_file):
+    def write_krona(condensed_profiles, output_file):
         cmd = 'ktImportText -o %s' % output_file
         sample_tempfiles = []
         for prof in condensed_profiles:
