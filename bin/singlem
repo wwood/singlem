@@ -556,7 +556,7 @@ if __name__ == '__main__':
                 otus.add_otu_table_file(o)
         if archive_otu_tables:
             for o in archive_otu_tables:
-                otus.add_archive_otu_table_file(o)
+                otus.add_archive_otu_table_file(o.strip())
         if archive_otu_table_list:
             with open(archive_otu_table_list) as f:
                 for o in f.readlines():
