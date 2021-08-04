@@ -212,14 +212,17 @@ class StreamingOtuTableCollection:
             for otu in OtuTable.each(io):
                 yield otu
         for file_path in self._archive_table_file_paths:
-            for otu in ArchiveOtuTable.read(open(file_path)):
-                yield otu
+            with open(file_path) as f:
+                for otu in ArchiveOtuTable.read(f):
+                    yield otu
         for file_path in self._otu_table_file_paths:
-            for otu in OtuTable.each(open(file_path)):
-                yield otu
+            with open(file_path) as f:
+                for otu in OtuTable.each(f):
+                    yield otu
         for io in self._gzip_archive_table_file_paths:
-            for otu in ArchiveOtuTable.read(gzip.open(io)):
-                yield otu
+            with gzip.open(file_path) as f:
+                for otu in ArchiveOtuTable.read(f):
+                    yield otu
 
     def each_sample_otus(self):
         '''Yield over a set of OTU tables, where each set contains all the OTUs
@@ -234,6 +237,7 @@ class StreamingOtuTableCollection:
                 if current_sample is not None:
                     yield current_sample, current_otus
                 current_sample = otu.sample_name
+                current_otus = OtuTable()
             current_otus.add([otu])
         if current_sample is not None:
             yield current_sample, current_otus
