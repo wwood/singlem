@@ -239,7 +239,7 @@ calculated accoreding to the following formula, adapted from the one given in
 the Velvet assembler's
 [manual](https://raw.githubusercontent.com/dzerbino/velvet/master/Manual.pdf):
 
-coverage = \frac{num_hits * L}{L - k + 1}
+coverage = num_hits * L / (L - k + 1)
 
 Where L is the length of a read and k is the length of the OTU sequence including inserts and gaps (usually 60 bp).
 
