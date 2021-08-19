@@ -321,8 +321,8 @@ if __name__ == '__main__':
     less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters', '--diamond_prefilter_performance_parameters',
                                 help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
                                 default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
-    less_common_pipe_arguments.add_argument('--diamond-package-assignment', '--diamond_package_assignment', action='store_true',
-                                help='Assign each sequence to a SingleM package using the best hit result of the DIAMOND prefilter. Implies --diamond-prefilter. [default: not set]',
+    less_common_pipe_arguments.add_argument('--hmmsearch-package-assignment', '--hmmsearch_package_assignment', action='store_true',
+                                help='Assign each sequence to a SingleM package using HMMSEARCH, and a sequence may then be assigned to multiple packages. [default: not set]',
                                 default=False)
     less_common_pipe_arguments.add_argument('--diamond-prefilter-db', '--diamond_prefilter_db',
                                 help='Use this DB when running DIAMOND prefilter [default: not set, generate one from the SingleM packages]')
@@ -658,9 +658,9 @@ if __name__ == '__main__':
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy,
-            diamond_prefilter = (not args.no_diamond_prefilter) or args.diamond_package_assignment,
+            diamond_prefilter = not args.no_diamond_prefilter,
             diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
-            diamond_package_assignment = args.diamond_package_assignment,
+            diamond_package_assignment = not args.hmmsearch_package_assignment,
             diamond_prefilter_db = args.diamond_prefilter_db,
             diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters)
 
