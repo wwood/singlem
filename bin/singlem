@@ -56,7 +56,7 @@ class bcolors:
 class MyParser(argparse.ArgumentParser):
     FULL_HELP_FLAG = 'full-help'
 
-    PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.PPLACER_ASSIGNMENT_METHOD
+    PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.DIAMOND_ASSIGNMENT_METHOD
 
     def format_help(self):
         prog = self.prog
@@ -242,7 +242,7 @@ if __name__ == '__main__':
         argument_group.add_argument('--otu-table', '--otu_table', metavar='filename', help='output OTU table')
         current_default = 1
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
-        current_default = pipe.PPLACER_ASSIGNMENT_METHOD
+        current_default = MyParser.PIPE_DEFAULT_ASSIGNMENT_METHOD
         argument_group.add_argument(
             '--assignment-method', '--assignment_method', 
             choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
