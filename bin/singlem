@@ -14,6 +14,7 @@ import sys
 import os
 import math
 import gzip
+import tempfile
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 
@@ -299,8 +300,10 @@ if __name__ == '__main__':
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
-    less_common_pipe_arguments.add_argument('--working-directory', '--working_directory', metavar='directory', help='use intermediate working directory at a specified location [default: not set, use a temporary directory in /dev/shm]')
-    less_common_pipe_arguments.add_argument('--working-directory-tmpdir', '--working_directory_tmpdir', default=False, action='store_true', help='use intermediate temporary working directory in a conventional temporary directory (which is usually in /tmp) [default: not set, use a temporary directory in /dev/shm]')
+    less_common_pipe_arguments.add_argument('--working-directory', '--working_directory', metavar='directory', help='use intermediate working directory at a specified location, and do not delete it upon completion [default: not set, use a temporary directory]')
+    less_common_pipe_arguments.add_argument('--working-directory-dev-shm', '--working_directory_dev_shm', default=False, action='store_true', help='use an intermediate results temporary working directory in /dev/shm rather than the default [default: the usual temporary working directory, currently {}]'.format(
+        tempfile.gettempdir()
+    ))
     less_common_pipe_arguments.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
     less_common_pipe_arguments.add_argument('--filter-minimum-nucleotide','--filter_minimum_nucleotide',
                                 metavar='length',
@@ -530,8 +533,8 @@ if __name__ == '__main__':
                 "Currently --known-sequence-taxonomy requires --no-assign-taxonomy to be set also")
         if args.reverse and args.output_jplace:
             raise Exception("Currently --jplace-output cannot be used with --reverse")
-        if args.working_directory and args.working_directory_tmpdir:
-            raise Exception("Cannot specify both --working-directory and --working-directory-tmpdir")
+        if args.working_directory and args.working_directory_dev_shm:
+            raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
         if args.sra_files and args.no_diamond_prefilter:
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
 
@@ -653,7 +656,7 @@ if __name__ == '__main__':
             output_extras = args.output_extras,
             include_inserts = args.include_inserts,
             working_directory = args.working_directory,
-            working_directory_tmpdir = args.working_directory_tmpdir,
+            working_directory_dev_shm = args.working_directory_dev_shm,
             force = args.force,
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
