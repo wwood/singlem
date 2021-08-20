@@ -90,13 +90,14 @@ Or with genomic fasta input sequences:
     --otu-table <output.otu_table.tsv>
 
 '''+bcolors.HEADER+'Popular options:'+bcolors.ENDC+'''
-  --threads N\t\tUse N threads.
+  --threads N\t\tUse N threads [default: %s].
   --output-extras\tOutput more detailed information in the OTU table.
   --assignment-method {%s,%s,%s}\t
 \t\t\tSpecify taxonomic assignment method [default: %s].
 
 %s
-''' % (pipe.PPLACER_ASSIGNMENT_METHOD,
+''' % (pipe.DEFAULT_THREADS,
+       pipe.PPLACER_ASSIGNMENT_METHOD,
        pipe.DIAMOND_ASSIGNMENT_METHOD,
        pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
        self.PIPE_DEFAULT_ASSIGNMENT_METHOD,
@@ -241,7 +242,7 @@ if __name__ == '__main__':
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
         argument_group.add_argument('--otu-table', '--otu_table', metavar='filename', help='output OTU table')
-        current_default = 1
+        current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
         current_default = MyParser.PIPE_DEFAULT_ASSIGNMENT_METHOD
         argument_group.add_argument(
