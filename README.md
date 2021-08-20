@@ -14,6 +14,7 @@
     - [Installation via conda](#installation-via-conda)
     - [Installation via DockerHub](#installation-via-dockerhub)
     - [Installation via PyPI](#installation-via-pypi)
+    - [Installation via Github with conda environment dependencies](#installation-via-github-with-conda-environment-dependencies)
   - [Help](#help)
     - [FAQ](#faq)
       - [Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?](#can-you-target-the-16s-rrna-gene-instead-of-the-default-set-of-ribosomal-proteins-with-singlem)
@@ -217,6 +218,19 @@ Some dependencies of [GraftM](https://github.com/geronimp/graftM):
 * [pplacer](http://matsen.fhcrc.org/pplacer/) >= 1.1.alpha17
 * [KronaTools](http://sourceforge.net/p/krona/home/krona/) >= 2.4
 * [diamond](https://github.com/bbuchfink/diamond) >= 2.0.0
+
+### Installation via Github with conda environment dependencies
+SingleM can be installed from source together with its conda dependencies as follows.
+
+```
+git clone https://github.com/wwood/singlem
+cd singlem
+conda env create -n singlem -f singlem.yml
+conda activate singlem
+cd bin
+export PATH=$PWD:$PATH
+singlem -h
+```
 
 ## Help
 If you have any questions or comments, send a message to the [SupportM mailing list](https://groups.google.com/forum/?utm_medium=email&utm_source=footer#!forum/supportm) or raise a [GitHib issue](https://github.com/wwood/singlem/issues).
