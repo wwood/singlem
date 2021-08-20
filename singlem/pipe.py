@@ -111,7 +111,7 @@ class SearchPipe:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
 
         working_directory = kwargs.pop('working_directory')
-        working_directory_tmpdir = kwargs.pop('working_directory_tmpdir')
+        working_directory_dev_shm = kwargs.pop('working_directory_dev_shm')
         force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -152,7 +152,7 @@ class SearchPipe:
 
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
-            if working_directory_tmpdir is False:
+            if working_directory_dev_shm is True:
                 shared_mem_directory = '/dev/shm'
                 if os.path.exists(shared_mem_directory):
                     logging.debug("Using shared memory as a base directory")
