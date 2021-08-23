@@ -16,3 +16,6 @@ dependencies:
   - pplacer
   - sra-tools
   - ncbi-ngs-sdk
+  - pip
+  - pip:
+    - masonite-orm
