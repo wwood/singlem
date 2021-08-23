@@ -24,4 +24,9 @@ dependencies:
   - python-annoy
   - orator
   - squarify
-  
+  - nose
+  - mafft
+  - seqmagick
+  - vsearch
+  - smafa
+  - expressbetadiversity
