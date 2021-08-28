@@ -457,10 +457,14 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--intermediate-bacteria-graftm-package', '--intermediate_bacteria_graftm_package', required=True)
     required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True)
 
-    metapackage_description = 'Utilities for dealing with multiple singlem packages'
+    metapackage_description = 'Create a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
     metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages", required=True)
-    metapackage_parser.add_argument('--output-prefilter-fasta', '--output_prefilter_fasta', help="Output FASTA file to use for prefiltering", required=True)
+    metapackage_parser.add_argument('--output-path', '--output_path', help='Path to write generated metapackage to', required=True)
+    current_default = 1
+    metapackage_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
+    current_default = 0.6
+    metapackage_parser.add_argument('--prefilter-clustering-threshold', '--prefilter_clustering_threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %i]' % current_default, default=current_default)
 
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
@@ -992,8 +996,11 @@ if __name__ == '__main__':
                 keep_tree = args.keep_tree)
 
         elif args.subparser_name == 'metapackage':
-            Metapackage(args.singlem_packages).create_on_target_prefilter_fasta(
-                args.output_prefilter_fasta
+            Metapackage.generate(
+                singlem_packages = args.singlem_packages,
+                output_path = args.output_path,
+                threads = args.threads,
+                prefilter_clustering_threshold = args.prefilter_clustering_threshold
             )
 
         elif args.subparser_name == 'condense':
