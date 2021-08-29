@@ -142,6 +142,9 @@ class Metapackage:
     def prefilter_db_path(self):
         return self._prefilter_path
 
+    def set_prefilter_db_path(self, path):
+        self._prefilter_path = path
+
     def get_dmnd(self):
         ''' Create temporary DIAMOND file for search method '''
         fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]

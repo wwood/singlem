@@ -54,7 +54,9 @@ class SearchPipe:
         output_otu_table = kwargs.pop('otu_table', None)
         archive_otu_table = kwargs.pop('archive_otu_table', None)
         output_extras = kwargs.pop('output_extras')
-        singlem_packages = kwargs['singlem_packages']
+
+        metapackage = self._parse_packages_or_metapackage(**kwargs)
+        kwargs['metapackage_object'] = metapackage
 
         otu_table_object = self.run_to_otu_table(**kwargs)
         if otu_table_object is not None:
@@ -63,14 +65,28 @@ class SearchPipe:
                 output_otu_table,
                 archive_otu_table,
                 output_extras,
-                singlem_packages)
+                metapackage)
+
+    def _parse_packages_or_metapackage(self, **kwargs):
+        metapackage_path = kwargs.pop('metapackage', None)
+        singlem_package_paths = kwargs.pop('singlem_packages', None)
+
+        if metapackage_path and singlem_package_paths and singlem_package_paths != []:
+            raise Exception("Cannot specify both a metapackage and singlem_packages")
+        elif metapackage_path:
+            return Metapackage.acquire(metapackage_path)
+        elif not singlem_package_paths or singlem_package_paths == []:
+            # Return the default set
+            return Metapackage()
+        else:
+            return Metapackage(singlem_package_paths)
 
     def write_otu_tables(self,
             otu_table_object,
             output_otu_table,
             archive_otu_table,
             output_extras,
-            singlem_packages):
+            metapackage):
         regular_output_fields = str.split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
             str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences')
@@ -82,7 +98,7 @@ class SearchPipe:
                     otu_table_object.write_to(f, regular_output_fields)
         if archive_otu_table:
             with open(archive_otu_table, 'w') as f:
-                otu_table_object.archive(Metapackage(singlem_packages)).write_to(f)
+                otu_table_object.archive(metapackage).write_to(f)
 
 
     def run_to_otu_table(self, **kwargs):
@@ -102,7 +118,10 @@ class SearchPipe:
         filter_minimum_protein = kwargs.pop('filter_minimum_protein')
         filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide')
         include_inserts = kwargs.pop('include_inserts')
-        singlem_packages = kwargs.pop('singlem_packages')
+        # Metapackage object is used by preference
+        metapackage_object = kwargs.pop('metapackage_object', None)
+        singlem_package_paths = kwargs.pop('singlem_packages', None)
+        metapackage_path = kwargs.pop('metapackage_path', None)
         assign_taxonomy = kwargs.pop('assign_taxonomy')
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
         diamond_prefilter = kwargs.pop('diamond_prefilter')
@@ -124,7 +143,12 @@ class SearchPipe:
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
 
-        hmms = Metapackage(singlem_packages)
+        if metapackage_object:
+            hmms = metapackage_object
+        else:
+            hmms = self._parse_packages_or_metapackage(singlem_package_paths, metapackage_path)
+        if diamond_prefilter_db:
+            hmms.set_prefilter_db_path(diamond_prefilter_db)
 
         if genome_fasta_files and forward_read_files:
             raise Exception("Cannot process reads and genomes in the same run")
@@ -272,7 +296,7 @@ class SearchPipe:
                 (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                     self._num_threads, self._working_directory).run_diamond(
                     hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                    diamond_prefilter_db)
+                    hmms.prefilter_db_path())
             except extern.ExternCalledProcessError as e:
                 logging.error("Process (DIAMOND?) failed")
                 if input_sra_files:
