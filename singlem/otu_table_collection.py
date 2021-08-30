@@ -219,7 +219,7 @@ class StreamingOtuTableCollection:
             with open(file_path) as f:
                 for otu in OtuTable.each(f):
                     yield otu
-        for io in self._gzip_archive_table_file_paths:
+        for file_path in self._gzip_archive_table_file_paths:
             with gzip.open(file_path) as f:
                 for otu in ArchiveOtuTable.read(f):
                     yield otu

@@ -379,6 +379,8 @@ if __name__ == '__main__':
     query_otu_args.add_argument('--query-fasta', '--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
     query_otu_args.add_argument('--max-divergence', '--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search", default='nmslib', choices=['nmslib','annoy','naive'])
+    query_otu_args.add_argument('--sequence-type', '--sequence_type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn)", default='nucleotide',
+        choices=['nucleotide','protein'])
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
     query_other_args.add_argument('--sample-names', '--sample_names', metavar='name', help='Print all OTUs from these samples', nargs='+')
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
@@ -716,6 +718,7 @@ if __name__ == '__main__':
         from singlem.condense import Condenser
         from singlem.singlem_package import SingleMPackage
         from singlem.trim_package_hmms import PackageHmmTrimmer
+        from singlem.sequence_database import SequenceDatabase
 
         if args.subparser_name == 'seqs':
             seqs(args)
@@ -755,7 +758,8 @@ if __name__ == '__main__':
                             query_otu_table = args.query_otu_table,
                             query_fasta = args.query_fasta,
                             num_threads = args.threads,
-                            search_method = args.search_method)
+                            search_method = args.search_method,
+                            sequence_type = args.sequence_type)
             elif args.subject_otu_tables:
                 if args.taxonomy:
                     raise Exception("--taxonomy only works with --db")
