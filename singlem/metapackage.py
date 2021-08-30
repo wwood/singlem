@@ -154,6 +154,7 @@ class Metapackage:
             'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
         
         extern.run(cmd)
+        extern.run("diamond makeidx -d {}".format(temp_dmnd))
         
         return temp_dmnd
     
