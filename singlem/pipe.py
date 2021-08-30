@@ -68,7 +68,7 @@ class SearchPipe:
                 metapackage)
 
     def _parse_packages_or_metapackage(self, **kwargs):
-        metapackage_path = kwargs.pop('metapackage', None)
+        metapackage_path = kwargs.pop('metapackage_path', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
 
         if metapackage_path and singlem_package_paths and singlem_package_paths != []:
@@ -146,7 +146,8 @@ class SearchPipe:
         if metapackage_object:
             hmms = metapackage_object
         else:
-            hmms = self._parse_packages_or_metapackage(singlem_package_paths, metapackage_path)
+            raise Exception("This bit needs fixing")
+            # hmms = self._parse_packages_or_metapackage(singlem_package_paths, metapackage_path)
         if diamond_prefilter_db:
             hmms.set_prefilter_db_path(diamond_prefilter_db)
 
