@@ -41,18 +41,21 @@ class SequenceDatabase:
 
     _REQUIRED_KEYS = {4: [VERSION_KEY]}
 
+    NUCLEOTIDE_TYPE = 'nucleotide'
+    PROTEIN_TYPE = 'protein'
+
     def add_sequence_db(self, marker_name, db_path, index_format, sequence_type):
         if index_format == 'nmslib':
-            if sequence_type == 'nucleotide':
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_nmslib_nucleotide_index_file[marker_name] = db_path
-            elif sequence_type == 'protein':
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_nmslib_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         elif index_format == 'annoy':
-            if sequence_type == 'nucleotide':
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_annoy_nucleotide_index_file[marker_name] = db_path
-            elif sequence_type == 'protein':
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_annoy_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
@@ -323,7 +326,7 @@ class SequenceDatabase:
                         with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
                             for row in reader:
                                 if last_marker_id != row[0]:
-                                    last_marker_wise_sequence_id = 1
+                                    last_marker_wise_sequence_id = 0 # Annoy starts at 0, so go with that. nmslib is arbitrary.
                                     print("\t".join([row[0], row[2]]), file=markers_output_table_io)
                                     print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
                                     last_marker_id = row[0]
@@ -384,8 +387,9 @@ class SequenceDatabase:
                         # id INTEGER PRIMARY KEY,"
                         # " marker_id int, sequence text, marker_wise_id int
                         nucleotide_id = row[0]
+                        marker_id = row[1]
                         sequence = row[2]
-                        print("\t".join([nucleotides_to_protein(row[2]), nucleotide_id]), file=proc.stdin)
+                        print("\t".join([marker_id, nucleotides_to_protein(row[2]), nucleotide_id]), file=proc.stdin)
                 proc.stdin.close()
                 proc.wait()
                 if proc.returncode != 0:
@@ -401,22 +405,30 @@ class SequenceDatabase:
                     reader = csv.reader(csvfile_in, delimiter="\t")
                     last_protein = None
                     last_protein_id = 0
+                    last_marker_id = None
+                    last_marker_wise_protein_id = None
 
                     with open(proteins_file,'w') as proteins_file_io:
                         with open(nucleotide_proteins_file,'w') as nucleotide_proteins_file_io:
                             for i, row in enumerate(reader):
-                                current_protein_sequence = row[0]
-                                nucleotide_id = row[1]
+                                marker_id = row[0]
+                                current_protein_sequence = row[1]
+                                nucleotide_id = row[2]
                                 if current_protein_sequence != last_protein:
                                     last_protein = current_protein_sequence
                                     last_protein_id += 1
-                                    print("\t".join([str(last_protein_id), current_protein_sequence]), file=proteins_file_io)
+                                    if last_marker_id != marker_id:
+                                        last_marker_wise_protein_id = 0 #start from 0 for annoy
+                                        last_marker_id = marker_id
+                                    print("\t".join([str(last_protein_id), str(last_marker_wise_protein_id), current_protein_sequence]), file=proteins_file_io)
+                                    last_marker_wise_protein_id += 1
                                 print("\t".join([str(i), str(last_protein_id), nucleotide_id]), file=nucleotide_proteins_file_io)
                 logging.info("Running imports of proteins and protein_nucleotides ..")
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE proteins ("
                     "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "protein_sequence int);\n"
+                    "marker_wise_id INTEGER, "
+                    "protein_sequence text);\n"
                         '.separator "\\t"\n'
                         ".import {} proteins".format(proteins_file))
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
@@ -458,9 +470,9 @@ class SequenceDatabase:
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.query_builder().table('nucleotides').select('sequence').select('id').where('marker_id', marker_row['id']).get():
-                logging.debug("Adding sequence with ID {}: {}".format(row['id'], row['sequence']))
-                nucleotide_index.addDataPoint(row['id'], nucleotides_to_binary(row['sequence']))
+            for row in self.query_builder().table('nucleotides').select('sequence').select('marker_wise_id').where('marker_id', marker_row['id']).get():
+                logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['sequence']))
+                nucleotide_index.addDataPoint(row['marker_wise_id'], nucleotides_to_binary(row['sequence']))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -484,10 +496,10 @@ class SequenceDatabase:
             count = 0
 
             for row in self.query_builder().table('proteins'). \
-                select_raw('proteins.id as id, protein_sequence').join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
+                select_raw('proteins.marker_wise_id as marker_wise_id, protein_sequence').join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
                     join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                         where('nucleotides.marker_id', marker_row['id']).get():
-                protein_index.addDataPoint(row['id'], protein_to_binary(row['protein_sequence']))
+                protein_index.addDataPoint(row['marker_wise_id'], protein_to_binary(row['protein_sequence']))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -539,7 +551,7 @@ class SequenceDatabase:
             for row in self.query_builder().table('proteins'). \
                 join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
                 join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                select('protein_sequence').select_raw('nucleotides.marker_wise_id as marker_wise_id'). \
+                select('protein_sequence').select_raw('proteins.marker_wise_id as marker_wise_id'). \
                 where('nucleotides.marker_id', marker_row['id']).get():
                 logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['protein_sequence']))
                 annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
