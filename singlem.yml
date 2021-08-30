@@ -19,7 +19,6 @@ dependencies:
   - sqlite
   - masonite-orm
   - numba
-  - nmslib
   - python-annoy
   - orator
   - squarify
@@ -33,3 +32,5 @@ dependencies:
   - pip
   - pip:
     - bird_tool_utils
+    - nmslib
+    - --no-binary nmslib
