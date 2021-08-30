@@ -129,7 +129,7 @@ class Regenerator:
         final_seqs = SequenceExtractor().extract_and_read(
             leaf_names, unaligned_seqs)
         if len(final_seqs) != len(leaf_names):
-            raise Exception("Do not appear to have extracted the expected number of sequences from the unaligned fastat file")
+            raise Exception("Do not appear to have extracted the expected number of sequences from the unaligned fasta file")
 
         # Write the reads into sequences file in place
         with open(unaligned_seqs, 'w') as f:
