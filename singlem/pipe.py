@@ -251,9 +251,12 @@ class SearchPipe:
                 len(forward_read_files), forward_read_files[0]))
 
         if not all([p.is_protein_package() for p in hmms]):
-            logging.debug("Not using diamond prefilter as there is a nucleotide spkg")
+            logging.debug("Not using diamond prefilter as there is a nucleotide spkg. Using pplacer assignment method.")
             diamond_prefilter = False
-
+            singlem_assignment_method = PPLACER_ASSIGNMENT_METHOD
+        if not diamond_prefilter:
+            diamond_package_assignment = False
+            
         if diamond_prefilter:
             if input_sra_files:
                 # Create a named pipe which is called the same as the .sra file
