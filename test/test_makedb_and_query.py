@@ -25,7 +25,6 @@ import unittest
 import subprocess
 import os.path
 import tempfile
-import tempdir
 import extern
 import sys
 import json
@@ -64,7 +63,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
                                                                 d,
                                                                 f.name)
@@ -101,7 +100,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
                                                                 d,
                                                                 f.name)
@@ -182,7 +181,7 @@ class Tests(unittest.TestCase):
             f.write(query)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 cmd = "{} makedb --db {}/sdb --otu_table {}".format(
                     path_to_script, d, f.name)
                 extern.run(cmd)
@@ -251,7 +250,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 #d = '/tmp/d'
                 cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
                                                                 d,
@@ -283,7 +282,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 #d = '/tmp/d'
                 cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
                                                                 d,
@@ -326,7 +325,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
 
                 cmd = "%s makedb --db_path %s/db --otu_table %s" %(path_to_script,
                                                                 d,
@@ -423,7 +422,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 3".format(
                     path_to_script, d, f.name)
                 subprocess.check_call(cmd, shell=True)
@@ -454,7 +453,7 @@ class Tests(unittest.TestCase):
             f.write(otu_table)
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 0".format(
                     path_to_script, d, f.name)
                 extern.run(cmd)

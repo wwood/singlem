@@ -25,8 +25,8 @@ import unittest
 import os.path
 import sys
 from io import StringIO
-import tempdir
 import json
+from bird_tool_utils import in_tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -38,7 +38,7 @@ class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_create_protein_pkg(self):
-        with tempdir.in_tempdir():
+        with in_tempdir():
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '4.11.22seqs.gpkg.spkg', '4.11.22seqs'),
@@ -55,7 +55,7 @@ class Tests(unittest.TestCase):
             self.assertEqual(63, j['singlem_window_size'])
 
     def test_create_nuc_pkg(self):
-        with tempdir.in_tempdir():
+        with in_tempdir():
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '61_otus.v3.gpkg.spkg', '61_otus.v3'),

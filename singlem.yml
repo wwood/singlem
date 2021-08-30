@@ -5,8 +5,7 @@ channels:
   - masonite
 dependencies:
   - python>=3.6
-  - diamond=2.0.9
-  - tempdir
+  - diamond=2.0.11
   - biopython
   - hmmer
   - orfm
@@ -31,3 +30,6 @@ dependencies:
   - smafa
   - expressbetadiversity
   - cd-hit
+  - pip
+  - pip:
+    - bird_tool_utils

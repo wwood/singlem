@@ -25,7 +25,6 @@ import unittest
 import subprocess
 import os.path
 import tempfile
-import tempdir
 import extern
 import sys
 import json

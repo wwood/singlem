@@ -27,7 +27,6 @@ import os.path
 import sys
 from io import StringIO
 import tempfile
-import tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -64,7 +63,7 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             f.write(unpaired_input.encode())
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 (fwd, rev) = KingfisherSra().split_fasta(f.name, d)
                 self.assertEqual(None, rev)
                 with open(fwd) as ofwd:
@@ -96,7 +95,7 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             f.write(unpaired_input.encode())
             f.flush()
 
-            with tempdir.TempDir() as d:
+            with tempfile.TemporaryDirectory() as d:
                 (fwd, rev) = KingfisherSra().split_fasta(f.name, d)
                 with open(fwd) as ofwd:
                     self.assertEqual(expected1, ofwd.read())

@@ -25,7 +25,6 @@ import unittest
 import os.path
 import sys
 from io import StringIO
-import tempdir
 import json
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')

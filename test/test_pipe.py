@@ -25,7 +25,6 @@ import unittest
 import subprocess
 import os.path
 import tempfile
-import tempdir
 import extern
 import sys
 import json
@@ -469,7 +468,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
                           'tree': 'tree_thanks',
                           'version': 3}
 
-        with tempdir.TempDir() as d:
+        with tempfile.TemporaryDirectory(prefix='singlem-test') as d:
             cmd = "%s pipe --sequences %s --assignment-method pplacer --otu_table /dev/null --output_jplace %s"\
                   " --singlem_packages %s" % (
                       path_to_script,
