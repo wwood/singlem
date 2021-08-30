@@ -51,7 +51,6 @@ setup(
     packages=find_packages(exclude=['contrib','docs','test', '*.test', '*.test.*']),
     install_requires=('graftm >= 0.12.2',
                       'extern >= 0.0.4',
-                      'tempdir >= 0.6',
                       'biopython >= 1.64',
                       'dendropy >=0.4.0',
                       'pandas >= 0.19.2',

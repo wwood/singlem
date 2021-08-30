@@ -7,7 +7,6 @@ import extern
 from .singlem_package import SingleMPackageVersion3
 import shutil
 import os
-import tempdir
 
 class PackageCreator:
     def create(self, **kwargs):
@@ -91,7 +90,7 @@ class PackageCreator:
         else:
             search_hmms = gpkg.search_hmm_paths()
 
-        with tempdir.TempDir() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
             gpkg_name = os.path.join(
                 tmpdir,
                 os.path.basename(

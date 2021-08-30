@@ -23,20 +23,20 @@
 
 import unittest
 import os.path
-import tempdir
 import sys
 import io
-from singlem.chainsaw import Chainsaw
+from bird_tool_utils import in_tempdir
 
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
+from singlem.chainsaw import Chainsaw
 
 class Tests(unittest.TestCase):
     maxDiff = None
     
     def test_chainsaw_package(self):
-        with tempdir.in_tempdir():
+        with in_tempdir():
             Chainsaw.chainsaw(
                 input_singlem_package_path = os.path.join(
                     path_to_data, '4.11.22seqs.gpkg.spkg'),

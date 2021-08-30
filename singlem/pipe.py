@@ -1,5 +1,4 @@
 from singlem.singlem import FastaNameToSampleName
-import tempdir
 import logging
 import os.path
 import shutil
@@ -182,17 +181,17 @@ class SearchPipe:
                 shared_mem_directory = '/dev/shm'
                 if os.path.exists(shared_mem_directory):
                     logging.debug("Using shared memory as a base directory")
-                    tmp = tempdir.TempDir(basedir=shared_mem_directory, prefix='singlem-pipe.')
+                    tmp = tempfile.TemporaryDirectory(dir=shared_mem_directory, prefix='singlem-pipe.')
                     tempfiles_path = os.path.join(tmp.name, 'tempfiles')
                     os.mkdir(tempfiles_path)
                     os.environ['TEMP'] = tempfiles_path
                 else:
                     logging.debug("Shared memory directory not detected, using default temporary directory instead")
-                    tmp = tempdir.TempDir()
+                    tmp = tempfile.TemporaryDirectory()
                 working_directory = tmp.name
             else:
                 logging.debug("Using conventional temporary directory as working directory")
-                tmp = tempdir.TempDir()
+                tmp = tempfile.TemporaryDirectory()
                 tempfiles_path = os.path.join(tmp.name, 'tempfiles')
                 os.mkdir(tempfiles_path)
                 os.environ['TEMP'] = tempfiles_path
@@ -235,7 +234,6 @@ class SearchPipe:
         def return_cleanly():
             for tf in transcript_tempfiles:
                 tf.close()
-            if using_temporary_working_directory: tmp.dissolve()
             logging.info("Finished")
 
         #### Search

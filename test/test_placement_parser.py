@@ -26,7 +26,6 @@ import unittest
 import subprocess
 import os.path
 import tempfile
-import tempdir
 from io import StringIO
 import extern
 import sys
