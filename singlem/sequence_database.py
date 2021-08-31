@@ -453,8 +453,8 @@ class SequenceDatabase:
         SequenceDatabase.acquire(db_path).create_nmslib_nucleotide_indexes()
         SequenceDatabase.acquire(db_path).create_nmslib_protein_indexes()
 
-        SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes(ntrees=20)
-        SequenceDatabase.acquire(db_path).create_annoy_protein_indexes(ntrees=20)
+        SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
+        SequenceDatabase.acquire(db_path).create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
         logging.info("Finished singlem DB creation")
 
