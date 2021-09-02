@@ -229,29 +229,31 @@ class SequenceDatabase:
 
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
+
+        # ensure db does not already exist
+        if os.path.exists(db_path):
+            raise Exception("Cowardly refusing to overwrite already-existing database path '%s'" % db_path)
+        logging.info("Creating SingleM database at {}".format(db_path))
+        os.makedirs(db_path)
+
+        # Create contents file
+        contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
+        with open(contents_file_path, 'w') as f:
+            json.dump({
+                SequenceDatabase.VERSION_KEY: 4,
+            }, f)
+
         if pregenerated_sqlite3_db:
             logging.info("Re-using previous SQLite database {}".format(pregenerated_sqlite3_db))
             sqlite_db_path = pregenerated_sqlite3_db
 
-            marker_list = set()
-            for row in SequenceDatabase._query_builder(sqlite_db_path).table('otus').select_raw("distinct(marker) as marker").get():
-                marker_list.add(row['marker'])
-            logging.info("Found {} markers e.g. {}".format(len(marker_list), list(marker_list)[0]))
+            # Symlink instead of cp to the old otus.sqlite3 because the main use
+            # case for this is messing with the nmslib/annoy DB creation
+            # parameters.
+            from pathlib import Path
+            Path(os.path.join(db_path,'otus.sqlite3')).symlink_to(pregenerated_sqlite3_db)
 
         else:
-            # ensure db does not already exist
-            if os.path.exists(db_path):
-                raise Exception("Cowardly refusing to overwrite already-existing database path '%s'" % db_path)
-            logging.info("Creating SingleM database at {}".format(db_path))
-            os.makedirs(db_path)
-
-            # Create contents file
-            contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
-            with open(contents_file_path, 'w') as f:
-                json.dump({
-                    SequenceDatabase.VERSION_KEY: 4,
-                }, f)
-
             # Dumping the table into SQL and then modifying it form there is
             # taking too long (or I don't understand SQL well enough). The main
             # issue is that creating a table with (id, sequence) take a while to
