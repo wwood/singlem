@@ -515,7 +515,8 @@ if __name__ == '__main__':
     required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
         help="Condense from the gzip'd archive tables newline separated in this file")
 
-    required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.", required=True)
+    required_condense_arguments.add_argument('--singlem-metapackage', '--singlem_metapackage', help='Set of SingleM packages to use [default: use the default set]')
+    required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.")
     required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
     
@@ -1020,6 +1021,7 @@ if __name__ == '__main__':
             Condenser().condense(
                 input_streaming_otu_table = otus,
                 singlem_packages = args.singlem_packages,
+                metapackage_path = args.singlem_metapackage,
                 trim_percent = args.trim_percent,
                 output_otu_table = args.output_otu_table,
                 krona = args.krona)

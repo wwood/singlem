@@ -7,6 +7,7 @@ import extern
 from queue import Queue
 from collections import OrderedDict
 from .singlem_package import SingleMPackage
+from .metapackage import Metapackage
 
 class Condenser:
     """ Combines otu table output for each marker into a single otu table"""
@@ -36,18 +37,27 @@ class Condenser:
     def condense_to_otu_table(self, **kwargs):
         input_otu_table = kwargs.pop('input_streaming_otu_table')
         singlem_packages = kwargs.pop('singlem_packages')
+        metapackage_path = kwargs.pop('metapackage_path')
         trim_percent = kwargs.pop('trim_percent') / 100
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-        
+
+        if singlem_packages and metapackage_path:
+            raise Exception("Cannot specify both singlem packages and a metapackage")
+        if metapackage_path:
+            mpkg = Metapackage.acquire(metapackage_path)
+            singlem_package_objects = mpkg.singlem_packages
+        else:
+            singlem_package_objects = []
+            for path in singlem_packages:
+                spkg = SingleMPackage.acquire(path)
+                logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
+            logging.info("Loaded %i SingleMa packages." % len(singlem_package_objects))
+
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
         
-        count = 0
-        for path in singlem_packages:
-            count += 1
-            spkg = SingleMPackage.acquire(path)
-            logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
+        for spkg in singlem_package_objects:
             # ensure v3 packages
             if not spkg.version in [3]:
                 raise Exception("Only works with v3 packages.")
@@ -63,7 +73,6 @@ class Condenser:
                     target_domains["Eukaryota"] += [marker_name]
                 else:
                     raise Exception("Domain: {} not supported.".format(domain))
-        logging.info("Loaded %i SingleM packages." % count)
                 
         for domain in target_domains:
             if target_domains[domain] in [1, 2]:
@@ -77,6 +86,7 @@ class Condenser:
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
         marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
+        excluded_markers = set()
 
         for otu in sample_otus:
             gene = otu.marker
@@ -140,7 +150,15 @@ class Condenser:
                 # import IPython; IPython.embed()
                 # print()
                 # print(node_list)
-                # print("Found abundance {} for taxon {}".format(abundance, node_list[0].get_taxonomy()))
+                # logging.debug("Found abundance {} for taxon {}".format(abundance, node_list[0].get_taxonomy()))
+                # if node_list[0].get_taxonomy() in [
+                #     ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia'],
+                #     ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia', 'o__Poseidoniales'],
+                #     ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia', 'o__MGIII']
+                # ]:
+                #     # 09/03/2021 12:49:57 PM DEBUG: Found abundance 96.214375 for taxon ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia', 'o__MGIII']
+                #     [m.get_full_coverage() for m in node_list]
+                #     import IPython; IPython.embed()
 
                 # If stat > 0, add stat to tree and queue children
                 if abundance > 0:
