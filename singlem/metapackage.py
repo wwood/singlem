@@ -86,6 +86,7 @@ class Metapackage:
         prefilter_clustering_threshold = kwargs.pop('prefilter_clustering_threshold')
         output_path = kwargs.pop('output_path')
         threads = kwargs.pop('threads')
+        prefilter_diamond_db = kwargs.pop('prefilter_diamond_db')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -99,35 +100,47 @@ class Metapackage:
         # Copy singlem packages into output directory
         singlem_package_relpaths = []
         for pkg in singlem_packages:
-            relpath = os.path.basename(os.path.dirname(pkg))
+            relpath = os.path.basename(os.path.abspath(pkg))
             if relpath in singlem_package_relpaths:
-                raise Exception("Cannot have 2 singlem packages with the same basename in a metapackage")
+                raise Exception("Cannot have 2 singlem packages with the same basename in a metapackage. relpath was {}".format(relpath))
             singlem_package_relpaths.append(relpath)
             dest = os.path.join(output_path, relpath)
             logging.info("Copying package {} to be {} ..".format(pkg, dest))
             shutil.copytree(pkg, dest)
 
         # Create on-target and dereplicated prefilter fasta file
-        prefilter_name = 'prefilter.fna'
-        prefilter_path = os.path.join(output_path, prefilter_name)
-        with tempfile.NamedTemporaryFile(prefix='singlem_metapackage') as t1:
-            logging.info("Creating on-target FASTA file for prefilter ..")
-            mpkg.create_on_target_prefilter_fasta(t1.name)
+        if prefilter_diamond_db:
+            if not prefilter_diamond_db.endswith('.dmnd'):
+                raise Exception("Predefined DIAMOND DB should end in .dmnd")
+            prefilter_name = os.path.basename(prefilter_diamond_db)
+            prefilter_path = os.path.join(output_path, prefilter_name)
+            shutil.copy(prefilter_diamond_db, prefilter_path)
+        else:
+            prefilter_name = 'prefilter.fna'
+            prefilter_path = os.path.join(output_path, prefilter_name)
+            with tempfile.NamedTemporaryFile(prefix='singlem_metapackage') as t1:
+                logging.info("Creating on-target FASTA file for prefilter ..")
+                mpkg.create_on_target_prefilter_fasta(t1.name)
 
-            logging.info("Dereplicating on target prefilter FASTA ..")
-            mpkg.dereplicate_prefilter_fasta(
-                t1.name,
-                prefilter_path,
-                threads,
-                prefilter_clustering_threshold)
+                logging.info("Dereplicating on target prefilter FASTA ..")
+                mpkg.dereplicate_prefilter_fasta(
+                    t1.name,
+                    prefilter_path,
+                    threads,
+                    prefilter_clustering_threshold)
 
-        # Create diamond DB indices of prefilter
-        logging.info("Indexing prefilter DB with DIAMOND makedb ..")
-        extern.run('diamond makedb --in {} --db {}.dmnd'.format(prefilter_path, prefilter_path))
+            # Create diamond DB indices of prefilter
+            logging.info("Indexing prefilter DB with DIAMOND makedb ..")
+            extern.run('diamond makedb --in {} --db {}.dmnd'.format(prefilter_path, prefilter_path))
+            prefilter_name = "{}.dmnd".format(prefilter_name)
+            prefilter_path = "{}.dmnd".format(prefilter_path)
+
+
         logging.info("Running DIAMOND makeidx of prefilter ..")
-        extern.run('diamond makeidx --db {}.dmnd'.format(prefilter_path))
+        extern.run('diamond makeidx --db {}'.format(prefilter_path))
 
-        os.remove(prefilter_path)
+        if not prefilter_diamond_db:
+            os.remove(prefilter_path)
 
         contents_hash = {Metapackage.VERSION_KEY: 1,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
@@ -148,16 +161,16 @@ class Metapackage:
     def get_dmnd(self):
         ''' Create temporary DIAMOND file for search method '''
         fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]
-        temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='singlem-diamond-prefilter', 
+        temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='singlem-diamond-prefilter',
                                                 suffix='.dmnd', delete=False).name
         cmd = 'cat %s | '\
             'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
-        
+
         extern.run(cmd)
         extern.run("diamond makeidx -d {}".format(temp_dmnd))
-        
+
         return temp_dmnd
-    
+
     def protein_packages(self):
         return [pkg for pkg in self._hmms_and_positions.values() if pkg.is_protein_package()]
 
