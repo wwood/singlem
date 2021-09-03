@@ -519,6 +519,7 @@ if __name__ == '__main__':
     required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.")
     required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
+    required_condense_arguments.add_argument('--min-taxon-coverage','--min_taxon_coverage', metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05)
     
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
@@ -1024,7 +1025,8 @@ if __name__ == '__main__':
                 metapackage_path = args.singlem_metapackage,
                 trim_percent = args.trim_percent,
                 output_otu_table = args.output_otu_table,
-                krona = args.krona)
+                krona = args.krona,
+                min_taxon_coverage = args.min_taxon_coverage)
             
         elif args.subparser_name == 'trim_package_hmms':
             PackageHmmTrimmer().trim(

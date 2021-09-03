@@ -39,6 +39,7 @@ class Condenser:
         singlem_packages = kwargs.pop('singlem_packages')
         metapackage_path = kwargs.pop('metapackage_path')
         trim_percent = kwargs.pop('trim_percent') / 100
+        min_taxon_coverage = kwargs.pop('min_taxon_coverage')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -80,9 +81,9 @@ class Condenser:
 
         for sample, sample_otus in input_otu_table.each_sample_otus():
             logging.debug("Processing sample {} ..".format(sample))
-            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent)
+            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
 
-    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent):
+    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage):
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
         marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
@@ -186,6 +187,12 @@ class Condenser:
             # print("Found cov {} and child coverage {} for {}".format(node.coverage, children_coverage, node.get_taxonomy()))
             if node.word != 'Root':
                 node.coverage = node.coverage - children_coverage
+
+                # Apply a general cutoff, which is somewhat arbitrary, but
+                # reduces noise. This cutoff also removes the very occasional
+                # situations that coverages are negative.
+                if node.coverage < min_taxon_coverage:
+                    node.coverage = 0
 
         return CondensedCommunityProfile(sample, sample_summary_root_node)
 
