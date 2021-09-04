@@ -727,7 +727,10 @@ if __name__ == '__main__':
             seqs(args)
 
         elif args.subparser_name=='makedb':
-            otus = generate_streaming_otu_table_from_args(args)
+            if args.pregenerated_otu_sqlite_db:
+                otus = None
+            else:
+                otus = generate_streaming_otu_table_from_args(args)
                         
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
                 (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
