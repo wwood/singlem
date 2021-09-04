@@ -251,7 +251,7 @@ class SequenceDatabase:
             # case for this is messing with the nmslib/annoy DB creation
             # parameters.
             from pathlib import Path
-            Path(os.path.join(db_path,'otus.sqlite3')).symlink_to(pregenerated_sqlite3_db)
+            Path(os.path.join(db_path,'otus.sqlite3')).symlink_to(os.path.abspath(pregenerated_sqlite3_db))
 
         else:
             # Dumping the table into SQL and then modifying it form there is
