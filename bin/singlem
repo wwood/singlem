@@ -362,9 +362,9 @@ if __name__ == '__main__':
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
     DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
-    makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES)
+    makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES,type=int)
     DEFAULT_ANNOY_PROTEIN_NTREES = 10
-    makedb_other_args.add_argument('--num-annoy-protein-trees', help='make annoy protein sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_PROTEIN_NTREES),default=DEFAULT_ANNOY_PROTEIN_NTREES)
+    makedb_other_args.add_argument('--num-annoy-protein-trees', help='make annoy protein sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_PROTEIN_NTREES),default=DEFAULT_ANNOY_PROTEIN_NTREES,type=int)
     makedb_other_args.add_argument('--tmpdir', help='[for internal usage] use this directory internally for working')
 
     query_description = 'Find closely related sequences in a database.'
