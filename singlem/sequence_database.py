@@ -537,6 +537,8 @@ class SequenceDatabase:
             logging.info("Writing index to disk ..")
             annoy_index.save(os.path.join(nucleotide_db_dir, "%s.annoy_index" % marker_name))
             logging.info("Finished writing index to disk")
+            # Delete immediately to save RAM (was using 200G+ before getting killed on big DB)
+            del annoy_index
 
     def create_annoy_protein_indexes(self, ntrees):
         logging.info("Creating annoy protein sequence indices ..")
@@ -566,6 +568,8 @@ class SequenceDatabase:
             logging.info("Writing index to disk ..")
             annoy_index.save(os.path.join(protein_db_dir, "%s.annoy_index" % marker_name))
             logging.info("Finished writing index to disk")
+            # Delete immediately to save RAM (was using 200G+ before getting killed on big DB)
+            del annoy_index
     
     @staticmethod
     def dump(db_path):
