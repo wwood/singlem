@@ -26,6 +26,8 @@ class Querier:
         num_threads = kwargs.pop('num_threads')
         search_method = kwargs.pop('search_method')
         sequence_type = kwargs.pop('sequence_type')
+        stream_output = kwargs.pop('stream_output')
+        max_nearest_neighbours = kwargs.pop('max_nearest_neighbours')
         
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -39,11 +41,16 @@ class Querier:
             query_sequence, query_otu_table, query_fasta)
         logging.info("Read in %i queries" % len(queries))
 
-        query_results = self.query_with_queries(queries, db, max_divergence, search_method, sequence_type)
-        logging.info("Printing %i hits" % len(query_results))
+        query_results = self.query_with_queries(
+            queries, db, max_divergence, search_method, sequence_type, max_nearest_neighbours=max_nearest_neighbours)
+        # nmslib and annoy are in order per-query already, so we may as well stream
+        do_stream = stream_output or search_method in ['nmslib','annoy']
+        if not do_stream:
+            query_results = list(query_results)
+            logging.info("Printing %i hits" % len(query_results))
 
         if output_style == 'sparse':
-            SparseResultFormatter().write(query_results, sys.stdout)
+            SparseResultFormatter().write(query_results, sys.stdout, streaming=do_stream)
         elif output_style == None:
             return query_results
         else:
@@ -124,7 +131,7 @@ class Querier:
             raise Exception("No query option specified, cannot continue")
         return queries
 
-    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type):
+    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours):
         sdb.query_builder(check=True)
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             return self.query_by_sqlite(queries, sdb)
@@ -133,10 +140,10 @@ class Querier:
                 queries, sdb, max_divergence, sequence_type)
         elif search_method == 'annoy':
             return self.query_by_sequence_similarity_with_annoy(
-                queries, sdb, max_divergence, sequence_type)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
         elif search_method == 'nmslib':
             return self.query_by_sequence_similarity_with_nmslib(
-                queries, sdb, max_divergence, sequence_type)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -153,10 +160,12 @@ class Querier:
             marker_to_queries[query.marker].append(query)
 
         for marker, subqueries in marker_to_queries.items():
-            for entry in sdb.query_builder().table('otus'). \
+            for (i, entry) in enumerate(sdb.query_builder().table('otus'). \
                 join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
                 join('nucleotides','sequence_id','=','nucleotides.id'). \
-                get():
+                get()):
+                if len(subqueries) >= 5 and i > 0 and i % 100000 == 0:
+                    logging.info("Processing query {} for marker {}".format(i, marker))
 
                 for q in subqueries:
                     div = self.divergence(q.sequence, entry['sequence'])
@@ -168,11 +177,10 @@ class Querier:
                         otu.count = entry['num_hits']
                         otu.coverage = entry['coverage']
                         otu.taxonomy = entry['taxonomy']
-                        results.append(QueryResult(query, otu, div))
-        return results
+                        yield QueryResult(query, otu, div)
 
 
-    def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type):
+    def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
         marker_to_queries = {}
         results = []
         logging.info("Searching with nmslib by nucleotide sequence ..")
@@ -190,9 +198,9 @@ class Querier:
 
             for q in subqueries:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), 1000)
+                    kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), 1000)
+                    kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
                 else:
                     raise Exception("Unexpected sequence_type")
 
@@ -200,8 +208,7 @@ class Querier:
                     div = int(hamming_distance / 2)
                     if div <= max_divergence:
                         for qres in self.query_result_from_db(sdb, query, sequence_type, hit_index, marker, div):
-                            results.append(qres)
-        return results
+                            yield qres
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, div):
         # TODO: Could be faster by caching the marker_id?
@@ -242,7 +249,7 @@ class Querier:
 
         
 
-    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type):
+    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
         marker_to_queries = {}
         results = []
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
@@ -260,9 +267,9 @@ class Querier:
 
             for q in subqueries:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), 1000, include_distances=True)
+                    kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), max_nearest_neighbours, include_distances=True)
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), 1000, include_distances=True)
+                    kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours, include_distances=True)
                 else:
                     raise Exception("Unexpected sequence_type")
 
@@ -270,8 +277,7 @@ class Querier:
                     div = int(hamming_distance / 2)
                     if div <= max_divergence:
                         for qres in self.query_result_from_db(sdb, query, sequence_type, hit_index, marker, div):
-                            results.append(qres)
-        return results
+                            yield qres
 
     def divergence(self, seq1, seq2):
         """Return the number of bases two sequences differ by"""
@@ -310,8 +316,7 @@ class Querier:
                     otu.count = entry.num_hits
                     otu.coverage = entry.coverage
                     otu.taxonomy = entry.taxonomy
-                    results.append(QueryResult(queries_list[qid], otu, 0))
-        return results
+                    yield QueryResult(queries_list[qid], otu, 0)
 
     def print_samples(self, **kwargs):
         db = SequenceDatabase.acquire(kwargs.pop('db'))

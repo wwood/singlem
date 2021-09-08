@@ -334,9 +334,9 @@ class SequenceDatabase:
                                     last_marker_id = row[0]
                                     last_sequence_id = row[1]
                                 elif last_sequence_id != row[1]:
+                                    last_marker_wise_sequence_id += 1
                                     print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
                                     last_sequence_id = row[1]
-                                last_marker_wise_sequence_id += 1
 
                 logging.info("Importing markers table into SQLite ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
