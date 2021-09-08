@@ -144,6 +144,9 @@ class Querier:
         elif search_method == 'nmslib':
             return self.query_by_sequence_similarity_with_nmslib(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
+        elif search_method == 'scann':
+            return self.query_by_sequence_similarity_with_scann(
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -183,7 +186,7 @@ class Querier:
     def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
         marker_to_queries = {}
         results = []
-        logging.info("Searching with nmslib by nucleotide sequence ..")
+        logging.info("Searching with nmslib by {} sequence ..".format(sequence_type))
 
         for query in queries:
             if query.marker not in marker_to_queries:
@@ -200,6 +203,40 @@ class Querier:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                     kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
+                else:
+                    raise Exception("Unexpected sequence_type")
+
+                for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
+                    div = int(hamming_distance / 2)
+                    if div <= max_divergence:
+                        for qres in self.query_result_from_db(sdb, query, sequence_type, hit_index, marker, div):
+                            yield qres
+
+
+    def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
+        marker_to_queries = {}
+        results = []
+        logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
+
+        for query in queries:
+            if query.marker not in marker_to_queries:
+                marker_to_queries[query.marker] = []
+            marker_to_queries[query.marker].append(query)
+
+        for marker, subqueries in marker_to_queries.items():
+            index = sdb.get_sequence_index(marker, 'scann', sequence_type)
+            if index is None:
+                raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
+            logging.info("Querying index for {}".format(marker))
+
+            for q in subqueries:
+                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    import IPython; IPython.embed()
+                    query_array = np.array(sequence_database.nucleotides_to_binary(q.sequence))
+                    kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
+                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    raise
                     kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
                 else:
                     raise Exception("Unexpected sequence_type")
