@@ -293,7 +293,8 @@ class SequenceDatabase:
         pregenerated_sqlite3_db=None,
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
-        num_annoy_protein_trees = 10):
+        num_annoy_protein_trees = 10,
+        sequence_database_methods = ['annoy','scann']):
 
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
@@ -521,14 +522,16 @@ class SequenceDatabase:
 
         # Create sequence indices
         sdb = SequenceDatabase.acquire(db_path)
+        if 'scann' in sequence_database_methods:
+            sdb.create_scann_indexes()
 
-        sdb.create_scann_indexes()
+        if 'nmslib' in sequence_database_methods:
+            sdb.create_nmslib_nucleotide_indexes()
+            sdb.create_nmslib_protein_indexes()
 
-        sdb.create_nmslib_nucleotide_indexes()
-        sdb.create_nmslib_protein_indexes()
-
-        sdb.create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
-        sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
+        if 'annoy' in sequence_database_methods:
+            sdb.create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
+            sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
         logging.info("Finished singlem DB creation")
 
