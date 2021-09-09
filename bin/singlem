@@ -360,6 +360,12 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--db', '--db-path', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
+    current_default = ['annoy','scann']
+    makedb_other_args.add_argument('--sequence-database-methods', '--sequence_database_methods', 
+        nargs='+',
+        choices = ['annoy','scann','nmslib'],
+        help='Index sequences using these methods [default {}]'.format(current_default))
+
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
     DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
     makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES,type=int)
@@ -743,7 +749,8 @@ if __name__ == '__main__':
                 (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
                 num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
                 num_annoy_protein_trees=args.num_annoy_protein_trees,
-                tmpdir = args.tmpdir)
+                tmpdir = args.tmpdir,
+                sequence_database_methods = args.sequence_database_methods)
         elif args.subparser_name=='query':
             querier = Querier()
             if args.db and args.subject_otu_tables:
