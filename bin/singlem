@@ -742,7 +742,8 @@ if __name__ == '__main__':
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
                 (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
                 num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
-                num_annoy_protein_trees=args.num_annoy_protein_trees)
+                num_annoy_protein_trees=args.num_annoy_protein_trees,
+                tmpdir = args.tmpdir)
         elif args.subparser_name=='query':
             querier = Querier()
             if args.db and args.subject_otu_tables:
