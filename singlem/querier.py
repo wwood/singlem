@@ -6,6 +6,7 @@ import os
 from orator import DatabaseManager, Model
 from orator.exceptions.query import QueryException
 from Bio import pairwise2
+import numpy as np
 
 from .sequence_database import SequenceDatabase
 from . import sequence_database
@@ -136,8 +137,8 @@ class Querier:
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             return self.query_by_sqlite(queries, sdb)
         elif search_method == 'naive':
-            return self.query_by_sequence_similarity_naively(
-                queries, sdb, max_divergence, sequence_type)
+            return self.query_by_sequence_similarity_with_scann(
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True)
         elif search_method == 'annoy':
             return self.query_by_sequence_similarity_with_annoy(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
@@ -146,41 +147,42 @@ class Querier:
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
         elif search_method == 'scann':
             return self.query_by_sequence_similarity_with_scann(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
-    def query_by_sequence_similarity_naively(self, queries, sdb, max_divergence, sequence_type):
-        if sequence_type == SequenceDatabase.PROTEIN_TYPE:
-            raise Exception("Naive search by amino acid not implemented for now")
-        marker_to_queries = {}
-        results = []
-        logging.info("Searching by nucleotide sequence with (unoptimised) naive search ..")
+    ### Method no longer used, scann is used instead
+    # def query_by_sequence_similarity_naively(self, queries, sdb, max_divergence, sequence_type):
+    #     if sequence_type == SequenceDatabase.PROTEIN_TYPE:
+    #         raise Exception("Naive search by amino acid not implemented for now")
+    #     marker_to_queries = {}
+    #     results = []
+    #     logging.info("Searching by nucleotide sequence with (unoptimised) naive search ..")
 
-        for query in queries:
-            if query.marker not in marker_to_queries:
-                marker_to_queries[query.marker] = []
-            marker_to_queries[query.marker].append(query)
+    #     for query in queries:
+    #         if query.marker not in marker_to_queries:
+    #             marker_to_queries[query.marker] = []
+    #         marker_to_queries[query.marker].append(query)
 
-        for marker, subqueries in marker_to_queries.items():
-            for (i, entry) in enumerate(sdb.query_builder().table('otus'). \
-                join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
-                join('nucleotides','sequence_id','=','nucleotides.id'). \
-                get()):
-                if len(subqueries) >= 5 and i > 0 and i % 100000 == 0:
-                    logging.info("Processing query {} for marker {}".format(i, marker))
+    #     for marker, subqueries in marker_to_queries.items():
+    #         for (i, entry) in enumerate(sdb.query_builder().table('otus'). \
+    #             join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
+    #             join('nucleotides','sequence_id','=','nucleotides.id'). \
+    #             get()):
+    #             if len(subqueries) >= 5 and i > 0 and i % 100000 == 0:
+    #                 logging.info("Processing query {} for marker {}".format(i, marker))
 
-                for q in subqueries:
-                    div = self.divergence(q.sequence, entry['sequence'])
-                    if div <= max_divergence:
-                        otu = OtuTableEntry()
-                        otu.marker = entry['marker']
-                        otu.sample_name = entry['sample_name']
-                        otu.sequence = entry['sequence']
-                        otu.count = entry['num_hits']
-                        otu.coverage = entry['coverage']
-                        otu.taxonomy = entry['taxonomy']
-                        yield QueryResult(query, otu, div)
+    #             for q in subqueries:
+    #                 div = self.divergence(q.sequence, entry['sequence'])
+    #                 if div <= max_divergence:
+    #                     otu = OtuTableEntry()
+    #                     otu.marker = entry['marker']
+    #                     otu.sample_name = entry['sample_name']
+    #                     otu.sequence = entry['sequence']
+    #                     otu.count = entry['num_hits']
+    #                     otu.coverage = entry['coverage']
+    #                     otu.taxonomy = entry['taxonomy']
+    #                     yield QueryResult(q, otu, div)
 
 
     def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
@@ -210,11 +212,11 @@ class Querier:
                 for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                     div = int(hamming_distance / 2)
                     if div <= max_divergence:
-                        for qres in self.query_result_from_db(sdb, query, sequence_type, hit_index, marker, div):
+                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, div):
                             yield qres
 
 
-    def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
+    def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False):
         marker_to_queries = {}
         results = []
         logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
@@ -225,26 +227,38 @@ class Querier:
             marker_to_queries[query.marker].append(query)
 
         for marker, subqueries in marker_to_queries.items():
-            index = sdb.get_sequence_index(marker, 'scann', sequence_type)
+            if naive:
+                index_format = 'scann-naive'
+            else:
+                index_format = 'scann'
+            index = sdb.get_sequence_index(marker, index_format, sequence_type)
             if index is None:
-                raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
+                logging.warn("The marker '{}' does not appear to be in the singlem db".format(marker))
+                continue
             logging.info("Querying index for {}".format(marker))
+            marker_id = sdb.query_builder().table('markers').where('marker',marker).first()
+            if marker_id is None:
+                raise Exception("Unknown marker {}".format(marker))
+            else:
+                marker_id = marker_id['id']
 
             for q in subqueries:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    import IPython; IPython.embed()
-                    query_array = np.array(sequence_database.nucleotides_to_binary(q.sequence))
-                    kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
+                    query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
+                    kNN = index.search(query_array, max_nearest_neighbours)
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    raise
-                    kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
+                    query_array = np.array(
+                        sequence_database.protein_to_binary_array(
+                            sequence_database.nucleotides_to_protein(q.sequence)))
+                    kNN = index.search(query_array, max_nearest_neighbours)
                 else:
                     raise Exception("Unexpected sequence_type")
 
-                for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
-                    div = int(hamming_distance / 2)
+                for hit_index in kNN[0]: # Possibly can know div distance from scann distance so less SQL?
+                    hit_sequence = sdb.query_builder().table('nucleotides').where('marker_wise_id',int(hit_index)).where('marker_id', marker_id).select('sequence').first()['sequence']
+                    div = self.divergence(q.sequence, hit_sequence)
                     if div <= max_divergence:
-                        for qres in self.query_result_from_db(sdb, query, sequence_type, hit_index, marker, div):
+                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, div):
                             yield qres
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, div):
@@ -313,7 +327,7 @@ class Querier:
                 for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                     div = int(hamming_distance / 2)
                     if div <= max_divergence:
-                        for qres in self.query_result_from_db(sdb, query, sequence_type, hit_index, marker, div):
+                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, div):
                             yield qres
 
     def divergence(self, seq1, seq2):
