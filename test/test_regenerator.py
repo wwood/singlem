@@ -24,7 +24,6 @@
 
 from singlem.singlem_package import SingleMPackage
 import unittest
-from unittest.mock import Mock,patch
 import os
 import sys
 from bird_tool_utils import in_tempdir
@@ -66,9 +65,10 @@ class Tests(unittest.TestCase):
             pkg = SingleMPackage.acquire(output_package)
             #self.assertEqual(window_position, pkg.singlem_position())
 
-            # assert sequences and taxonomy have been supplemented with euk sequences and updated
+            # assert sequences and taxonomy have been supplemented with euk sequences, updated and trimmed
+
             observed_output_fasta = list(io.open(os.path.join(output_package, "regenerated", "4.11.22seqs_final_sequences.faa")))
-            expected_output_fasta = list(io.open(os.path.join(path_to_data, "regenerate", "output_full.fasta")))
+            expected_output_fasta = list(io.open(os.path.join(path_to_data, "regenerate", "output_trimmed.fasta")))
             self.assertListEqual(observed_output_fasta, expected_output_fasta)
 
             observed_output_seqinfo = list(io.open(os.path.join(output_package, "regenerated", "4.11.22seqs_final.gpkg.refpkg", "4_seqinfo.csv")))
