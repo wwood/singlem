@@ -19,11 +19,9 @@ from .otu_table import OtuTable
 class Querier:
     def query(self, **kwargs):
         db = SequenceDatabase.acquire(kwargs.pop('db'))
-        query_sequence = kwargs.pop('query_sequence')
         max_divergence = kwargs.pop('max_divergence')
         output_style = kwargs.pop('output_style')
         query_otu_table = kwargs.pop('query_otu_table')
-        query_fasta = kwargs.pop('query_fasta')
         num_threads = kwargs.pop('num_threads')
         search_method = kwargs.pop('search_method')
         sequence_type = kwargs.pop('sequence_type')
@@ -33,13 +31,7 @@ class Querier:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        if (query_otu_table and query_sequence) or \
-            (query_otu_table and query_fasta) or \
-            (query_sequence and query_fasta):
-            raise Exception("Only one of --query_fasta, --query_otu_table and --query_sequence is allowable")
-
-        queries = self.prepare_query_sequences(
-            query_sequence, query_otu_table, query_fasta)
+        queries = self.prepare_query_sequences(query_otu_table)
         logging.info("Read in %i queries" % len(queries))
 
         query_results = self.query_with_queries(
@@ -105,31 +97,17 @@ class Querier:
 
 
 
-    def prepare_query_sequences(self, query_sequence, query_otu_table, query_fasta):
-        '''Given potential ways to define query sequences (as file path strings),
-        return a list of QueryInputSequence objects.
-
-        '''
-        if query_sequence:
-            queries = [QueryInputSequence('unnamed_sequence',query_sequence)]
-        elif query_otu_table:
-            queries = []
-            otus = OtuTableCollection()
-            with open(query_otu_table) as f:
-                otus.add_otu_table(f)
-                for e in otus:
-                    queries.append(QueryInputSequence(
-                        ';'.join([e.sample_name]),
-                        e.sequence,
-                        e.marker))
-        elif query_fasta:
-            queries = []
-            with open(query_fasta) as f:
-                for name, seq, _ in SeqReader().readfq(f):
-                    queries.append(QueryInputSequence(
-                        name, seq))
-        else:
-            raise Exception("No query option specified, cannot continue")
+    def prepare_query_sequences(self, query_otu_table):
+        '''return a list of QueryInputSequence objects.'''
+        queries = []
+        otus = OtuTableCollection()
+        with open(query_otu_table) as f:
+            otus.add_otu_table(f)
+            for e in otus:
+                queries.append(QueryInputSequence(
+                    ';'.join([e.sample_name]),
+                    e.sequence,
+                    e.marker))
         return queries
 
     def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours):
