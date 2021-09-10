@@ -75,7 +75,7 @@ class Tests(unittest.TestCase):
             expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
             self.assertListEqual(observed_output_seqinfo, expected_output_seqinfo)
     
-
+    @unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
     def test_hello_word_cmdline(self):
         with in_tempdir():
             output_package = "regenerated.spkg"
