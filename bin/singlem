@@ -380,9 +380,7 @@ if __name__ == '__main__':
     query_db_args.add_argument('--subject-otu-tables', '--subject_otu_tables', nargs='+', metavar='file',
                                help='Pairwise align queries to this otu table (works with inserts, but is slow)')
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
-    query_otu_args.add_argument('--query-sequence', '--query_sequence', metavar='sequence', help="Sequence to use as a query")
     query_otu_args.add_argument('--query-otu-table', '--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
-    query_otu_args.add_argument('--query-fasta', '--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
     query_otu_args.add_argument('--max-divergence', '--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     current_default = 'annoy'
     query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann','scann-naive'])
@@ -773,11 +771,9 @@ if __name__ == '__main__':
                     if args.db:
                         querier.query(
                             db = args.db,
-                            query_sequence = args.query_sequence,
                             max_divergence = args.max_divergence,
                             output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
                             query_otu_table = args.query_otu_table,
-                            query_fasta = args.query_fasta,
                             num_threads = args.threads,
                             search_method = args.search_method,
                             sequence_type = args.sequence_type,
