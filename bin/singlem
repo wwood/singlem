@@ -445,7 +445,7 @@ if __name__ == '__main__':
 
     required_get_tree_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
 
-    regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
+    regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
     regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
 
@@ -453,12 +453,10 @@ if __name__ == '__main__':
 
     required_regenerate_arguments.add_argument('--input-singlem-package', '--input_singlem_package', metavar="PATH", help="input package", required=True)
     required_regenerate_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
-    required_regenerate_arguments.add_argument('--working-directory', '--working_directory', required=True)
-    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True)
-    required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True)
-    required_regenerate_arguments.add_argument('--intermediate-archaea-graftm-package', '--intermediate_archaea_graftm_package', required=True)
-    required_regenerate_arguments.add_argument('--intermediate-bacteria-graftm-package', '--intermediate_bacteria_graftm_package', required=True)
-    required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True)
+    required_regenerate_arguments.add_argument('--input-sequences', '--input_sequences', required=True, help='All sequences for new package')
+    required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True, help='input sequence taxonomy')
+    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='Candidate euk sequences')
+    required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True, help='euk sequence taxonomy')
 
     metapackage_description = 'Create a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
@@ -975,12 +973,10 @@ if __name__ == '__main__':
             Regenerator().regenerate(
                 input_singlem_package = args.input_singlem_package,
                 output_singlem_package = args.output_singlem_package,
-                working_directory = args.working_directory,
+                input_sequences = args.input_sequences,
+                input_taxonomy = args.input_taxonomy,
                 euk_sequences = args.euk_sequences,
                 euk_taxonomy = args.euk_taxonomy,
-                intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
-                intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
-                input_taxonomy = args.input_taxonomy,
                 min_aligned_percent = args.min_aligned_percent)
 
         elif args.subparser_name == 'get_tree':
