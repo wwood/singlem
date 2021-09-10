@@ -45,7 +45,7 @@ input_taxonomy = os.path.join(path_to_data, "regenerate", "input_taxonomy.tsv")
 euk_sequences = os.path.join(path_to_data, "regenerate", "uniprot_sprot_hits.fa")
 euk_taxonomy = os.path.join(path_to_data, "regenerate", "uniprot_sprot_taxonomy.tsv")
 
-output_package = "regenerated.spkg"
+output_package = "S3.regenerated.gpkg.spkg"
 window_position = 20
 min_aligned_percent = 30
 
@@ -65,11 +65,11 @@ class Tests(unittest.TestCase):
             #self.assertEqual(window_position, pkg.singlem_position())
 
             # assert sequences and taxonomy have been supplemented with euk sequences, updated and trimmed
-            observed_output_fasta = list(io.open(os.path.join(output_package, "regenerated", "4.11.22seqs_final_sequences.faa")))
+            observed_output_fasta = list(io.open(pkg.graftm_package().unaligned_sequence_database_path()))
             expected_output_fasta = list(io.open(os.path.join(path_to_data, "regenerate", "output_trimmed.fasta")))
             self.assertListEqual(observed_output_fasta, expected_output_fasta)
 
-            observed_output_seqinfo = list(io.open(os.path.join(output_package, "regenerated", "4.11.22seqs_final.gpkg.refpkg", "4_seqinfo.csv")))
+            observed_output_seqinfo = list(io.open(pkg.graftm_package().taxtastic_seqinfo_path()))
             expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
             self.assertListEqual(observed_output_seqinfo, expected_output_seqinfo)
     
