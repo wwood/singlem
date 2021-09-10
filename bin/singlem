@@ -448,6 +448,7 @@ if __name__ == '__main__':
     regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
     regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
+    regenerate_parser.add_argument('--sequence-prefix', '--sequence_prefix', help="add a prefix to sequence names", type=str, default="")
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
@@ -977,6 +978,7 @@ if __name__ == '__main__':
                 input_taxonomy = args.input_taxonomy,
                 euk_sequences = args.euk_sequences,
                 euk_taxonomy = args.euk_taxonomy,
+                sequence_prefix = args.sequence_prefix,
                 min_aligned_percent = args.min_aligned_percent)
 
         elif args.subparser_name == 'get_tree':

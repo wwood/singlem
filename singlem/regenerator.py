@@ -22,6 +22,7 @@ class Regenerator:
         input_taxonomy = kwargs.pop('input_taxonomy')
         euk_sequences = kwargs.pop('euk_sequences')
         euk_taxonomy = kwargs.pop('euk_taxonomy')
+        sequence_prefix = kwargs.pop('sequence_prefix')
         min_aligned_percent = kwargs.pop('min_aligned_percent')
 
         if len(kwargs) > 0:
@@ -31,6 +32,14 @@ class Regenerator:
         original_hmm_path = original_pkg.hmm_path()
         original_hmm_search_paths = original_pkg.graftm_package().search_hmm_paths()
         basename = original_pkg.graftm_package_basename()
+
+        # Ensure protein package
+        if not original_pkg.is_protein_package():
+            raise Exception("Only works with protein packages.")
+
+        # Ensure v2 or v3
+        if not original_pkg.version in [2, 3]:
+            raise Exception("Only works with v2 and v3 packages for the moment.")
 
         tmp = tempfile.TemporaryDirectory()
         working_directory = tmp.name
@@ -69,10 +78,15 @@ class Regenerator:
         extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
 
         # Concatenate euk and input taxonomy
-        final_taxonomy_file = os.path.join(working_directory,
+        final_taxonomy_path = os.path.join(working_directory,
                                             "%s_final_taxonomy.csv" % basename)
         extern.run("cat %s %s > %s" % (
-            euk_taxonomy, input_taxonomy, final_taxonomy_file))
+            euk_taxonomy, input_taxonomy, final_taxonomy_path))
+        
+        # Add package prefix to sequences and taxonomy
+        if sequence_prefix != "":
+            extern.run("sed -i 's/>/>{}/g' {}".format(sequence_prefix, final_sequences_path))
+            extern.run("sed -i 's/^/{}/g' {}".format(sequence_prefix, final_taxonomy_path))       
 
         # Run graftm create to get the output package
         final_gpkg = os.path.join(working_directory,
@@ -80,7 +94,7 @@ class Regenerator:
         cmd = "graftM create --no-tree --force --min_aligned_percent %s --sequences %s --taxonomy %s --search_hmm_files %s --hmm %s --output %s" % (
             min_aligned_percent,
             final_sequences_path,
-            final_taxonomy_file,
+            final_taxonomy_path,
             ' '.join(original_hmm_search_paths),
             original_hmm_path,
             final_gpkg)
