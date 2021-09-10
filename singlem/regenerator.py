@@ -7,9 +7,11 @@ from graftm.graftm_package import GraftMPackage
 
 from .graftm_result import GraftMResult
 from .singlem_package import SingleMPackageVersion3, SingleMPackageVersion2, SingleMPackage
-from .sequence_classes import SeqReader
+from .sequence_classes import SeqReader, Sequence
 from .dereplicator import Dereplicator
 from .sequence_extractor import SequenceExtractor
+from .metagenome_otu_finder import MetagenomeOtuFinder
+from .pipe_sequence_extractor import _align_proteins_to_hmm
 
 
 class Regenerator:
@@ -35,7 +37,7 @@ class Regenerator:
         logging.debug("Using working directory %s" % working_directory)
 
 
-        # Run GraftM on the euk sequences with the bacterial set
+        # Run GraftM on the euk sequences with the original graftm package
         euk_graftm_output = os.path.join(working_directory,
                                          "%s-euk_graftm" % basename)
         cmd = "graftM graft --graftm_package '%s' --search_and_align_only --forward '%s' --output %s --force" % (
@@ -62,8 +64,7 @@ class Regenerator:
                     if name.find('_split_') == -1:
                         num_euk_hits += 1
                         final_seqs_fp.write(">%s\n%s\n" % (name, seq))
-            logging.info("Found %i eukaryotic sequences to include in the package" % \
-                         num_euk_hits)
+        logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
         
         extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
 
@@ -73,7 +74,7 @@ class Regenerator:
         extern.run("cat %s %s > %s" % (
             euk_taxonomy, input_taxonomy, final_taxonomy_file))
 
-        # Run graftm create to get the final package
+        # Run graftm create to get the output package
         final_gpkg = os.path.join(working_directory,
                                   "%s_final.gpkg" % basename)
         cmd = "graftM create --no-tree --force --min_aligned_percent %s --sequences %s --taxonomy %s --search_hmm_files %s --hmm %s --output %s" % (
@@ -85,6 +86,48 @@ class Regenerator:
             final_gpkg)
 
         extern.run(cmd)
+        output_gpkg = GraftMPackage.acquire(final_gpkg)
+
+        # Trim unaligned sequences according to alignment window +/- 30 aa
+        logging.info("Trimming unaligned sequences according to alignment window")
+        unaligned_basename = os.path.basename(output_gpkg.unaligned_sequence_database_path())
+        protein_sequences = SeqReader().readfq(open(os.path.join(final_gpkg, unaligned_basename)))
+        tmp_alignment = _align_proteins_to_hmm(protein_sequences, output_gpkg.alignment_hmm_path())
+        best_position = original_pkg.singlem_position()
+        stretch_length = original_pkg.window_size() / 3
+        trimmed_output = []
+        
+        ignored_columns = MetagenomeOtuFinder()._find_lower_case_columns(tmp_alignment)
+        logging.debug("Ignoring columns %s", str(ignored_columns))
+        # Find start of window in aligned sequence
+        start_position = MetagenomeOtuFinder()._upper_case_position_to_alignment_position(
+            best_position, ignored_columns)
+        logging.debug("Using pre-defined best section of the alignment starting from %i" % (start_position + 1))
+        # Find all positions in the window
+        chosen_positions = MetagenomeOtuFinder()._best_position_to_chosen_positions(
+            start_position, stretch_length, ignored_columns)
+        logging.debug("Found chosen positions %s", chosen_positions)
+        
+        for aligned_sequence in tmp_alignment:
+            windowed_residues = aligned_sequence.seq[min(chosen_positions):1+max(chosen_positions)].replace('-','')
+            residues_before_window = aligned_sequence.seq[0:min(chosen_positions)].replace('-','')
+            residues_after_window = aligned_sequence.seq[(max(chosen_positions)+1):].replace('-','')
+            
+            prepending_index = len(residues_before_window)-30
+            if prepending_index < 0: prepending_index = 0
+            prepending_residues = residues_before_window[prepending_index:]
+            final_index = 30
+            if len(residues_after_window) < 30:
+                final_index = len(residues_after_window)
+            appending_residues = residues_after_window[0:final_index]
+            
+            final_sequence = prepending_residues + windowed_residues + appending_residues
+            
+            trimmed_output.append(Sequence(aligned_sequence.name, final_sequence.upper()))
+        
+        with open(os.path.join(final_gpkg, unaligned_basename), "w") as out:
+            for entry in trimmed_output:
+                out.write(entry.fasta())
 
         ##############################################################################
         # Run singlem create to put the final package together
