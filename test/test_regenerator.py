@@ -36,23 +36,22 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.regenerator import Regenerator
 
-class Tests(unittest.TestCase): 
+# small package with few sequences
+input_package = os.path.join(path_to_data, "4.11.22seqs.v3.gpkg.spkg")
+# same sequences with altered taxonomy (rotated by 1)
+input_sequences = os.path.join(path_to_data, "regenerate", "input_sequences.fasta")
+input_taxonomy = os.path.join(path_to_data, "regenerate", "input_taxonomy.tsv")
+# few sequences from uniprot that match input package
+euk_sequences = os.path.join(path_to_data, "regenerate", "uniprot_sprot_hits.fa")
+euk_taxonomy = os.path.join(path_to_data, "regenerate", "uniprot_sprot_taxonomy.tsv")
+
+output_package = "regenerated.spkg"
+window_position = 20
+min_aligned_percent = 30
+
+class Tests(unittest.TestCase):
     def test_regenerate_package(self):
         with in_tempdir():
-            # small package with few sequences
-            input_package = os.path.join(path_to_data, "4.11.22seqs.v3.gpkg.spkg")
-            # same sequences with altered taxonomy (rotated by 1)
-            input_sequences = os.path.join(path_to_data, "regenerate", "input_sequences.fasta")
-            input_taxonomy = os.path.join(path_to_data, "regenerate", "input_taxonomy.tsv")
-            # few sequences from uniprot that match input package
-            euk_sequences = os.path.join(path_to_data, "regenerate", "uniprot_sprot_hits.fa")
-            euk_taxonomy = os.path.join(path_to_data, "regenerate", "uniprot_sprot_taxonomy.tsv")
-
-            output_package = "regenerated.spkg"
-            window_position = 20
-            min_aligned_percent = 30
-
-            
             Regenerator().regenerate(
                     input_singlem_package = input_package,
                     input_sequences = input_sequences,
@@ -66,7 +65,6 @@ class Tests(unittest.TestCase):
             #self.assertEqual(window_position, pkg.singlem_position())
 
             # assert sequences and taxonomy have been supplemented with euk sequences, updated and trimmed
-
             observed_output_fasta = list(io.open(os.path.join(output_package, "regenerated", "4.11.22seqs_final_sequences.faa")))
             expected_output_fasta = list(io.open(os.path.join(path_to_data, "regenerate", "output_trimmed.fasta")))
             self.assertListEqual(observed_output_fasta, expected_output_fasta)
@@ -78,16 +76,13 @@ class Tests(unittest.TestCase):
     @unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
     def test_hello_word_cmdline(self):
         with in_tempdir():
-            output_package = "regenerated.spkg"
-
             cmd = "{} regenerate ".format(path_to_script)
-            cmd += "--input_singlem_package {} ".format(os.path.join(path_to_data, "4.11.22seqs.v3.gpkg.spkg"))
-            cmd += "--input_sequences {} ".format(os.path.join(path_to_data, "regenerate", "input_sequences.fasta"))
-            cmd += "--input_taxonomy {} ".format(os.path.join(path_to_data, "regenerate", "input_taxonomy.tsv"))
-            cmd += "--euk_sequences {} ".format(os.path.join(path_to_data, "regenerate", "uniprot_sprot_hits.fa"))
-            cmd += "--euk_taxonomy {} ".format(os.path.join(path_to_data, "regenerate", "uniprot_sprot_taxonomy.tsv"))
+            cmd += "--input_singlem_package {} ".format(input_package)
+            cmd += "--input_sequences {} ".format(input_sequences)
+            cmd += "--input_taxonomy {} ".format(input_taxonomy)
+            cmd += "--euk_sequences {} ".format(euk_sequences)
+            cmd += "--euk_taxonomy {} ".format(euk_taxonomy)
             cmd += "--output_singlem_package {} ".format(output_package)
-            cmd += "--min_aligned_percent 30 "
             extern.run(cmd)
 
             SingleMPackage.acquire(output_package)
