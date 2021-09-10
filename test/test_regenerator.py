@@ -37,26 +37,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.regenerator import Regenerator
 
-class Tests(unittest.TestCase):
-    @unittest.skip("mocks don't work on extern run commands")
-    def test_hello_word_cmdline(self):
-        with patch('singlem.regenerator') as mock:
-            mock.regenerate.return_value = 'result'
-
-            cmd = "{} regenerate ".format(path_to_script)
-            cmd += "--input_singlem_package {} ".format(path_to_data)
-            cmd += "--output_singlem_package {} ".format(path_to_data)
-            cmd += "--working_directory {} ".format(path_to_data)
-            cmd += "--euk_sequences {} ".format(path_to_data)
-            cmd += "--euk_taxonomy {} ".format(path_to_data)
-            cmd += "--intermediate_archaea_graftm_package {} ".format(path_to_data)
-            cmd += "--intermediate_bacteria_graftm_package {} ".format(path_to_data)
-            cmd += "--input_taxonomy {} ".format(path_to_data)
-            cmd += "--min_aligned_percent 10 "
-            output = extern.run(cmd)
-
-            mock.regenerate.assert_called_once()
-    
+class Tests(unittest.TestCase): 
     def test_regenerate_package(self):
         with in_tempdir():
             # small package with few sequences
@@ -70,7 +51,7 @@ class Tests(unittest.TestCase):
 
             output_package = "regenerated.spkg"
             window_position = 20
-            min_aligned_percent = 1
+            min_aligned_percent = 30
 
             
             Regenerator().regenerate(
@@ -93,6 +74,23 @@ class Tests(unittest.TestCase):
             observed_output_seqinfo = list(io.open(os.path.join(output_package, "regenerated", "4.11.22seqs_final.gpkg.refpkg", "4_seqinfo.csv")))
             expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
             self.assertListEqual(observed_output_seqinfo, expected_output_seqinfo)
+    
+
+    def test_hello_word_cmdline(self):
+        with in_tempdir():
+            output_package = "regenerated.spkg"
+
+            cmd = "{} regenerate ".format(path_to_script)
+            cmd += "--input_singlem_package {} ".format(os.path.join(path_to_data, "4.11.22seqs.v3.gpkg.spkg"))
+            cmd += "--input_sequences {} ".format(os.path.join(path_to_data, "regenerate", "input_sequences.fasta"))
+            cmd += "--input_taxonomy {} ".format(os.path.join(path_to_data, "regenerate", "input_taxonomy.tsv"))
+            cmd += "--euk_sequences {} ".format(os.path.join(path_to_data, "regenerate", "uniprot_sprot_hits.fa"))
+            cmd += "--euk_taxonomy {} ".format(os.path.join(path_to_data, "regenerate", "uniprot_sprot_taxonomy.tsv"))
+            cmd += "--output_singlem_package {} ".format(output_package)
+            cmd += "--min_aligned_percent 30 "
+            extern.run(cmd)
+
+            SingleMPackage.acquire(output_package)
 
 
 if __name__ == "__main__":
