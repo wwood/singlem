@@ -46,6 +46,7 @@ euk_sequences = os.path.join(path_to_data, "regenerate", "uniprot_sprot_hits.fa"
 euk_taxonomy = os.path.join(path_to_data, "regenerate", "uniprot_sprot_taxonomy.tsv")
 
 output_package = "S3.regenerated.gpkg.spkg"
+sequence_prefix = "prefix~"
 window_position = 20
 min_aligned_percent = 30
 
@@ -59,6 +60,7 @@ class Tests(unittest.TestCase):
                     euk_sequences = euk_sequences,
                     euk_taxonomy = euk_taxonomy,
                     output_singlem_package = output_package,
+                    sequence_prefix = sequence_prefix,
                     min_aligned_percent = min_aligned_percent)
 
             pkg = SingleMPackage.acquire(output_package)
@@ -73,7 +75,7 @@ class Tests(unittest.TestCase):
             expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
             self.assertListEqual(observed_output_seqinfo, expected_output_seqinfo)
     
-    @unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
+    #@unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
     def test_hello_word_cmdline(self):
         with in_tempdir():
             cmd = "{} regenerate ".format(path_to_script)
@@ -82,6 +84,7 @@ class Tests(unittest.TestCase):
             cmd += "--input_taxonomy {} ".format(input_taxonomy)
             cmd += "--euk_sequences {} ".format(euk_sequences)
             cmd += "--euk_taxonomy {} ".format(euk_taxonomy)
+            cmd += "--sequence_prefix {} ".format(sequence_prefix)
             cmd += "--output_singlem_package {} ".format(output_package)
             extern.run(cmd)
 
