@@ -7,6 +7,7 @@ from orator import DatabaseManager, Model
 from orator.exceptions.query import QueryException
 from Bio import pairwise2
 import numpy as np
+import csv
 
 from .sequence_database import SequenceDatabase
 from . import sequence_database
@@ -31,8 +32,7 @@ class Querier:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        queries = self.prepare_query_sequences(query_otu_table)
-        logging.info("Read in %i queries" % len(queries))
+        queries = self.prepare_query_sequences(query_otu_table, num_threads)
 
         query_results = self.query_with_queries(
             queries, db, max_divergence, search_method, sequence_type, max_nearest_neighbours=max_nearest_neighbours)
@@ -97,18 +97,38 @@ class Querier:
 
 
 
-    def prepare_query_sequences(self, query_otu_table):
-        '''return a list of QueryInputSequence objects.'''
+    def prepare_query_sequences(self, query_otu_table, num_threads):
+        '''return an iterable of QueryInputSequence objects sorted by marker.'''
         queries = []
         otus = OtuTableCollection()
         with open(query_otu_table) as f:
             otus.add_otu_table(f)
-            for e in otus:
-                queries.append(QueryInputSequence(
-                    ';'.join([e.sample_name]),
-                    e.sequence,
-                    e.marker))
-        return queries
+        # To reduce RAM requirements, sort the input by marker, so that the DBs
+        # can be dropped when that marker is finished being queried.
+        logging.info("Sorting query sequences by marker ID to save RAM ..")
+        sorted_io = tempfile.NamedTemporaryFile(prefix='singlem-query-sorted')
+        sorted_path = sorted_io.name
+        proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_path)],
+            stdin=subprocess.PIPE,
+            stdout=None,
+            stderr=subprocess.PIPE,
+            universal_newlines=True)
+        total_otu_count = 0
+        for e in otus:
+            total_otu_count += 1
+            print("\t".join([
+                e.marker,
+                e.sequence,
+                e.sample_name
+            ]), file=proc.stdin)
+        proc.stdin.close()
+        proc.wait()
+        if proc.returncode != 0:
+            raise Exception("Sort command returned non-zero exit status %i.\n"\
+                "STDERR was: %s" % (
+                    proc.returncode, proc.stderr.read()))
+        logging.info("Sorted {} OTU queries ..".format(total_otu_count))
+        return MarkerSortedQueryInput(sorted_io)
 
     def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours):
         sdb.query_builder(check=True)
@@ -168,76 +188,72 @@ class Querier:
         results = []
         logging.info("Searching with nmslib by {} sequence ..".format(sequence_type))
 
-        for query in queries:
-            if query.marker not in marker_to_queries:
-                marker_to_queries[query.marker] = []
-            marker_to_queries[query.marker].append(query)
+        last_marker = None
+        index = None
+        for q in queries:
+            if q.marker != last_marker:
+                del index
+                last_marker = q.marker
+                index = sdb.get_sequence_index(last_marker, 'nmslib', sequence_type)
+                if index is None:
+                    raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
+                logging.info("Querying index for {}".format(last_marker))
+                
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
+            else:
+                raise Exception("Unexpected sequence_type")
 
-        for marker, subqueries in marker_to_queries.items():
-            index = sdb.get_sequence_index(marker, 'nmslib', sequence_type)
-            if index is None:
-                raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
-            logging.info("Querying index for {}".format(marker))
-
-            for q in subqueries:
-                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
-                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
-                else:
-                    raise Exception("Unexpected sequence_type")
-
-                for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
-                    div = int(hamming_distance / 2)
-                    if div <= max_divergence:
-                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, div):
-                            yield qres
+            for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
+                div = int(hamming_distance / 2)
+                if div <= max_divergence:
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
+                        yield qres
 
 
     def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False):
-        marker_to_queries = {}
-        results = []
         logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
 
-        for query in queries:
-            if query.marker not in marker_to_queries:
-                marker_to_queries[query.marker] = []
-            marker_to_queries[query.marker].append(query)
-
-        for marker, subqueries in marker_to_queries.items():
-            if naive:
-                index_format = 'scann-naive'
-            else:
-                index_format = 'scann'
-            index = sdb.get_sequence_index(marker, index_format, sequence_type)
-            if index is None:
-                logging.warn("The marker '{}' does not appear to be in the singlem db".format(marker))
-                continue
-            logging.info("Querying index for {}".format(marker))
-            marker_id = sdb.query_builder().table('markers').where('marker',marker).first()
-            if marker_id is None:
-                raise Exception("Unknown marker {}".format(marker))
-            else:
-                marker_id = marker_id['id']
-
-            for q in subqueries:
-                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
-                    kNN = index.search(query_array, max_nearest_neighbours)
-                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    query_array = np.array(
-                        sequence_database.protein_to_binary_array(
-                            sequence_database.nucleotides_to_protein(q.sequence)))
-                    kNN = index.search(query_array, max_nearest_neighbours)
+        last_marker = None
+        last_marker_id = None
+        index = None
+        for q in queries:
+            if q.marker != last_marker:
+                del index
+                last_marker = q.marker
+                if naive:
+                    index_format = 'scann-naive'
                 else:
-                    raise Exception("Unexpected sequence_type")
+                    index_format = 'scann'
+                index = sdb.get_sequence_index(last_marker, index_format, sequence_type)
+                logging.info("Querying index for {}".format(last_marker))
+                m = sdb.query_builder().table('markers').where('marker',last_marker).first()
+                if m is None:
+                    raise Exception("Marker {} not in the SQL DB".format(last_marker))
+                last_marker_id = m['id']
+            # When scann DB is absent due to too few seqs
+            if index is None:
+                continue
 
-                for hit_index in kNN[0]: # Possibly can know div distance from scann distance so less SQL?
-                    hit_sequence = sdb.query_builder().table('nucleotides').where('marker_wise_id',int(hit_index)).where('marker_id', marker_id).select('sequence').first()['sequence']
-                    div = self.divergence(q.sequence, hit_sequence)
-                    if div <= max_divergence:
-                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, div):
-                            yield qres
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
+                kNN = index.search(query_array, max_nearest_neighbours)
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                query_array = np.array(
+                    sequence_database.protein_to_binary_array(
+                        sequence_database.nucleotides_to_protein(q.sequence)))
+                kNN = index.search(query_array, max_nearest_neighbours)
+            else:
+                raise Exception("Unexpected sequence_type")
+
+            for hit_index in kNN[0]: # Possibly can know div distance from scann distance so less SQL?
+                hit_sequence = sdb.query_builder().table('nucleotides').where('marker_wise_id',int(hit_index)).where('marker_id', last_marker_id).select('sequence').first()['sequence']
+                div = self.divergence(q.sequence, hit_sequence)
+                if div <= max_divergence:
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
+                        yield qres
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, div):
         # TODO: Could be faster by caching the marker_id?
@@ -279,34 +295,31 @@ class Querier:
         
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
-        marker_to_queries = {}
-        results = []
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
 
-        for query in queries:
-            if query.marker not in marker_to_queries:
-                marker_to_queries[query.marker] = []
-            marker_to_queries[query.marker].append(query)
+        last_marker = None
+        index = None
+        for q in queries:
+            if q.marker != last_marker:
+                del index
+                last_marker = q.marker
+                index = sdb.get_sequence_index(last_marker, 'annoy', sequence_type)
+                if index is None:
+                    raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
+                logging.info("Querying index for {}".format(last_marker))
 
-        for marker, subqueries in marker_to_queries.items():
-            index = sdb.get_sequence_index(marker, 'annoy', sequence_type)
-            if index is None:
-                raise Exception("The marker '{}' does not appear to be in the singlem db".format(marker))
-            logging.info("Querying index for {}".format(marker))
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), max_nearest_neighbours, include_distances=True)
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours, include_distances=True)
+            else:
+                raise Exception("Unexpected sequence_type")
 
-            for q in subqueries:
-                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), max_nearest_neighbours, include_distances=True)
-                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours, include_distances=True)
-                else:
-                    raise Exception("Unexpected sequence_type")
-
-                for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
-                    div = int(hamming_distance / 2)
-                    if div <= max_divergence:
-                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, div):
-                            yield qres
+            for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
+                div = int(hamming_distance / 2)
+                if div <= max_divergence:
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
+                        yield qres
 
     def divergence(self, seq1, seq2):
         """Return the number of bases two sequences differ by"""
@@ -400,3 +413,23 @@ class QueryResult:
         self.query = query
         self.subject = subject
         self.divergence = divergence
+
+class MarkerSortedQueryInput:
+    def __init__(self, sorted_io):
+        self._original_io = sorted_io
+        self._reopened_io = open(sorted_io.name)
+        self._reopened_reader = iter(csv.reader(self._reopened_io, delimiter="\t"))
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        '''implement iterable'''
+        row = next(self._reopened_reader) #propogate the StopIteration
+        if len(row) != 3:
+            raise Exception("Strange query formating issue")
+        return QueryInputSequence(row[2], row[1], row[0])
+
+    def __del__(self):
+        self._original_io.close()
+        self._reopened_io.close()
