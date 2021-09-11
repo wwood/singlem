@@ -673,6 +673,7 @@ class SequenceDatabase:
                 directory = os.path.join(db_dir_ah, marker_name)
                 os.mkdir(directory)
                 searcher.serialize(directory)
+                del searcher
 
             logging.info("Creating SCANN brute force index ..")
             # use scann.scann_ops.build() to instead create a
@@ -688,6 +689,7 @@ class SequenceDatabase:
                 module,
                 directory,
                 options=tf.saved_model.SaveOptions(namespace_whitelist=["Scann"]))
+            del searcher_naive
 
         for marker_row in self.query_builder().table('markers').get():
             marker_name = marker_row['marker']
@@ -708,6 +710,7 @@ class SequenceDatabase:
                     where('nucleotides.marker_id',marker_id).get()
             ])
             generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force)
+            del a
             logging.info("Finished writing protein indices to disk")
     
     @staticmethod
