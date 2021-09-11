@@ -16,6 +16,7 @@ from .query_formatters import SparseResultFormatter
 from .otu_table_collection import OtuTableCollection
 from .otu_table_entry import OtuTableEntry
 from .otu_table import OtuTable
+from .otu_table_collection import StreamingOtuTableCollection
 
 class Querier:
     def query(self, **kwargs):
@@ -99,10 +100,9 @@ class Querier:
 
     def prepare_query_sequences(self, query_otu_table, num_threads):
         '''return an iterable of QueryInputSequence objects sorted by marker.'''
-        queries = []
-        otus = OtuTableCollection()
-        with open(query_otu_table) as f:
-            otus.add_otu_table(f)
+        otus = StreamingOtuTableCollection()
+        otus.add_otu_table_file(query_otu_table)
+
         # To reduce RAM requirements, sort the input by marker, so that the DBs
         # can be dropped when that marker is finished being queried.
         logging.info("Sorting query sequences by marker ID to save RAM ..")
