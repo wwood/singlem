@@ -26,7 +26,7 @@ class Querier:
         num_threads = kwargs.pop('num_threads')
         search_method = kwargs.pop('search_method')
         sequence_type = kwargs.pop('sequence_type')
-        stream_output = kwargs.pop('stream_output')
+        # stream_output = kwargs.pop('stream_output')
         max_nearest_neighbours = kwargs.pop('max_nearest_neighbours')
         
         if len(kwargs) > 0:
@@ -36,8 +36,8 @@ class Querier:
 
         query_results = self.query_with_queries(
             queries, db, max_divergence, search_method, sequence_type, max_nearest_neighbours=max_nearest_neighbours)
-        # nmslib and annoy are in order per-query already, so we may as well stream
-        do_stream = stream_output or search_method in ['nmslib','annoy']
+        # Only reason not to stream would be so that the queries are returned in the same order as passed in. eh for now.
+        do_stream = True
         if not do_stream:
             query_results = list(query_results)
             logging.info("Printing %i hits" % len(query_results))
@@ -239,18 +239,17 @@ class Querier:
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
-                kNN = index.search(query_array, max_nearest_neighbours)
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 query_array = np.array(
                     sequence_database.protein_to_binary_array(
                         sequence_database.nucleotides_to_protein(q.sequence)))
-                kNN = index.search(query_array, max_nearest_neighbours)
             else:
                 raise Exception("Unexpected sequence_type")
+            normed = query_array / np.linalg.norm(query_array)
+            kNN = index.search(normed, max_nearest_neighbours)
 
-            for hit_index in kNN[0]: # Possibly can know div distance from scann distance so less SQL?
-                hit_sequence = sdb.query_builder().table('nucleotides').where('marker_wise_id',int(hit_index)).where('marker_id', last_marker_id).select('sequence').first()['sequence']
-                div = self.divergence(q.sequence, hit_sequence)
+            for (hit_index, dist) in zip(kNN[0], kNN[1]): # Possibly can know div distance from scann distance so less SQL?
+                div = int((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                 if div <= max_divergence:
                     for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
                         yield qres
