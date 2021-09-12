@@ -22,6 +22,7 @@ class Regenerator:
         input_taxonomy = kwargs.pop('input_taxonomy')
         euk_sequences = kwargs.pop('euk_sequences')
         euk_taxonomy = kwargs.pop('euk_taxonomy')
+        window_position = kwargs.pop('window_position')
         sequence_prefix = kwargs.pop('sequence_prefix')
         min_aligned_percent = kwargs.pop('min_aligned_percent')
 
@@ -32,6 +33,11 @@ class Regenerator:
         original_hmm_path = original_pkg.hmm_path()
         original_hmm_search_paths = original_pkg.graftm_package().search_hmm_paths()
         basename = original_pkg.graftm_package_basename()
+
+        if window_position:
+            output_window_position = window_position
+        else:
+            output_window_position = original_pkg.singlem_position()
 
         # Ensure protein package
         if not original_pkg.is_protein_package():
@@ -149,13 +155,13 @@ class Regenerator:
             SingleMPackageVersion2.compile(
                 output_singlem_package,
                 final_gpkg,
-                original_pkg.singlem_position(),
+                output_window_position,
                 original_pkg.window_size())
         elif original_pkg.version == 3:
             SingleMPackageVersion3.compile(
                 output_singlem_package,
                 final_gpkg,
-                original_pkg.singlem_position(),
+                output_window_position,
                 original_pkg.window_size(),
                 original_pkg.target_domains(),
                 original_pkg.gene_description())
