@@ -19,6 +19,10 @@ from .otu_table import OtuTable
 from .otu_table_collection import StreamingOtuTableCollection
 
 class Querier:
+    def __init__(self):
+        self._query_result_from_db_builder_nucleotide = None
+        self._query_result_from_db_builder_protein = None
+
     def query(self, **kwargs):
         db = SequenceDatabase.acquire(kwargs.pop('db'))
         max_divergence = kwargs.pop('max_divergence')
@@ -29,7 +33,7 @@ class Querier:
         sequence_type = kwargs.pop('sequence_type')
         # stream_output = kwargs.pop('stream_output')
         max_nearest_neighbours = kwargs.pop('max_nearest_neighbours')
-        
+
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -184,8 +188,6 @@ class Querier:
 
 
     def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
-        marker_to_queries = {}
-        results = []
         logging.info("Searching with nmslib by {} sequence ..".format(sequence_type))
 
         last_marker = None
@@ -198,7 +200,11 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                
+                m = sdb.query_builder().table('markers').where('marker',last_marker).first()
+                if m is None:
+                    raise Exception("Marker {} not in the SQL DB".format(last_marker))
+                last_marker_id = m['id']
+
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
@@ -209,7 +215,7 @@ class Querier:
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker_id, div):
                         yield qres
 
 
@@ -251,16 +257,50 @@ class Querier:
             for (hit_index, dist) in zip(kNN[0], kNN[1]): # Possibly can know div distance from scann distance so less SQL?
                 div = int((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker_id, div):
                         yield qres
 
-    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, div):
-        # TODO: Could be faster by caching the marker_id?
+    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
+        logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
+
+        last_marker = None
+        last_marker_id = None
+        index = None
+        for q in queries:
+            if q.marker != last_marker:
+                del index
+                last_marker = q.marker
+                index = sdb.get_sequence_index(last_marker, 'annoy', sequence_type)
+                if index is None:
+                    raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
+                logging.info("Querying index for {}".format(last_marker))
+                m = sdb.query_builder().table('markers').where('marker',last_marker).first()
+                if m is None:
+                    raise Exception("Marker {} not in the SQL DB".format(last_marker))
+                last_marker_id = m['id']
+
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), max_nearest_neighbours, include_distances=True)
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours, include_distances=True)
+            else:
+                raise Exception("Unexpected sequence_type")
+
+            for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
+                div = int(hamming_distance / 2)
+                if div <= max_divergence:
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker_id, div):
+                        yield qres
+
+    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker_id, div):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-            for entry in sdb.query_builder().table('otus'). \
-                join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
-                join('nucleotides','sequence_id','=','nucleotides.id'). \
+            if self._query_result_from_db_builder_nucleotide is None:
+                self._query_result_from_db_builder_nucleotide = sdb.query_builder(). \
+                    table('otus'). \
+                    join('nucleotides','sequence_id','=','nucleotides.id')
+            for entry in self._query_result_from_db_builder_nucleotide. \
                 where('nucleotides.marker_wise_id', int(hit_index)). \
+                where('nucleotides.marker_id', marker_id). \
                 get():
 
                 otu = OtuTableEntry()
@@ -272,11 +312,14 @@ class Querier:
                 otu.taxonomy = entry['taxonomy']
                 yield QueryResult(query, otu, div)
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-            for entry in sdb.query_builder().table('otus'). \
-                join('markers','marker_id','=','markers.id').where('markers.marker',marker). \
-                join('nucleotides','sequence_id','=','nucleotides.id'). \
-                join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
+            if self._query_result_from_db_builder_protein is None:
+                self._query_result_from_db_builder_protein = sdb.query_builder(). \
+                    table('otus'). \
+                    join('nucleotides','sequence_id','=','nucleotides.id'). \
+                    join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
+                    join('proteins','nucleotides_proteins.protein_id','=','proteins.id')
+            for entry in self._query_result_from_db_builder_protein. \
+                where('nucleotides.marker_id', marker_id). \
                 where('proteins.marker_wise_id', int(hit_index)). \
                 get():
 
@@ -290,35 +333,6 @@ class Querier:
                 yield QueryResult(query, otu, div)
         else:
             raise Exception("unknown sequence_type")
-
-        
-
-    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
-        logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
-
-        last_marker = None
-        index = None
-        for q in queries:
-            if q.marker != last_marker:
-                del index
-                last_marker = q.marker
-                index = sdb.get_sequence_index(last_marker, 'annoy', sequence_type)
-                if index is None:
-                    raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
-                logging.info("Querying index for {}".format(last_marker))
-
-            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), max_nearest_neighbours, include_distances=True)
-            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours, include_distances=True)
-            else:
-                raise Exception("Unexpected sequence_type")
-
-            for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
-                div = int(hamming_distance / 2)
-                if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, div):
-                        yield qres
 
     def divergence(self, seq1, seq2):
         """Return the number of bases two sequences differ by"""
@@ -345,7 +359,6 @@ class Querier:
             except KeyError:
                 sequence_to_query_id[query.sequence] = [i]
 
-        results = []
         for chunk in SequenceDatabase.grouper(seqs, max_set_size):
             for entry in db.table('otus').where_in(
                     'sequence', [seq for seq in chunk if seq is not None]).get():
