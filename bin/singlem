@@ -448,15 +448,16 @@ if __name__ == '__main__':
     regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
     regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
+    regenerate_parser.add_argument('--window-position', '--window_position', help="change window position of output package [default: do not change]", type=int, default=False)
     regenerate_parser.add_argument('--sequence-prefix', '--sequence_prefix', help="add a prefix to sequence names", type=str, default="")
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
     required_regenerate_arguments.add_argument('--input-singlem-package', '--input_singlem_package', metavar="PATH", help="input package", required=True)
     required_regenerate_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
-    required_regenerate_arguments.add_argument('--input-sequences', '--input_sequences', required=True, help='All sequences for new package')
+    required_regenerate_arguments.add_argument('--input-sequences', '--input_sequences', required=True, help='all sequences for new package')
     required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True, help='input sequence taxonomy')
-    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='Candidate euk sequences')
+    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='candidate euk sequences')
     required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True, help='euk sequence taxonomy')
 
     metapackage_description = 'Create a metapackage (i.e. set of SingleM packages)'
@@ -978,6 +979,7 @@ if __name__ == '__main__':
                 input_taxonomy = args.input_taxonomy,
                 euk_sequences = args.euk_sequences,
                 euk_taxonomy = args.euk_taxonomy,
+                window_position = args.window_position,
                 sequence_prefix = args.sequence_prefix,
                 min_aligned_percent = args.min_aligned_percent)
 
