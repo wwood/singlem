@@ -234,14 +234,14 @@ class Querier:
                 else:
                     index_format = 'scann'
                 index = sdb.get_sequence_index(last_marker, index_format, sequence_type)
+                # When scann DB is absent due to too few seqs
+                if index is None:
+                    continue
                 logging.info("Querying index for {}".format(last_marker))
                 m = sdb.query_builder().table('markers').where('marker',last_marker).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
                 last_marker_id = m['id']
-            # When scann DB is absent due to too few seqs
-            if index is None:
-                continue
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
