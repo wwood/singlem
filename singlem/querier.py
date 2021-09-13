@@ -215,7 +215,7 @@ class Querier:
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker_id, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div):
                         yield qres
 
 
@@ -257,7 +257,7 @@ class Querier:
             for (hit_index, dist) in zip(kNN[0], kNN[1]): # Possibly can know div distance from scann distance so less SQL?
                 div = int((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker_id, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div):
                         yield qres
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
@@ -289,22 +289,22 @@ class Querier:
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker_id, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div):
                         yield qres
 
-    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker_id, div):
+    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if self._query_result_from_db_builder_nucleotide is None:
                 self._query_result_from_db_builder_nucleotide = sdb.query_builder(). \
                     table('otus'). \
-                    join('nucleotides','sequence_id','=','nucleotides.id')
-            for entry in self._query_result_from_db_builder_nucleotide. \
-                where('nucleotides.marker_wise_id', int(hit_index)). \
-                where('nucleotides.marker_id', marker_id). \
-                get():
+                    join('nucleotides','sequence_id','=','nucleotides.id'). \
+                    select_raw('nucleotides.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
+                    " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
+            for entry in sdb.query_builder().statement(
+                self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id]):
 
                 otu = OtuTableEntry()
-                otu.marker = entry['marker']
+                otu.marker = marker
                 otu.sample_name = entry['sample_name']
                 otu.sequence = entry['sequence']
                 otu.count = entry['num_hits']
@@ -317,11 +317,11 @@ class Querier:
                     table('otus'). \
                     join('nucleotides','sequence_id','=','nucleotides.id'). \
                     join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                    join('proteins','nucleotides_proteins.protein_id','=','proteins.id')
-            for entry in self._query_result_from_db_builder_protein. \
-                where('nucleotides.marker_id', marker_id). \
-                where('proteins.marker_wise_id', int(hit_index)). \
-                get():
+                    join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
+                    select_raw('proteins.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
+                    " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
+            for entry in sdb.query_builder().statement(
+                self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
 
                 otu = OtuTableEntry()
                 otu.marker = entry['marker']
