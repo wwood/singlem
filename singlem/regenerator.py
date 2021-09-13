@@ -108,6 +108,10 @@ class Regenerator:
         extern.run(cmd)
         output_gpkg = GraftMPackage.acquire(final_gpkg)
 
+        # Run makeidx to increase performance
+        cmd = "diamond makeidx -d %s" % output_gpkg.diamond_database_path()
+        extern.run(cmd)
+
         # Trim unaligned sequences according to alignment window +/- 30 aa
         logging.info("Trimming unaligned sequences according to alignment window")
         unaligned_basename = os.path.basename(output_gpkg.unaligned_sequence_database_path())
