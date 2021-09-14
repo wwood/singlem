@@ -64,25 +64,27 @@ class Regenerator:
         extern.run(cmd)
 
         # Extract hit sequences from that set
-        euk_result = GraftMResult(euk_graftm_output, False)
-        hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
-        if len(hit_paths) != 1: raise Exception(
-                "Unexpected number of hits against euk in graftm")
-        euk_hits_path = next(iter(hit_paths.values())) #i.e. first
-
-        # Concatenate input (bacteria and archaea) and euk sequences
-        num_euk_hits = 0
         final_sequences_path = os.path.join(working_directory,
                                             "%s_final_sequences.faa" % basename)
+        euk_result = GraftMResult(euk_graftm_output, False)
+        hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
+        if len(hit_paths) == 0:
+            euk_taxonomy = ""
+            logging.info("Found no eukaryotic sequences that match")
+        else:
+            euk_hits_path = next(iter(hit_paths.values())) #i.e. first
 
-        with open(final_sequences_path, 'w') as final_seqs_fp:
-            with open(euk_hits_path) as euk_seqs_fp:
-                for name, seq, _ in SeqReader().readfq(euk_seqs_fp):
-                    if name.find('_split_') == -1:
-                        num_euk_hits += 1
-                        final_seqs_fp.write(">%s\n%s\n" % (name, seq))
-        logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
-        
+            # Concatenate input (bacteria and archaea) and euk sequences
+            num_euk_hits = 0
+
+            with open(final_sequences_path, 'w') as final_seqs_fp:
+                with open(euk_hits_path) as euk_seqs_fp:
+                    for name, seq, _ in SeqReader().readfq(euk_seqs_fp):
+                        if name.find('_split_') == -1:
+                            num_euk_hits += 1
+                            final_seqs_fp.write(">%s\n%s\n" % (name, seq))
+            logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
+            
         extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
 
         # Concatenate euk and input taxonomy
