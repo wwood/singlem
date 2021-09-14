@@ -243,6 +243,10 @@ class Querier:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
                 last_marker_id = m['id']
 
+            # When scann DB is absent due to too few seqs
+            if index is None:
+                continue
+
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
