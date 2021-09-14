@@ -1085,7 +1085,10 @@ class SearchPipe:
                             # across 83 packages, so for the sake of RAM saving we
                             # don't cache, and so each time a new sample is analysed
                             # it is read in again.
-                            tax_hash = singlem_package.graftm_package().taxonomy_hash()
+                            if singlem_package.version >= 4:
+                                tax_hash = singlem_package.taxonomy_hash()
+                            else:
+                                tax_hash = singlem_package.graftm_package().taxonomy_hash()
 
                         def run_diamond_chunk(query_file_path):
                             with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:

@@ -198,7 +198,10 @@ class Metapackage:
                 logging.info("Reading FASTA from {} ..".format(pkg.base_directory()))
                 if pkg.version != 3:
                     raise Exception("Creating a prefilter DB only works on version 3 SingleM packages currently")
-                tax_hash = pkg.graftm_package().taxonomy_hash()
+                if pkg.version >= 4:
+                    tax_hash = pkg.taxonomy_hash()
+                else:
+                    tax_hash = pkg.graftm_package().taxonomy_hash()
                 tax_hash_example_key = list(tax_hash.keys())[0]
                 logging.debug("Read in {} taxonomies e.g. {}: {}".format(
                     len(tax_hash),
