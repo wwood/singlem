@@ -5,6 +5,7 @@ from graftm.graftm_package import GraftMPackage
 from graftm.getaxnseq import Getaxnseq
 import shutil
 import hashlib
+import pickle
 
 class InsufficientSingleMPackageException(Exception): pass
 class MalformedSingleMPackageException(Exception): pass
@@ -32,6 +33,7 @@ class SingleMPackage:
     SINGLEM_PACKAGE_SHA256_KEY = 'singlem_package_sha256'
     TARGET_DOMAINS = 'target_domains'
     GENE_DESCRIPTION = 'gene_description'
+    TAXONOMY_HASH_KEY = 'taxonomy_hash'
 
     _CURRENT_FORMAT_VERSION = 1
 
@@ -55,7 +57,17 @@ class SingleMPackage:
                              SINGLEM_WINDOW_SIZE_KEY,
                              ALIGNMENT_HMM_SHA256_KEY,
                              TARGET_DOMAINS,
-                             GENE_DESCRIPTION],
+                             GENE_DESCRIPTION
+                             ],
+                      '4': [
+                             VERSION_KEY,
+                             GRAFTM_PACKAGE_KEY,
+                             SINGLEM_POSITION_KEY,
+                             SINGLEM_WINDOW_SIZE_KEY,
+                             ALIGNMENT_HMM_SHA256_KEY,
+                             TARGET_DOMAINS,
+                             GENE_DESCRIPTION,
+                             TAXONOMY_HASH_KEY]
                       }
 
 
@@ -82,6 +94,8 @@ class SingleMPackage:
             pkg = SingleMPackageVersion2()
         elif v == 3:
             pkg = SingleMPackageVersion3()
+        elif v == 4:
+            pkg = SingleMPackageVersion4()
         else:
             raise InsufficientSingleMPackageException("Bad SingleM package version: %s" % str(v))
 
@@ -365,16 +379,20 @@ class SingleMPackageVersion4(SingleMPackageVersion3):
     version = 4 # don't change me bro
 
     def taxonomy_hash(self):
-        return self._contents_hash[SingleMPackage.TAXONOMY_HASH]
-
-    def taxonomy_hash(self):
-        '''Read in the taxonomy and return as a hash of name: taxonomy,
+        '''Read in the taxonomy hash from file and return as a hash of name: taxonomy,
         where taxonomy is an array of strings.'''
+        taxonomy_path = os.path.join(self._base_directory, self._contents_hash[SingleMPackage.TAXONOMY_HASH_KEY])
+        with open(taxonomy_path, 'rb') as file:
+            return pickle.load(file)
+    
+    def _save_taxonomy_hash(self, graftm_package, taxonomy_hash_path):
         gtns = Getaxnseq()
-        with open(self.taxtastic_taxonomy_path()) as tax:
-            with open(self.taxtastic_seqinfo_path()) as seqinfo:
-                return gtns.read_taxtastic_taxonomy_and_seqinfo(
-                    tax, seqinfo)
+        with open(graftm_package.taxtastic_taxonomy_path()) as tax:
+            with open(graftm_package.taxtastic_seqinfo_path()) as seqinfo:
+                tax_hash = gtns.read_taxtastic_taxonomy_and_seqinfo(tax, seqinfo)
+
+        with open(taxonomy_hash_path, 'wb') as file:
+            pickle.dump(tax_hash, file)
     
     @staticmethod
     def compile(output_package_path, graftm_package_path, singlem_position, window_size, target_domains, gene_description):
@@ -397,13 +415,17 @@ class SingleMPackageVersion4(SingleMPackageVersion3):
                 raise Exception("Invalid domain: %s" % domain)
         logging.info("SingleM package domain/s set to: %s" % ", ".join(target_domains))
         
-        singlem_package = SingleMPackageVersion3()
+        singlem_package = SingleMPackageVersion4()
+        taxonomy_hash_path = "taxonomy_hash.pickle"
+        singlem_package._save_taxonomy_hash(graftm_package, os.path.join(output_package_path, taxonomy_hash_path))
+
         singlem_package._contents_hash = {SingleMPackage.VERSION_KEY: singlem_package.version,
                                           SingleMPackage.GRAFTM_PACKAGE_KEY: graftm_package_basename,
                                           SingleMPackage.SINGLEM_POSITION_KEY: singlem_position,
                                           SingleMPackage.SINGLEM_WINDOW_SIZE_KEY: window_size,
                                           SingleMPackage.TARGET_DOMAINS: target_domains,
-                                          SingleMPackage.GENE_DESCRIPTION: gene_description
+                                          SingleMPackage.GENE_DESCRIPTION: gene_description,
+                                          SingleMPackage.TAXONOMY_HASH_KEY: taxonomy_hash_path
                                           }
         singlem_package._base_directory = output_package_path
 
