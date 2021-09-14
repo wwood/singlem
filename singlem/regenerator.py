@@ -3,10 +3,12 @@ import os
 import tempfile
 import extern
 import dendropy
+import pickle
 from graftm.graftm_package import GraftMPackage
+from graftm.getaxnseq import Getaxnseq
 
 from .graftm_result import GraftMResult
-from .singlem_package import SingleMPackageVersion3, SingleMPackageVersion2, SingleMPackage
+from .singlem_package import SingleMPackageVersion4, SingleMPackage
 from .sequence_classes import SeqReader, Sequence
 from .dereplicator import Dereplicator
 from .sequence_extractor import SequenceExtractor
@@ -43,9 +45,9 @@ class Regenerator:
         if not original_pkg.is_protein_package():
             raise Exception("Only works with protein packages.")
 
-        # Ensure v2 or v3
-        if not original_pkg.version in [2, 3]:
-            raise Exception("Only works with v2 and v3 packages for the moment.")
+        # Ensure v3 or above
+        if not original_pkg.version >= 3:
+            raise Exception("Only works with v3 and above packages for the moment.")
 
         tmp = tempfile.TemporaryDirectory()
         working_directory = tmp.name
@@ -152,23 +154,26 @@ class Regenerator:
         with open(os.path.join(final_gpkg, unaligned_basename), "w") as out:
             for entry in trimmed_output:
                 out.write(entry.fasta())
+        
+        # Create taxonomy hash
+        logging.debug("Creating taxonomy hash pickle")
+        taxonomy_hash_path = os.path.join(working_directory, "taxonomy_hash.pickle")
+        with open(taxonomy_hash_path, 'wb') as file:
+            with open(output_gpkg.taxtastic_taxonomy_path()) as tax:
+                with open(output_gpkg.taxtastic_seqinfo_path()) as seqinfo:
+                    tax_hash = Getaxnseq().read_taxtastic_taxonomy_and_seqinfo(tax, seqinfo)
+
+            pickle.dump(tax_hash, file)
 
         ##############################################################################
         # Run singlem create to put the final package together
-        if original_pkg.version == 2:
-            SingleMPackageVersion2.compile(
-                output_singlem_package,
-                final_gpkg,
-                output_window_position,
-                original_pkg.window_size())
-        elif original_pkg.version == 3:
-            SingleMPackageVersion3.compile(
-                output_singlem_package,
-                final_gpkg,
-                output_window_position,
-                original_pkg.window_size(),
-                original_pkg.target_domains(),
-                original_pkg.gene_description())
+        SingleMPackageVersion4.compile(
+            output_singlem_package,
+            final_gpkg,
+            output_window_position,
+            original_pkg.window_size(),
+            original_pkg.target_domains(),
+            original_pkg.gene_description(),
+            taxonomy_hash_path)
         logging.info("SingleM package generated.")
-
 
