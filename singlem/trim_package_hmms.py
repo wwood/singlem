@@ -33,7 +33,10 @@ class PackageHmmTrimmer:
             os.remove(hmm)
 
         # Create search HMM for each of Archaea and Bacteria according to target taxonomy
-        tax_hash = input_package.graftm_package().taxonomy_hash()
+        if input_package.version >= 4:
+            tax_hash = input_package.taxonomy_hash()
+        else:
+            tax_hash = input_package.graftm_package().taxonomy_hash()
         search_hmm_paths = []
         for target_taxonomy in input_package.target_domains():
             num_hits = 0

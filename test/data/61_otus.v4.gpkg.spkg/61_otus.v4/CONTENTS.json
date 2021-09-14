@@ -1,0 +1,1 @@
+{"graftm_package_version": 3, "align_hmm": "61_otus.hmm", "search_hmms": ["graftm7vJ9PD_search.hmm"], "refpkg": "61_otus.v3.gpkg.refpkg", "trusted_cutoff": false, "range": 2302.5, "unaligned_sequence_database": "singlem_package_creatorSI3Y28.fasta", "diamond_database": null}
