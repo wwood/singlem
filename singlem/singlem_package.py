@@ -2,7 +2,6 @@ import json
 import os
 import logging
 from graftm.graftm_package import GraftMPackage
-from graftm.getaxnseq import Getaxnseq
 import shutil
 import hashlib
 import pickle
@@ -385,17 +384,8 @@ class SingleMPackageVersion4(SingleMPackageVersion3):
         with open(taxonomy_path, 'rb') as file:
             return pickle.load(file)
     
-    def _save_taxonomy_hash(self, graftm_package, taxonomy_hash_path):
-        gtns = Getaxnseq()
-        with open(graftm_package.taxtastic_taxonomy_path()) as tax:
-            with open(graftm_package.taxtastic_seqinfo_path()) as seqinfo:
-                tax_hash = gtns.read_taxtastic_taxonomy_and_seqinfo(tax, seqinfo)
-
-        with open(taxonomy_hash_path, 'wb') as file:
-            pickle.dump(tax_hash, file)
-    
     @staticmethod
-    def compile(output_package_path, graftm_package_path, singlem_position, window_size, target_domains, gene_description):
+    def compile(output_package_path, graftm_package_path, singlem_position, window_size, target_domains, gene_description, taxonomy_hash_path):
         if os.path.exists(output_package_path):
             raise Exception("Not writing new SingleM package to already existing file/directory with name %s" % output_package_path)
         os.mkdir(output_package_path)
@@ -414,18 +404,22 @@ class SingleMPackageVersion4(SingleMPackageVersion3):
             if domain not in ['Archaea', 'Bacteria', 'Eukaryota']:
                 raise Exception("Invalid domain: %s" % domain)
         logging.info("SingleM package domain/s set to: %s" % ", ".join(target_domains))
+
+        if taxonomy_hash_path:
+            taxonomy_hash_basename = os.path.basename(taxonomy_hash_path)
+            shutil.copyfile(taxonomy_hash_path, os.path.join(output_package_path, taxonomy_hash_basename))
+            logging.info("Taxonomy hash stored in %s" % taxonomy_hash_basename)
+        else:
+            taxonomy_hash_basename = taxonomy_hash_path
         
         singlem_package = SingleMPackageVersion4()
-        taxonomy_hash_path = "taxonomy_hash.pickle"
-        singlem_package._save_taxonomy_hash(graftm_package, os.path.join(output_package_path, taxonomy_hash_path))
-
         singlem_package._contents_hash = {SingleMPackage.VERSION_KEY: singlem_package.version,
                                           SingleMPackage.GRAFTM_PACKAGE_KEY: graftm_package_basename,
                                           SingleMPackage.SINGLEM_POSITION_KEY: singlem_position,
                                           SingleMPackage.SINGLEM_WINDOW_SIZE_KEY: window_size,
                                           SingleMPackage.TARGET_DOMAINS: target_domains,
                                           SingleMPackage.GENE_DESCRIPTION: gene_description,
-                                          SingleMPackage.TAXONOMY_HASH_KEY: taxonomy_hash_path
+                                          SingleMPackage.TAXONOMY_HASH_KEY: taxonomy_hash_basename
                                           }
         singlem_package._base_directory = output_package_path
 
