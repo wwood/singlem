@@ -4,9 +4,11 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
-from .singlem_package import SingleMPackageVersion3
+from .singlem_package import SingleMPackageVersion4
 import shutil
 import os
+import pickle
+from graftm.getaxnseq import Getaxnseq
 
 class PackageCreator:
     def create(self, **kwargs):
@@ -27,7 +29,7 @@ class PackageCreator:
         # not in the tree so that hits can be mapped onto the tree and used for
         # alpha and beta diversity metrics.
         gpkg = GraftMPackage.acquire(input_graftm_package_path)
-        is_protein_package = SingleMPackageVersion3.graftm_package_is_protein(gpkg)
+        is_protein_package = SingleMPackageVersion4.graftm_package_is_protein(gpkg)
         logging.info("Detected package type as %s" %
                      ('protein' if is_protein_package else 'nucleotide'))
         if is_protein_package:
@@ -83,6 +85,19 @@ class PackageCreator:
             logging.info("Creating DIAMOND database")
             extern.run(cmd)
 
+        # Create taxonomy hash
+        logging.debug("Creating taxonomy hash pickle")
+        taxonomy_hash_tf = tempfile.NamedTemporaryFile(prefix='taxonomy_', suffix='.pickle')
+        taxonomy_hash_path = taxonomy_hash_tf.name
+
+        with open(gpkg.taxtastic_taxonomy_path()) as tax:
+            with open(gpkg.taxtastic_seqinfo_path()) as seqinfo:
+                tax_hash = Getaxnseq().read_taxtastic_taxonomy_and_seqinfo(tax, seqinfo)
+
+        pickle.dump(tax_hash, taxonomy_hash_tf)
+        taxonomy_hash_tf.flush()
+
+
         # Compile the final graftm/singlem package
         if len(gpkg.search_hmm_paths()) == 1 and \
            gpkg.search_hmm_paths()[0] == gpkg.alignment_hmm_path():
@@ -106,13 +121,15 @@ class PackageCreator:
                                           search_hmms)
             logging.debug("Finished creating GraftM package for conversion to SingleM package")
             
-            SingleMPackageVersion3.compile(output_singlem_package_path,
+            SingleMPackageVersion4.compile(output_singlem_package_path,
                                             gpkg_name, hmm_position, window_size, 
-                                            target_domains, gene_description)
+                                            target_domains, gene_description,
+                                            taxonomy_hash_path)
 
             shutil.rmtree(gpkg_name)
             if is_protein_package:
                 filtered_aligned_tempfile.close()
                 dmnd_tf.close()
+            taxonomy_hash_tf.close()
 
             logging.info("SingleM-compatible package creation finished")
