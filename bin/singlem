@@ -838,7 +838,7 @@ if __name__ == '__main__':
                 pkgs = []
                 for p in args.singlem_packages:
                     pkg = SingleMPackage.acquire(p)
-                    if pkg.version != 3:
+                    if pkg.version < 3:
                         raise Exception("Version 3 SingleM packages are required for --exclude_off_target_hits")
                     pkgs.append(pkg)
                 o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs))
