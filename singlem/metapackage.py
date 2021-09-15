@@ -196,7 +196,7 @@ class Metapackage:
         with open(output_prefilter_fasta_path,'w') as out:
             for pkg in self._hmms_and_positions.values():
                 logging.info("Reading FASTA from {} ..".format(pkg.base_directory()))
-                if pkg.version != 3:
+                if pkg.version < 3:
                     raise Exception("Creating a prefilter DB only works on version 3 SingleM packages currently")
                 tax_hash = pkg.taxonomy_hash()
                 tax_hash_example_key = list(tax_hash.keys())[0]
