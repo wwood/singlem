@@ -160,10 +160,12 @@ class Regenerator:
         # Create taxonomy hash
         logging.debug("Creating taxonomy hash pickle")
         taxonomy_hash_path = os.path.join(working_directory, "taxonomy_hash.pickle")
+        tax_hash = {}
         with open(taxonomy_hash_path, 'wb') as file:
-            with open(output_gpkg.taxtastic_taxonomy_path()) as tax:
-                with open(output_gpkg.taxtastic_seqinfo_path()) as seqinfo:
-                    tax_hash = Getaxnseq().read_taxtastic_taxonomy_and_seqinfo(tax, seqinfo)
+            with open(final_taxonomy_path) as tax:
+                for line in tax:
+                    split_line = line.strip().split('\t')
+                    tax_hash[split_line[0]] = [taxa.strip() for taxa in split_line[1].split(';')]
 
             pickle.dump(tax_hash, file)
 

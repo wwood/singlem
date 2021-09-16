@@ -80,7 +80,7 @@ class Tests(unittest.TestCase):
             seed_idx = pkg.graftm_package().diamond_database_path() + ".seed_idx"
             self.assertTrue(os.path.exists(seed_idx))
 
-            # assert taxonomy hash file has been created
+            # assert taxonomy hash file has been created, including duplicate seq removed by graftM
             observed_taxonomy_hash = pkg.taxonomy_hash()
             expected_taxonomy_hash = {
             'prefix~1': ['d__Bacteria', 'p__Cyanobacteria', 'c__[Chroococcales]', 'o__Chroococcales', 'f__[Synechococcus]', 'g__Synechococcus', 's__Synechococcus_sp.'],
@@ -103,6 +103,7 @@ class Tests(unittest.TestCase):
             'prefix~18': ['d__Bacteria', 'p__Cyanobacteria', 'c__[Nostocales]', 'o__Nostocales', 'f__Nostocaceae', 'g__Anabaena', 's__Anabaena_sp._90'],
             'prefix~19': ['d__Bacteria', 'p__Bacteroidetes', 'c__Flavobacteriia', 'o__Flavobacteriales', 'f__Flavobacteriaceae', 'g__Aquimarina', 's__Aquimarina_sp._SW150'],
             'prefix~20': ['d__Archaea', 'p__Crenarchaeota', 'c__Thermoprotei', 'o__Thermoproteales', 'f__Thermoproteaceae', 'g__Vulcanisaeta', 's__Vulcanisaeta_moutnovskia'],
+            'prefix~21': ['d__Archaea', 'p__Crenarchaeota', 'c__Thermoprotei', 'o__Thermoproteales', 'f__Thermoproteaceae', 'g__Vulcanisaeta', 's__Vulcanisaeta_moutnovskia'],
             'prefix~RK10_TOBAC': ['d__Eukaryota', 'Viridiplantae'],
             'prefix~RK10_ARATH': ['d__Eukaryota', 'Viridiplantae'],
             'prefix~RK10_SPIOL': ['d__Eukaryota', 'Viridiplantae'],
