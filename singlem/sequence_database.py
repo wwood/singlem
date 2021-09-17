@@ -9,6 +9,9 @@ import itertools
 import sys
 import csv
 import extern
+import numpy as np
+import scann
+import tensorflow as tf
 
 # Import masonite, pretty clunky
 sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
@@ -34,6 +37,10 @@ class SequenceDatabase:
     _marker_to_nmslib_protein_index_file = {}
     _marker_to_annoy_nucleotide_index_file = {}
     _marker_to_annoy_protein_index_file = {}
+    _marker_to_scann_nucleotide_index_file = {}
+    _marker_to_scann_protein_index_file = {}
+    _marker_to_scann_naive_nucleotide_index_file = {}
+    _marker_to_scann_naive_protein_index_file = {}
 
     _CONTENTS_FILE_NAME = 'CONTENTS.json'
 
@@ -57,6 +64,20 @@ class SequenceDatabase:
                 self._marker_to_annoy_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_annoy_protein_index_file[marker_name] = db_path
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
+        elif index_format == 'scann':
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                self._marker_to_scann_nucleotide_index_file[marker_name] = db_path
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                self._marker_to_scann_protein_index_file[marker_name] = db_path
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
+        elif index_format == 'scann-naive':
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                self._marker_to_scann_naive_nucleotide_index_file[marker_name] = db_path
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                self._marker_to_scann_naive_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         else:
@@ -98,6 +119,29 @@ class SequenceDatabase:
                     return index
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
+        elif index_format in ['scann','scann-naive']:
+            if sequence_type == 'nucleotide':
+                if index_format == 'scann':
+                    markers_to_paths = self._marker_to_scann_nucleotide_index_file
+                else:
+                    markers_to_paths = self._marker_to_scann_naive_nucleotide_index_file
+            elif sequence_type == 'protein':
+                if index_format == 'scann':
+                    markers_to_paths = self._marker_to_scann_protein_index_file
+                else:
+                    markers_to_paths = self._marker_to_scann_naive_protein_index_file
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
+
+            if marker_name in markers_to_paths:
+                index_path = markers_to_paths[marker_name]
+                logging.debug("Loading index for {} from {}".format(marker_name, index_path))
+                if index_format == 'scann':
+                    index = scann.scann_ops_pybind.load_searcher(index_path)
+                else:
+                    reloaded = tf.compat.v2.saved_model.load(export_dir=index_path)
+                    index = scann.scann_ops.searcher_from_module(reloaded)
+                return index
         else:
             raise Exception("Unknown index type {}".format(index_format))
         
@@ -210,6 +254,30 @@ class SequenceDatabase:
             marker = os.path.basename(g).replace('.annoy_index','')
             db.add_sequence_db(marker, g, 'annoy','protein')
         
+        scann_nucleotide_index_files = glob.glob("%s/nucleotide_indices_scann/*" % path)
+        logging.debug("Found scann_nucleotide_index_files: %s" % ", ".join(scann_nucleotide_index_files))
+        for g in scann_nucleotide_index_files:
+            marker = os.path.basename(g)
+            db.add_sequence_db(marker, g, 'scann','nucleotide')
+        
+        scann_naive_nucleotide_index_files = glob.glob("%s/nucleotide_indices_scann_brute_force/*" % path)
+        logging.debug("Found scann_brute_force_nucleotide_index_files: %s" % ", ".join(scann_naive_nucleotide_index_files))
+        for g in scann_naive_nucleotide_index_files:
+            marker = os.path.basename(g)
+            db.add_sequence_db(marker, g, 'scann-naive','nucleotide')
+        
+        scann_protein_index_files = glob.glob("%s/protein_indices_scann/*" % path)
+        logging.debug("Found scann_protein_index_files: %s" % ", ".join(scann_protein_index_files))
+        for g in scann_protein_index_files:
+            marker = os.path.basename(g)
+            db.add_sequence_db(marker, g, 'scann','protein')
+        
+        scann_naive_protein_index_files = glob.glob("%s/protein_indices_scann_brute_force/*" % path)
+        logging.debug("Found scann_brute_force_protein_index_files: %s" % ", ".join(scann_naive_protein_index_files))
+        for g in scann_naive_protein_index_files:
+            marker = os.path.basename(g)
+            db.add_sequence_db(marker, g, 'scann-naive','protein')
+
         return db
 
     @staticmethod
@@ -225,7 +293,8 @@ class SequenceDatabase:
         pregenerated_sqlite3_db=None,
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
-        num_annoy_protein_trees = 10):
+        num_annoy_protein_trees = 10,
+        sequence_database_methods = ['annoy','scann']):
 
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
@@ -334,9 +403,9 @@ class SequenceDatabase:
                                     last_marker_id = row[0]
                                     last_sequence_id = row[1]
                                 elif last_sequence_id != row[1]:
+                                    last_marker_wise_sequence_id += 1
                                     print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
                                     last_sequence_id = row[1]
-                                last_marker_wise_sequence_id += 1
 
                 logging.info("Importing markers table into SQLite ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
@@ -377,7 +446,7 @@ class SequenceDatabase:
                 logging.info("Creating sorted protein sequences data ..")
                 # Write a file of nucleotide id + protein sequence, and sort
                 sorted_proteins_path = os.path.join(my_tempdir,'makedb_sort_output_protein')
-                proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
+                proc = subprocess.Popen(['bash','-c','sort -n --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
                     stdin=subprocess.PIPE,
                     stdout=None,
                     stderr=subprocess.PIPE,
@@ -391,7 +460,7 @@ class SequenceDatabase:
                         nucleotide_id = row[0]
                         marker_id = row[1]
                         sequence = row[2]
-                        print("\t".join([marker_id, nucleotides_to_protein(row[2]), nucleotide_id]), file=proc.stdin)
+                        print("\t".join([marker_id, nucleotides_to_protein(sequence), nucleotide_id]), file=proc.stdin)
                 proc.stdin.close()
                 proc.wait()
                 if proc.returncode != 0:
@@ -420,11 +489,11 @@ class SequenceDatabase:
                                     last_protein = current_protein_sequence
                                     last_protein_id += 1
                                     if last_marker_id != marker_id:
-                                        last_marker_wise_protein_id = 0 #start from 0 for annoy
+                                        last_marker_wise_protein_id = 0 #start from 0 for annoy/scann
                                         last_marker_id = marker_id
                                     print("\t".join([str(last_protein_id), str(last_marker_wise_protein_id), current_protein_sequence]), file=proteins_file_io)
                                     last_marker_wise_protein_id += 1
-                                print("\t".join([str(i), str(last_protein_id), nucleotide_id]), file=nucleotide_proteins_file_io)
+                                print("\t".join([str(i), nucleotide_id, str(last_protein_id)]), file=nucleotide_proteins_file_io)
                 logging.info("Running imports of proteins and protein_nucleotides ..")
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE proteins ("
@@ -451,12 +520,18 @@ class SequenceDatabase:
                 db.commit()
             
 
-        # Create nucleotide index files
-        SequenceDatabase.acquire(db_path).create_nmslib_nucleotide_indexes()
-        SequenceDatabase.acquire(db_path).create_nmslib_protein_indexes()
+        # Create sequence indices
+        sdb = SequenceDatabase.acquire(db_path)
+        if 'scann' in sequence_database_methods:
+            sdb.create_scann_indexes()
 
-        SequenceDatabase.acquire(db_path).create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
-        SequenceDatabase.acquire(db_path).create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
+        if 'nmslib' in sequence_database_methods:
+            sdb.create_nmslib_nucleotide_indexes()
+            sdb.create_nmslib_protein_indexes()
+
+        if 'annoy' in sequence_database_methods:
+            sdb.create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
+            sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
         logging.info("Finished singlem DB creation")
 
@@ -570,6 +645,73 @@ class SequenceDatabase:
             logging.info("Finished writing index to disk")
             # Delete immediately to save RAM (was using 200G+ before getting killed on big DB)
             del annoy_index
+
+    def create_scann_indexes(self):
+        logging.info("Creating scann sequence indices ..")
+        nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
+        nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
+        os.makedirs(nucleotide_db_dir_ah)
+        os.makedirs(nucleotide_db_dir_brute_force)
+        protein_db_dir_ah = os.path.join(self.base_directory, 'protein_indices_scann')
+        protein_db_dir_brute_force = os.path.join(self.base_directory, 'protein_indices_scann_brute_force')
+        os.makedirs(protein_db_dir_ah)
+        os.makedirs(protein_db_dir_brute_force)
+
+        def generate_indices_from_array(a, db_dir_ah, db_dir_brute_force):
+            normalized_dataset = a / np.linalg.norm(a, axis=1)[:, np.newaxis]
+            logging.info("Found {} sequences for {}".format(a.shape[0], marker_name))
+            del a # not sure if this matters much
+
+            # Create normal scann one
+            if normalized_dataset.shape[0] <= 16:
+                logging.warn("Skipping SCANN AH creation since the number of datapoints is too small")
+            else:
+                logging.info("Creating SCANN AH index ..")
+                searcher = scann.scann_ops_pybind.builder(normalized_dataset, 10, "dot_product").tree(
+                    num_leaves=round(np.sqrt(normalized_dataset.shape[0])), num_leaves_to_search=100, training_sample_size=250000).score_ah(
+                    2, anisotropic_quantization_threshold=0.2).reorder(100).build()
+                directory = os.path.join(db_dir_ah, marker_name)
+                os.mkdir(directory)
+                searcher.serialize(directory)
+                del searcher
+
+            logging.info("Creating SCANN brute force index ..")
+            # use scann.scann_ops.build() to instead create a
+            # TensorFlow-compatible searcher could not work out how to
+            # deserialise a brute force without any doco, so just copying method
+            # from the tests i.e.
+            # https://github.com/google-research/google-research/blob/34444253e9f57cd03364bc4e50057a5abe9bcf17/scann/scann/scann_ops/py/scann_ops_test.py#L93
+            searcher_naive = scann.scann_ops.builder(normalized_dataset, 10, "dot_product").tree(
+                num_leaves=round(np.sqrt(normalized_dataset.shape[0])), num_leaves_to_search=100).score_brute_force(True).build()
+            directory = os.path.join(db_dir_brute_force, marker_name)
+            module = searcher_naive.serialize_to_module()
+            tf.saved_model.save(
+                module,
+                directory,
+                options=tf.saved_model.SaveOptions(namespace_whitelist=["Scann"]))
+            del searcher_naive
+
+        for marker_row in self.query_builder().table('markers').get():
+            marker_name = marker_row['marker']
+            marker_id = marker_row['id']
+            
+            logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
+            a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
+                self.query_builder().table('nucleotides').select('sequence').order_by('marker_wise_id').where('marker_id',marker_id).get()
+            ])
+            generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force)
+            logging.info("Finished writing nucleotide indices to disk")
+            
+            logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
+            a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
+                self.query_builder().table('proteins').select_raw('distinct(protein_sequence) as protein_sequence').order_by('proteins.marker_wise_id'). \
+                    join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
+                    join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
+                    where('nucleotides.marker_id',marker_id).get()
+            ])
+            generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force)
+            del a
+            logging.info("Finished writing protein indices to disk")
     
     @staticmethod
     def dump(db_path):

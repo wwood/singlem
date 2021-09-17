@@ -246,7 +246,7 @@ if __name__ == '__main__':
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
         current_default = MyParser.PIPE_DEFAULT_ASSIGNMENT_METHOD
         argument_group.add_argument(
-            '--assignment-method', '--assignment_method', 
+            '--assignment-method', '--assignment_method',
             choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
     seqs_arguments.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
     seqs_arguments.add_argument('--alignment-type', '--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
-    seqs_arguments.add_argument('--window-size', '--window_size', metavar='INT', 
+    seqs_arguments.add_argument('--window-size', '--window_size', metavar='INT',
         help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
 
@@ -360,6 +360,13 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--db', '--db-path', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
+    current_default = ['annoy','scann']
+    makedb_other_args.add_argument('--sequence-database-methods', '--sequence_database_methods',
+        nargs='+',
+        choices = ['annoy','scann','nmslib'],
+        default = current_default,
+        help='Index sequences using these methods [default {}]'.format(current_default))
+
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
     DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
     makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES,type=int)
@@ -374,13 +381,17 @@ if __name__ == '__main__':
     query_db_args.add_argument('--subject-otu-tables', '--subject_otu_tables', nargs='+', metavar='file',
                                help='Pairwise align queries to this otu table (works with inserts, but is slow)')
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
-    query_otu_args.add_argument('--query-sequence', '--query_sequence', metavar='sequence', help="Sequence to use as a query")
     query_otu_args.add_argument('--query-otu-table', '--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
-    query_otu_args.add_argument('--query-fasta', '--query_fasta', metavar='file', help="Query the database with all sequences in this FASTA file")
     query_otu_args.add_argument('--max-divergence', '--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
-    query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search", default='nmslib', choices=['nmslib','annoy','naive'])
-    query_otu_args.add_argument('--sequence-type', '--sequence_type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn)", default='nucleotide',
+    current_default = 'annoy'
+    query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann','scann-naive'])
+    current_default = 'nucleotide'
+    query_otu_args.add_argument('--sequence-type', '--sequence_type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
         choices=['nucleotide','protein'])
+    current_default = 100
+    query_otu_args.add_argument('--max-nearest-neighbours', '--max_nearest_neighbours', help="How many nearest neighbours to search with. Only applies to annoy and nmslib methods [default: {}]".format(current_default), type=int, default=current_default)
+    # query_otu_args.add_argument('--stream-output','--stream_output', help='Stream output. Results may not be sorted by divergence [default: do not]', action='store_true')
+    query_otu_args.add_argument('--threads', help='Use this many threads where possible [default 1]', default=1)
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
     query_other_args.add_argument('--sample-names', '--sample_names', metavar='name', help='Print all OTUs from these samples', nargs='+')
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
@@ -432,8 +443,8 @@ if __name__ == '__main__':
     create_specific_arguments.add_argument('--input-taxonomy', '--input_taxonomy', metavar="PATH", help="input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
     create_specific_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
     create_specific_arguments.add_argument('--hmm-position', '--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
-    create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER", 
-        help="length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE), 
+    create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER",
+        help="length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
     create_specific_arguments.add_argument('--target_domains', '--target-domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea' or 'Bacteria' or 'Eukaryota'. Input with multiple domains must be space separated.", required=True)
     create_specific_arguments.add_argument('--gene_description', '--gene-description', metavar="STRING", help="input long description of this marker package", required=True, type=str)
@@ -502,13 +513,13 @@ if __name__ == '__main__':
     required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info and trim unaligned sequences from this package")
     required_chainsaw_arguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
-    
+
     condense_description = 'Combine OTU tables across different markers into a single OTU table.'
     condense_parser = new_subparser(subparsers, 'condense', condense_description)
     condense_parser.add_argument('--trim-percent', '--trim_percent', type=float, default=5, help="percentage of markers to be trimmed for each taxonomy [default: 5]")
-    
+
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
-    
+
     required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Condense these table(s).")
     required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Condense from these archive tables")
     required_condense_arguments.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
@@ -521,7 +532,7 @@ if __name__ == '__main__':
     required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
     required_condense_arguments.add_argument('--min-taxon-coverage','--min_taxon_coverage', metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05)
-    
+
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = new_subparser(subparsers, 'trim_package_hmms', trim_package_hmms_description)
@@ -628,10 +639,12 @@ if __name__ == '__main__':
         loglevel = logging.DEBUG
     elif args.quiet:
         logging.getLogger('nmslib').setLevel(logging.ERROR)
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
         loglevel = logging.ERROR
     else:
         loglevel = logging.INFO
         logging.getLogger('nmslib').setLevel(logging.WARN)
+        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     logging.info("SingleM v{}".format(singlem.__version__))
@@ -732,11 +745,13 @@ if __name__ == '__main__':
                 otus = None
             else:
                 otus = generate_streaming_otu_table_from_args(args)
-                        
+
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
                 (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
                 num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
-                num_annoy_protein_trees=args.num_annoy_protein_trees)
+                num_annoy_protein_trees=args.num_annoy_protein_trees,
+                tmpdir = args.tmpdir,
+                sequence_database_methods = args.sequence_database_methods)
         elif args.subparser_name=='query':
             querier = Querier()
             if args.db and args.subject_otu_tables:
@@ -755,18 +770,17 @@ if __name__ == '__main__':
                         taxonomy = args.taxonomy,
                         output_io=sys.stdout)
                 else:
-                    args.threads = 1
                     if args.db:
                         querier.query(
                             db = args.db,
-                            query_sequence = args.query_sequence,
                             max_divergence = args.max_divergence,
                             output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
                             query_otu_table = args.query_otu_table,
-                            query_fasta = args.query_fasta,
                             num_threads = args.threads,
                             search_method = args.search_method,
-                            sequence_type = args.sequence_type)
+                            sequence_type = args.sequence_type,
+                            # stream_output = args.stream_output,
+                            max_nearest_neighbours = args.max_nearest_neighbours)
             elif args.subject_otu_tables:
                 if args.taxonomy:
                     raise Exception("--taxonomy only works with --db")
@@ -1032,7 +1046,7 @@ if __name__ == '__main__':
                 output_otu_table = args.output_otu_table,
                 krona = args.krona,
                 min_taxon_coverage = args.min_taxon_coverage)
-            
+
         elif args.subparser_name == 'trim_package_hmms':
             PackageHmmTrimmer().trim(
                 args.input_singlem_package,
