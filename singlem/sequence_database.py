@@ -548,7 +548,6 @@ class SequenceDatabase:
             count = 0
 
             for row in self.query_builder().table('nucleotides').select('sequence').select('marker_wise_id').where('marker_id', marker_row['id']).get():
-                logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['sequence']))
                 nucleotide_index.addDataPoint(row['marker_wise_id'], nucleotides_to_binary(row['sequence']))
                 count += 1
 
@@ -601,7 +600,6 @@ class SequenceDatabase:
             count = 0
 
             for row in self.query_builder().table('nucleotides').select('sequence').select('marker_wise_id').where('marker_id', marker_row['id']).get():
-                logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['sequence']))
                 annoy_index.add_item(row['marker_wise_id'], nucleotides_to_binary_array(row['sequence']))
                 count += 1
 
@@ -632,7 +630,6 @@ class SequenceDatabase:
                 join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                 select('protein_sequence').select_raw('proteins.marker_wise_id as marker_wise_id'). \
                 where('nucleotides.marker_id', marker_row['id']).get():
-                logging.debug("Adding sequence with ID {}: {}".format(row['marker_wise_id'], row['protein_sequence']))
                 annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
                 count += 1
 
