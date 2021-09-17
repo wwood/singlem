@@ -112,9 +112,9 @@ class Metapackage:
         if prefilter_diamond_db:
             if not prefilter_diamond_db.endswith('.dmnd'):
                 raise Exception("Predefined DIAMOND DB should end in .dmnd")
-            prefilter_name = os.path.basename(prefilter_diamond_db)
-            prefilter_path = os.path.join(output_path, prefilter_name)
-            shutil.copy(prefilter_diamond_db, prefilter_path)
+            prefilter_dmnd_name = os.path.basename(prefilter_diamond_db)
+            prefilter_dmnd_path = os.path.join(output_path, prefilter_name)
+            shutil.copy(prefilter_diamond_db, prefilter_dmnd_path)
         else:
             prefilter_name = 'prefilter.fna'
             prefilter_path = os.path.join(output_path, prefilter_name)
@@ -132,19 +132,19 @@ class Metapackage:
             # Create diamond DB indices of prefilter
             logging.info("Indexing prefilter DB with DIAMOND makedb ..")
             extern.run('diamond makedb --in {} --db {}.dmnd'.format(prefilter_path, prefilter_path))
-            prefilter_name = "{}.dmnd".format(prefilter_name)
-            prefilter_path = "{}.dmnd".format(prefilter_path)
+            prefilter_dmnd_name = "{}.dmnd".format(prefilter_name)
+            prefilter_dmnd_path = "{}.dmnd".format(prefilter_path)
 
 
         logging.info("Running DIAMOND makeidx of prefilter ..")
-        extern.run('diamond makeidx --db {}'.format(prefilter_path))
+        extern.run('diamond makeidx --db {}'.format(prefilter_dmnd_path))
 
         if not prefilter_diamond_db:
             os.remove(prefilter_path)
 
         contents_hash = {Metapackage.VERSION_KEY: 1,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
-                        Metapackage.PREFILTER_DB_PATH_KEY: prefilter_name
+                        Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name
                         }
 
         # save contents file
