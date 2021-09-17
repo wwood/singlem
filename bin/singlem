@@ -429,6 +429,7 @@ if __name__ == '__main__':
     create_specific_arguments = create_parser.add_argument_group('create-specific arguments')
 
     create_specific_arguments.add_argument('--input-graftm-package', '--input_graftm_package', metavar="PATH", help="input package", required=True)
+    create_specific_arguments.add_argument('--input-taxonomy', '--input_taxonomy', metavar="PATH", help="input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
     create_specific_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
     create_specific_arguments.add_argument('--hmm-position', '--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
     create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER", 
@@ -894,6 +895,7 @@ if __name__ == '__main__':
 
         elif args.subparser_name == 'create':
             PackageCreator().create(input_graftm_package = args.input_graftm_package,
+                                    input_taxonomy = args.input_taxonomy,
                                     output_singlem_package = args.output_singlem_package,
                                     hmm_position = args.hmm_position,
                                     window_size = args.window_size,

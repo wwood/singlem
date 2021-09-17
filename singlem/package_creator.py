@@ -8,11 +8,11 @@ from .singlem_package import SingleMPackageVersion4
 import shutil
 import os
 import pickle
-from graftm.getaxnseq import Getaxnseq
 
 class PackageCreator:
     def create(self, **kwargs):
         input_graftm_package_path = kwargs.pop('input_graftm_package')
+        input_taxonomy = kwargs.pop('input_taxonomy')
         output_singlem_package_path = kwargs.pop('output_singlem_package')
         hmm_position = kwargs.pop('hmm_position')
         window_size = kwargs.pop('window_size')
@@ -89,10 +89,11 @@ class PackageCreator:
         logging.debug("Creating taxonomy hash pickle")
         taxonomy_hash_tf = tempfile.NamedTemporaryFile(prefix='taxonomy_', suffix='.pickle')
         taxonomy_hash_path = taxonomy_hash_tf.name
-
-        with open(gpkg.taxtastic_taxonomy_path()) as tax:
-            with open(gpkg.taxtastic_seqinfo_path()) as seqinfo:
-                tax_hash = Getaxnseq().read_taxtastic_taxonomy_and_seqinfo(tax, seqinfo)
+        tax_hash = {}
+        with open(input_taxonomy) as tax:
+            for line in tax:
+                    split_line = line.strip().split('\t')
+                    tax_hash[split_line[0]] = [taxa.strip() for taxa in split_line[1].split(';')]
 
         pickle.dump(tax_hash, taxonomy_hash_tf)
         taxonomy_hash_tf.flush()
