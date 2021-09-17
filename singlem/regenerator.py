@@ -5,7 +5,6 @@ import extern
 import dendropy
 import pickle
 from graftm.graftm_package import GraftMPackage
-from graftm.getaxnseq import Getaxnseq
 
 from .graftm_result import GraftMResult
 from .singlem_package import SingleMPackageVersion4, SingleMPackage

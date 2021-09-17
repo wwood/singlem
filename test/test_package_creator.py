@@ -43,6 +43,8 @@ class Tests(unittest.TestCase):
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '4.11.22seqs.gpkg.spkg', '4.11.22seqs'),
+                input_taxonomy = os.path.join(
+                    path_to_data, '4.11.22seqs.gpkg.spkg', 'input_taxonomy.tsv'),
                 output_singlem_package = 'protein.spkg',
                 hmm_position = 76,
                 window_size = 63,
@@ -67,6 +69,8 @@ class Tests(unittest.TestCase):
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '61_otus.v3.gpkg.spkg', '61_otus.v3'),
+                input_taxonomy = os.path.join(
+                    path_to_data, '61_otus.v3.gpkg.spkg', 'input_taxonomy.tsv'),
                 output_singlem_package = 'nuc.spkg',
                 hmm_position = 888,
                 window_size = 57,
