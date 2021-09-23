@@ -96,7 +96,7 @@ class PackageCreator:
                     tax_hash[split_line[0]] = [taxa.strip() for taxa in split_line[1].split(';')]
 
         pickle.dump(tax_hash, taxonomy_hash_tf)
-        taxonomy_hash_tf.flush()
+        taxonomy_hash_tf.close()
 
 
         # Compile the final graftm/singlem package
@@ -131,6 +131,5 @@ class PackageCreator:
             if is_protein_package:
                 filtered_aligned_tempfile.close()
                 dmnd_tf.close()
-            taxonomy_hash_tf.close()
 
             logging.info("SingleM-compatible package creation finished")
