@@ -32,6 +32,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.singlem_package import SingleMPackage
+from singlem.singlem_package import SingleMPackageVersion4
 
 class Tests(unittest.TestCase):
     maxDiff = None
@@ -60,6 +61,7 @@ class Tests(unittest.TestCase):
             '2561511140',
             '2579778789'
         ]), sorted(spkg.get_sequence_ids()))
+            
 
 if __name__ == "__main__":
     unittest.main()

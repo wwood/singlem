@@ -29,6 +29,9 @@ dependencies:
   - smafa
   - expressbetadiversity
   - cd-hit
+  - fasttree
+  - fastalite
+  - jinja2
   - pip
   - pip:
     - bird_tool_utils

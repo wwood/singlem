@@ -21,6 +21,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
+import pickle
 import unittest
 import os.path
 import sys
@@ -42,6 +43,8 @@ class Tests(unittest.TestCase):
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '4.11.22seqs.gpkg.spkg', '4.11.22seqs'),
+                input_taxonomy = os.path.join(
+                    path_to_data, '4.11.22seqs.gpkg.spkg', 'input_taxonomy.tsv'),
                 output_singlem_package = 'protein.spkg',
                 hmm_position = 76,
                 window_size = 63,
@@ -53,12 +56,21 @@ class Tests(unittest.TestCase):
                 j = json.load(f)
             self.assertEqual(76, j['singlem_hmm_position'])
             self.assertEqual(63, j['singlem_window_size'])
+            self.assertTrue(j['taxonomy_hash'].startswith("taxonomy"))
+
+            with open(os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg', "taxonomy_hash.pickle"), 'rb') as file:
+                expected_hash = pickle.load(file)
+            with open(os.path.join("protein.spkg", j['taxonomy_hash']), 'rb') as file:
+                observed_hash = pickle.load(file)
+            self.assertDictEqual(expected_hash, observed_hash)
 
     def test_create_nuc_pkg(self):
         with in_tempdir():
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '61_otus.v3.gpkg.spkg', '61_otus.v3'),
+                input_taxonomy = os.path.join(
+                    path_to_data, '61_otus.v3.gpkg.spkg', 'input_taxonomy.tsv'),
                 output_singlem_package = 'nuc.spkg',
                 hmm_position = 888,
                 window_size = 57,
@@ -70,6 +82,13 @@ class Tests(unittest.TestCase):
                 j = json.load(f)
             self.assertEqual(888, j['singlem_hmm_position'])
             self.assertEqual(57, j['singlem_window_size'])
+            self.assertTrue(j['taxonomy_hash'].startswith("taxonomy"))
+
+            with open(os.path.join(path_to_data, '61_otus.v3.gpkg.spkg', "taxonomy_hash.pickle"), 'rb') as file:
+                expected_hash = pickle.load(file)
+            with open(os.path.join("nuc.spkg", j['taxonomy_hash']), 'rb') as file:
+                observed_hash = pickle.load(file)
+            self.assertDictEqual(expected_hash, observed_hash)
 
 
 

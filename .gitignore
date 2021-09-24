@@ -1,3 +1,4 @@
 guix*
 real_data
 db
+__pycache__/

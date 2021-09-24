@@ -440,6 +440,7 @@ if __name__ == '__main__':
     create_specific_arguments = create_parser.add_argument_group('create-specific arguments')
 
     create_specific_arguments.add_argument('--input-graftm-package', '--input_graftm_package', metavar="PATH", help="input package", required=True)
+    create_specific_arguments.add_argument('--input-taxonomy', '--input_taxonomy', metavar="PATH", help="input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
     create_specific_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
     create_specific_arguments.add_argument('--hmm-position', '--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
     create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER",
@@ -456,20 +457,20 @@ if __name__ == '__main__':
 
     required_get_tree_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
 
-    regenerate_description = 'Update a SingleM package with a new GraftM package (expert mode).'
+    regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
     regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
+    regenerate_parser.add_argument('--window-position', '--window_position', help="change window position of output package [default: do not change]", type=int, default=False)
+    regenerate_parser.add_argument('--sequence-prefix', '--sequence_prefix', help="add a prefix to sequence names", type=str, default="")
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
     required_regenerate_arguments.add_argument('--input-singlem-package', '--input_singlem_package', metavar="PATH", help="input package", required=True)
     required_regenerate_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
-    required_regenerate_arguments.add_argument('--working-directory', '--working_directory', required=True)
-    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True)
-    required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True)
-    required_regenerate_arguments.add_argument('--intermediate-archaea-graftm-package', '--intermediate_archaea_graftm_package', required=True)
-    required_regenerate_arguments.add_argument('--intermediate-bacteria-graftm-package', '--intermediate_bacteria_graftm_package', required=True)
-    required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True)
+    required_regenerate_arguments.add_argument('--input-sequences', '--input_sequences', required=True, help='all sequences for new package')
+    required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True, help='input sequence taxonomy')
+    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='candidate euk sequences')
+    required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True, help='euk sequence taxonomy')
 
     metapackage_description = 'Create a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
@@ -852,7 +853,7 @@ if __name__ == '__main__':
                 pkgs = []
                 for p in args.singlem_packages:
                     pkg = SingleMPackage.acquire(p)
-                    if pkg.version != 3:
+                    if pkg.version < 3:
                         raise Exception("Version 3 SingleM packages are required for --exclude_off_target_hits")
                     pkgs.append(pkg)
                 o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs))
@@ -908,6 +909,7 @@ if __name__ == '__main__':
 
         elif args.subparser_name == 'create':
             PackageCreator().create(input_graftm_package = args.input_graftm_package,
+                                    input_taxonomy = args.input_taxonomy,
                                     output_singlem_package = args.output_singlem_package,
                                     hmm_position = args.hmm_position,
                                     window_size = args.window_size,
@@ -989,12 +991,12 @@ if __name__ == '__main__':
             Regenerator().regenerate(
                 input_singlem_package = args.input_singlem_package,
                 output_singlem_package = args.output_singlem_package,
-                working_directory = args.working_directory,
+                input_sequences = args.input_sequences,
+                input_taxonomy = args.input_taxonomy,
                 euk_sequences = args.euk_sequences,
                 euk_taxonomy = args.euk_taxonomy,
-                intermediate_archaea_graftm_package = args.intermediate_archaea_graftm_package,
-                intermediate_bacteria_graftm_package = args.intermediate_bacteria_graftm_package,
-                input_taxonomy = args.input_taxonomy,
+                window_position = args.window_position,
+                sequence_prefix = args.sequence_prefix,
                 min_aligned_percent = args.min_aligned_percent)
 
         elif args.subparser_name == 'get_tree':
