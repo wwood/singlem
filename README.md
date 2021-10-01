@@ -1,5 +1,7 @@
 [![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/singlem) [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
+![Image of singlem](https://raw.githubusercontent.com/wwood/singlem/main/joel_logo.png)
+
 **Table of Contents**
 - [SingleM](#singlem)
   - [Generating an OTU table](#generating-an-otu-table)
@@ -165,7 +167,7 @@ excluded as likely contamination.
 
 An appraisal can also be represented visually, using `appraise --plot`:
 
-![Image of appraise](https://raw.githubusercontent.com/wwood/singlem/master/appraise_plot.png)
+![Image of appraise](https://raw.githubusercontent.com/wwood/singlem/main/appraise_plot.png)
 
 Each rectangle represents a single OTU sequence where its size represents its
 abundance (the number of reads that OTU represents in the metagenome). Colours
@@ -224,7 +226,7 @@ If you have any questions or comments, send a message to the [SupportM mailing l
 
 ### FAQ
 #### Can you target the 16S rRNA gene instead of the default set of ribosomal proteins with SingleM?
-Yes. By default, SingleM builds OTU tables from ribosomal protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a repository of auxiliary packages at https://github.com/wwood/singlem_extra_packages including a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem_packages` flag in `pipe` mode pointing to a separately downloaded package - see https://github.com/wwood/singlem_extra_packages/blob/master/README.md.
+Yes. By default, SingleM builds OTU tables from ribosomal protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a repository of auxiliary packages at https://github.com/wwood/singlem_extra_packages including a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem_packages` flag in `pipe` mode pointing to a separately downloaded package - see https://github.com/wwood/singlem_extra_packages/blob/main/README.md.
 
 #### How should SingleM be run on multiple samples?
 There are two ways. It is possible to specify multiple input files to the `singlem pipe` subcommand directly by space separating them. Alternatively `singlem pipe` can be run on each sample and OTU tables combined using `singlem summarise`. The results should be identical, though there are some performance trade-offs. For large numbers of samples (>100) it is probably preferable to run each sample individually or in smaller groups.
