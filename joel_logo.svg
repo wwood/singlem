@@ -9,8 +9,8 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   inkscape:export-ydpi="200.25"
-   inkscape:export-xdpi="200.25"
+   inkscape:export-ydpi="199.93576"
+   inkscape:export-xdpi="199.93576"
    inkscape:export-filename="joel_logo.png"
    sodipodi:docname="joel_logo.svg"
    inkscape:version="1.0.2 (e86c870879, 2021-01-15)"
@@ -23,10 +23,10 @@
      pagecolor="#ffffff"
      bordercolor="#666666"
      borderopacity="1.0"
-     inkscape:pageopacity="0.0"
+     inkscape:pageopacity="1"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.52185552"
-     inkscape:cx="892.00934"
+     inkscape:zoom="0.44159851"
+     inkscape:cx="1351.9067"
      inkscape:cy="288.33167"
      inkscape:document-units="px"
      inkscape:current-layer="layer1"
@@ -1531,7 +1531,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title />
+        <dc:title></dc:title>
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -1546,7 +1546,10 @@
        transform="matrix(2.0481298,0,0,2.0481298,-97.45401,184.67862)"
        cx="214.65741"
        cy="235.84001"
-       r="16.667517" />
+       r="16.667517"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        ry="7.3236036"
        transform="matrix(1.0236778,-1.7730619,1.7730619,1.0236778,-893.82382,-351.65772)"
@@ -1555,7 +1558,10 @@
        height="57.578705"
        width="14.647207"
        id="rect3066-2"
-       style="fill:#1e8aff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:2.44217467;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12220)" />
+       style="fill:#1e8aff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:2.44217467;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12220)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#3592f7;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.79526913;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12214)"
        id="rect3078-6-1-0"
@@ -1565,7 +1571,10 @@
        y="-763.26306"
        ry="5.0129261"
        rx="5.0129242"
-       transform="matrix(-0.84321556,0.72805946,-0.72805946,-0.84321556,-10.058385,-25.864403)" />
+       transform="matrix(-0.84321556,0.72805946,-0.72805946,-0.84321556,-10.058385,-25.864403)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#1e8aff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.79716945;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12238)"
        id="rect3078-6-1"
@@ -1575,7 +1584,10 @@
        y="-833.53094"
        ry="2.5992856"
        rx="2.5992856"
-       transform="matrix(-0.84232398,0.72728965,-0.72728965,-0.84232398,-33.115887,-64.221853)" />
+       transform="matrix(-0.84232398,0.72728965,-0.72728965,-0.84232398,-33.115887,-64.221853)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#1e8aff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.79716945;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12232)"
        id="rect3078-6-1-7"
@@ -1585,7 +1597,10 @@
        y="-618.35724"
        ry="2.5992856"
        rx="2.5992856"
-       transform="matrix(-1.1078147,-0.10586043,0.10586043,-1.1078147,-33.115887,-64.221853)" />
+       transform="matrix(-1.1078147,-0.10586043,0.10586043,-1.1078147,-33.115887,-64.221853)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        transform="matrix(-0.95548824,-0.57052798,0.57052798,-0.95548824,-33.115887,-64.221853)"
        rx="2.5992856"
@@ -1595,35 +1610,53 @@
        height="40.103409"
        width="10.025852"
        id="rect12074"
-       style="fill:#1e8aff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.79716945;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12226)" />
+       style="fill:#1e8aff;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:1.79716945;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter12226)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <circle
        style="fill:none;stroke:#000000;stroke-width:21.95018578;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="path2987"
        cx="321.39096"
        cy="752.36218"
-       r="277.35657" />
+       r="277.35657"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <path
        style="fill:none;stroke:#000000;stroke-width:21.95018578;stroke-miterlimit:4;stroke-opacity:1"
        d="m 2440.5411,475.00565 c 153.1798,0 277.3566,124.17677 277.3566,277.35657 0,153.1798 -124.1768,277.35648 -277.3566,277.35648"
        id="path2987-1"
        inkscape:connector-curvature="0"
-       sodipodi:nodetypes="csc" />
+       sodipodi:nodetypes="csc"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <path
        style="fill:none;stroke:#000000;stroke-width:22;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
        d="m 2441.7946,1029.6938 -2119.73358,0"
        id="path3794"
-       inkscape:connector-curvature="0" />
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <path
        style="fill:none;stroke:#000000;stroke-width:22;stroke-miterlimit:4;stroke-opacity:1;stroke-dasharray:none;stroke-dashoffset:0"
        d="m 322.06102,475.03052 2119.73358,0"
        id="rect3789"
-       inkscape:connector-curvature="0" />
+       inkscape:connector-curvature="0"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <text
        xml:space="preserve"
        style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;line-height:0%;font-family:'DejaVu Sans';-inkscape-font-specification:'DejaVu Sans';letter-spacing:0px;word-spacing:0px;fill:#000000;fill-opacity:1;stroke:none"
        x="598.00635"
        y="901.60699"
-       id="text3024"><tspan
+       id="text3024"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576"><tspan
          sodipodi:role="line"
          id="tspan3026"
          x="598.00635"
@@ -1634,20 +1667,29 @@
        id="path3029"
        cx="221.54573"
        cy="609.3291"
-       r="16.667517" />
+       r="16.667517"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <circle
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4306)"
        id="path3031"
        cx="273.5686"
        cy="567.40778"
-       r="13.637059" />
+       r="13.637059"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <circle
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4300)"
        id="path3031-5"
        transform="matrix(1.0782479,0,0,1.0782479,18.651516,701.86637)"
        cx="285.3681"
        cy="221.69788"
-       r="13.637059" />
+       r="13.637059"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4294)"
        id="rect3053"
@@ -1656,7 +1698,10 @@
        x="-322.49567"
        y="816.61493"
        transform="matrix(0.8660254,-0.5,0.5,0.8660254,18,8)"
-       ry="7.3236036" />
+       ry="7.3236036"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        ry="7.3236036"
        transform="matrix(0.5,-0.8660254,0.8660254,0.5,-510.69612,356.71243)"
@@ -1665,7 +1710,10 @@
        height="57.578705"
        width="14.647207"
        id="rect3066"
-       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4288)" />
+       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4288)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4282)"
        id="rect3070"
@@ -1675,7 +1723,10 @@
        y="698.2337"
        transform="matrix(0.8660254,-0.5,0.5,0.8660254,-143.62441,17.091373)"
        ry="1.7677606"
-       rx="1.7677606" />
+       rx="1.7677606"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        rx="1.7677606"
        ry="1.7677606"
@@ -1685,7 +1736,10 @@
        width="6.8185296"
        id="rect3072"
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4276)"
-       transform="matrix(0.96592583,-0.25881905,0.25881905,0.96592583,-143.62441,17.091373)" />
+       transform="matrix(0.96592583,-0.25881905,0.25881905,0.96592583,-143.62441,17.091373)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4270)"
        id="rect3074"
@@ -1695,7 +1749,10 @@
        y="460.79984"
        ry="1.7677606"
        rx="1.7677606"
-       transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,-143.62441,17.091373)" />
+       transform="matrix(0.96592583,0.25881905,-0.25881905,0.96592583,-143.62441,17.091373)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        transform="matrix(0.70710678,0.70710678,-0.70710678,0.70710678,-143.62441,17.091373)"
        rx="1.7677606"
@@ -1705,7 +1762,10 @@
        height="27.274118"
        width="6.8185296"
        id="rect3076"
-       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4264)" />
+       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4264)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4258)"
        id="rect3078"
@@ -1715,7 +1775,10 @@
        y="-218.52762"
        ry="1.7677606"
        rx="1.7677606"
-       transform="matrix(0.25881905,0.96592583,-0.96592583,0.25881905,-143.62441,17.091373)" />
+       transform="matrix(0.25881905,0.96592583,-0.96592583,0.25881905,-143.62441,17.091373)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4252)"
        id="rect3070-7"
@@ -1725,7 +1788,10 @@
        y="-409.6286"
        transform="matrix(-0.07309228,0.99732518,-0.99732518,-0.07309228,-143.62441,17.091373)"
        ry="1.7677606"
-       rx="1.7677606" />
+       rx="1.7677606"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        rx="1.7677606"
        ry="1.7677606"
@@ -1735,7 +1801,10 @@
        width="6.8185296"
        id="rect3072-8"
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4246)"
-       transform="matrix(-0.32872847,0.94442448,-0.94442448,-0.32872847,-143.62441,17.091373)" />
+       transform="matrix(-0.32872847,0.94442448,-0.94442448,-0.32872847,-143.62441,17.091373)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4240)"
        id="rect3074-8"
@@ -1745,7 +1814,10 @@
        y="-787.62665"
        ry="1.7677606"
        rx="1.7677606"
-       transform="matrix(-0.75689945,0.65353135,-0.65353135,-0.75689945,-143.62441,17.091373)" />
+       transform="matrix(-0.75689945,0.65353135,-0.65353135,-0.75689945,-143.62441,17.091373)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        transform="matrix(-0.32872847,0.94442447,-0.94442447,-0.32872847,-300.20305,726.98035)"
        rx="1.7677606"
@@ -1755,7 +1827,10 @@
        height="27.274118"
        width="6.8185296"
        id="rect3076-4"
-       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4234)" />
+       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4234)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4228)"
        id="rect3078-6"
@@ -1765,7 +1840,10 @@
        y="-567.06116"
        ry="1.7677606"
        rx="1.7677606"
-       transform="matrix(-0.75689945,0.65353136,-0.65353136,-0.75689945,-300.20305,726.98035)" />
+       transform="matrix(-0.75689945,0.65353136,-0.65353136,-0.75689945,-300.20305,726.98035)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3110"
        xlink:href="#rect3078-6"
@@ -1774,7 +1852,10 @@
        width="3000"
        height="600"
        transform="translate(-382.8919,36.073583)"
-       style="filter:url(#filter4222)" />
+       style="filter:url(#filter4222)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3112"
        xlink:href="#rect3074-8"
@@ -1783,7 +1864,10 @@
        width="3000"
        height="600"
        transform="translate(-14.467123,181.26817)"
-       style="filter:url(#filter4216)" />
+       style="filter:url(#filter4216)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3114"
        xlink:href="#rect3072-8"
@@ -1792,7 +1876,10 @@
        width="3000"
        height="600"
        transform="translate(40.208185,91.664829)"
-       style="filter:url(#filter4210)" />
+       style="filter:url(#filter4210)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3116"
        xlink:href="#rect3070-7"
@@ -1801,7 +1888,10 @@
        width="3000"
        height="600"
        transform="translate(27.047247,263.30669)"
-       style="filter:url(#filter4204)" />
+       style="filter:url(#filter4204)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3118"
        xlink:href="#rect3078"
@@ -1810,7 +1900,10 @@
        width="3000"
        height="600"
        transform="translate(161.49517,424.83487)"
-       style="filter:url(#filter4198)" />
+       style="filter:url(#filter4198)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3120"
        xlink:href="#rect3076"
@@ -1819,7 +1912,10 @@
        width="3000"
        height="600"
        transform="translate(104.05852,426.16597)"
-       style="filter:url(#filter4192)" />
+       style="filter:url(#filter4192)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3122"
        xlink:href="#rect3074"
@@ -1828,7 +1924,10 @@
        width="3000"
        height="600"
        transform="translate(111.48558,330.0355)"
-       style="filter:url(#filter4186)" />
+       style="filter:url(#filter4186)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3124"
        xlink:href="#rect3072"
@@ -1837,7 +1936,10 @@
        width="3000"
        height="600"
        transform="translate(336.85034,255.03639)"
-       style="filter:url(#filter4180)" />
+       style="filter:url(#filter4180)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3126"
        xlink:href="#rect3070"
@@ -1846,7 +1948,10 @@
        width="3000"
        height="600"
        transform="translate(202.63351,212.6248)"
-       style="filter:url(#filter4174)" />
+       style="filter:url(#filter4174)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3128"
        xlink:href="#rect3053"
@@ -1855,7 +1960,10 @@
        width="3000"
        height="600"
        transform="translate(274.67305,-33.573363)"
-       style="filter:url(#filter4168)" />
+       style="filter:url(#filter4168)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3130"
        xlink:href="#path3031-5"
@@ -1864,7 +1972,10 @@
        width="3000"
        height="600"
        transform="translate(91.18013,-133.51846)"
-       style="filter:url(#filter4162)" />
+       style="filter:url(#filter4162)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3132"
        xlink:href="#path3029"
@@ -1873,7 +1984,10 @@
        width="3000"
        height="600"
        transform="translate(204.4848,306.35156)"
-       style="filter:url(#filter4156)" />
+       style="filter:url(#filter4156)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3156"
        xlink:href="#rect3078-6"
@@ -1882,7 +1996,10 @@
        width="3000"
        height="600"
        transform="translate(-430.71972,39.273149)"
-       style="filter:url(#filter4150)" />
+       style="filter:url(#filter4150)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3158"
        xlink:href="#rect3076-4"
@@ -1891,7 +2008,10 @@
        width="3000"
        height="600"
        transform="translate(-282.51115,17.234099)"
-       style="filter:url(#filter4144)" />
+       style="filter:url(#filter4144)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3160"
        xlink:href="#rect3074-8"
@@ -1900,7 +2020,10 @@
        width="3000"
        height="600"
        transform="translate(80.445829,204.30774)"
-       style="filter:url(#filter4138)" />
+       style="filter:url(#filter4138)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3162"
        xlink:href="#rect3072-8"
@@ -1909,7 +2032,10 @@
        width="3000"
        height="600"
        transform="translate(72.69035,128.8686)"
-       style="filter:url(#filter4132)" />
+       style="filter:url(#filter4132)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3164"
        xlink:href="#rect3070-7"
@@ -1918,7 +2044,10 @@
        width="3000"
        height="600"
        transform="translate(323.4278,116.04145)"
-       style="filter:url(#filter4126)" />
+       style="filter:url(#filter4126)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3166"
        xlink:href="#rect3078"
@@ -1927,7 +2056,10 @@
        width="3000"
        height="600"
        transform="translate(-48.111203,282.29578)"
-       style="filter:url(#filter4120)" />
+       style="filter:url(#filter4120)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3168"
        xlink:href="#rect3074"
@@ -1936,7 +2068,10 @@
        width="3000"
        height="600"
        transform="translate(51.228507,259.23198)"
-       style="filter:url(#filter4114)" />
+       style="filter:url(#filter4114)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3170"
        xlink:href="#rect3070"
@@ -1945,7 +2080,10 @@
        width="3000"
        height="600"
        transform="translate(-39.565283,40.967061)"
-       style="filter:url(#filter4108)" />
+       style="filter:url(#filter4108)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3172"
        xlink:href="#path3031-5"
@@ -1954,7 +2092,10 @@
        width="3000"
        height="600"
        transform="translate(-144.32268,-189.57552)"
-       style="filter:url(#filter4102)" />
+       style="filter:url(#filter4102)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3174"
        xlink:href="#path3031"
@@ -1963,7 +2104,10 @@
        width="3000"
        height="600"
        transform="translate(-127.99656,82.451644)"
-       style="filter:url(#filter4096)" />
+       style="filter:url(#filter4096)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <use
        id="use3176"
        xlink:href="#path3029"
@@ -1972,7 +2116,10 @@
        width="3000"
        height="600"
        transform="translate(262.29085,201.86335)"
-       style="filter:url(#filter4090)" />
+       style="filter:url(#filter4090)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4084)"
        id="rect3070-0"
@@ -1982,7 +2129,10 @@
        y="-153.1685"
        transform="matrix(-0.5,-0.8660254,0.8660254,-0.5,18,8)"
        ry="1.7677606"
-       rx="1.7677606" />
+       rx="1.7677606"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        rx="1.7677606"
        ry="1.7677606"
@@ -1992,7 +2142,10 @@
        width="6.8185296"
        id="rect3072-1"
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4078)"
-       transform="matrix(-0.25881905,-0.96592583,0.96592583,-0.25881905,18,8)" />
+       transform="matrix(-0.25881905,-0.96592583,0.96592583,-0.25881905,18,8)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4072)"
        id="rect3074-0"
@@ -2002,7 +2155,10 @@
        y="446.95563"
        ry="1.7677606"
        rx="1.7677606"
-       transform="matrix(0.25881905,-0.96592583,0.96592583,0.25881905,18,8)" />
+       transform="matrix(0.25881905,-0.96592583,0.96592583,0.25881905,18,8)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        transform="matrix(0.70710678,-0.70710678,0.70710678,0.70710678,18,8)"
        rx="1.7677606"
@@ -2012,7 +2168,10 @@
        height="27.274118"
        width="6.8185296"
        id="rect3076-2"
-       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4066)" />
+       style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4066)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4060)"
        id="rect3078-3"
@@ -2022,7 +2181,10 @@
        y="805.31128"
        ry="1.7677606"
        rx="1.7677606"
-       transform="matrix(0.96592583,-0.25881905,0.25881905,0.96592583,18,8)" />
+       transform="matrix(0.96592583,-0.25881905,0.25881905,0.96592583,18,8)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4054)"
        id="rect3070-7-2"
@@ -2032,7 +2194,10 @@
        y="756.88086"
        transform="matrix(0.99732518,0.07309228,-0.07309228,0.99732518,18,8)"
        ry="1.7677606"
-       rx="1.7677606" />
+       rx="1.7677606"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <rect
        rx="1.7677606"
        ry="1.7677606"
@@ -2042,10 +2207,16 @@
        width="6.8185296"
        id="rect3072-8-4"
        style="fill:#a6d854;fill-opacity:1;fill-rule:evenodd;stroke:#000000;stroke-width:5;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;filter:url(#filter4048)"
-       transform="matrix(0.94442448,0.32872847,-0.32872847,0.94442448,18,8)" />
+       transform="matrix(0.94442448,0.32872847,-0.32872847,0.94442448,18,8)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
     <g
        id="g5975"
-       transform="translate(-459.58669,315.38508)">
+       transform="translate(-459.58669,315.38508)"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576">
       <g
          transform="translate(522.48677,-317.73459)"
          id="g11705">
@@ -2170,6 +2341,9 @@
        transform="matrix(1.1667958,0,0,1.1667958,162.50827,409.40829)"
        cx="214.65741"
        cy="235.84001"
-       r="16.667517" />
+       r="16.667517"
+       inkscape:export-filename="joel_logo.png"
+       inkscape:export-xdpi="199.93576"
+       inkscape:export-ydpi="199.93576" />
   </g>
 </svg>
