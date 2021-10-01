@@ -1,6 +1,6 @@
 [![Travis](https://api.travis-ci.org/wwood/singlem.svg?branch=master)](https://travis-ci.org/wwood/singlem) [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda)
 
-![Image of singlem](https://raw.githubusercontent.com/wwood/singlem/main/joel_logo.png)
+<img src="joel_logo.png" alt="SingleM logo" width="600"/>
 
 **Table of Contents**
 - [SingleM](#singlem)
@@ -167,7 +167,7 @@ excluded as likely contamination.
 
 An appraisal can also be represented visually, using `appraise --plot`:
 
-![Image of appraise](https://raw.githubusercontent.com/wwood/singlem/main/appraise_plot.png)
+<img src="appraise_plot.png" alt="Image of appraise"/>
 
 Each rectangle represents a single OTU sequence where its size represents its
 abundance (the number of reads that OTU represents in the metagenome). Colours
