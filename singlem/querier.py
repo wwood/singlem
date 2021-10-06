@@ -51,7 +51,7 @@ class Querier:
             logging.info("Printing %i hits" % len(query_results))
 
         if output_style == 'sparse':
-            SparseResultFormatter().write(query_results, sys.stdout, streaming=do_stream)
+            SparseResultFormatter().write(query_results, sys.stdout, sequence_type, streaming=do_stream)
         elif output_style == None:
             return query_results
         else:
@@ -84,10 +84,10 @@ class Querier:
                 join('nucleotides','sequence_id','=','nucleotides.id'). \
                 join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                 join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
-                select_raw('proteins.marker_wise_id as proteins_marker_wise_id, proteins.protein_sequence as sequence, sample_name, num_hits, coverage, taxonomy'). \
+                select_raw('proteins.marker_wise_id as proteins_marker_wise_id, nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy'). \
                 where('nucleotides.marker_id', marker_id). \
                 order_by('proteins_marker_wise_id').get(),
-            columns = ('proteins_marker_wise_id','sequence', \
+            columns = ('proteins_marker_wise_id','nucleotide_sequence','protein_sequence', \
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
         d1.set_index('proteins_marker_wise_id', inplace=True)
@@ -211,16 +211,18 @@ class Querier:
                 last_marker_id = m['id']
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                query_protein_sequence = None
                 kNN = index.knnQuery(sequence_database.nucleotides_to_binary(q.sequence), max_nearest_neighbours)
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                kNN = index.knnQuery(sequence_database.protein_to_binary(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours)
+                query_protein_sequence = sequence_database.nucleotides_to_protein(q.sequence)
+                kNN = index.knnQuery(sequence_database.protein_to_binary(query_protein_sequence), max_nearest_neighbours)
             else:
                 raise Exception("Unexpected sequence_type")
 
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
                         yield qres
 
 
@@ -264,12 +266,12 @@ class Querier:
                 continue
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                query_protein_sequence = None
                 query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                query_protein_sequence = sequence_database.nucleotides_to_protein(q.sequence)
                 query_array = np.array(
-                    sequence_database.protein_to_binary_array(
-                        sequence_database.nucleotides_to_protein(q.sequence)))
-                q.sequence = sequence_database.nucleotides_to_protein(q.sequence)
+                    sequence_database.protein_to_binary_array(query_protein_sequence))
             else:
                 raise Exception("Unexpected sequence_type")
             normed = query_array / np.linalg.norm(query_array)
@@ -285,13 +287,19 @@ class Querier:
                             otu = OtuTableEntry()
                             otu.marker = last_marker
                             otu.sample_name = entry['sample_name']
-                            otu.sequence = entry['sequence']
+                            otu.sequence = entry['nucleotide_sequence']
                             otu.count = entry['num_hits']
                             otu.coverage = entry['coverage']
                             otu.taxonomy = entry['taxonomy']
-                            yield QueryResult(q, otu, div)
+                            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                                yield QueryResult(q, otu, div)
+                            else:
+                                yield QueryResult(
+                                    q, otu, div, 
+                                    query_protein_sequence=query_protein_sequence,
+                                    subject_protein_sequence=entry['protein_sequence'])
                     else:
-                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div):
+                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
                             yield qres
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
@@ -314,19 +322,21 @@ class Querier:
                 last_marker_id = m['id']
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                query_protein_sequence = None
                 kNN = index.get_nns_by_vector(sequence_database.nucleotides_to_binary_array(q.sequence), max_nearest_neighbours, include_distances=True)
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(sequence_database.nucleotides_to_protein(q.sequence)), max_nearest_neighbours, include_distances=True)
+                query_protein_sequence = sequence_database.nucleotides_to_protein(q.sequence)
+                kNN = index.get_nns_by_vector(sequence_database.protein_to_binary_array(query_protein_sequence), max_nearest_neighbours, include_distances=True)
             else:
                 raise Exception("Unexpected sequence_type")
 
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
                         yield qres
 
-    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, preloaded_db=None):
+    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if self._query_result_from_db_builder_nucleotide is None:
                 self._query_result_from_db_builder_nucleotide = sdb.query_builder(). \
@@ -352,7 +362,7 @@ class Querier:
                     join('nucleotides','sequence_id','=','nucleotides.id'). \
                     join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                     join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
-                    select_raw('proteins.protein_sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
+                    select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
                     " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
@@ -360,11 +370,11 @@ class Querier:
                 otu = OtuTableEntry()
                 otu.marker = marker
                 otu.sample_name = entry['sample_name']
-                otu.sequence = entry['sequence']
+                otu.sequence = entry['nucleotide_sequence']
                 otu.count = entry['num_hits']
                 otu.coverage = entry['coverage']
                 otu.taxonomy = entry['taxonomy']
-                yield QueryResult(query, otu, div)
+                yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
         else:
             raise Exception("unknown sequence_type")
 
@@ -455,10 +465,12 @@ class QueryInputSequence:
         self.marker = marker
 
 class QueryResult:
-    def __init__(self, query, subject, divergence):
+    def __init__(self, query, subject, divergence, query_protein_sequence=None, subject_protein_sequence=None):
         self.query = query
         self.subject = subject
         self.divergence = divergence
+        self.query_protein_sequence = query_protein_sequence
+        self.subject_protein_sequence = subject_protein_sequence
 
 class MarkerSortedQueryInput:
     def __init__(self, sorted_io):
