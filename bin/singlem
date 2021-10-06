@@ -384,7 +384,7 @@ if __name__ == '__main__':
     query_otu_args.add_argument('--query-otu-table', '--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
     query_otu_args.add_argument('--max-divergence', '--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence", default=4, type=int)
     current_default = 'annoy'
-    query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann','scann-naive'])
+    query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
     current_default = 'nucleotide'
     query_otu_args.add_argument('--sequence-type', '--sequence_type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
         choices=['nucleotide','protein'])

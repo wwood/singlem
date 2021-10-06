@@ -65,10 +65,10 @@ class Querier:
             sdb.query_builder(). \
                 table('otus'). \
                 join('nucleotides','sequence_id','=','nucleotides.id'). \
-                select_raw('nucleotides.marker_wise_id as nucleotides_marker_wise_id, nucleotides.sequence as sequence, sample_name, num_hits, coverage, taxonomy'). \
+                select_raw('nucleotides.marker_wise_id as nucleotides_marker_wise_id, nucleotides.sequence as nucleotide_sequence, sample_name, num_hits, coverage, taxonomy'). \
                 where('nucleotides.marker_id', marker_id). \
                 order_by('nucleotides_marker_wise_id').get(), 
-            columns = ('nucleotides_marker_wise_id','sequence', \
+            columns = ('nucleotides_marker_wise_id','nucleotide_sequence', \
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
         d1.set_index('nucleotides_marker_wise_id', inplace=True)
@@ -287,8 +287,8 @@ class Querier:
                             otu = OtuTableEntry()
                             otu.marker = last_marker
                             otu.sample_name = entry['sample_name']
-                            otu.sequence = entry['nucleotide_sequence']
                             otu.count = entry['num_hits']
+                            otu.sequence = entry['nucleotide_sequence']
                             otu.coverage = entry['coverage']
                             otu.taxonomy = entry['taxonomy']
                             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
