@@ -41,14 +41,6 @@ class Querier:
 
         queries = self.prepare_query_sequences(query_otu_table, num_threads)
 
-        if preload_db:
-            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                pass
-            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                raise Exception("Not yet implemented")
-            else:
-                raise Exception("Unexpected sequence_type")
-
         query_results = self.query_with_queries(
             queries, db, max_divergence, search_method, sequence_type, 
             max_nearest_neighbours=max_nearest_neighbours, preload_db=preload_db)
@@ -66,7 +58,9 @@ class Querier:
             raise Exception("Programming error")
 
     def preload_nucleotide_db(self, sdb, marker_id):
-        logging.info("Caching nucleotide data for marker {}..".format(marker_id))
+        marker_name = sdb.query_builder().table('markers').where('id',marker_id).first()['marker']
+        logging.info("Caching nucleotide data for marker {}..".format(marker_name))
+        
         d1 = pd.DataFrame(
             sdb.query_builder(). \
                 table('otus'). \
@@ -78,7 +72,25 @@ class Querier:
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
         d1.set_index('nucleotides_marker_wise_id', inplace=True)
-        logging.info("Caching nucleotide data complete")
+        return d1
+
+    def preload_protein_db(self, sdb, marker_id):
+        marker_name = sdb.query_builder().table('markers').where('id',marker_id).first()['marker']
+        logging.info("Caching protein data for marker {}..".format(marker_name))
+
+        d1 = pd.DataFrame(
+            sdb.query_builder(). \
+                table('otus'). \
+                join('nucleotides','sequence_id','=','nucleotides.id'). \
+                join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
+                join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
+                select_raw('proteins.marker_wise_id as proteins_marker_wise_id, proteins.protein_sequence as sequence, sample_name, num_hits, coverage, taxonomy'). \
+                where('nucleotides.marker_id', marker_id). \
+                order_by('proteins_marker_wise_id').get(),
+            columns = ('proteins_marker_wise_id','sequence', \
+                'sample_name', 'num_hits', 'coverage', 'taxonomy')
+        )
+        d1.set_index('proteins_marker_wise_id', inplace=True)
         return d1
 
     def query_subject_otu_table(self, **kwargs):
@@ -240,9 +252,12 @@ class Querier:
 
                 # Preload DB if needed
                 if preload_db:
-                    if sequence_type != SequenceDatabase.NUCLEOTIDE_TYPE:
-                        raise Exception("Not implemented")
-                    current_preloaded_db = self.preload_nucleotide_db(sdb, last_marker_id)
+                    if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                        current_preloaded_db = self.preload_nucleotide_db(sdb, last_marker_id)
+                    elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                        current_preloaded_db = self.preload_protein_db(sdb, last_marker_id)
+                    else:
+                        raise Exception("Unexpected sequence_type")
 
             # When scann DB is absent due to too few seqs
             if index is None:
@@ -254,13 +269,16 @@ class Querier:
                 query_array = np.array(
                     sequence_database.protein_to_binary_array(
                         sequence_database.nucleotides_to_protein(q.sequence)))
+                q.sequence = sequence_database.nucleotides_to_protein(q.sequence)
             else:
                 raise Exception("Unexpected sequence_type")
             normed = query_array / np.linalg.norm(query_array)
             kNN = index.search(normed, max_nearest_neighbours)
 
-            for (hit_index, dist) in zip(kNN[0], kNN[1]): # Possibly can know div distance from scann distance so less SQL?
-                div = int((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+            for (hit_index, dist) in zip(kNN[0], kNN[1]):
+                div = round((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                # if div != self.divergence(q.sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1]['sequence']):
+                #     import IPython; IPython.embed()
                 if div <= max_divergence:
                     if current_preloaded_db is not None:
                         for _, entry in current_preloaded_db.iloc[[hit_index]].iterrows():
@@ -334,13 +352,13 @@ class Querier:
                     join('nucleotides','sequence_id','=','nucleotides.id'). \
                     join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                     join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
-                    select_raw('proteins.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
+                    select_raw('proteins.protein_sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
                     " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
 
                 otu = OtuTableEntry()
-                otu.marker = entry['marker']
+                otu.marker = marker
                 otu.sample_name = entry['sample_name']
                 otu.sequence = entry['sequence']
                 otu.count = entry['num_hits']
