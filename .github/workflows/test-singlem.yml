@@ -5,6 +5,9 @@ jobs:
   miniconda:
     name: Miniconda ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash -l {0}
     strategy:
         matrix:
             os: ["ubuntu-latest"]
@@ -16,11 +19,11 @@ jobs:
           environment-file: singlem.yml
           python-version: 3.6
           auto-activate-base: false
-      - shell: bash -l {0}
-        run: |
+          mamba-version: "*"
+          channels: conda-forge,defaults,bioconda,masonite
+      - run: |
           conda info
           conda list
       - name: Run pytest
-        shell: bash -l {0}
         run: |
             python test/test_metapackage.py
