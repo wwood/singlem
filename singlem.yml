@@ -32,8 +32,9 @@ dependencies:
   - fasttree
   - fastalite
   - jinja2
+  - bird_tool_utils
+  - scann
   - pip
   - pip:
-    - bird_tool_utils
     - nmslib
     - --no-binary nmslib
