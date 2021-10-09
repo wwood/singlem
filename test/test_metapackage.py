@@ -40,22 +40,14 @@ class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_metapackage_create_on_target_fasta(self):
-        with tempfile.NamedTemporaryFile(prefix='singlem-chance',mode='w') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --output-prefilter-fasta {}".format(
-                path_to_script, f.name
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --output-metapackage {}/a.smpkg".format(
+                path_to_script, f
             )
             extern.run(cmd)
-            with open(f.name) as f2:
-                self.assertEqual(
-                    '''>650377985
-MASQPVFKRTYVRTKPYPEKKVRIVDELKELFSKYETVLIIDIHETSNRVLQEYRFWLRRRGARVIKAKNTLVLIALRQLMNDVSEDIEKLFTGENLLIFTNENPFEIARWIWGTGVRREAMPGDIAPFDLVAPAGNTNMSPGPIMSKFGKLKIPIKVQDGKIWIVKDTVIVKKGDKINEDAAEILKKLSIRPVFETLKIKAVILRGKYVITADELKLDARTYRSMIEDAVKGAFNLAVNTAYPTPEVLRISITKAYMEAMNLAINARYITPETARYILIKAASEAHALASIIAPKAPELGLQVTQQPQQVKTETEQARAEKKTEEKKETIEEEKKEGPSEEDIAAGFSNLFG
->646564583
-MSAVARTYPKWKTEQLEDLVELLKKYKVFLIGDLTGVPASHVQRLRKKLAKTAEVRVVKPKLFAIALERVGIDPEAFKDLLTGQNIVFFTNENPFDVALKIHNIVTMDYYKPGEKTDKEIVIPEGNTGIPPGPMLSVFGKLKIQTKVQANVIHVAKDTVVAKPGDVISPELSSILQKLGLALKEIRLRLKAGYDGILIPGESLILNIDQYVEMVKAASLDALKIAVELAVPEPEVLPLVLSKAVRQATALAVEAGYVTPETVELVLKAAETKAQALAYEVSRLAPELGIEVKVVQQPQEAKPKKEEKPAEEEKKEEGVSEEALAEGLSALFG
->640069326
-MLAIGKRQYVREKSYPPRKVRIVQEATELLQKYQYVFLFDLHGLSARILGEYRYKLRPYGAVKIIKPTLFKIAYAKVYGGVPVEIAEKVRGEVGFFFTNHNPAEVVKLVAKYAVRRAARPGDKAPFDIVIPAGPTNASPGPIISKFGKLKIPTRVQEGKIWIAKDTVVAKAGQEITPEMAEVLRVVGIEPIFESLRLIGVLWKGKRFVPIEELIIDVKQYRELIEAAATYARNLALNVVYPTREVLQVVIPAAHARALALAVKLGVVTKETLPALLSRAVAEANALAAAVAPKAPELGLSVAVAPQPAAQPQQVEQQPAAGGEAEEKKEGPSEEEIAGSLGALF
-''',
-                    f2.read()
-                )
+            with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
+                self.assertEqual('{"singlem_metapackage_version": 1, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd"}',
+                con.read())
 
 if __name__ == "__main__":
     unittest.main()
