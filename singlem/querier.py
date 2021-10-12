@@ -295,12 +295,21 @@ class Querier:
                 else:
                     div = round((1.0-dist)*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
 
+                ## DEBUG if statement
                 # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                #     if div != self.divergence(q.sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence):
+                #     if current_preloaded_db is not None:
+                #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence
+                #     else:
+                #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence))[0].nucleotide_sequence
+                #     if div != self.divergence(q.sequence, subject_seq):
                 #         import IPython; IPython.embed()
                 # else:
-                #     print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
-                #     if div != self.divergence(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence):
+                #     if current_preloaded_db is not None:
+                #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence
+                #         # print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
+                #     else:
+                #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence))[0].protein_sequence
+                #     if div != self.divergence(query_protein_sequence, subject_seq):
                 #         import IPython; IPython.embed()
 
                 if max_divergence is None or div <= max_divergence:
