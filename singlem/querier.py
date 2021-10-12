@@ -221,7 +221,7 @@ class Querier:
 
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
-                if div <= max_divergence:
+                if max_divergence is None or div <= max_divergence:
                     for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
                         yield qres
 
@@ -291,7 +291,7 @@ class Querier:
                 #     if div != self.divergence(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence):
                 #         import IPython; IPython.embed()
 
-                if div <= max_divergence:
+                if max_divergence is None or div <= max_divergence:
                     if current_preloaded_db is not None:
                         for _, entry in current_preloaded_db.loc[[hit_index]].iterrows():
                             otu = OtuTableEntry()
@@ -342,7 +342,7 @@ class Querier:
 
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
-                if div <= max_divergence:
+                if max_divergence is None or div <= max_divergence:
                     for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
                         yield qres
 
