@@ -278,12 +278,22 @@ class Querier:
             kNN = index.search(normed, max_nearest_neighbours)
 
             for (hit_index, dist) in zip(kNN[0], kNN[1]):
-                div = round((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
-                # if div != self.divergence(q.sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1]['sequence']):
-                #     import IPython; IPython.embed()
+                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    div = round((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                else:
+                    div = round((1.0-dist)*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+
+                # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                #     if div != self.divergence(q.sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence):
+                #         import IPython; IPython.embed()
+                # else:
+                #     print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
+                #     if div != self.divergence(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence):
+                #         import IPython; IPython.embed()
+
                 if div <= max_divergence:
                     if current_preloaded_db is not None:
-                        for _, entry in current_preloaded_db.iloc[[hit_index]].iterrows():
+                        for _, entry in current_preloaded_db.loc[[hit_index]].iterrows():
                             otu = OtuTableEntry()
                             otu.marker = last_marker
                             otu.sample_name = entry['sample_name']
