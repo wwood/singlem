@@ -404,7 +404,7 @@ class Querier:
                     join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                     join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
                     select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
-                    " where proteins.marker_wise_id = '?' and proteins.marker_id = '?'"
+                    " where proteins.marker_wise_id = '?' and nucleotides.marker_id = '?'"
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
 
