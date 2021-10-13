@@ -308,7 +308,7 @@ class Querier:
                 #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence
                 #         # print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
                 #     else:
-                #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence))[0].protein_sequence
+                #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence))[0].subject_protein_sequence
                 #     if div != self.divergence(query_protein_sequence, subject_seq):
                 #         import IPython; IPython.embed()
 

@@ -440,13 +440,14 @@ class SequenceDatabase:
                 logging.info("Creating SQL indexes on nucleotides ..")
                 c.execute("CREATE INDEX nucleotides_marker_id on nucleotides (marker_id)")
                 c.execute("CREATE INDEX nucleotides_sequence on nucleotides (sequence)")
+                c.execute("CREATE INDEX nucleotides_marker_wise_id on nucleotides (marker_wise_id)")
                 db.commit()
 
 
                 logging.info("Creating sorted protein sequences data ..")
                 # Write a file of nucleotide id + protein sequence, and sort
                 sorted_proteins_path = os.path.join(my_tempdir,'makedb_sort_output_protein')
-                proc = subprocess.Popen(['bash','-c','sort -n --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
+                proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
                     stdin=subprocess.PIPE,
                     stdout=None,
                     stderr=subprocess.PIPE,
@@ -512,6 +513,7 @@ class SequenceDatabase:
 
                 logging.info("Creating proteins indices ..")
                 c.execute("CREATE INDEX proteins_sequence on proteins (protein_sequence)")
+                c.execute("CREATE INDEX proteins_marker_wise_id on proteins (marker_wise_id)")
                 db.commit()
 
                 logging.info("Creating nucleotides_proteins indices ..")
@@ -700,6 +702,10 @@ class SequenceDatabase:
             logging.info("Finished writing nucleotide indices to disk")
             
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
+            # def do(entry):
+            #     print(entry['protein_sequence'])
+            #     return(np.array([protein_to_binary_array(entry['protein_sequence'])]))
+            # a = np.concatenate([do(entry) for entry in \
             a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
                 self.query_builder().table('proteins').select_raw('distinct(protein_sequence) as protein_sequence').order_by('proteins.marker_wise_id'). \
                     join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
@@ -709,6 +715,8 @@ class SequenceDatabase:
             generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force)
             del a
             logging.info("Finished writing protein indices to disk")
+
+            # break #DEBUG
     
     @staticmethod
     def dump(db_path):
