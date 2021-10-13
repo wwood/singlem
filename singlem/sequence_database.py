@@ -337,7 +337,10 @@ class SequenceDatabase:
                 total_otu_count = 0
                 # create tempdir
                 sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
-                proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_path)],
+                # Have to set LC_COLLATE=C because otherwise dashes in sequences
+                # can be ignored. See
+                # https://serverfault.com/questions/95579/unix-sort-treats-dash-characters-as-invisible
+                proc = subprocess.Popen(['bash','-c','LC_COLLATE=C sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_path)],
                     stdin=subprocess.PIPE,
                     stdout=None,
                     stderr=subprocess.PIPE,
@@ -447,7 +450,8 @@ class SequenceDatabase:
                 logging.info("Creating sorted protein sequences data ..")
                 # Write a file of nucleotide id + protein sequence, and sort
                 sorted_proteins_path = os.path.join(my_tempdir,'makedb_sort_output_protein')
-                proc = subprocess.Popen(['bash','-c','sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
+                # Have to set LC_COLLATE=C because otherwise dashes in sequences can be ignored
+                proc = subprocess.Popen(['bash','-c','LC_COLLATE=C sort --parallel={} --buffer-size=20% > {}'.format(num_threads, sorted_proteins_path)],
                     stdin=subprocess.PIPE,
                     stdout=None,
                     stderr=subprocess.PIPE,
