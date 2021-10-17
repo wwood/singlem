@@ -293,7 +293,7 @@ class Querier:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                     div = round((1.0-float(dist))*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                 else:
-                    div = round((1.0-dist)*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                    div = round((1.0-float(dist))*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
 
                 ## DEBUG if statement
                 # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
