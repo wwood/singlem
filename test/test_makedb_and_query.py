@@ -52,42 +52,22 @@ class Tests(unittest.TestCase):
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]), message)
 
-    def test_makedb_query(self):
-        otu_table = [self.headers,
-        ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-        ['ribosomal_protein_L11_rplK_gpkg','minimal2','AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacte'],
-        ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-        ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+    def test_makedb_query_methanobacteria(self):
+        with tempfile.TemporaryDirectory() as d:
+            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
+                                                            d,
+                                                            path_to_data)
+            extern.run(cmd)
 
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            f.write(otu_table)
-            f.flush()
-
-            with tempfile.TemporaryDirectory() as d:
-                cmd = "%s makedb --db_path %s/db --otu_table %s --sequence-database-methods annoy scann nmslib" %(path_to_script,
-                                                                d,
-                                                                f.name)
-                extern.run(cmd)
-
-                for method in ['annoy','nmslib','naive']:
-                    cmd = "%s query --query-otu-table %s --db %s/db --search-method %s" % (
-                        path_to_script,
-                        f.name,
-                        d,
-                        method)
-                    expected = [
-                        "\t".join(self.query_result_headers),
-                        'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	0	6	minimal	ribosomal_protein_S2_rpsB_gpkg	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	Root; k__Bacteria; p__Firmicutes; c__Bacilli',
-                        'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	0	7	minimal	ribosomal_protein_L11_rplK_gpkg	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
-                        'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	0	7	minimal2	ribosomal_protein_L11_rplK_gpkg	AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	Root; k__Bacte',
-                        'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	0	9	minimal	ribosomal_protein_S17_gpkg	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus',
-                        'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	3	7	minimal2	ribosomal_protein_L11_rplK_gpkg	AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	Root; k__Bacte',
-                        'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	3	7	minimal	ribosomal_protein_L11_rplK_gpkg	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'
-                    ]
-                    self.assertEqualOtuTable(
-                        list([line.split("\t") for line in expected]),
-                        extern.run(cmd))
+            for method in ['annoy','nmslib','scann','naive']:
+                cmd = "%s query --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s --max-nearest-neighbours 2" % (
+                    path_to_script,
+                    path_to_data,
+                    d,
+                    method)
+                observed = extern.run(cmd)
+                self.assertEqual(observed.split("\n")[0], "\t".join(self.query_result_headers))
+                self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	0	1	GB_GCA_000309865.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n' in observed)
 
     def test_protein_search(self):
         otu_table = [self.headers,
