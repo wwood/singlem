@@ -1,0 +1,4 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+S3.25.ileS	GB_GCA_000309865.1_protein	GCCGACCCCAATATCATCGCTGATCTGGACTCCCATCATCTACTATTCAAAGAAGGCATC	1	1.03	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865
+S3.35.Nop	GB_GCA_000309865.1_protein	CCCAAACATGGTTTGATCTACCAGCACCCAGATGTGCGTGGTTCCCGATGGTGGATCCGG	1	1.05	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865
+S3.43.ribosomal_S24e	GB_GCA_000309865.1_protein	AAACCAAGCTTCGGTGAAGGCCGTGCAGATGGTTACGCTAAACTCTATGACTCTGAGGAA	1	1.24	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865
