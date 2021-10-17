@@ -69,78 +69,22 @@ class Tests(unittest.TestCase):
                 self.assertEqual(observed.split("\n")[0], "\t".join(self.query_result_headers))
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	0	1	GB_GCA_000309865.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n' in observed)
 
-    def test_protein_search(self):
-        otu_table = [self.headers,
-        ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-        ['ribosomal_protein_L11_rplK_gpkg','minimal2','AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacte'],
-        ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-        ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-        otu_table = "\n".join(["\t".join(x) for x in otu_table])
+    def test_protein_search_methanobacteria(self):
+        with tempfile.TemporaryDirectory() as d:
+            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
+                                                            d,
+                                                            path_to_data)
+            extern.run(cmd)
 
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            f.write(otu_table)
-            f.flush()
-
-
-            expected = [
-                "\t".join(self.protein_query_result_headers),
-                'minimal2	AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	KKANPAPPVGPALGQAGVNI	0	7	minimal	ribosomal_protein_L11_rplK_gpkg	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	GKANPAPPVGPALGQAGVNI	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
-                'minimal2	AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	KKANPAPPVGPALGQAGVNI	1	7	minimal2	ribosomal_protein_L11_rplK_gpkg	AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	KKANPAPPVGPALGQAGVNI	Root; k__Bacte',
-                'minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	GKANPAPPVGPALGQAGVNI	0	7	minimal2	ribosomal_protein_L11_rplK_gpkg	AAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	KKANPAPPVGPALGQAGVNI	Root; k__Bacte',
-                'minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	GKANPAPPVGPALGQAGVNI	1	7	minimal	ribosomal_protein_L11_rplK_gpkg	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	GKANPAPPVGPALGQAGVNI	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
-                'minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	AKLGDIVKIQETRPLSATKR	0	9	minimal	ribosomal_protein_S17_gpkg	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	AKLGDIVKIQETRPLSATKR	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus',
-                'minimal	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	RRWNPKMKKYIFTERNGIYI	0	6	minimal	ribosomal_protein_S2_rpsB_gpkg	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	RRWNPKMKKYIFTERNGIYI	Root; k__Bacteria; p__Firmicutes; c__Bacilli'
-            ]
-
-            with tempfile.TemporaryDirectory() as d:
-                cmd = "%s makedb --db_path %s/db --otu_table %s --sequence-database-methods annoy scann nmslib" %(path_to_script,
-                                                                d,
-                                                                f.name)
-                extern.run(cmd)
-
-                # without preload-db
-                for method in ['annoy','nmslib']: # can't test scann (or naive, since that uses scann) with this data because there's not enough sequences
-                    cmd = "%s query --query-otu-table %s --db %s/db --search-method %s --sequence-type protein" % (
-                        path_to_script,
-                        f.name,
-                        d,
-                        method)
-                    self.assertEqualOtuTable(
-                        list([line.split("\t") for line in expected]),
-                        extern.run(cmd),
-                        "no_preload %s failed" % (method))
-
-                # with preload-db
-                for method in ['annoy','nmslib']:
-                    cmd = "%s query --query-otu-table %s --db %s/db --search-method %s --sequence-type protein --preload-db" % (
-                        path_to_script,
-                        f.name,
-                        d,
-                        method)
-                    self.assertEqualOtuTable(
-                        list([line.split("\t") for line in expected]),
-                        extern.run(cmd),
-                        "no_preload %s failed" % (method))
-
-    def test_query_with_otu_table(self):
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            query = [self.headers,
-                     # second sequence with an extra A at the end
-                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
-            query = "\n".join(["\t".join(x) for x in query])
-            f.write(query)
-            f.flush()
-
-            cmd = "%s query --query_otu_table %s --db %s" % (
-                path_to_script,
-                f.name,
-                os.path.join(path_to_data,'a.sdb'))
-
-            expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['minimal;ribosomal_protein_L11_rplK_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-            expected = ["\t".join(x) for x in expected]+['']
-            self.assertEqual(expected,
-                             extern.run(cmd).split('\n'))
+            for method in ['annoy','nmslib','scann','naive']:
+                cmd = "%s query --sequence-type protein --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s --max-nearest-neighbours 2" % (
+                    path_to_script,
+                    path_to_data,
+                    d,
+                    method)
+                observed = extern.run(cmd)
+                self.assertEqual(observed.split("\n")[0], "\t".join(self.protein_query_result_headers))
+                self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
 
     def test_query_with_otu_table_two_samples(self):
         with tempfile.NamedTemporaryFile(mode='w') as f:
@@ -196,44 +140,6 @@ class Tests(unittest.TestCase):
                             ]
                 observed = extern.run(cmd)
                 self.assertEqualOtuTable(expected, observed)
-
-    def test_fasta_query(self):
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC',
-                               ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
-            f.write(query)
-            f.flush()
-
-            cmd = "%s query --query_fasta %s --db %s" % (
-                path_to_script,
-                f.name,
-                os.path.join(path_to_data,'a.sdb'))
-
-            expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','0','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                        ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-            expected = ["\t".join(x) for x in expected]+['']
-            observed = extern.run(cmd).split("\n")
-            self.assertEqual(expected, observed)
-
-    def test_query_with_gaps(self):
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC',
-                               ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
-            f.write(query)
-            f.flush()
-
-            cmd = "%s query --query_fasta %s --db %s" % (
-                path_to_script,
-                f.name,
-                os.path.join(path_to_data,'a.sdb'))
-
-            expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                        ['seq1','CGTCGTTGGAACCCAAAAATGAAA---TATATCTTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                        ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-            expected = ["\t".join(x) for x in expected]+['']
-            observed = extern.run(cmd).split("\n")
-            self.assertEqual(expected, observed)
 
     def test_n_vs_gap(self):
         otu_table = [self.headers,
@@ -338,9 +244,9 @@ class Tests(unittest.TestCase):
                     infasta.write("CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC\n")
                     infasta.flush()
 
-                    cmd = "%s query --query_fasta %s --db %s/db --max_divergence 0" % (
+                    cmd = "%s query --query-otu-table %s --db %s/db --max_divergence 0" % (
                         path_to_script,
-                        infasta.name,
+                        f.name,
                         d)
 
                     expected = [
@@ -380,106 +286,34 @@ class Tests(unittest.TestCase):
                                                                   path_to_data)
         self.assertEqual(expected, extern.run(cmd).split('\n'))
 
-    def test_query_subject_otu_tables(self):
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC',
-                               ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
-            f.write(query)
-            f.flush()
+    # def test_query_subject_otu_tables(self):
+    #     with tempfile.NamedTemporaryFile(mode='w') as f:
+    #         query = "\n".join([">seq1 comment",'CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC',
+    #                            ">sseq4",       'CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC',''])
+    #         f.write(query)
+    #         f.flush()
 
-            subject = [
-                self.headers,
-                ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.1','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','12.4','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','19.5','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-            with tempfile.NamedTemporaryFile(mode='w') as subject_f:
-                subject_f.write("\n".join(["\t".join(x) for x in subject]+['']))
-                subject_f.flush()
+    #         subject = [
+    #             self.headers,
+    #             ['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','15.1','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+    #             ['ribosomal_protein_S2_rpsB_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','6','12.4','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+    #             ['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','19.5','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
+    #         with tempfile.NamedTemporaryFile(mode='w') as subject_f:
+    #             subject_f.write("\n".join(["\t".join(x) for x in subject]+['']))
+    #             subject_f.flush()
 
-                cmd = "%s query --query_fasta %s --subject_otu_tables %s" % (
-                    path_to_script,
-                    f.name,
-                    subject_f.name)
+    #             cmd = "%s query --query_fasta %s --subject_otu_tables %s" % (
+    #                 path_to_script,
+    #                 f.name,
+    #                 subject_f.name)
 
-                expected = [
-                    ['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                    ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
-                    ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-                expected = ["\t".join(x) for x in expected]+['']
-                observed = extern.run(cmd).split("\n")
-                self.assertEqual(expected, observed)
-
-    def test_clustering(self):
-        otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'], #last base only is different to first sequence
-['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-        otu_table = "\n".join(["\t".join(x) for x in otu_table])
-
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            f.write(otu_table)
-            f.flush()
-
-            with tempfile.TemporaryDirectory() as d:
-                cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 3".format(
-                    path_to_script, d, f.name)
-                subprocess.check_call(cmd, shell=True)
-
-                cmd = "%s query --query_sequence %s --db %s/db" % (
-                    path_to_script,
-                    'AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC', # first sequence with an extra A at the start
-                                                                d)
-
-                expected = [['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
-                            ['unnamed_sequence','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                             '1','7','minimal','ribosomal_protein_L11_rplK_gpkg',
-                             'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                             'Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                            ['unnamed_sequence','AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
-                             '2','6','minimal','ribosomal_protein_L11_rplK_gpkg',
-                             'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA',
-                             'Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
-                self.assertEqualOtuTable(expected, extern.run(cmd))
-
-    def test_no_clustering(self):
-        otu_table = [self.headers,['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-['ribosomal_protein_L11_rplK_gpkg','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA','6','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli'], #last base only is different to first sequence
-['ribosomal_protein_S17_gpkg','minimal','GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT','9','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']]
-        otu_table = "\n".join(["\t".join(x) for x in otu_table])
-
-        with tempfile.NamedTemporaryFile(mode='w') as f:
-            f.write(otu_table)
-            f.flush()
-
-            with tempfile.TemporaryDirectory() as d:
-                cmd = "{} makedb --db_path {}/db --otu_table {} --clustering_divergence 0".format(
-                    path_to_script, d, f.name)
-                extern.run(cmd)
-                with tempfile.NamedTemporaryFile(mode='w') as f2:
-                    f2.write(">seq1\n")
-                    # first sequence with an extra A at the start
-                    f2.write("AGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\n")
-                    f2.flush()
-
-                    # Querying the smafadb directly should show no clustering
-                    cmd = "smafa query {} {}".format(
-                        os.path.join(d,'db','ribosomal_protein_L11_rplK_gpkg.smafadb'),
-                        f2.name)
-                    out = extern.run(cmd)
-                    self.assertEqual(
-                        out,
-                        'seq1\tAGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA\t2\t60\n'+
-                        'seq1\tAGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\t1\t60\n')
-
-    def test_dump(self):
-        expected = """gene	sample	sequence	num_hits	coverage	taxonomy
-ribosomal_protein_L11_rplK_gpkg	minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	15.1	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
-ribosomal_protein_S2_rpsB_gpkg	minimal	CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC	6	12.4	Root; k__Bacteria; p__Firmicutes; c__Bacilli
-ribosomal_protein_S17_gpkg	minimal	GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT	9	19.5	Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus"""
-        cmd = "{} query --db {}/a.sdb --dump".format(
-            path_to_script, path_to_data)
-        self.assertEqualOtuTable(
-            list([line.split("\t") for line in expected.split("\n")]),
-            extern.run(cmd))
+    #             expected = [
+    #                 ['query_name','query_sequence','divergence','num_hits','sample','marker','hit_sequence','taxonomy'],
+    #                 ['seq1','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTatgTCACTGAGAGAAATGGTATTTATATC','3','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli'],
+    #                 ['sseq4','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATC','1','6','minimal','ribosomal_protein_S2_rpsB_gpkg','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC','Root; k__Bacteria; p__Firmicutes; c__Bacilli']]
+    #             expected = ["\t".join(x) for x in expected]+['']
+    #             observed = extern.run(cmd).split("\n")
+    #             self.assertEqual(expected, observed)
 
 if __name__ == "__main__":
     unittest.main()
