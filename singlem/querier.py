@@ -291,7 +291,7 @@ class Querier:
             num_reported = 0
             for (hit_index, dist) in zip(kNN[0], kNN[1]):
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    div = round((1.0-dist)*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                    div = round((1.0-float(dist))*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                 else:
                     div = round((1.0-dist)*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
 
@@ -336,7 +336,7 @@ class Querier:
                 if num_reported > max_nearest_neighbours:
                     break
 
-    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours):
+    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None):
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
