@@ -731,7 +731,10 @@ class SequenceDatabase:
         sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
         
         print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        for chunk in SequenceDatabase._query_builder(sqlite_db_path).table('otus').chunk(1000):
+        for chunk in SequenceDatabase._query_builder(sqlite_db_path).table('otus'). \
+            join('nucleotides','nucleotides.id','=','otus.sequence_id'). \
+            join('markers','markers.id','=','nucleotides.marker_id'). \
+            chunk(1000):
             for entry in chunk:
                 otu = OtuTableEntry()
                 otu.marker = entry['marker']
