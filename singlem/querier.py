@@ -36,6 +36,7 @@ class Querier:
         max_nearest_neighbours = kwargs.pop('max_nearest_neighbours')
         max_search_nearest_neighbours = kwargs.pop('max_search_nearest_neighbours')
         preload_db = kwargs.pop('preload_db')
+        limit_per_sequence = kwargs.pop('limit_per_sequence')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -44,7 +45,8 @@ class Querier:
 
         query_results = self.query_with_queries(
             queries, db, max_divergence, search_method, sequence_type, 
-            max_nearest_neighbours=max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, preload_db=preload_db)
+            max_nearest_neighbours=max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, \
+            preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         # Only reason not to stream would be so that the queries are returned in the same order as passed in. eh for now.
         do_stream = True
         if not do_stream:
@@ -174,26 +176,26 @@ class Querier:
         logging.info("Sorted {} OTU queries ..".format(total_otu_count))
         return MarkerSortedQueryInput(sorted_io)
 
-    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db):
+    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence):
         sdb.query_builder(check=True)
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             return self.query_by_sqlite(queries, sdb)
         elif search_method == 'naive':
             return self.query_by_sequence_similarity_with_scann(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         elif search_method == 'annoy':
             return self.query_by_sequence_similarity_with_annoy(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'nmslib':
             return self.query_by_sequence_similarity_with_nmslib(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'scann':
             return self.query_by_sequence_similarity_with_scann(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
-    def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None):
+    def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with nmslib by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
@@ -227,14 +229,14 @@ class Querier:
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if max_divergence is None or div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
                         yield qres
                     num_reported += 1
                     if num_reported > max_nearest_neighbours:
                         break
 
 
-    def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=False, max_search_nearest_neighbours=None):
+    def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=False, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
@@ -314,6 +316,8 @@ class Querier:
 
                 if max_divergence is None or div <= max_divergence:
                     if current_preloaded_db is not None:
+                        if limit_per_sequence:
+                            counter = 0
                         for _, entry in current_preloaded_db.loc[[hit_index]].iterrows():
                             otu = OtuTableEntry()
                             otu.marker = last_marker
@@ -329,14 +333,18 @@ class Querier:
                                     q, otu, div, 
                                     query_protein_sequence=query_protein_sequence,
                                     subject_protein_sequence=entry['protein_sequence'])
+                            if limit_per_sequence:
+                                counter += 1
+                                if counter >= limit_per_sequence:
+                                    break
                     else:
-                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
+                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
                             yield qres
                 num_reported += 1
                 if num_reported > max_nearest_neighbours:
                     break
 
-    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None):
+    def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
@@ -371,13 +379,13 @@ class Querier:
             for (hit_index, hamming_distance) in zip(kNN[0], kNN[1]):
                 div = int(hamming_distance / 2)
                 if max_divergence is None or div <= max_divergence:
-                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence):
+                    for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
                         yield qres
                 num_reported += 1
                 if num_reported > max_nearest_neighbours:
                     break
 
-    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None):
+    def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None, limit_per_sequence=None):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if self._query_result_from_db_builder_nucleotide is None:
                 self._query_result_from_db_builder_nucleotide = sdb.query_builder(). \
@@ -385,6 +393,9 @@ class Querier:
                     join('nucleotides','sequence_id','=','nucleotides.id'). \
                     select_raw('nucleotides.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
                     " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
+                if limit_per_sequence is not None:
+                    self._query_result_from_db_builder_nucleotide = self._query_result_from_db_builder_nucleotide + ' limit {}'.format(limit_per_sequence)
+
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id]):
 
@@ -405,6 +416,8 @@ class Querier:
                     join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
                     select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
                     " where proteins.marker_wise_id = '?' and nucleotides.marker_id = '?'"
+                if limit_per_sequence is not None:
+                    self._query_result_from_db_builder_protein = self._query_result_from_db_builder_protein + ' limit {}'.format(limit_per_sequence)
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
 
