@@ -26,4 +26,4 @@ jobs:
           conda list
       - name: Run pytest
         run: |
-            python test/test_metapackage.py
+            python test/test_metapackage.py && python test/test_makedb_and_query.py

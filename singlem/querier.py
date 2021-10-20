@@ -396,7 +396,7 @@ class Querier:
                     select_raw('nucleotides.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
                     " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
                 if limit_per_sequence is not None:
-                    self._query_result_from_db_builder_nucleotide = self._query_result_from_db_builder_nucleotide + ' limit {}'.format(limit_per_sequence)
+                    self._query_result_from_db_builder_nucleotide = self._query_result_from_db_builder_nucleotide + ' order by random() limit {}'.format(limit_per_sequence)
 
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id]):
@@ -419,7 +419,7 @@ class Querier:
                     select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
                     " where proteins.marker_wise_id = '?' and nucleotides.marker_id = '?'"
                 if limit_per_sequence is not None:
-                    self._query_result_from_db_builder_protein = self._query_result_from_db_builder_protein + ' limit {}'.format(limit_per_sequence)
+                    self._query_result_from_db_builder_protein = self._query_result_from_db_builder_protein + ' order by random() limit {}'.format(limit_per_sequence)
             for entry in sdb.query_builder().statement(
                 self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
 
