@@ -71,7 +71,7 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db_path %s/db --limit-per-sequence 1 --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
+            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
@@ -96,7 +96,7 @@ class Tests(unittest.TestCase):
             extern.run(cmd)
 
             for (seq_type,unlimited_count,limited_count) in [('nucleotide',64,61),('protein',72,39)]:
-                for method in ['annoy','nmslib','scann','naive']:
+                for method in ['annoy','nmslib','naive','scann']:
                     
                     # scann is a specieal case since there's insufficient numbers to make all the DBs
                     if seq_type == 'protein' and method == 'scann':
