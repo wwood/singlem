@@ -179,6 +179,8 @@ class Querier:
     def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence):
         sdb.query_builder(check=True)
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+            if limit_per_sequence != None:
+                raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
             return self.query_by_sqlite(queries, sdb)
         elif search_method == 'naive':
             return self.query_by_sequence_similarity_with_scann(
@@ -232,7 +234,7 @@ class Querier:
                     for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
                         yield qres
                     num_reported += 1
-                    if num_reported > max_nearest_neighbours:
+                    if num_reported >= max_nearest_neighbours:
                         break
 
 
@@ -340,9 +342,9 @@ class Querier:
                     else:
                         for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
                             yield qres
-                num_reported += 1
-                if num_reported > max_nearest_neighbours:
-                    break
+                    num_reported += 1
+                    if num_reported >= max_nearest_neighbours:
+                        break
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
@@ -381,9 +383,9 @@ class Querier:
                 if max_divergence is None or div <= max_divergence:
                     for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
                         yield qres
-                num_reported += 1
-                if num_reported > max_nearest_neighbours:
-                    break
+                    num_reported += 1
+                    if num_reported >= max_nearest_neighbours:
+                        break
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None, limit_per_sequence=None):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
