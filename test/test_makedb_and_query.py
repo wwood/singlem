@@ -71,7 +71,7 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
+            cmd = "%s makedb --db_path %s/db --limit-per-sequence 1 --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
@@ -85,6 +85,41 @@ class Tests(unittest.TestCase):
                 observed = extern.run(cmd)
                 self.assertEqual(observed.split("\n")[0], "\t".join(self.protein_query_result_headers))
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
+
+
+
+    def test_limit_per_sequence(self):
+        with tempfile.TemporaryDirectory() as d:
+            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib" %(path_to_script,
+                                                            d,
+                                                            path_to_data)
+            extern.run(cmd)
+
+            for (seq_type,unlimited_count,limited_count) in [('nucleotide',64,61),('protein',72,39)]:
+                for method in ['annoy','nmslib','scann','naive']:
+                    
+                    # scann is a specieal case since there's insufficient numbers to make all the DBs
+                    if seq_type == 'protein' and method == 'scann':
+                        unlimited_count = 24
+                        limited_count = 21
+
+                    cmd = "%s query --sequence-type %s --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s" % (
+                        path_to_script,
+                        seq_type,
+                        path_to_data,
+                        d,
+                        method)
+                    observed = extern.run(cmd)
+                    self.assertEqual(unlimited_count+1, len(observed.split("\n")), 'umlimited %s %s' %(seq_type,method))
+
+                    cmd = "%s query --limit-per-sequence 1 --sequence-type %s --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s" % (
+                        path_to_script,
+                        seq_type,
+                        path_to_data,
+                        d,
+                        method)
+                    observed = extern.run(cmd)
+                    self.assertEqual(limited_count+1, len(observed.split("\n")), 'limited %s %s' %(seq_type,method))
 
     def test_query_with_otu_table_two_samples(self):
         with tempfile.NamedTemporaryFile(mode='w') as f:

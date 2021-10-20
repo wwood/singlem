@@ -578,7 +578,8 @@ class SequenceDatabase:
             count = 0
 
             for row in self.query_builder().table('proteins'). \
-                select_raw('proteins.marker_wise_id as marker_wise_id, protein_sequence').join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
+                select_raw('distinct proteins.marker_wise_id as marker_wise_id, protein_sequence'). \
+                    join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
                     join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                         where('nucleotides.marker_id', marker_row['id']).get():
                 protein_index.addDataPoint(row['marker_wise_id'], protein_to_binary(row['protein_sequence']))
@@ -634,7 +635,7 @@ class SequenceDatabase:
             for row in self.query_builder().table('proteins'). \
                 join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
                 join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                select('protein_sequence').select_raw('proteins.marker_wise_id as marker_wise_id'). \
+                select_raw('distinct proteins.marker_wise_id as marker_wise_id, protein_sequence'). \
                 where('nucleotides.marker_id', marker_row['id']).get():
                 annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
                 count += 1
