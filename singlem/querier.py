@@ -239,7 +239,10 @@ class Querier:
 
 
     def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=False, max_search_nearest_neighbours=None, limit_per_sequence=None):
-        logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
+        if naive:
+            logging.info("Searching with SCANN NAIVE by {} sequence ..".format(sequence_type))
+        else:
+            logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
             max_search_nearest_neighbours = max_nearest_neighbours
