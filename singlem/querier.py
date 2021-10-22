@@ -76,10 +76,7 @@ class Querier:
             columns = ('nucleotides_marker_wise_id','nucleotide_sequence', \
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
-        d1.set_index('nucleotides_marker_wise_id', inplace=True)
-        d1.sort_index()
-        d2 = d1.groupby('nucleotides_marker_wise_id')
-        return d2
+        return d1
 
     def preload_protein_db(self, sdb, marker_id):
         marker_name = sdb.query_builder().table('markers').where('id',marker_id).first()['marker']
@@ -97,10 +94,7 @@ class Querier:
             columns = ('proteins_marker_wise_id','nucleotide_sequence','protein_sequence', \
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
-        d1.set_index('proteins_marker_wise_id', inplace=True)
-        d1.sort_index()
-        d2 = d1.groupby('proteins_marker_wise_id')
-        return d2
+        return d1
 
     def query_subject_otu_table(self, **kwargs):
         subject_otus = kwargs.pop('subject_otu_collection')
@@ -275,10 +269,18 @@ class Querier:
             if preload_db:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                     current_preloaded_db = self.preload_nucleotide_db(sdb, marker_id)
+                    current_preloaded_db_indices = pd.Series(
+                        current_preloaded_db.groupby('nucleotides_marker_wise_id').indices)
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                     current_preloaded_db = self.preload_protein_db(sdb, marker_id)
+                    current_preloaded_db_indices = pd.Series(
+                        current_preloaded_db.groupby('proteins_marker_wise_id').indices)
                 else:
                     raise Exception("Unexpected sequence_type")
+                if limit_per_sequence:
+                    # shuffle and truncate once up front
+                    current_preloaded_db_indices.apply(np.random.shuffle)
+                    current_preloaded_db_indices = pd.Series([a[:limit_per_sequence] for a in current_preloaded_db_indices])
 
             # When scann DB is absent due to too few seqs
             if index is None:
@@ -329,9 +331,8 @@ class Querier:
 
                         if max_divergence is None or div <= max_divergence:
                             if current_preloaded_db is not None:
-                                if limit_per_sequence:
-                                    counter = 0
-                                for _, entry in current_preloaded_db.get_group(hit_index).iterrows():
+                                for entry_i in current_preloaded_db_indices.iat[hit_index]:
+                                    entry = current_preloaded_db.iloc[entry_i]
                                     otu = OtuTableEntry()
                                     otu.marker = marker
                                     otu.sample_name = entry['sample_name']
@@ -346,10 +347,6 @@ class Querier:
                                             q, otu, div, 
                                             query_protein_sequence=query_protein_sequences[i],
                                             subject_protein_sequence=entry['protein_sequence'])
-                                    if limit_per_sequence:
-                                        counter += 1
-                                        if counter >= limit_per_sequence:
-                                            break
                             else:
                                 for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, 
                                     query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
