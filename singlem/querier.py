@@ -9,6 +9,7 @@ from Bio import pairwise2
 import numpy as np
 import csv
 import pandas as pd
+import itertools
 
 from .sequence_database import SequenceDatabase
 from . import sequence_database
@@ -247,107 +248,104 @@ class Querier:
         if max_search_nearest_neighbours is None:
             max_search_nearest_neighbours = max_nearest_neighbours
 
-        last_marker = None
-        last_marker_id = None
-        index = None
         current_preloaded_db = None
 
-        for q in queries:
-            if q.marker != last_marker:
-                del index
-                last_marker = q.marker
-                if naive:
-                    index_format = 'scann-naive'
-                else:
-                    index_format = 'scann'
-                index = sdb.get_sequence_index(last_marker, index_format, sequence_type)
-                # When scann DB is absent due to too few seqs
-                if index is None:
-                    continue
-                logging.info("Querying index for {}".format(last_marker))
-                m = sdb.query_builder().table('markers').where('marker',last_marker).first()
-                if m is None:
-                    raise Exception("Marker {} not in the SQL DB".format(last_marker))
-                last_marker_id = m['id']
+        for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
+            # Setup index
+            if naive:
+                index_format = 'scann-naive'
+            else:
+                index_format = 'scann'
+            index = sdb.get_sequence_index(marker, index_format, sequence_type)
+            # When scann DB is absent due to too few seqs
+            if index is None:
+                continue
+            logging.info("Querying index for {}".format(marker))
+            m = sdb.query_builder().table('markers').where('marker',marker).first()
+            if m is None:
+                raise Exception("Marker {} not in the SQL DB".format(marker))
+            marker_id = m['id']
 
-                # Preload DB if needed
-                if preload_db:
-                    if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                        current_preloaded_db = self.preload_nucleotide_db(sdb, last_marker_id)
-                    elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                        current_preloaded_db = self.preload_protein_db(sdb, last_marker_id)
-                    else:
-                        raise Exception("Unexpected sequence_type")
+            # Preload DB if needed
+            if preload_db:
+                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    current_preloaded_db = self.preload_nucleotide_db(sdb, marker_id)
+                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    current_preloaded_db = self.preload_protein_db(sdb, marker_id)
+                else:
+                    raise Exception("Unexpected sequence_type")
 
             # When scann DB is absent due to too few seqs
             if index is None:
                 continue
 
-            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                query_protein_sequence = None
-                query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
-            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                query_protein_sequence = sequence_database.nucleotides_to_protein(q.sequence)
-                query_array = np.array(
-                    sequence_database.protein_to_binary_array(query_protein_sequence))
-            else:
-                raise Exception("Unexpected sequence_type")
-            normed = query_array / np.linalg.norm(query_array)
-            kNN = index.search(normed, max_search_nearest_neighbours)
-
-            num_reported = 0
-            for (hit_index, dist) in zip(kNN[0], kNN[1]):
+            # Actually do searches
+            for q in marker_queries:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    div = round((1.0-float(dist))*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                    query_protein_sequence = None
+                    query_array = np.array(sequence_database.nucleotides_to_binary_array(q.sequence))
+                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    query_protein_sequence = sequence_database.nucleotides_to_protein(q.sequence)
+                    query_array = np.array(
+                        sequence_database.protein_to_binary_array(query_protein_sequence))
                 else:
-                    div = round((1.0-float(dist))*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                    raise Exception("Unexpected sequence_type")
+                normed = query_array / np.linalg.norm(query_array)
+                kNN = index.search(normed, max_search_nearest_neighbours)
 
-                ## DEBUG if statement
-                # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                #     if current_preloaded_db is not None:
-                #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence
-                #     else:
-                #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence))[0].nucleotide_sequence
-                #     if div != self.divergence(q.sequence, subject_seq):
-                #         import IPython; IPython.embed()
-                # else:
-                #     if current_preloaded_db is not None:
-                #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence
-                #         # print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
-                #     else:
-                #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence))[0].subject_protein_sequence
-                #     if div != self.divergence(query_protein_sequence, subject_seq):
-                #         import IPython; IPython.embed()
-
-                if max_divergence is None or div <= max_divergence:
-                    if current_preloaded_db is not None:
-                        if limit_per_sequence:
-                            counter = 0
-                        for _, entry in current_preloaded_db.loc[[hit_index]].iterrows():
-                            otu = OtuTableEntry()
-                            otu.marker = last_marker
-                            otu.sample_name = entry['sample_name']
-                            otu.count = entry['num_hits']
-                            otu.sequence = entry['nucleotide_sequence']
-                            otu.coverage = entry['coverage']
-                            otu.taxonomy = entry['taxonomy']
-                            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                                yield QueryResult(q, otu, div)
-                            else:
-                                yield QueryResult(
-                                    q, otu, div, 
-                                    query_protein_sequence=query_protein_sequence,
-                                    subject_protein_sequence=entry['protein_sequence'])
-                            if limit_per_sequence:
-                                counter += 1
-                                if counter >= limit_per_sequence:
-                                    break
+                num_reported = 0
+                for (hit_index, dist) in zip(kNN[0], kNN[1]):
+                    if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                        div = round((1.0-float(dist))*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                     else:
-                        for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, last_marker, last_marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
-                            yield qres
-                    num_reported += 1
-                    if num_reported >= max_nearest_neighbours:
-                        break
+                        div = round((1.0-float(dist))*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+
+                    ## DEBUG if statement
+                    # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    #     if current_preloaded_db is not None:
+                    #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence
+                    #     else:
+                    #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence))[0].nucleotide_sequence
+                    #     if div != self.divergence(q.sequence, subject_seq):
+                    #         import IPython; IPython.embed()
+                    # else:
+                    #     if current_preloaded_db is not None:
+                    #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence
+                    #         # print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
+                    #     else:
+                    #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence))[0].subject_protein_sequence
+                    #     if div != self.divergence(query_protein_sequence, subject_seq):
+                    #         import IPython; IPython.embed()
+
+                    if max_divergence is None or div <= max_divergence:
+                        if current_preloaded_db is not None:
+                            if limit_per_sequence:
+                                counter = 0
+                            for _, entry in current_preloaded_db.loc[[hit_index]].iterrows():
+                                otu = OtuTableEntry()
+                                otu.marker = marker
+                                otu.sample_name = entry['sample_name']
+                                otu.count = entry['num_hits']
+                                otu.sequence = entry['nucleotide_sequence']
+                                otu.coverage = entry['coverage']
+                                otu.taxonomy = entry['taxonomy']
+                                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                                    yield QueryResult(q, otu, div)
+                                else:
+                                    yield QueryResult(
+                                        q, otu, div, 
+                                        query_protein_sequence=query_protein_sequence,
+                                        subject_protein_sequence=entry['protein_sequence'])
+                                if limit_per_sequence:
+                                    counter += 1
+                                    if counter >= limit_per_sequence:
+                                        break
+                        else:
+                            for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
+                                yield qres
+                        num_reported += 1
+                        if num_reported >= max_nearest_neighbours:
+                            break
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
