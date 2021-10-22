@@ -77,6 +77,7 @@ class Querier:
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
         d1.set_index('nucleotides_marker_wise_id', inplace=True)
+        d1.sort_index()
         return d1
 
     def preload_protein_db(self, sdb, marker_id):
@@ -96,6 +97,7 @@ class Querier:
                 'sample_name', 'num_hits', 'coverage', 'taxonomy')
         )
         d1.set_index('proteins_marker_wise_id', inplace=True)
+        d1.sort_index()
         return d1
 
     def query_subject_otu_table(self, **kwargs):
@@ -350,7 +352,7 @@ class Querier:
                                 for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, 
                                     query_protein_sequence=query_protein_sequence if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
                                     limit_per_sequence=limit_per_sequence):
-                                    
+
                                     yield qres
                             num_reported += 1
                             if num_reported >= max_nearest_neighbours:
