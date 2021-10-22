@@ -298,7 +298,7 @@ class Querier:
                     raise Exception("Unexpected sequence_type")
 
                 normed = np.array([qa / np.linalg.norm(qa) for qa in query_array])
-                kNN_batch = index.search_batched(normed, max_search_nearest_neighbours)
+                kNN_batch = index.search_batched_parallel(normed, max_search_nearest_neighbours)
 
                 for i, q in enumerate(chunked_queries):
                     num_reported = 0
