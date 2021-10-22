@@ -347,7 +347,10 @@ class Querier:
                                         if counter >= limit_per_sequence:
                                             break
                             else:
-                                for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence, limit_per_sequence=limit_per_sequence):
+                                for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, 
+                                    query_protein_sequence=query_protein_sequence if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                                    limit_per_sequence=limit_per_sequence):
+                                    
                                     yield qres
                             num_reported += 1
                             if num_reported >= max_nearest_neighbours:
