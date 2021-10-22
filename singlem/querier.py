@@ -293,7 +293,7 @@ class Querier:
                     query_protein_sequences = np.array([
                         sequence_database.nucleotides_to_protein(q.sequence) for q in chunked_queries])
                     query_array = np.array([
-                        np.array(sequence_database.protein_to_binary_array(query_protein_sequence)) for q in chunked_queries])
+                        np.array(sequence_database.protein_to_binary_array(seq)) for seq in query_protein_sequences])
                 else:
                     raise Exception("Unexpected sequence_type")
 
@@ -306,7 +306,7 @@ class Querier:
                         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                             div = round((1.0-float(dist))*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                         else:
-                            div = round((1.0-float(dist))*len(query_protein_sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
+                            div = round((1.0-float(dist))*len(query_protein_sequences[0])) # Not sure why this is necessary, why doesn't it return a real distance?
 
                         ## DEBUG if statement
                         # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
@@ -342,7 +342,7 @@ class Querier:
                                     else:
                                         yield QueryResult(
                                             q, otu, div, 
-                                            query_protein_sequence=query_protein_sequence,
+                                            query_protein_sequence=query_protein_sequences[i],
                                             subject_protein_sequence=entry['protein_sequence'])
                                     if limit_per_sequence:
                                         counter += 1
@@ -350,7 +350,7 @@ class Querier:
                                             break
                             else:
                                 for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, 
-                                    query_protein_sequence=query_protein_sequence if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                                    query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
                                     limit_per_sequence=limit_per_sequence):
 
                                     yield qres
