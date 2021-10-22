@@ -78,7 +78,8 @@ class Querier:
         )
         d1.set_index('nucleotides_marker_wise_id', inplace=True)
         d1.sort_index()
-        return d1
+        d2 = d1.groupby('nucleotides_marker_wise_id')
+        return d2
 
     def preload_protein_db(self, sdb, marker_id):
         marker_name = sdb.query_builder().table('markers').where('id',marker_id).first()['marker']
@@ -98,7 +99,8 @@ class Querier:
         )
         d1.set_index('proteins_marker_wise_id', inplace=True)
         d1.sort_index()
-        return d1
+        d2 = d1.groupby('proteins_marker_wise_id')
+        return d2
 
     def query_subject_otu_table(self, **kwargs):
         subject_otus = kwargs.pop('subject_otu_collection')
@@ -329,7 +331,7 @@ class Querier:
                             if current_preloaded_db is not None:
                                 if limit_per_sequence:
                                     counter = 0
-                                for _, entry in current_preloaded_db.loc[[hit_index]].iterrows():
+                                for _, entry in current_preloaded_db.get_group(hit_index).iterrows():
                                     otu = OtuTableEntry()
                                     otu.marker = marker
                                     otu.sample_name = entry['sample_name']
