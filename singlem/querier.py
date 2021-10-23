@@ -277,6 +277,16 @@ class Querier:
                         current_preloaded_db.groupby('proteins_marker_wise_id').indices)
                 else:
                     raise Exception("Unexpected sequence_type")
+                # Convert everything to numpy arrays for speedier indexing than iloc
+                current_preloaded_db_sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
+                current_preloaded_db_count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
+                current_preloaded_db_sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
+                current_preloaded_db_coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
+                current_preloaded_db_taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
+                if sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    current_preloaded_db_protein_sequence = current_preloaded_db.xs('protein_sequence',axis=1).to_numpy()
+                del current_preloaded_db
+                # current_preloaded_db_count = current_preloaded_db_indices
                 if limit_per_sequence:
                     # shuffle and truncate once up front
                     current_preloaded_db_indices.apply(np.random.shuffle)
@@ -330,23 +340,22 @@ class Querier:
                         #         import IPython; IPython.embed()
 
                         if max_divergence is None or div <= max_divergence:
-                            if current_preloaded_db is not None:
+                            if current_preloaded_db_indices is not None:
                                 for entry_i in current_preloaded_db_indices.iat[hit_index]:
-                                    entry = current_preloaded_db.iloc[entry_i]
                                     otu = OtuTableEntry()
                                     otu.marker = marker
-                                    otu.sample_name = entry['sample_name']
-                                    otu.count = entry['num_hits']
-                                    otu.sequence = entry['nucleotide_sequence']
-                                    otu.coverage = entry['coverage']
-                                    otu.taxonomy = entry['taxonomy']
+                                    otu.sample_name = current_preloaded_db_sample_name[entry_i]
+                                    otu.count = current_preloaded_db_count[entry_i]
+                                    otu.sequence = current_preloaded_db_sequence[entry_i]
+                                    otu.coverage = current_preloaded_db_coverage[entry_i]
+                                    otu.taxonomy = current_preloaded_db_taxonomy[entry_i]
                                     if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                                         yield QueryResult(q, otu, div)
                                     else:
                                         yield QueryResult(
                                             q, otu, div, 
                                             query_protein_sequence=query_protein_sequences[i],
-                                            subject_protein_sequence=entry['protein_sequence'])
+                                            subject_protein_sequence=current_preloaded_db_protein_sequence[entry_i])
                             else:
                                 for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, 
                                     query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
