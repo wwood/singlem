@@ -340,7 +340,7 @@ class Querier:
                         #         import IPython; IPython.embed()
 
                         if max_divergence is None or div <= max_divergence:
-                            if current_preloaded_db_indices is not None:
+                            if preload_db:
                                 for entry_i in current_preloaded_db_indices.iat[hit_index]:
                                     otu = OtuTableEntry()
                                     otu.marker = marker
