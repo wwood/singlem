@@ -45,7 +45,7 @@ class SearchPipe:
     DEFAULT_GENOME_MIN_ORF_LENGTH = 300
     DEFAULT_FILTER_MINIMUM_PROTEIN = 24
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 72
-    DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1 --min-orf 24"
+    DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_ASSIGNMENT_THREADS = 1
 
@@ -256,6 +256,11 @@ class SearchPipe:
             diamond_package_assignment = False
             
         if diamond_prefilter:
+            # Set the min ORF length in DIAMOND, as this saves CPU time and
+            # means absence doesn't crash hmmsearch later.
+            diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
+                diamond_prefilter_performance_parameters, int(min_orf_length / 3))
+                
             if input_sra_files:
                 # Create a named pipe which is called the same as the .sra file
                 # minus the .sra bit. Then call kingfisher --stdout --unsorted
