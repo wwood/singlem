@@ -25,7 +25,6 @@ import unittest
 import os.path
 import tempdir
 import sys
-import io
 import extern
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
@@ -40,21 +39,26 @@ class Tests(unittest.TestCase):
     
     def test_condense_small(self): #TODO add singlem packages, example input and output comparators
         with tempdir.in_tempdir():
-            stream = StreamingOtuTableCollection()
-            stream.add_otu_table_file(os.path.join(
-                path_to_data, 'small_condense_input.csv'))
-            Condenser().condense(
-                input_streaming_otu_table = stream,
-                singlem_packages = [
-                    os.path.join(path_to_data, 'S2.1.ribosomal_protein_L2_rplB.gpkg.spkg'),
-                    os.path.join(path_to_data, 'S2.10.ribosomal_protein_S7.gpkg.spkg'),
-                    os.path.join(path_to_data, 'S2.11.ribosomal_protein_S10_rpsJ.gpkg.spkg')],
-                trim_percent = 5,
-                output_otu_table = 'small_condense_output.csv',
-                krona = '/dev/null')
+            cmd = "{} condense --input-otu-tables {}/small_condense_input.csv --output-otu-table small_condense_output.csv --singlem-packages {}/*spkg".format(
+                path_to_script, path_to_data, path_to_data, path_to_data
+            )
+            observed = extern.run(cmd)
+
+            # stream = StreamingOtuTableCollection()
+            # stream.add_otu_table_file(os.path.join(
+            #     path_to_data, 'small_condense_input.csv'))
+            # Condenser().condense(
+            #     input_streaming_otu_table = stream,
+            #     singlem_packages = [
+            #         os.path.join(path_to_data, 'S2.1.ribosomal_protein_L2_rplB.gpkg.spkg'),
+            #         os.path.join(path_to_data, 'S2.10.ribosomal_protein_S7.gpkg.spkg'),
+            #         os.path.join(path_to_data, 'S2.11.ribosomal_protein_S10_rpsJ.gpkg.spkg')],
+            #     trim_percent = 5,
+            #     output_otu_table = 'small_condense_output.csv',
+            #     krona = '/dev/null')
             with open('small_condense_output.csv') as observed:
                 with open(os.path.join(path_to_data, 'small_condense_output.csv')) as expected:
-                    self.assertListEqual(list(observed), list(expected))
+                    self.assertListEqual(list(expected), list(observed))
     
     def test_condense_two_tables_cmdline(self): #TODO add singlem packages, example input and output comparators
         with tempdir.in_tempdir():

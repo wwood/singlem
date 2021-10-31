@@ -53,7 +53,8 @@ class Condenser:
             for path in singlem_packages:
                 spkg = SingleMPackage.acquire(path)
                 logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
-            logging.info("Loaded %i SingleMa packages." % len(singlem_package_objects))
+                singlem_package_objects.append(spkg)
+            logging.info("Loaded %i SingleM packages." % len(singlem_package_objects))
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
