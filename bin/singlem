@@ -12,7 +12,6 @@ import argparse
 import logging
 import sys
 import os
-import math
 import gzip
 import tempfile
 
@@ -719,8 +718,6 @@ if __name__ == '__main__':
 
     else:
         # Only import some things as reuqired here, so that pipe/renew can run in a smaller conda environment, and startup faster.
-        import singlem.sequence_database
-        import singlem.query_formatters
         from singlem.summariser import Summariser
         from singlem.strain_summariser import StrainSummariser
         from singlem.sequence_classes import SeqReader
@@ -729,8 +726,6 @@ if __name__ == '__main__':
         from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
         from singlem.clusterer import Clusterer
         from singlem.appraiser import Appraiser
-        from singlem.querier import Querier
-        from singlem.sequence_database import SequenceDatabase
         from singlem.chancer import Chancer
         from singlem.regenerator import Regenerator
         from singlem.taxonomy import Taxonomy
@@ -739,12 +734,13 @@ if __name__ == '__main__':
         from singlem.condense import Condenser
         from singlem.singlem_package import SingleMPackage
         from singlem.trim_package_hmms import PackageHmmTrimmer
-        from singlem.sequence_database import SequenceDatabase
 
         if args.subparser_name == 'seqs':
             seqs(args)
 
         elif args.subparser_name=='makedb':
+            # Import here to avoid the slow tensorflow import in other subcommands
+            from singlem.sequence_database import SequenceDatabase
             if args.pregenerated_otu_sqlite_db:
                 otus = None
             else:
@@ -757,6 +753,9 @@ if __name__ == '__main__':
                 tmpdir = args.tmpdir,
                 sequence_database_methods = args.sequence_database_methods)
         elif args.subparser_name=='query':
+            # Import here to avoid the slow tensorflow import in other subcommands
+            from singlem.querier import Querier
+            from singlem.sequence_database import SequenceDatabase
             querier = Querier()
             if args.db and args.subject_otu_tables:
                 raise Exception("Cannot specify both --db and --subject_otu_tables")
