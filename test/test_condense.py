@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
             #     trim_percent = 5,
             #     output_otu_table = 'small_condense_output.csv',
             #     krona = '/dev/null')
-            with open('small_condense_output.csv') as observed:
+            with open(os.path.join(path_to_data, 'small_condense_output.csv')) as observed:
                 with open(os.path.join(path_to_data, 'small_condense_output.csv')) as expected:
                     self.assertListEqual(list(expected), list(observed))
     
