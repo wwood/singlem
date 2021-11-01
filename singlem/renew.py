@@ -146,6 +146,6 @@ class Renew:
             output_otu_table,
             output_archive_otu_table,
             output_extras,
-            singlem_packages)
+            metapackage)
 
         logging.info("Renew is finished")
