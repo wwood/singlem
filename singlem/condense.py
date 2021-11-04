@@ -61,8 +61,8 @@ class Condenser:
         
         for spkg in singlem_package_objects:
             # ensure v3 packages
-            if not spkg.version in [3]:
-                raise Exception("Only works with v3 packages.")
+            if not spkg.version in [3,4]:
+                raise Exception("Only works with v3 or v4 singlem packages.")
             marker_name = spkg.graftm_package_basename()
             markers[marker_name] = spkg.target_domains()
             # count number of markers for each domain
