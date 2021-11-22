@@ -9,6 +9,7 @@ import json
 import re
 import csv
 import subprocess
+import time
 
 from Bio import SeqIO
 from io import StringIO
@@ -106,6 +107,7 @@ class SearchPipe:
         reverse_read_files = kwargs.pop('reverse_read_files', None)
         input_sra_files = kwargs.pop('input_sra_files',None)
         genome_fasta_files = kwargs.pop('genomes', None)
+        sleep_after_mkfifo = kwargs.pop('sleep_after_mkfifo', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables')
         singlem_assignment_method = kwargs.pop('assignment_method')
@@ -275,6 +277,10 @@ class SearchPipe:
                         os.path.basename(sra))
                     logging.debug("Creating FIFO at {}".format(new_name))
                     os.mkfifo(new_name)
+                    if sleep_after_mkfifo:
+                        # On kubernetes this seems to be required, at least in some circumstances
+                        logging.debug("Sleeping for {} seconds after mkfifo".format(sleep_after_mkfifo))
+                        time.sleep(sleep_after_mkfifo)
                     forward_read_files.append(new_name)
                     
                     # kingfisher extract --unsorted --stdout -r
