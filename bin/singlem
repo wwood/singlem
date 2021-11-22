@@ -333,6 +333,8 @@ if __name__ == '__main__':
     less_common_pipe_arguments.add_argument('--assignment-threads', '--assignment_threads', type=int,
                                 help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
                                 default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
+    less_common_pipe_arguments.add_argument('--sleep-after-mkfifo', '--sleep_after_mkfifo', type=int,
+                                help='Sleep for this many seconds after running os.mkfifo [default: None]')
 
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = new_subparser(subparsers, 'seqs', seqs_description)
@@ -673,6 +675,7 @@ if __name__ == '__main__':
             input_sra_files = args.sra_files,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
+            sleep_after_mkfifo = args.sleep_after_mkfifo,
             threads = args.threads,
             known_otu_tables = args.known_otu_tables,
             assignment_method = args.assignment_method,
