@@ -69,7 +69,7 @@ class OtuTable:
             otus.data.append(otu.data)
         return otus
 
-    def write_to(self, output_io, fields_to_print=DEFAULT_OUTPUT_FIELDS):
+    def write_to(self, output_io, fields_to_print=DEFAULT_OUTPUT_FIELDS, print_header=True):
         '''Output as a CSV file to the (open) I/O object
 
         Parameters
@@ -80,7 +80,8 @@ class OtuTable:
             a list of names of fields to be printed
         '''
         field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
-        output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
+        if print_header:
+            output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
 
         for d in self.data:
             output_io.write("\t".join([self._to_printable(d[i]) for i in field_indices_to_print])+"\n")

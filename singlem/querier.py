@@ -510,6 +510,7 @@ class Querier:
             query_chunks = [taxonomy]
         otus = OtuTable()
         total_printed = 0
+        first_chunk = True
         for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
                 it = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where_in(
@@ -530,7 +531,8 @@ class Querier:
                 otu.taxonomy = entry['taxonomy']
                 otus.add([otu])
                 total_printed += 1
-        otus.write_to(output_io)
+            otus.write_to(output_io, print_header=first_chunk)
+            first_chunk = False
         logging.info("Printed %i OTU table entries" % total_printed)
 
 
