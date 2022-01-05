@@ -2,6 +2,7 @@ import logging
 import re
 from collections import OrderedDict
 import gzip
+import json
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table import OtuTable
@@ -221,8 +222,11 @@ class StreamingOtuTableCollection:
                     yield otu
         for file_path in self._gzip_archive_table_file_paths:
             with gzip.open(file_path) as f:
-                for otu in ArchiveOtuTable.read(f):
-                    yield otu
+                try:
+                    for otu in ArchiveOtuTable.read(f):
+                        yield otu
+                except json.decoder.JSONDecodeError:
+                    logging.error(f"JSON parsing error in {file_path}, skipping this one")
 
     def each_sample_otus(self):
         '''Yield over a set of OTU tables, where each set contains all the OTUs
