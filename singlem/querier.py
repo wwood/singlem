@@ -513,6 +513,7 @@ class Querier:
         first_chunk = True
         for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
+                import IPython; IPython.embed()
                 row_chunks = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where_in(
                     'sample_name', [sample for sample in chunk if sample is not None]).chunk(1000)
             elif taxonomy:
