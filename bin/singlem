@@ -364,7 +364,7 @@ if __name__ == '__main__':
     current_default = ['annoy','scann']
     makedb_other_args.add_argument('--sequence-database-methods', '--sequence_database_methods',
         nargs='+',
-        choices = ['annoy','scann','nmslib'],
+        choices = ['annoy','scann','nmslib','none'],
         default = current_default,
         help='Index sequences using these methods [default {}]'.format(current_default))
 
@@ -749,12 +749,19 @@ if __name__ == '__main__':
             else:
                 otus = generate_streaming_otu_table_from_args(args)
 
+            sequence_database_methods = args.sequence_database_methods
+            if 'none' in sequence_database_methods:
+                if len(sequence_database_methods) != 1:
+                    raise Exception("--sequence-database-methods does not except both 'none' and any another method at the same time")
+                else:
+                    sequence_database_methods = []
+
             singlem.sequence_database.SequenceDatabase.create_from_otu_table\
                 (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
                 num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
                 num_annoy_protein_trees=args.num_annoy_protein_trees,
                 tmpdir = args.tmpdir,
-                sequence_database_methods = args.sequence_database_methods)
+                sequence_database_methods = sequence_database_methods)
         elif args.subparser_name=='query':
             # Import here to avoid the slow tensorflow import in other subcommands
             from singlem.querier import Querier
