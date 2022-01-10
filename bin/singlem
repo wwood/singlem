@@ -364,9 +364,9 @@ if __name__ == '__main__':
     current_default = ['annoy','scann']
     makedb_other_args.add_argument('--sequence-database-methods', '--sequence_database_methods',
         nargs='+',
-        choices = ['annoy','scann','nmslib','none'],
+        choices = ['annoy','scann','nmslib','naive','none'],
         default = current_default,
-        help='Index sequences using these methods [default {}]'.format(current_default))
+        help='Index sequences using these methods. Note that specifying "naive" means "scann" databases will also be built [default {}]'.format(current_default))
 
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
     DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
