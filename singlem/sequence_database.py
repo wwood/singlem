@@ -528,8 +528,8 @@ class SequenceDatabase:
 
         # Create sequence indices
         sdb = SequenceDatabase.acquire(db_path)
-        if 'scann' in sequence_database_methods:
-            sdb.create_scann_indexes()
+        if 'scann' in sequence_database_methods or 'naive' in sequence_database_methods:
+            sdb.create_scann_indexes('naive' in sequence_database_methods)
 
         if 'nmslib' in sequence_database_methods:
             sdb.create_nmslib_nucleotide_indexes()
@@ -650,18 +650,20 @@ class SequenceDatabase:
             # Delete immediately to save RAM (was using 200G+ before getting killed on big DB)
             del annoy_index
 
-    def create_scann_indexes(self):
+    def create_scann_indexes(self, generate_brute_force_index):
         logging.info("Creating scann sequence indices ..")
         nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
         nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
         os.makedirs(nucleotide_db_dir_ah)
-        os.makedirs(nucleotide_db_dir_brute_force)
+        if generate_brute_force_index:
+            os.makedirs(nucleotide_db_dir_brute_force)
         protein_db_dir_ah = os.path.join(self.base_directory, 'protein_indices_scann')
         protein_db_dir_brute_force = os.path.join(self.base_directory, 'protein_indices_scann_brute_force')
         os.makedirs(protein_db_dir_ah)
-        os.makedirs(protein_db_dir_brute_force)
+        if generate_brute_force_index:
+            os.makedirs(protein_db_dir_brute_force)
 
-        def generate_indices_from_array(a, db_dir_ah, db_dir_brute_force):
+        def generate_indices_from_array(a, db_dir_ah, db_dir_brute_force, generate_brute_force_index):
             normalized_dataset = a / np.linalg.norm(a, axis=1)[:, np.newaxis]
             logging.info("Found {} sequences for {}".format(a.shape[0], marker_name))
             del a # not sure if this matters much
@@ -679,21 +681,22 @@ class SequenceDatabase:
                 searcher.serialize(directory)
                 del searcher
 
-            logging.info("Creating SCANN brute force index ..")
-            # use scann.scann_ops.build() to instead create a
-            # TensorFlow-compatible searcher could not work out how to
-            # deserialise a brute force without any doco, so just copying method
-            # from the tests i.e.
-            # https://github.com/google-research/google-research/blob/34444253e9f57cd03364bc4e50057a5abe9bcf17/scann/scann/scann_ops/py/scann_ops_test.py#L93
-            searcher_naive = scann.scann_ops.builder(normalized_dataset, 10, "dot_product").tree(
-                num_leaves=round(np.sqrt(normalized_dataset.shape[0])), num_leaves_to_search=100).score_brute_force(True).build()
-            directory = os.path.join(db_dir_brute_force, marker_name)
-            module = searcher_naive.serialize_to_module()
-            tf.saved_model.save(
-                module,
-                directory,
-                options=tf.saved_model.SaveOptions(namespace_whitelist=["Scann"]))
-            del searcher_naive
+            if generate_brute_force_index:
+                logging.info("Creating SCANN brute force index ..")
+                # use scann.scann_ops.build() to instead create a
+                # TensorFlow-compatible searcher could not work out how to
+                # deserialise a brute force without any doco, so just copying method
+                # from the tests i.e.
+                # https://github.com/google-research/google-research/blob/34444253e9f57cd03364bc4e50057a5abe9bcf17/scann/scann/scann_ops/py/scann_ops_test.py#L93
+                searcher_naive = scann.scann_ops.builder(normalized_dataset, 10, "dot_product").tree(
+                    num_leaves=round(np.sqrt(normalized_dataset.shape[0])), num_leaves_to_search=100).score_brute_force(True).build()
+                directory = os.path.join(db_dir_brute_force, marker_name)
+                module = searcher_naive.serialize_to_module()
+                tf.saved_model.save(
+                    module,
+                    directory,
+                    options=tf.saved_model.SaveOptions(namespace_whitelist=["Scann"]))
+                del searcher_naive
 
         for marker_row in self.query_builder().table('markers').get():
             marker_name = marker_row['marker']
@@ -703,7 +706,7 @@ class SequenceDatabase:
             a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
                 self.query_builder().table('nucleotides').select('sequence').order_by('marker_wise_id').where('marker_id',marker_id).get()
             ])
-            generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force)
+            generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force, generate_brute_force_index)
             logging.info("Finished writing nucleotide indices to disk")
             
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
@@ -717,7 +720,7 @@ class SequenceDatabase:
                     join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                     where('nucleotides.marker_id',marker_id).get()
             ])
-            generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force)
+            generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force, generate_brute_force_index)
             del a
             logging.info("Finished writing protein indices to disk")
 
