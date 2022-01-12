@@ -11,19 +11,14 @@ import csv
 import subprocess
 import time
 
-from Bio import SeqIO
 from io import StringIO
-from extern import ExternCalledProcessError
 
 from .metapackage import Metapackage
-from .singlem import TaxonomyFile, OrfMUtils, FastaNameToSampleName
+from .singlem import OrfMUtils, FastaNameToSampleName
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
-from .metagenome_otu_finder import MetagenomeOtuFinder
-from .sequence_classes import SeqReader, AlignedProteinSequence
-from .diamond_parser import DiamondResultParser
+from .sequence_classes import SeqReader
 from .graftm_result import GraftMResult
-from . import sequence_extractor as singlem_sequence_extractor
 from .placement_parser import PlacementParser
 from .taxonomy_bihash import TaxonomyBihash
 from .diamond_spkg_searcher import DiamondSpkgSearcher
@@ -33,7 +28,6 @@ from .kingfisher_sra import KingfisherSra
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
-from graftm.sequence_io import SequenceIO
 
 PPLACER_ASSIGNMENT_METHOD = 'pplacer'
 DIAMOND_ASSIGNMENT_METHOD = 'diamond'
@@ -1018,17 +1012,25 @@ class SearchPipe:
             readset.tmpfile_basename = tmpbase
             return tmp
 
+        def write_unaligned_fasta(unknown_sequences, io):
+            for s in unknown_sequences:
+                io.write(">")
+                io.write(s.name)
+                io.write("\n")
+                io.write(s.unaligned_sequence)
+                io.write("\n")
+
+
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
         # fewer open files are needed, so that the open file count limit is
         # eased.
-        seqio = SequenceIO()
         diamond_results = []
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
                 if extracted_reads.analysing_pairs:
-                    if len(readset[0].sequences + readset[1].sequences) > 0:
+                    if len(readset[0].unknown_sequences + readset[1].unknown_sequences) > 0:
                         forward_tmp = generate_tempfile_for_readset(readset[0])
                         reverse_tmp = generate_tempfile_for_readset(readset[1])
 
@@ -1038,29 +1040,27 @@ class SearchPipe:
                         #
                         # The dummy sequence must have an ORF with
                         # >min_orf_length bases because otherwise if there are
-                        # >no sequences, hmmsearch inside graftm croaks.
+                        # no sequences, hmmsearch inside graftm croaks.
                         dummy_sequence = 'ATG'+''.join(['A']*self._min_orf_length)
                         reverse_tmp.write(">dummy\n{}\n".format(dummy_sequence))
                         forward_tmp.write(">dummy\n{}\n".format(dummy_sequence))
 
                         forward_seq_names = {}
-                        for (i, s) in enumerate(readset[0].sequences):
+                        for (i, s) in enumerate(readset[0].unknown_sequences):
                             forward_seq_names[s.name] = i
-                            seqio.write_fasta([s], forward_tmp)
+                            write_unaligned_fasta([s], forward_tmp)
                         reverse_name_to_seq = {}
-                        for s in readset[1].sequences:
+                        for s in readset[1].unknown_sequences:
                             reverse_name_to_seq[s.name] = s
-                        for name, forward_i in forward_seq_names.items():
+                        for name in forward_seq_names.keys():
                             if name in reverse_name_to_seq:
                                 # Write corresponding reverse and delete it
                                 # from dict.
-                                seqio.write_fasta(
+                                write_unaligned_fasta(
                                     [reverse_name_to_seq.pop(name)], reverse_tmp)
                         for name, seq in reverse_name_to_seq.items():
                             # Reverse read matched only
-                            seqio.write_fasta([seq], reverse_tmp)
-
-                        # Write dummy seqs_list
+                            write_unaligned_fasta([seq], reverse_tmp)
 
                         # Close immediately to avoid the "too many open files" error.
                         forward_tmp.close()
@@ -1069,7 +1069,7 @@ class SearchPipe:
                 else:
                     if len(readset.sequences) > 0:
                         tmp = generate_tempfile_for_readset(readset)
-                        seqio.write_fasta(readset.sequences, tmp)
+                        write_unaligned_fasta(readset.unknown_sequences, tmp)
                         tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
@@ -1180,7 +1180,9 @@ class SearchPipe:
                         sample_names = []
                         for (sample_name, t0, t1) in tmp_files:
                             sample_names.append(sample_name)
+                            logging.debug("Assigning taxonomy to forward reads file {} ..".format(t0.name))
                             forward_results.append(run_diamond_to_hash(cmd_stub, t0.name, singlem_package))
+                            logging.debug("Assigning taxonomy to reverse reads file {} ..".format(t1.name))
                             reverse_results.append(run_diamond_to_hash(cmd_stub, t1.name, singlem_package))
                         diamond_results.append([singlem_package,sample_names,[forward_results,reverse_results]])
                     else:
@@ -1188,6 +1190,7 @@ class SearchPipe:
                         sample_names = []
                         for (sample_name, t) in tmp_files:
                             sample_names.append(sample_name)
+                            logging.debug("Assigning taxonomy to single-ended reads file {} ..".format(t.name))
                             single_results.append(run_diamond_to_hash(cmd_stub, t.name, singlem_package))
                         diamond_results.append([singlem_package,sample_names,single_results])
 
