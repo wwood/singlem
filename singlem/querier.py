@@ -513,7 +513,6 @@ class Querier:
         first_chunk = True
         for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
-                import IPython; IPython.embed()
                 row_chunks = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where_in(
                     'sample_name', [sample for sample in chunk if sample is not None]).chunk(1000)
             elif taxonomy:
@@ -534,6 +533,7 @@ class Querier:
                     otus.add([otu])
                     total_printed += 1
                 otus.write_to(output_io, print_header=first_chunk)
+                otus = OtuTable()
                 first_chunk = False
         logging.info("Printed %i OTU table entries" % total_printed)
 
