@@ -727,7 +727,7 @@ class SequenceDatabase:
             # break #DEBUG
     
     @staticmethod
-    def dump(db_path):
+    def dump(db_path, dump_order=None):
         """Dump the DB contents to STDOUT, requiring only that the DB is a version that
         has an otus table in sqlite3 form (i.e. version 2 at least).
 
@@ -735,10 +735,12 @@ class SequenceDatabase:
         sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
         
         print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        for chunk in SequenceDatabase._query_builder(sqlite_db_path).table('otus'). \
+        builder = SequenceDatabase._query_builder(sqlite_db_path).table('otus'). \
             join('nucleotides','nucleotides.id','=','otus.sequence_id'). \
-            join('markers','markers.id','=','nucleotides.marker_id'). \
-            chunk(1000):
+            join('markers','markers.id','=','nucleotides.marker_id')
+        if dump_order:
+            builder = builder.order_by(dump_order)
+        for chunk in builder.chunk(1000):
             for entry in chunk:
                 otu = OtuTableEntry()
                 otu.marker = entry['marker']
