@@ -31,6 +31,7 @@ import argparse
 import logging
 import sys
 import os
+from os import FileNotFoundException
 
 import extern
 
@@ -62,7 +63,8 @@ if __name__ == '__main__':
 
         try:
             logging.info(f"Attempting SingleM command: {cmd}")
-            worked = extern.run(cmd)
+            extern.run(cmd)
+            return True
         except extern.ExternCalledProcessError as e:
             if use_sra:
                 logging.debug(e)
