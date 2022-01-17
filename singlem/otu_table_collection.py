@@ -181,8 +181,8 @@ class StreamingOtuTableCollection:
 
         Parameters
         ----------
-        input_otu_table_ios: list of IO
-            entries are open streams of OTU table data
+        input_otu_table_io: IO
+            stream of OTU table data
 
         Returns
         -------
