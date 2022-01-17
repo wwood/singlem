@@ -62,10 +62,18 @@ class MetagenomeOtuFinder:
             if s.seq[chosen_positions[0]] != '-' and s.seq[chosen_positions[-1]] != '-':
                 if is_protein_alignment:
                     name = s.un_orfm_name()
+                    if name == 'dummy':
+                        # On rare occasions, the dummy sequence is aligned to
+                        # the HMM in the right place, ignore it.
+                        continue
                     nuc = nucleotide_sequences[name]
                     aligned_nucleotides = s.orfm_nucleotides(nuc)
                 else:
                     name = s.name
+                    if name == 'dummy':
+                        # On rare occasions, the dummy sequence is aligned to
+                        # the HMM in the right place, ignore it.
+                        continue
                     nuc = nucleotide_sequences[name]
                     aligned_nucleotides = nuc.replace('-','')
                 align, aligned_length = self._nucleotide_alignment(
