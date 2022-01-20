@@ -10,6 +10,7 @@ import numpy as np
 import csv
 import pandas as pd
 import itertools
+import math
 from bird_tool_utils import iterable_chunks
 
 from .sequence_database import SequenceDatabase
@@ -317,6 +318,11 @@ class Querier:
                 for i, q in enumerate(chunked_queries):
                     num_reported = 0
                     for (hit_index, dist) in zip(kNN_batch[0][i], kNN_batch[1][i]):
+                        if math.isnan(dist):
+                            # Happens when we ask for more hits than there are
+                            # in DB in total i.e. for tiny databases.
+                            continue
+
                         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                             div = round((1.0-float(dist))*len(q.sequence)) # Not sure why this is necessary, why doesn't it return a real distance?
                         else:
@@ -417,18 +423,22 @@ class Querier:
                     " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
                 if limit_per_sequence is not None:
                     self._query_result_from_db_builder_nucleotide = self._query_result_from_db_builder_nucleotide + ' order by random() limit {}'.format(limit_per_sequence)
-
-            for entry in sdb.query_builder().statement(
-                self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id]):
-
-                otu = OtuTableEntry()
-                otu.marker = marker
-                otu.sample_name = entry['sample_name']
-                otu.sequence = entry['sequence']
-                otu.count = entry['num_hits']
-                otu.coverage = entry['coverage']
-                otu.taxonomy = entry['taxonomy']
-                yield QueryResult(query, otu, div)
+            results = sdb.query_builder().statement(
+                self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id])
+            if results is None and hit_index <= 16:
+                # For very small indexes, SCANN can have dummy sequences that
+                # are not in the SQL DB. Ignore these.
+                pass
+            else:
+                for entry in results:
+                    otu = OtuTableEntry()
+                    otu.marker = marker
+                    otu.sample_name = entry['sample_name']
+                    otu.sequence = entry['sequence']
+                    otu.count = entry['num_hits']
+                    otu.coverage = entry['coverage']
+                    otu.taxonomy = entry['taxonomy']
+                    yield QueryResult(query, otu, div)
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
             if self._query_result_from_db_builder_protein is None:
                 self._query_result_from_db_builder_protein = sdb.query_builder(). \
@@ -440,17 +450,22 @@ class Querier:
                     " where proteins.marker_wise_id = '?' and nucleotides.marker_id = '?'"
                 if limit_per_sequence is not None:
                     self._query_result_from_db_builder_protein = self._query_result_from_db_builder_protein + ' order by random() limit {}'.format(limit_per_sequence)
-            for entry in sdb.query_builder().statement(
-                self._query_result_from_db_builder_protein, [int(hit_index), marker_id]):
-
-                otu = OtuTableEntry()
-                otu.marker = marker
-                otu.sample_name = entry['sample_name']
-                otu.sequence = entry['nucleotide_sequence']
-                otu.count = entry['num_hits']
-                otu.coverage = entry['coverage']
-                otu.taxonomy = entry['taxonomy']
-                yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
+            results = sdb.query_builder().statement(
+                self._query_result_from_db_builder_protein, [int(hit_index), marker_id])
+            if results is None and hit_index <= 16:
+                # For very small indexes, SCANN can have dummy sequences that
+                # are not in the SQL DB. Ignore these.
+                pass
+            else:
+                for entry in results:
+                    otu = OtuTableEntry()
+                    otu.marker = marker
+                    otu.sample_name = entry['sample_name']
+                    otu.sequence = entry['nucleotide_sequence']
+                    otu.count = entry['num_hits']
+                    otu.coverage = entry['coverage']
+                    otu.taxonomy = entry['taxonomy']
+                    yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
         else:
             raise Exception("unknown sequence_type")
 

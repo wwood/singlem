@@ -97,11 +97,6 @@ class Tests(unittest.TestCase):
 
             for (seq_type,unlimited_count,limited_count) in [('nucleotide',64,61),('protein',72,39)]:
                 for method in ['annoy','nmslib','naive','scann']:
-                    
-                    # scann is a specieal case since there's insufficient numbers to make all the DBs
-                    if seq_type == 'protein' and method == 'scann':
-                        unlimited_count = 24
-                        limited_count = 21
 
                     cmd = "%s query --sequence-type %s --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s" % (
                         path_to_script,
