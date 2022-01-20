@@ -668,18 +668,14 @@ class SequenceDatabase:
             logging.info("Found {} sequences for {}".format(a.shape[0], marker_name))
             del a # not sure if this matters much
 
-            # Create normal scann one
-            if normalized_dataset.shape[0] <= 16:
-                logging.warn("Skipping SCANN AH creation since the number of datapoints is too small")
-            else:
-                logging.info("Creating SCANN AH index ..")
-                searcher = scann.scann_ops_pybind.builder(normalized_dataset, 10, "dot_product").tree(
-                    num_leaves=round(np.sqrt(normalized_dataset.shape[0])), num_leaves_to_search=100, training_sample_size=250000).score_ah(
-                    2, anisotropic_quantization_threshold=0.2).reorder(100).build()
-                directory = os.path.join(db_dir_ah, marker_name)
-                os.mkdir(directory)
-                searcher.serialize(directory)
-                del searcher
+            logging.info("Creating SCANN AH index ..")
+            searcher = scann.scann_ops_pybind.builder(normalized_dataset, 10, "dot_product").tree(
+                num_leaves=round(np.sqrt(normalized_dataset.shape[0])), num_leaves_to_search=100, training_sample_size=250000).score_ah(
+                2, anisotropic_quantization_threshold=0.2).reorder(100).build()
+            directory = os.path.join(db_dir_ah, marker_name)
+            os.mkdir(directory)
+            searcher.serialize(directory)
+            del searcher
 
             if generate_brute_force_index:
                 logging.info("Creating SCANN brute force index ..")
@@ -706,6 +702,9 @@ class SequenceDatabase:
             a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
                 self.query_builder().table('nucleotides').select('sequence').order_by('marker_wise_id').where('marker_id',marker_id).get()
             ])
+            if a.shape[0] < 16:
+                logging.warn("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
+                a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
             generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force, generate_brute_force_index)
             logging.info("Finished writing nucleotide indices to disk")
             
@@ -720,6 +719,9 @@ class SequenceDatabase:
                     join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                     where('nucleotides.marker_id',marker_id).get()
             ])
+            if a.shape[0] < 16:
+                logging.warn("Adding dummy protein sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
+                a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
             generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force, generate_brute_force_index)
             del a
             logging.info("Finished writing protein indices to disk")
