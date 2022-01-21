@@ -347,6 +347,10 @@ class Querier:
 
                         if max_divergence is None or div <= max_divergence:
                             if preload_db:
+                                hit_index = int(hit_index) # Needed only for tiny databases?
+                                if hit_index <= 16 and hit_index >= len(current_preloaded_db_indices):
+                                    logging.debug("Skipping hit index {} because it is out of bounds, so a dummy entry".format(hit_index))
+                                    continue
                                 for entry_i in current_preloaded_db_indices.iat[hit_index]:
                                     otu = OtuTableEntry()
                                     otu.marker = marker
