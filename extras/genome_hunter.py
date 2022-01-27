@@ -50,6 +50,7 @@ if __name__ == '__main__':
     parser.add_argument('--sample-list',required=True)
     parser.add_argument('--assembly-files',nargs='+',required=True)
     parser.add_argument('--metapackage',required=True)
+    parser.add_argument('--threads',default=1)
 
     args = parser.parse_args()
 
@@ -78,7 +79,7 @@ if __name__ == '__main__':
     assembly_file_otu_tables = {}
     for assembly_file in args.assembly_files:
         logging.info("Running SingleM on {}".format(assembly_file))
-        cmd = f'singlem pipe --genome-fasta-files {assembly_file} --otu_table /dev/stdout --threads 1 --no-assign-taxonomy --output-extras --singlem-metapackage {args.metapackage}'
+        cmd = f'singlem pipe --threads {args.threads} --genome-fasta-files {assembly_file} --otu_table /dev/stdout --threads 1 --no-assign-taxonomy --output-extras --singlem-metapackage {args.metapackage}'
         logging.debug("Running {}".format(cmd))
         output = extern.run(cmd)
         assembly_file_otu_tables[assembly_file] = pd.read_csv(StringIO(output),sep='\t')
