@@ -320,7 +320,7 @@ if __name__ == '__main__':
     less_common_pipe_arguments.add_argument('--known-sequence-taxonomy', '--known_sequence_taxonomy', metavar='FILE',
                                 help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
     less_common_pipe_arguments.add_argument('--no-diamond-prefilter', '--no_diamond_prefilter', action='store_true',
-                                help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages, prior to running GraftM graft. Runs faster than default settings with slightly reduced sensitivity. NOTE: ignored for nucleotide packages [default: use the prefilter]',
+                                help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages. Should be used with --hmmsearch-package-assignment. NOTE: ignored for nucleotide packages [default: protein packages: use the prefilter, nucleotide packages: do not use the prefilter]',
                                 default=False)
     less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters', '--diamond_prefilter_performance_parameters',
                                 help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
