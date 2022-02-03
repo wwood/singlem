@@ -20,7 +20,7 @@
 ###############################################################################
 
 __author__ = "Ben Woodcroft"
-__copyright__ = "Copyright 2020"
+__copyright__ = "Copyright 2022"
 __credits__ = ["Ben Woodcroft"]
 __license__ = "GPL3"
 __maintainer__ = "Ben Woodcroft"
@@ -86,6 +86,8 @@ if __name__ == '__main__':
             taxons_to_wordnode = {root.word: root}
             reader = csv.reader(f, delimiter="\t")
             headers = next(reader)
+            if headers != ['sample', 'coverage', 'taxonomy']:
+                raise Exception("Unexpected header row in input condensed OTU table")
             for row in reader:
                 sample = row[0]
                 if current_sample is None:
@@ -93,6 +95,8 @@ if __name__ == '__main__':
                 elif current_sample != sample:
                     print_word_node(current_sample, root, output_io)
                     current_sample = sample
+                    root = WordNode(None, 'Root')
+                    taxons_to_wordnode = {root.word: root}
 
                 coverage = float(row[1])
                 taxonomy = row[2]
