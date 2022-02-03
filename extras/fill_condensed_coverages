@@ -1,0 +1,115 @@
+#!/usr/bin/env python3
+
+###############################################################################
+#
+#    Copyright (C) 2021 Ben Woodcroft
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+###############################################################################
+
+__author__ = "Ben Woodcroft"
+__copyright__ = "Copyright 2020"
+__credits__ = ["Ben Woodcroft"]
+__license__ = "GPL3"
+__maintainer__ = "Ben Woodcroft"
+__email__ = "benjwoodcroft near gmail.com"
+__status__ = "Development"
+
+import argparse
+import logging
+import sys
+import os
+import csv
+
+sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
+
+from singlem.condense import WordNode
+
+sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
+
+if __name__ == '__main__':
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument('--debug', help='output debug information', action="store_true")
+    #parent_parser.add_argument('--version', help='output version information and quit',  action='version', version=repeatm.__version__)
+    parent_parser.add_argument('--quiet', help='only output errors', action="store_true")
+
+    parent_parser.add_argument('--condensed-otu-table', help='condensed OTU table input', required=True)
+    parent_parser.add_argument('--output-filled-otu-table', help='Output table in same format as a condensed table, except coverages of parent nodes include the coverage of the descendent nodes', required=True)
+
+    # parser = argparse.ArgumentParser(parents=[parent_parser])
+    # subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name')
+
+    # cluster_description = 'Cluster bins and assembled contigs'
+    # cluster_parser = subparsers.add_parser('cluster')
+    # cluster_parser.add_argument(
+    #     '--bin_directories', nargs='+', metavar='DIR [DIR ..]',
+    #     help="Directories containing FASTA files of bins", required=True)
+
+    args = parent_parser.parse_args()
+
+    # Setup logging
+    if args.debug:
+        loglevel = logging.DEBUG
+    elif args.quiet:
+        loglevel = logging.ERROR
+    else:
+        loglevel = logging.INFO
+    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+    def print_word_node(sample_name, wn, output_io):
+        # Print current
+        print("\t".join([sample_name, str(wn.get_full_coverage()), '; '.join(wn.get_taxonomy())]), file=output_io)
+
+        # Print descendents
+        for c in wn.children.values():
+            print_word_node(sample_name, c, output_io)
+
+    # Generate WordNode graph from CondensedOtuTable, which is ordered by
+    # sample, then increasing specificity of taxonomy
+    with open(args.output_filled_otu_table, 'w') as output_io:
+        print(["sample", "filled_coverage", "taxonomy"], file=output_io)
+        with open(args.condensed_otu_table) as f:
+            current_sample = None
+            root = WordNode(None, 'Root')
+            taxons_to_wordnode = {root.word: root}
+            reader = csv.reader(f, delimiter="\t")
+            headers = next(reader)
+            for row in reader:
+                sample = row[0]
+                if current_sample is None:
+                    current_sample = sample
+                elif current_sample != sample:
+                    print_word_node(current_sample, root, output_io)
+                    current_sample = sample
+
+                coverage = float(row[1])
+                taxonomy = row[2]
+                taxons = taxonomy.split('; ')
+                logging.debug("Analysing taxonomy %s", taxonomy)
+                
+                last_taxon = root
+                wn = None
+                for (i, tax) in enumerate(taxons):
+                    if tax not in taxons_to_wordnode:
+                        wn = WordNode(last_taxon, tax)
+                        logging.debug("Adding tax %s with prev %s", tax, last_taxon.word)
+                        last_taxon.children[tax] = wn
+                        taxons_to_wordnode[tax] = wn #TODO: Problem when there is non-unique labels? Require full taxonomy used?
+                    last_taxon = taxons_to_wordnode[tax]
+                wn.coverage = coverage
+
+            # Print last sample
+            if current_sample != None:
+                print_word_node(current_sample, root, output_io)
