@@ -9,8 +9,13 @@ import extern
 import tempfile
 import json
 
+import zenodo_backpack
+
 from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
+
+DATA_DEFAULT_VERSION = '3.0.1'
+DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_DATA_PATH'
 
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
@@ -38,19 +43,15 @@ class Metapackage:
             self.singlem_packages = [SingleMPackage.acquire(path) for path in package_paths]
             logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
         else:
-            # Prefer production DB directory
-            pkg_resources_db_directory = 'data'
+            logging.debug("Acquiring SingleM packages from environment variable")
+            backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
+            mpkg1 = Metapackage.acquire(backpack.payload_directory_string())
 
-            pkg_paths = pkg_resources.resource_listdir('singlem',pkg_resources_db_directory)
-            basedir = pkg_resources.resource_filename('singlem',pkg_resources_db_directory)
-            logging.debug("Searching for SingleM packages via pkg_resources in %s .." % basedir)
-            pkg_paths = [os.path.join(basedir,d) for d in pkg_paths if d[-5:]=='.spkg']
-            if len(pkg_paths) == 0:
-                raise Exception("Unable to find any SingleM packages using pkg_resources")
-
-            logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
-                                                        ', '.join(pkg_paths)))
-            self.singlem_packages = [SingleMPackage.acquire(path) for path in pkg_paths]
+            self.singlem_packages = mpkg1.singlem_packages
+            self._prefilter_path = mpkg1._prefilter_path
+            self._contents_hash = mpkg1._contents_hash
+            self._base_directory = mpkg1._base_directory
+            logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
 
         for pkg in self.singlem_packages:
             self._hmms_and_positions[pkg.base_directory()] = pkg
@@ -77,6 +78,25 @@ class Metapackage:
         mpkg._contents_hash = contents_hash
         mpkg._base_directory = metapackage_path
         return mpkg
+
+    @staticmethod
+    def acquire_from_common_arguments(**kwargs):
+        '''
+        Acquire a metapackage from a set of common command line arguments and
+        environment variables.
+        '''
+        metapackage_path = kwargs.pop('metapackage_path', None)
+        singlem_package_paths = kwargs.pop('singlem_packages', None)
+
+        if metapackage_path and singlem_package_paths and singlem_package_paths != []:
+            raise Exception("Cannot specify both a metapackage and singlem_packages")
+        elif metapackage_path:
+            return Metapackage.acquire(metapackage_path)
+        elif not singlem_package_paths or singlem_package_paths == []:
+            # Return the default set
+            return Metapackage()
+        else:
+            return Metapackage(singlem_package_paths)
 
     @staticmethod
     def generate(**kwargs):

@@ -49,7 +49,7 @@ class SearchPipe:
         archive_otu_table = kwargs.pop('archive_otu_table', None)
         output_extras = kwargs.pop('output_extras')
 
-        metapackage = self._parse_packages_or_metapackage(**kwargs)
+        metapackage = Metapackage.acquire_from_common_arguments(**kwargs)
         kwargs['metapackage_object'] = metapackage
 
         otu_table_object = self.run_to_otu_table(**kwargs)
@@ -60,20 +60,6 @@ class SearchPipe:
                 archive_otu_table,
                 output_extras,
                 metapackage)
-
-    def _parse_packages_or_metapackage(self, **kwargs):
-        metapackage_path = kwargs.pop('metapackage_path', None)
-        singlem_package_paths = kwargs.pop('singlem_packages', None)
-
-        if metapackage_path and singlem_package_paths and singlem_package_paths != []:
-            raise Exception("Cannot specify both a metapackage and singlem_packages")
-        elif metapackage_path:
-            return Metapackage.acquire(metapackage_path)
-        elif not singlem_package_paths or singlem_package_paths == []:
-            # Return the default set
-            return Metapackage()
-        else:
-            return Metapackage(singlem_package_paths)
 
     def write_otu_tables(self,
             otu_table_object,
