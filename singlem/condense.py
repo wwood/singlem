@@ -286,6 +286,15 @@ class WordNode:
                 self.iter_queue.put(c)
             return node
 
+    def calculate_level(self):
+        '''Return the number of ancestors of this node, which corresponds to taxonomic levels'''
+        c = 0
+        p = self.parent
+        while p is not None:
+            c += 1
+            p = p.parent
+        return c
+
 class CondensedCommunityProfile:
     def __init__(self, sample, tree):
         self.sample = sample
@@ -300,6 +309,48 @@ class CondensedCommunityProfile:
                     str(round(node.coverage,2)),
                     '; '.join(node.get_taxonomy())
                 ])+"\n")
+
+    def breadth_first_iter(self):
+        '''Yield a WordNode for each node in the tree.'''
+        return self.tree.__iter__()
+
+    @staticmethod
+    def each_sample_wise(io):
+        '''Read a condensed community profile from an IO, yielding a
+        CondenseCommunityProfile object once for each sample.'''
+
+        header = io.readline().strip().split("\t")
+        if header != ['sample', 'coverage', 'taxonomy']:
+            raise Exception("Unexpected format of condensed community profile file. Expected 'sample', 'coverage', 'taxonomy' as headers.")
+
+        reader = csv.reader(io, delimiter="\t")
+        current_sample = None
+        current_root = WordNode(None, 'Root')
+        taxons_to_wordnode = {current_root.word: current_root}
+
+        for row in reader:
+            (sample, coverage, taxonomy) = row
+            if sample != current_sample:
+                if current_sample is not None:
+                    yield CondensedCommunityProfile(current_sample, current_root)
+                current_sample = sample
+                current_root = WordNode(None, 'Root')
+                taxons_to_wordnode = {current_root.word: current_root}
+            
+            taxons_split = taxonomy.split('; ')
+            last_taxon = current_root
+            wn = None
+            for tax in taxons_split:
+                if tax not in taxons_to_wordnode:
+                    wn = WordNode(last_taxon, tax)
+                    # logging.debug("Adding tax %s with prev %s", tax, last_taxon.word)
+                    last_taxon.children[tax] = wn
+                    taxons_to_wordnode[tax] = wn
+                last_taxon = taxons_to_wordnode[tax]
+            wn.coverage = float(coverage)
+
+        if current_sample is not None:
+            yield CondensedCommunityProfile(current_sample, current_root)
 
 class CondensedCommunityProfileKronaWriter:
     @staticmethod
