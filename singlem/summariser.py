@@ -10,6 +10,7 @@ import Bio
 from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
+from .archive_otu_table import ArchiveOtuTable
 
 class Summariser:
     @staticmethod
@@ -359,3 +360,46 @@ class Summariser:
                 [{'taxonomy': ind[1].split('; ')} for ind in df2.index])
             with biom.util.biom_open(biom_output, 'w') as f:
                 bt.to_hdf5(f, "%s - %s" % (biom_output_prefix, marker))
+
+    @staticmethod
+    # args.collapse_paired_with_unpaired:
+    # Summariser.write_collapsed_paired_with_unpaired_otu_table(
+    #     archive_otu_tables = args.input_archive_otu_tables,
+    #     output_table_io = open(args.collapse_paired_with_unpaired,'w'))
+    def write_collapsed_paired_with_unpaired_otu_table(**kwargs):
+        archive_otu_tables = kwargs.pop('archive_otu_tables')
+        output_table_io = kwargs.pop('output_table_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        # Read all OTU tables
+        df = None
+        for a in archive_otu_tables:
+            with open(a):
+                logging.debug("Reading archive table {} into RAM ..".format(a))
+                ar = ArchiveOtuTable.read(a)
+                if df is None:
+                    # json.dump({"version": self.version,
+                    #     "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
+                    #     "singlem_package_sha256s": [s.singlem_package_sha256() for s in self.singlem_packages],
+                    #     'fields': self.fields,
+                    #     "otus": self.data},
+                    #         output_io)
+                    version = ar.version
+                    fields = ar.fields
+                    alignment_hmm_sha256s = ar.alignment_hmm_sha256s
+                    singlem_package_sha256s = ar.singlem_package_sha256s
+                    df = pandas.DataFrame(ar.data)
+                    df.columns = fields
+                else:
+                    if version != ar.version:
+                        raise Exception("Version mismatch between archives")
+                    elif fields != ar.fields:
+                        raise Exception("Fields mismatch between archives")
+                    elif alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
+                        raise Exception("Alignment HMM SHA256 mismatch between archives")
+                    elif singlem_package_sha256s != ar.singlem_package_sha256s:
+                        raise Exception("Singlem package SHA256 mismatch between archives")
+                    df = df.append(pandas.DataFrame(ar.data))
+        
+        import IPython; IPython.embed()
