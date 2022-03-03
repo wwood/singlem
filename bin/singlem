@@ -419,6 +419,7 @@ if __name__ == '__main__':
     summarise_transformation_args.add_argument('--rarefied-output-otu-table', '--rarefied_output_otu_table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
     summarise_transformation_args.add_argument('--number-to-choose', '--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
     summarise_transformation_args.add_argument('--collapse-coupled', '--collapse_coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
+    summarise_transformation_args.add_argument('--collapse-paired-with-unpaired', '--collapse_paired_with_unpaired', help="For archive OTU tables that have both paired and unpaired components, merge these into a single output archive OTU table")
     summarise_output_args = summarise_parser.add_argument_group('output')
     summarise_output_args.add_argument('--output-otu-table', '--output_otu_table', help="Output combined OTU table to this file")
     summarise_output_args.add_argument('--output-translated-otu-table', '--output_translated_otu_table', help="Output combined OTU table to this file, with seqeunces translated into amino acids")
@@ -842,6 +843,7 @@ if __name__ == '__main__':
             if args.clustered_output_otu_table: num_output_types += 1
             if args.rarefied_output_otu_table: num_output_types += 1
             if args.wide_format_otu_table: num_output_types += 1
+            if args.collapse_paired_with_unpaired: num_output_types += 1
             if num_output_types != 1:
                 raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
             if not args.input_otu_tables and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
@@ -851,6 +853,11 @@ if __name__ == '__main__':
                     raise Exception("--exclude_off_target_hits currently requires --metapackage or --singlem-packages to be defined")
                 elif args.singlem_packages and args.metapackage:
                     raise Exception("Only one of --metapackage or --singlem-packages can be defined")
+            if args.collapse_paired_with_unpaired:
+                if args.input_otu_tables:
+                    raise Exception("--collapse_paired_with_unpaired currently only works with archive tables")
+                elif not len(args.input_archive_otu_tables) == 2:
+                    raise Exception("--collapse_paired_with_unpaired requires exactly two archive tables")
 
             otus = OtuTableCollection()
             otus.set_target_taxonomy_by_string(args.taxonomy)
@@ -939,6 +946,10 @@ if __name__ == '__main__':
                 Summariser.write_translated_otu_table(
                     table_collection = otus,
                     output_table_io = open(args.output_translated_otu_table,'w'))
+            elif args.collapse_paired_with_unpaired:
+                Summariser.write_collapsed_paired_with_unpaired_otu_table(
+                    archive_otu_tables = args.input_archive_otu_tables,
+                    output_table_io = open(args.collapse_paired_with_unpaired,'w'))
 
             else: raise Exception("Programming error")
             logging.info("Finished")
