@@ -31,6 +31,10 @@ class ArchiveOtuTable:
         j = json.loads(input_io.read())
         if not j['version'] in [1,2]:
             raise Exception("Wrong OTU table version detected")
+        otus.version = j['version']
+
+        otus.alignment_hmm_sha256s = j['alignment_hmm_sha256s']
+        otus.singlem_package_sha256s = j['singlem_package_sha256s']
 
         otus.fields = j['fields']
         if otus.fields != [ArchiveOtuTable.FIELDS_VERSION1,ArchiveOtuTable.FIELDS_VERSION2][j['version']-1]:

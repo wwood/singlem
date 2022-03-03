@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 
 ###############################################################################
 #
@@ -31,7 +31,6 @@ import argparse
 import logging
 import sys
 import os
-from os import FileNotFoundException
 
 import extern
 
@@ -122,7 +121,7 @@ if __name__ == '__main__':
             extern.run(f'kingfisher get -r {run} --output-format-possibilities fastq.gz --hide-download-progress -m ena-ftp')
             analyse(run,False)
             ena_download_worked = True
-    except ExternCalledProcessError:
+    except extern.ExternCalledProcessError:
         pass
 
     # Delete files for cleanliness
