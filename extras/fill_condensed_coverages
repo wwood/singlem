@@ -79,7 +79,7 @@ if __name__ == '__main__':
     # Generate WordNode graph from CondensedOtuTable, which is ordered by
     # sample, then increasing specificity of taxonomy
     with open(args.output_filled_otu_table, 'w') as output_io:
-        print(["sample", "filled_coverage", "taxonomy"], file=output_io)
+        print("\t".join(["sample", "filled_coverage", "taxonomy"]), file=output_io)
         with open(args.condensed_otu_table) as f:
             current_sample = None
             root = WordNode(None, 'Root')
