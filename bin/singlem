@@ -524,7 +524,8 @@ if __name__ == '__main__':
 
     condense_description = 'Combine OTU tables across different markers into a single OTU table.'
     condense_parser = new_subparser(subparsers, 'condense', condense_description)
-    condense_parser.add_argument('--trim-percent', '--trim_percent', type=float, default=5, help="percentage of markers to be trimmed for each taxonomy [default: 5]")
+    current_default = 10
+    condense_parser.add_argument('--trim-percent', '--trim_percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
 
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
 
@@ -539,7 +540,7 @@ if __name__ == '__main__':
     required_condense_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="SingleM packages to use. Each domain to be included must be covered by at least 3 packages.")
     required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
-    required_condense_arguments.add_argument('--min-taxon-coverage','--min_taxon_coverage', metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05)
+    required_condense_arguments.add_argument('--min-taxon-coverage','--min_taxon_coverage', metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05, type=float)
 
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
