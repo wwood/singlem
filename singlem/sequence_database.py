@@ -13,6 +13,8 @@ import numpy as np
 import scann
 import tensorflow as tf
 
+from sqlalchemy import create_engine, select, text
+
 # Import masonite, pretty clunky
 sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
 import config.database
@@ -26,6 +28,7 @@ import Bio.Data.CodonTable
 from annoy import AnnoyIndex
 
 from .otu_table import OtuTableEntry, OtuTable
+from .singlem_database_models import *
 
 DEFAULT_NUM_THREADS = 1
 
@@ -229,6 +232,7 @@ class SequenceDatabase:
             raise Exception("Unexpected SingleM DB version found: {}".format(found_version))
 
         db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
+        db.engine = create_engine("sqlite:///" + db.sqlite_file)
 
         nmslib_nucleotide_index_files = glob.glob("%s/nucleotide_indices_nmslib/*.nmslib_index" % path)
         logging.debug("Found nmslib_nucleotide_index_files: %s" % ", ".join(nmslib_nucleotide_index_files))
@@ -735,23 +739,22 @@ class SequenceDatabase:
 
         """
         sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+        engine = create_engine(
+            "sqlite:///"+sqlite_db_path,
+            echo=logging.DEBUG >= logging.root.level)
         
         print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        builder = SequenceDatabase._query_builder(sqlite_db_path).table('otus'). \
-            join('nucleotides','nucleotides.id','=','otus.sequence_id'). \
-            join('markers','markers.id','=','nucleotides.marker_id')
+        # builder = select(Otu).join(NucleotideSequence).join(Marker).with_entities(
+        #     Marker.name, Otu.sample_name, NucleotideSequence.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy)
+        builder = select(
+            Marker.marker, Otu.sample_name, NucleotideSequence.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy
+        ).select_from(Otu).join_from(Otu, NucleotideSequence).join_from(Otu, Marker).execution_options(yield_per=10000)
         if dump_order:
-            builder = builder.order_by(dump_order)
-        for chunk in builder.chunk(1000):
-            for entry in chunk:
-                otu = OtuTableEntry()
-                otu.marker = entry['marker']
-                otu.sample_name = entry['sample_name']
-                otu.sequence = entry['sequence']
-                otu.count = entry['num_hits']
-                otu.coverage = entry['coverage']
-                otu.taxonomy = entry['taxonomy']
-                print(str(otu))
+            builder = builder.order_by(text(dump_order))
+
+        with engine.connect() as conn:
+            for row in conn.execute(builder):
+                print("\t".join([str(r) for r in row]))
 
 @numba.njit()
 def _base_to_binary(x):

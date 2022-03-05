@@ -3,8 +3,9 @@ models.py
 - Data classes for SingleM databases
 """
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, relationship
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, Integer, String, ForeignKey, Float
+from sqlalchemy.orm import relationship
+from sqlalchemy.ext.declarative import declarative_base
 
 # declarative base class
 Base = declarative_base()
@@ -40,7 +41,7 @@ class NucleotideSequence(Base):
     sequence = Column(String, nullable=False, index=True)
     marker_wise_id = Column(Integer, nullable=False, index=True)
 
-    nucleotide_proteins = relationship('NucleotideProtein', back_populates='nucleotide_sequence.nucleotide_id')
+    # nucleotide_proteins = relationship('NucleotidesProteins', back_populates='nucleotide_sequence.nucleotide_id')
 
 class Marker(Base):
     __tablename__ = 'markers'
@@ -61,7 +62,7 @@ class ProteinSequence(Base):
     marker_id = Column(Integer, ForeignKey('markers.id'), nullable=False, index=True)
     protein_sequence = Column(String, nullable=False, index=True)
 
-    nucleotide_proteins = relationship('NucleotideProtein', back_populates='nucleotide_sequence.protein_id')
+    # nucleotide_proteins = relationship('NucleotidesProteins', back_populates='nucleotide_sequence.protein_id')
 
 class NucleotidesProteins(Base):
     __tablename__ = 'nucleotides_proteins'
