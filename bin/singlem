@@ -402,7 +402,7 @@ if __name__ == '__main__':
     query_other_args.add_argument('--sample-list', '--sample_list', metavar='path', help='Print all OTUs from the samples listed in the file (newline-separated)')
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
     query_other_args.add_argument('--dump', action='store_true', help='Print all OTUs in the DB')
-    current_default = 'sample_name'
+    current_default = None
     query_other_args.add_argument('--dump-order', help='When using --dump, order OTUs by this field e.g. \'sample_name\' or \'marker\' [default: {}]'.format(current_default), choices=['marker','sample_name','sequence','num_hits','coverage','taxonomy'], default=current_default)
 
     summarise_description = 'Summarise and transform OTU tables.'

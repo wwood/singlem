@@ -744,17 +744,19 @@ class SequenceDatabase:
             echo=logging.DEBUG >= logging.root.level)
         
         print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        # builder = select(Otu).join(NucleotideSequence).join(Marker).with_entities(
-        #     Marker.name, Otu.sample_name, NucleotideSequence.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy)
+        batch_size = 10000
         builder = select(
             Marker.marker, Otu.sample_name, NucleotideSequence.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy
-        ).select_from(Otu).join_from(Otu, NucleotideSequence).join_from(Otu, Marker).execution_options(yield_per=10000)
+        ).select_from(Otu).join_from(Otu, NucleotideSequence).join_from(Otu, Marker).execution_options(yield_per=batch_size)
         if dump_order:
             builder = builder.order_by(text(dump_order))
+        else:
+            builder = builder.order_by(Otu.id)
 
         with engine.connect() as conn:
-            for row in conn.execute(builder):
-                print("\t".join([str(r) for r in row]))
+            for batch in conn.execute(builder).partitions(batch_size):
+                for row in batch:
+                    print("\t".join([str(r) for r in row]))
 
 @numba.njit()
 def _base_to_binary(x):
