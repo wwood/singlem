@@ -998,6 +998,7 @@ if __name__ == '__main__':
 
     elif args.subparser_name == 'condense':
         from singlem.otu_table_collection import StreamingOtuTableCollection
+        from singlem.condense import Condenser
 
         otus = generate_streaming_otu_table_from_args(args, input_prefix=True)
         if not args.output_otu_table and not args.krona:
