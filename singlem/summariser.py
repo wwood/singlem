@@ -6,6 +6,9 @@ import logging
 import biom
 import pandas
 import Bio
+import re
+import pandas as pd
+import json
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
@@ -375,31 +378,84 @@ class Summariser:
         # Read all OTU tables
         df = None
         for a in archive_otu_tables:
-            with open(a):
+            with open(a) as f:
                 logging.debug("Reading archive table {} into RAM ..".format(a))
-                ar = ArchiveOtuTable.read(a)
-                if df is None:
-                    # json.dump({"version": self.version,
-                    #     "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
-                    #     "singlem_package_sha256s": [s.singlem_package_sha256() for s in self.singlem_packages],
-                    #     'fields': self.fields,
-                    #     "otus": self.data},
-                    #         output_io)
-                    version = ar.version
-                    fields = ar.fields
-                    alignment_hmm_sha256s = ar.alignment_hmm_sha256s
-                    singlem_package_sha256s = ar.singlem_package_sha256s
-                    df = pandas.DataFrame(ar.data)
-                    df.columns = fields
-                else:
-                    if version != ar.version:
-                        raise Exception("Version mismatch between archives")
-                    elif fields != ar.fields:
-                        raise Exception("Fields mismatch between archives")
-                    elif alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
-                        raise Exception("Alignment HMM SHA256 mismatch between archives")
-                    elif singlem_package_sha256s != ar.singlem_package_sha256s:
-                        raise Exception("Singlem package SHA256 mismatch between archives")
-                    df = df.append(pandas.DataFrame(ar.data))
+                ar = ArchiveOtuTable.read(f)
+            if df is None:
+                # json.dump({"version": self.version,
+                #     "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
+                #     "singlem_package_sha256s": [s.singlem_package_sha256() for s in self.singlem_packages],
+                #     'fields': self.fields,
+                #     "otus": self.data},
+                #         output_io)
+                version = ar.version
+                fields = ar.fields
+                alignment_hmm_sha256s = ar.alignment_hmm_sha256s
+                singlem_package_sha256s = ar.singlem_package_sha256s
+                df = pandas.DataFrame(ar.data)
+                df.columns = fields
+            else:
+                if version != ar.version:
+                    raise Exception("Version mismatch between archives")
+                elif fields != ar.fields:
+                    raise Exception("Fields mismatch between archives")
+                elif alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
+                    raise Exception("Alignment HMM SHA256 mismatch between archives")
+                elif singlem_package_sha256s != ar.singlem_package_sha256s:
+                    raise Exception("Singlem package SHA256 mismatch between archives")
+                df2 = pandas.DataFrame(ar.data)
+                df2.columns = fields
+                df = df.append(df2)
         
-        import IPython; IPython.embed()
+        # Join the data together, making changes:
+        # 1) For each, remove the _1 suffix from the sample name
+        # 2) When there is an OTU present in both the paired and unpaired
+        #    sample, merge them, keeping the taxonomy of one that has the most
+        #    num_hits.
+
+        # Remove suffixes
+        def remove_suffix(s):
+            if s.endswith('_1'):
+                return s[:-2]
+            else:
+                return s
+        df['sample'] = df['sample'].apply(remove_suffix)
+
+        # Ensure that there is now only exactly 1 sample name
+        if len(df['sample'].unique()) != 1:
+            raise Exception("Multiple sample names found: {}".format(', '.join(df['sample'].unique())))
+        if len(df['taxonomy_by_known?'].unique()) != 1:
+            raise Exception("Multiple taxonomy_by_known found: {}".format(', '.join(df['taxonomy_by_known'].unique())))
+
+        # Join 
+        # grouped = df.groupby(['sequence'], as_index=False).count()
+        # ATAGTTGAAGACGATGGACTTTACATTAATGCTCTCTATGGATTTCCAGGACCATACTCT
+        # dft = df[df['sequence']=='ATAGTTGAAGACGATGGACTTTACATTAATGCTCTCTATGGATTTCCAGGACCATACTCT']
+
+        def combine_rows(grouped1):
+            grouped = grouped1.reset_index()
+            max_row = grouped['num_hits'].idxmax()
+            return pd.DataFrame({
+                'gene':[grouped.iloc[0]['gene']],
+                'sample':[grouped.iloc[0]['sample']],
+                'sequence':[grouped.iloc[0]['sequence']],
+                'num_hits':[sum(grouped['num_hits']),],
+                'coverage':[sum(grouped['coverage']),],
+                'taxonomy':[grouped.iloc[max_row]['taxonomy']],
+                'read_names':[list(itertools.chain(*grouped['read_names']))],
+                'nucleotides_aligned':[list(itertools.chain(*grouped['nucleotides_aligned']))],
+                'taxonomy_by_known?':[grouped.iloc[0]['taxonomy_by_known?']],
+                'read_unaligned_sequences':[list(itertools.chain(*grouped['read_unaligned_sequences']))],
+            })
+        transformed = df.groupby(['sequence','gene'], as_index=False).apply(combine_rows)[ArchiveOtuTable.FIELDS]
+
+        logging.debug("Writing output table ..")
+        ar.data = transformed.values.tolist()
+        ar.write_to(output_table_io)
+        # json.dump({"version": ar.version,
+        #     "alignment_hmm_sha256s": ar.alignment_hmm_sha256s,
+        #     "singlem_package_sha256s": ar.singlem_package_sha256s,
+        #     'fields': ar.fields,
+        #     "otus": transformed.to_json(orient='values')},
+        #     output_table_io)
+        logging.info("Finished writing collapsed output table")

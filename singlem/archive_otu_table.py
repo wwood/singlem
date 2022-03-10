@@ -19,8 +19,8 @@ class ArchiveOtuTable:
 
     def write_to(self, output_io):
         json.dump({"version": self.version,
-             "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
-             "singlem_package_sha256s": [s.singlem_package_sha256() for s in self.singlem_packages],
+             "alignment_hmm_sha256s": self.alignment_hmm_sha256s if self.alignment_hmm_sha256s else [s.alignment_hmm_sha256() for s in self.singlem_packages],
+             "singlem_package_sha256s": self.singlem_package_sha256s if self.singlem_package_sha256s else [s.singlem_package_sha256() for s in self.singlem_packages],
              'fields': self.fields,
              "otus": self.data},
                   output_io)
@@ -28,7 +28,7 @@ class ArchiveOtuTable:
     @staticmethod
     def read(input_io):
         otus = ArchiveOtuTable()
-        j = json.loads(input_io.read())
+        j = json.load(input_io)
         if not j['version'] in [1,2]:
             raise Exception("Wrong OTU table version detected")
         otus.version = j['version']

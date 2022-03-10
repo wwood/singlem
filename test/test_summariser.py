@@ -34,6 +34,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.summariser import Summariser
 from singlem.otu_table_collection import OtuTableCollection
+from singlem.archive_otu_table import ArchiveOtuTable
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
@@ -279,6 +280,16 @@ minimal2	0.2
             os.path.join(path_to_data,'small_will_collapse.otu_table.csv'))
         observed = extern.run(cmd)
         self.assertEqualOtuTable(list([line.split("\t") for line in expected]), observed)
+
+    def test_collapse_paired_with_unpaired(self):
+        cmd = '{} summarise --input-archive-otu {}/summarise/ERR1883421_paired.annotated.singlem.json {}/summarise/ERR1883421_unpaired.annotated.singlem.json --collapse_paired_with_unpaired /dev/stdout'.format(
+            path_to_script,
+            path_to_data,
+            path_to_data)
+        res = extern.run(cmd)
+        ar = ArchiveOtuTable.read(StringIO(res))
+        self.assertEqual(len(ar.data), 565)
+        
 
         
 
