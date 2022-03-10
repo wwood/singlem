@@ -1027,6 +1027,7 @@ if __name__ == '__main__':
     elif args.subparser_name=='makedb':
         # Import here to avoid the slow tensorflow import in other subcommands
         from singlem.sequence_database import SequenceDatabase
+        from singlem.otu_table_collection import StreamingOtuTableCollection
 
         if args.pregenerated_otu_sqlite_db:
             otus = None
