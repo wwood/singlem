@@ -28,4 +28,5 @@ jobs:
         run: |
             python test/test_metapackage.py && \
             python test/test_makedb_and_query.py && \
-            python test/test_condense.py
+            python test/test_condense.py && \
+            python test/test_summariser.py
