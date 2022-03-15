@@ -766,7 +766,7 @@ if __name__ == '__main__':
         if args.input_otu_tables:
             for o in args.input_otu_tables:
                 otus.add_otu_table(open(o))
-        if args.input_archive_otu_tables:
+        if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table:
             for o in args.input_archive_otu_tables:
                 otus.add_archive_otu_table(open(o))
         if args.input_gzip_archive_otu_table_list:
