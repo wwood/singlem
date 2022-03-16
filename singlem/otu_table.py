@@ -25,7 +25,10 @@ class OtuTable:
                 if len(d) != len(fields):
                     raise Exception("Malformed OTU table detected, number of fields unexpected, on this line: %s" % str(d))
                 e = OtuTableEntry()
-                d[3] = int(d[3])
+                try:
+                    d[3] = int(d[3])
+                except ValueError:
+                    raise Exception("Malformed OTU table detected, num_hits column is not an integer, on line %i: %s" % (i+1, str(d)))
                 d[4] = float(d[4])
                 e.marker = d[0]
                 e.sample_name = d[1]
