@@ -365,24 +365,40 @@ class SequenceDatabase:
                 marker_index = 0
                 sequence_index = 0
                 numbered_table_file = os.path.join(my_tempdir,'makedb_numbered_output.tsv')
+                # We ultimately sort the otus table by sample_name not sequence,
+                # because that makes for faster dumping/extraction of all OTUs
+                # from a sample. Use awk to add IDs to the OTU table after
+                # sorting.
+                cmd = "LC_COLLATE=C sort --parallel={} --buffer-size=20% |awk -F'\t' '{{OFS = FS}} {{print NR,$0}}' > {}".format(num_threads, numbered_table_file)
+                proc = subprocess.Popen(['bash','-o','pipefail','-c',cmd],
+                    stdin=subprocess.PIPE,
+                    stdout=None,
+                    stderr=subprocess.PIPE,
+                    universal_newlines=True)
                 numbered_marker_and_sequence_file = os.path.join(my_tempdir,'number_and_sequence_file')
                 with open(sorted_path) as csvfile_in:
                     reader = csv.reader(csvfile_in, delimiter="\t")
                     last_marker = None
                     last_sequence = None
-                    with open(numbered_table_file,'w') as otus_output_table_io:
-                        with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
-                            for i, row in enumerate(reader):
-                                if last_marker != row[0]:
-                                    last_marker = row[0]
-                                    marker_index += 1
-                                    last_sequence = row[1]
-                                    sequence_index += 1
-                                elif last_sequence != row[1]:
-                                    last_sequence = row[1]
-                                    sequence_index += 1
-                                print("\t".join([str(i+1)]+row[2:]+[str(marker_index),str(sequence_index)]), file=otus_output_table_io)
-                                print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
+                    with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
+                        for row in reader:
+                            if last_marker != row[0]:
+                                last_marker = row[0]
+                                marker_index += 1
+                                last_sequence = row[1]
+                                sequence_index += 1
+                            elif last_sequence != row[1]:
+                                last_sequence = row[1]
+                                sequence_index += 1
+                            print("\t".join(row[2:]+[str(marker_index),str(sequence_index)]), file=proc.stdin)
+                            print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
+                logging.info("Sorting OTU observations by sample_name ..")
+                proc.stdin.close()
+                proc.wait()
+                if proc.returncode != 0:
+                    raise Exception("Sort command returned non-zero exit status %i.\n"\
+                        "STDERR was: %s" % (
+                            proc.returncode, proc.stderr.read()))
 
                 logging.info("Importing OTU table into SQLite ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
