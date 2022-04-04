@@ -1,0 +1,43 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+  - masonite
+dependencies:
+  - python>=3.6
+  - diamond=2.0.11
+  - biopython
+  - hmmer
+  - orfm
+  - mfqe
+  - extern
+  - graftm
+  - krona
+  - pplacer
+  - sra-tools
+  - ncbi-ngs-sdk
+  - sqlite
+  - masonite-orm
+  - numba
+  - python-annoy
+  - orator
+  - squarify
+  - nose
+  - mafft
+  - seqmagick
+  - vsearch
+  - smafa
+  - expressbetadiversity
+  - cd-hit
+  - fasttree
+  - fastalite
+  - jinja2
+  - bird_tool_utils_python
+  - pip
+  - sqlalchemy
+  - datatable
+  - coverm
+  - pip:
+    - scann
+    - nmslib
+    - --no-binary nmslib

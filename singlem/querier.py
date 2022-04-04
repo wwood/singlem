@@ -12,9 +12,11 @@ import pandas as pd
 import itertools
 import math
 from bird_tool_utils import iterable_chunks
+from sqlalchemy import select
 
 from .sequence_database import SequenceDatabase
 from . import sequence_database
+from .singlem_database_models import *
 from .sequence_classes import SeqReader
 from .query_formatters import SparseResultFormatter
 from .otu_table_collection import OtuTableCollection
@@ -498,18 +500,26 @@ class Querier:
             except KeyError:
                 sequence_to_query_id[query.sequence] = [i]
 
-        for chunk in SequenceDatabase.grouper(seqs, max_set_size):
-            for entry in db.table('otus').where_in(
-                    'sequence', [seq for seq in chunk if seq is not None]).get():
-                for qid in sequence_to_query_id[entry.sequence]:
-                    otu = OtuTableEntry()
-                    otu.marker = entry.marker
-                    otu.sample_name = entry.sample_name
-                    otu.sequence = entry.sequence
-                    otu.count = entry.num_hits
-                    otu.coverage = entry.coverage
-                    otu.taxonomy = entry.taxonomy
-                    yield QueryResult(queries_list[qid], otu, 0)
+        for chunk in iterable_chunks(seqs, max_set_size):
+            with db.engine.connect() as connection:
+                stmt = select([
+                    Otu.sample_name,
+                    Otu.num_hits,
+                    Otu.coverage,
+                    Otu.taxonomy,
+                    NucleotideSequence.sequence,
+                    Marker.marker,
+                    ]).select_from(Otu).join(NucleotideSequence).join(Marker).filter(NucleotideSequence.sequence.in_([seq for seq in chunk if seq is not None]))
+                for entry in connection.execute(stmt):
+                    for qid in sequence_to_query_id[entry.sequence]:
+                        otu = OtuTableEntry()
+                        otu.marker = entry.marker
+                        otu.sample_name = entry.sample_name
+                        otu.sequence = entry.sequence
+                        otu.count = entry.num_hits
+                        otu.coverage = entry.coverage
+                        otu.taxonomy = entry.taxonomy
+                        yield QueryResult(queries_list[qid], otu, 0)
 
     def print_samples(self, **kwargs):
         db = SequenceDatabase.acquire(kwargs.pop('db'))
