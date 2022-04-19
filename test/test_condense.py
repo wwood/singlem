@@ -62,7 +62,7 @@ class Tests(unittest.TestCase):
     
     def test_condense_two_tables_cmdline(self): #TODO add singlem packages, example input and output comparators
         with tempdir.in_tempdir():
-            cmd = "{} condense --input-otu-tables {}/small_condense_input_another.csv --output-otu-table out --krona a.html --singlem-packages {}/*spkg".format(
+            cmd = "{} condense --input-otu-tables {}/small_condense_input_another.csv --trim-percent 35 --output-otu-table out --krona a.html --singlem-packages {}/*spkg".format(
                 path_to_script, path_to_data, path_to_data, path_to_data
             )
             observed = extern.run(cmd)
