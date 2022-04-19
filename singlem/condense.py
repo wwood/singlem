@@ -206,15 +206,14 @@ class Condenser:
 
 def _tmean(data, proportiontocut):
     """
-    Returns trimmed mean of an array. 
-    
-    Slices at least the first and last values of the array.
+    Returns trimmed mean of an array.
     """
-    a = sorted(data)
-    cut = int(np.floor(len(a) * proportiontocut))
+    cut = int(np.floor(len(data) * proportiontocut))
     if cut == 0:
-        cut = 1
-    return np.mean(a[cut:-cut])
+        return np.mean(data)
+    else:
+        a = sorted(data)
+        return np.mean(a[cut:-cut])
 
 class WordNode:
     def __init__(self, parent, word):
