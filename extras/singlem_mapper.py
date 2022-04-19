@@ -68,6 +68,7 @@ if __name__ == '__main__':
     # Read reference genome locations
     logging.info("Reading reference genome locations")
     genome_locations = dt.fread(args.reference_genome_locations, header=False, columns=['sample', 'location'])
+    genome_locations[:, 'location'] = [os.path.join(os.path.dirname(args.reference_genome_locations), x) for x in genome_locations['location'].to_list()[0]]
 
     # Query profile against genome DB
     logging.info("Querying genome database with SingleM query ..")

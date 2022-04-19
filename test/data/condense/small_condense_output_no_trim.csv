@@ -1,0 +1,6 @@
+sample	coverage	taxonomy
+anonymous_reads	1000.33	Root; d__Archaea
+anonymous_reads	18.24	Root; d__Bacteria
+anonymous_reads	3.0	Root; d__Archaea; p__Halobacteriota
+anonymous_reads	4.33	Root; d__Bacteria; p__Proteobacteria
+anonymous_reads	98.67	Root; d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria
