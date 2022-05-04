@@ -37,6 +37,7 @@ dependencies:
   - sqlalchemy
   - datatable
   - coverm
+  - jupyterlab
   - pip:
     - scann
     - nmslib
