@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 
 ###############################################################################
 #
@@ -32,6 +32,7 @@ import sys
 import argparse
 import logging
 import tempfile
+import re
 
 import extern
 import datatable as dt
@@ -53,6 +54,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--reference-genome-locations', help='Two column TSV file with <genome_id>TAB<location>', required=True)
     parent_parser.add_argument('--output', help='output profile from CoverM', required=True)
     parent_parser.add_argument('--coverm-extra-args', help='extra arguments for CoverM e.g. --threads')
+    parent_parser.add_argument('--gtdb-genome-location-hack', help='one off hack to change IDs', action="store_true")
 
     args = parent_parser.parse_args()
 
@@ -68,7 +70,9 @@ if __name__ == '__main__':
     # Read reference genome locations
     logging.info("Reading reference genome locations")
     genome_locations = dt.fread(args.reference_genome_locations, header=False, columns=['sample', 'location'])
-    genome_locations[:, 'location'] = [os.path.join(os.path.dirname(args.reference_genome_locations), x) for x in genome_locations['location'].to_list()[0]]
+    genome_locations['location'] = dt.Frame([
+        os.path.join(os.path.dirname(args.reference_genome_locations), x) for x in genome_locations['location'].to_list()[0]
+    ])
 
     # Query profile against genome DB
     logging.info("Querying genome database with SingleM query ..")
@@ -80,7 +84,16 @@ if __name__ == '__main__':
     hit_samples = dt.unique(query_result[:,f.sample])
     hit_samples[:,'present']=True
     hit_samples.key = 'sample'
+
+    if args.gtdb_genome_location_hack:
+        r = re.compile(r'^.._(.*)_protein$')
+        hit_samples = dt.Frame({
+            'sample': dt.Frame([r.match(x).groups(1) for x in hit_samples['sample'].to_list()[0]])})
+        hit_samples[:,'present']=True
+        hit_samples.key = 'sample'
+
     g2 = genome_locations[:,:,join(hit_samples)][f.present==1,:][:,[f.location]]
+
     if g2.nrows != hit_samples.nrows:
         raise Exception("Some samples that are present the sample DB were not found in the genome database")
         
@@ -93,5 +106,6 @@ if __name__ == '__main__':
 
         cmd = "coverm genome --genome-fasta-list {} -1 {} -2 {} -o {} {}".format(
             f.name, args.forward, args.reverse, args.output, args.coverm_extra_args if args.coverm_extra_args else '')
+        import IPython; IPython.embed()
         extern.run(cmd)
     logging.info("Finished")
