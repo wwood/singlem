@@ -226,9 +226,9 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name')
 
     find_contigs_parser = subparsers.add_parser('find_contigs', help='find contigs containing target OTU sequences')
-    find_contigs_parser.add_argument('--protein-query-against-reads',required=True)
-    find_contigs_parser.add_argument('--sample-list',required=True)
-    find_contigs_parser.add_argument('--assembly-files',nargs='+',required=True)
+    find_contigs_parser.add_argument('--protein-query-against-reads',required=True, "output of 'singlem query --sequence-type protein' against reads that were used to generate the assembly")
+    find_contigs_parser.add_argument('--sample-list',required=True,"Only consider reads from these samples")
+    find_contigs_parser.add_argument('--assembly-files',nargs='+',required=True,help="Assembly contig files to search")
     find_contigs_parser.add_argument('--metapackage',required=True)
     find_contigs_parser.add_argument('--threads',default=1,type=int)
 
