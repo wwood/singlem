@@ -44,14 +44,17 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 def find_contigs(args):
     # Read query OTU table
     # Remove any OTUs that are not in the sample list
-    protein_queries = pd.read_csv(args.protein_query_against_reads,sep='\t')
-    with open(args.sample_list) as f:
-        samples_of_interest = set([s.strip() for s in f.readlines()])
-    logging.info("Found {} samples of interest".format(len(samples_of_interest)))
-    target_sequences = set(pd.merge(pd.DataFrame({'sample':list(samples_of_interest)}), protein_queries, on='sample')['hit_sequence'])
-    logging.info("Found {} target sequences from those samples of interest".format(len(target_sequences)))
-    if len(target_sequences) == 0:
-        raise Exception("No target sequences found")
+    queries = pd.read_csv(args.query_against_reads,sep='\t')
+    if args.sample_list is not None:
+        with open(args.sample_list) as f:
+            samples_of_interest = set([s.strip() for s in f.readlines()])
+        logging.info("Found {} samples of interest".format(len(samples_of_interest)))
+        target_sequences = set(pd.merge(pd.DataFrame({'sample':list(samples_of_interest)}), queries, on='sample')['hit_sequence'])
+        logging.info("Found {} target sequences from those samples of interest".format(len(target_sequences)))
+        if len(target_sequences) == 0:
+            raise Exception("No target sequences found")
+    else:
+        target_sequences = set(queries['hit_sequence'])
     
 
     # Run SingleM pipe on assembly files, putting results in STDOUT and reading, I guess
@@ -226,8 +229,8 @@ if __name__ == '__main__':
     subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name')
 
     find_contigs_parser = subparsers.add_parser('find_contigs', help='find contigs containing target OTU sequences')
-    find_contigs_parser.add_argument('--protein-query-against-reads',required=True, "output of 'singlem query --sequence-type protein' against reads that were used to generate the assembly")
-    find_contigs_parser.add_argument('--sample-list',required=True,"Only consider reads from these samples")
+    find_contigs_parser.add_argument('--query-against-reads',required=True, help="output of 'singlem query' against reads that were used to generate the assembly. Can have used --sequence-type protein or not.")
+    find_contigs_parser.add_argument('--sample-list',help="Only consider reads from these samples [default: Consider all]")
     find_contigs_parser.add_argument('--assembly-files',nargs='+',required=True,help="Assembly contig files to search")
     find_contigs_parser.add_argument('--metapackage',required=True)
     find_contigs_parser.add_argument('--threads',default=1,type=int)
