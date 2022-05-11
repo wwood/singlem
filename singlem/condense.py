@@ -48,13 +48,19 @@ class Condenser:
         if metapackage_path:
             mpkg = Metapackage.acquire(metapackage_path)
             singlem_package_objects = mpkg.singlem_packages
-        else:
+        elif singlem_packages:
             singlem_package_objects = []
             for path in singlem_packages:
                 spkg = SingleMPackage.acquire(path)
                 logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
                 singlem_package_objects.append(spkg)
             logging.info("Loaded %i SingleM packages." % len(singlem_package_objects))
+        else:
+            # Neither were specified, so use the default set of packages
+            logging.debug("Using default set of SingleM packages.")
+            mpkg = Metapackage()
+            singlem_package_objects = mpkg.singlem_packages
+
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}

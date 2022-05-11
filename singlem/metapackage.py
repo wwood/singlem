@@ -14,8 +14,9 @@ import zenodo_backpack
 from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
 
-DATA_DEFAULT_VERSION = '3.0.1'
+DATA_DEFAULT_VERSION = '3.0.3'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_DATA_PATH'
+DATA_DOI = '10.5281/zenodo.5739611'
 
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
@@ -44,8 +45,10 @@ class Metapackage:
             logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
         else:
             logging.debug("Acquiring SingleM packages from environment variable")
+            if not DATA_ENVIRONMENT_VARIABLE in os.environ:
+                raise Exception("The {} environment variable is not set, and no metapackage or set of singlem packages was defined. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
             backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
-            mpkg1 = Metapackage.acquire(backpack.payload_directory_string())
+            mpkg1 = Metapackage.acquire(backpack.payload_directory_string(enter_single_payload_directory=True))
 
             self.singlem_packages = mpkg1.singlem_packages
             self._prefilter_path = mpkg1._prefilter_path
@@ -97,6 +100,56 @@ class Metapackage:
             return Metapackage()
         else:
             return Metapackage(singlem_package_paths)
+
+    @staticmethod
+    def _grok_data_path(**kwargs):
+        output_directory = kwargs.pop('output_directory', None)
+
+        dir_from_env = os.environ.get(DATA_ENVIRONMENT_VARIABLE)
+
+        if dir_from_env and output_directory:
+            raise Exception("Cannot specify both an output directory and have a specified {}".format(DATA_ENVIRONMENT_VARIABLE))
+        elif dir_from_env:
+            output_directory = dir_from_env
+        elif not output_directory:
+            raise Exception("Either an output directory must be specified on the command line, or an environment variable must be set: {}".format(DATA_ENVIRONMENT_VARIABLE))
+        
+        return output_directory
+
+    @staticmethod
+    def download(**kwargs):
+        '''Download a metapackage from Zenodo'''
+        output_path = _grok_data_path(kwargs)
+        kwargs.pop('output_directory', None)
+
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+        
+        logging.info("Downloading data with ZenodoBackpack ..")
+        zenodo_backpack.ZenodoBackpackDownloader().download_and_extract(
+            output_directory,
+            DATA_DOI,
+            progress_bar=True)
+        logging.info("Finished downloading data")
+
+        logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
+        logging.info("For instance, the following can be included in your .bashrc (requires logout and login after inclusion):")
+        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
+
+    @staticmethod
+    def verify(**kwargs):
+        '''Verify that the ZenodoBackpack is valid'''
+        output_path = Metapackage._grok_data_path(**kwargs)
+        kwargs.pop('output_directory', None)
+
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+        
+        logging.info("Verifying data with ZenodoBackpack ..")
+        zb = zenodo_backpack.acquire(output_path)
+        zenodo_backpack.ZenodoBackpackDownloader().verify(zb, passed_version=DATA_DEFAULT_VERSION)
+        logging.info("Finished verifying data")
+
 
     @staticmethod
     def generate(**kwargs):
