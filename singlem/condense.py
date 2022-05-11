@@ -42,7 +42,9 @@ class Condenser:
             if metapackage.version != 3:
                 raise Exception("Condense function now only works with version 3 metapackages.")
         elif not metapackage:
-            raise Exception("Either metapackage_path or metapackage must be provided to condense.")
+            # Neither were specified, so use the default set of packages
+            logging.info("Using default set of SingleM packages.")
+            metapackage = Metapackage.acquire_default()
 
         # Yield once per sample
         to_yield = self._condense_to_otu_table(metapackage, **kwargs)

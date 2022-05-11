@@ -22,6 +22,7 @@ import singlem
 import singlem.pipe as pipe
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
+from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
 
 DEFAULT_WINDOW_SIZE=60
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
@@ -584,6 +585,11 @@ if __name__ == '__main__':
     taxonomy_assignment_db_parser.add_argument('--input-db', required=True, help="input (normal) SingleM database")
     taxonomy_assignment_db_parser.add_argument('--output-db', required=True, help="output (taxonomy assignment) SingleM database")
 
+    data_description = 'Download backend metapackage data'
+    data_parser = new_subparser(subparsers, 'data', data_description)
+    # TODO: Could make pipe invocation faster by moving DATA_ENVIRONMENT to a separate file
+    data_parser.add_argument('--output-directory', '--output_directory', help="Output directory [required unless {} is specified]".format(DATA_ENVIRONMENT_VARIABLE))
+    data_parser.add_argument('--verify-only', '--verify_only', help="Check that the data is up to date and each file has the correct checksum", action='store_true', default=False)
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.output_taxonomic_profile and not args.output_taxonomic_profile_krona:
@@ -695,6 +701,7 @@ if __name__ == '__main__':
         print('    appraise     -> %s' % appraise_description)
 
         print('\n  Packages (to search with):')
+        print('    data         -> %s' % data_description)
         print('    seqs         -> %s' % seqs_description)
         print('    create       -> %s' % create_description)
         print('    get_tree     -> %s' % get_tree_description)
@@ -1249,6 +1256,14 @@ if __name__ == '__main__':
         from singlem.taxonomy_db import TaxonomyDB
         TaxonomyDB.create_from_otu_table(
             args.input_db, args.output_db)
+    elif args.subparser_name=='data':
+        from singlem.metapackage import Metapackage
+        if args.verify_only:
+            Metapackage.verify(output_directory = args.output_directory)
+        else:
+            Metapackage.download(
+                output_directory = args.output_directory,
+            )
 
     else:
         raise Exception("Programming error")
