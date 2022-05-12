@@ -1,0 +1,12 @@
+name: update_metapackage
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.7
+  - snakemake>=6.0.5
+  - numpy
+  - pandas
+  - biopython
+  - parallel
