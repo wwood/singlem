@@ -1,0 +1,9 @@
+channels:
+  - ace-internal
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.6
+  - hmmer
+  - pfam_search
