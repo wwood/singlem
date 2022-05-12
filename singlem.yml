@@ -11,7 +11,7 @@ dependencies:
   - orfm
   - mfqe
   - extern
-  - graftm
+  - graftm>=0.14.0
   - krona
   - pplacer
   - sra-tools
