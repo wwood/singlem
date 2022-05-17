@@ -123,35 +123,43 @@ rule mfqe:
 
 rule transpose_hmms_with_sequences:
     input:
-        fasta = expand(output_dir + "/hmmsearch/matches/{genome}", genome=genomes),
-        matches = expand(output_dir + "/hmmsearch/matches/{genome}.fam", genome=genomes),
+        fasta = output_dir + "/hmmsearch/matches/{genome}",
+        matches = output_dir + "/hmmsearch/matches/{genome}.fam",
     output:
-        touch = output_dir + "/hmm_seq/done",
-        dir = directory(output_dir + "/hmmseq/") # output is file for each spkg
+        touch = output_dir + "/hmmseq_touches/{genome}.done",
     params:
         script = "scripts/transpose_hmms_with_sequences.py",
+        dir = directory(output_dir + "/hmmseq/"), # output is file for each spkg
         gtdb_bac_tax = config["gtdb_bac_tax"],
         gtdb_arc_tax = config["gtdb_arc_tax"],
         hmms_and_names = "hmms_and_names"
-    threads: 64
+    log:
+        logs_dir + "/hmmsearch/matches/{genome}_transpose.log"
     conda:
-        "envs/transpose_hmms_with_sequences.yml"
+        "/home/aroneys/conda_env_yamls/python_tools.yml"
     shell:
-        "parallel -j {threads} "
-        "python {params.script} "
-        "--input-fasta {{1}} "
+        "mkdir -p {params.dir} "
+        "&& python {params.script} "
+        "--input-fasta {input.fasta} "
         "--bacterial-taxonomy {params.gtdb_bac_tax} "
         "--archaeal-taxonomy {params.gtdb_arc_tax} "
-        "--hmm-seq {{2}} "
+        "--hmm-seq {input.matches} "
         "--hmm-spkg {params.hmms_and_names} "
-        "--output {output.dir} "
-        "'&>' {logs_dir}/hmmsearch/matches/{{2/.}}_transpose.log "
-        "::: {input.fasta} :::+ {input.matches} "
+        "--output {params.dir} "
+        "&> {log} "
         "&& touch {output.touch}"
+
+rule check_transposes:
+    input:
+        touches = expand(output_dir + "/hmmseq_touches/{genome}.done", genome=genomes),
+    output:
+        touch = output_dir + "/hmmseq/done"
+    shell:
+        "touch {output.touch}"
 
 rule create_SingleM_packages:
     input:
-        output_dir + "/hmm_seq/done"
+        output_dir + "/hmmseq/done"
     output:
         directory(output_dir + "/packages/{spkg}.spkg")
     params:
