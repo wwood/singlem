@@ -11,7 +11,6 @@ Run `snakemake --cores 64 --use-conda`
 import pandas as pd
 import os
 
-configfile: "config.yaml"
 hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=False)
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
@@ -26,7 +25,8 @@ wildcard_constraints:
 
 rule all:
     input:
-        output_dir + "/metapackage/" + config["new_metapackage"]
+        output_dir + "/metapackage/" + config["new_metapackage"],
+        output_dir + "/sra/done"
 
 ####################
 ### HMM searches ###
@@ -121,6 +121,9 @@ rule mfqe:
         "--output-uncompressed "
         "&> {log}"
 
+########################
+### Package creation ###
+########################
 rule transpose_hmms_with_sequences:
     input:
         fasta = output_dir + "/hmmsearch/matches/{genome}",
@@ -151,11 +154,11 @@ rule transpose_hmms_with_sequences:
 
 rule check_transposes:
     input:
-        touches = expand(output_dir + "/hmmseq_touches/{genome}.done", genome=genomes),
+        expand(output_dir + "/hmmseq_touches/{genome}.done", genome=genomes),
     output:
-        touch = output_dir + "/hmmseq/done"
+        output_dir + "/hmmseq/done"
     shell:
-        "touch {output.touch}"
+        "touch {output}"
 
 rule create_SingleM_packages:
     input:
@@ -204,3 +207,37 @@ rule create_SingleM_metapackage:
         "--output-metapackage {output} "
         "--threads {threads} "
         "&> {log}"
+
+###########################
+### Metapackage testing ###
+###########################
+rule test_metapackage:
+    input:
+        metapackge = output_dir + "/metapackage/" + config["new_metapackage"],
+        sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
+        sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
+    output:
+        table = output_dir + "/sra/{sra}.otu_table.tsv"
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/sra/{sra}_test.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} pipe "
+        "--forward {input.sra_1} "
+        "--reverse {input.sra_2} "
+        "--metapackage {input.metapackge} "
+        "--otu-table {output.table} "
+        "--threads {threads} "
+        "&> {log}"
+
+rule check_tests:
+    input:
+        expand(output_dir + "/sra/{sra}.otu_table.tsv", sra=config["sra_seqs_1"]),
+    output:
+        output_dir + "/sra/done"
+    shell:
+        "touch {output}"

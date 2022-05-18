@@ -8,3 +8,7 @@ pfams: HMMs/Pfam
 tigrfams: HMMs/TIGRfams.HMM
 uniprot_seq: uniprot_sprot.fa
 uniprot_tax: uniprot_sprot_taxonomy.tsv
+sra_seqs_1:
+  SRR1234: SRR1234_1.fastq
+sra_seqs_2:
+  SRR1234: SRR1234_2.fastq
