@@ -217,12 +217,35 @@ rule test_metapackage:
         sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
         sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
     output:
-        table = output_dir + "/sra/{sra}.otu_table.tsv"
+        table = output_dir + "/sra/{sra}_new.otu_table.tsv"
     params:
         singlem = singlem_bin
     threads: 8
     log:
-        logs_dir + "/sra/{sra}_test.log"
+        logs_dir + "/sra/{sra}_new_test.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} pipe "
+        "--forward {input.sra_1} "
+        "--reverse {input.sra_2} "
+        "--metapackage {input.metapackge} "
+        "--otu-table {output.table} "
+        "--threads {threads} "
+        "&> {log}"
+
+rule test_old_metapackage:
+    input:
+        metapackge = config["metapackage"],
+        sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
+        sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
+    output:
+        table = output_dir + "/sra/{sra}_old.otu_table.tsv"
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/sra/{sra}_old_test.log"
     conda:
         "../../singlem.yml"
     shell:
@@ -236,7 +259,8 @@ rule test_metapackage:
 
 rule check_tests:
     input:
-        expand(output_dir + "/sra/{sra}.otu_table.tsv", sra=config["sra_seqs_1"]),
+        expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
+        expand(output_dir + "/sra/{sra}_old.otu_table.tsv", sra=config["sra_seqs_1"]),
     output:
         output_dir + "/sra/done"
     shell:
