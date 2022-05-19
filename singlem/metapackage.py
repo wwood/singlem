@@ -221,7 +221,7 @@ class Metapackage:
     def dereplicate_prefilter_fasta(self, input_fasta_path, output_fasta_path, threads, clustering_threshold):
         '''Run CD-HIT to dereplicate the prefilter FASTA file'''
         # Use -n 3 since why not, and required for 0.6 threshold
-        extern.run('cd-hit -n 3 -i {} -o {} -T {} -c {}'.format(
+        extern.run('cd-hit -n 3 -M 0 -i {} -o {} -T {} -c {}'.format(
             input_fasta_path,
             output_fasta_path,
             threads,
