@@ -5,7 +5,7 @@
 Steps:
 Create and activate base environment (update_metapackage.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda`
+Run `snakemake --cores 64 --use-conda --configfile config.yaml`
 """
 
 import pandas as pd
