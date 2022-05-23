@@ -10,3 +10,4 @@ dependencies:
   - pandas
   - biopython
   - parallel
+  - mamba>=0.8.2
