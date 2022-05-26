@@ -352,7 +352,7 @@ if __name__ == '__main__':
 
     required_makedb_arguments = makedb_parser.add_argument_group('required arguments')
 
-    required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', nargs='+', help="Make a db from these OTU tables")
+    required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', '--otu-table', '--otu_table', nargs='+', help="Make a db from these OTU tables")
     required_makedb_arguments.add_argument('--otu-tables-list', '--otu_tables_list', help="Make a db from the OTU table files newline separated in this file")
     required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
     required_makedb_arguments.add_argument('--archive-otu-table-list', '--archive_otu_table_list',
@@ -532,9 +532,9 @@ if __name__ == '__main__':
 
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
 
-    required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Condense these table(s).")
+    required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', '--input-otu-table', '--input_otu_table', nargs='+', help="Condense these table(s).")
     required_condense_arguments.add_argument('--input-otu-tables-list', '--input_otu_tables_list', help="Condense the OTU table files newline separated in this file")
-    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Condense from these archive tables")
+    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', '--input-archive-otu-table', '--input_archive_otu_table', nargs='+', help="Condense from these archive tables")
     required_condense_arguments.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
         help="Condense from the archive tables newline separated in this file")
     required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
