@@ -141,7 +141,7 @@ rule transpose_hmms_with_sequences:
     log:
         logs_dir + "/hmmsearch/matches/{genome}_transpose.log"
     conda:
-        "/home/aroneys/conda_env_yamls/python_tools.yml"
+        "envs/transpose_hmms_with_sequences.yml"
     shell:
         "mkdir -p {params.dir} "
         "&& python {params.script} "
