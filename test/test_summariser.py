@@ -282,7 +282,7 @@ minimal2	0.2
         self.assertEqualOtuTable(list([line.split("\t") for line in expected]), observed)
 
     def test_collapse_paired_with_unpaired(self):
-        cmd = '{} summarise --input-archive-otu {}/summarise/ERR1883421_paired.annotated.singlem.json {}/summarise/ERR1883421_unpaired.annotated.singlem.json --collapse_paired_with_unpaired /dev/stdout'.format(
+        cmd = '{} summarise --input-archive-otu-table {}/summarise/ERR1883421_paired.annotated.singlem.json {}/summarise/ERR1883421_unpaired.annotated.singlem.json --collapse_paired_with_unpaired /dev/stdout'.format(
             path_to_script,
             path_to_data,
             path_to_data)
