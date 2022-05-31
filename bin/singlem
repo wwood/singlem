@@ -790,15 +790,13 @@ if __name__ == '__main__':
                 for o in args.input_archive_otu_tables:
                     otus.add_archive_otu_table(open(o))
             if args.input_otu_tables_list:
-                for l in args.input_otu_table_list:
-                    with open(l) as f:
-                        for o in f:
-                            otus.add_otu_table(open(o.strip()))
-            if args.input_archive_otu_tables:
-                for l in args.input_archive_otu_table_list:
-                    with open(l) as f:
-                        for o in f:
-                            otus.add_archive_otu_table(open(o.strip()))
+                with open(args.input_otu_tables_list) as f:
+                    for o in f:
+                        otus.add_otu_table(open(o.strip()))
+            if args.input_archive_otu_table_list:
+                with open(args.input_archive_otu_table_list) as f:
+                    for o in f:
+                        otus.add_archive_otu_table(open(o.strip()))
             if args.input_gzip_archive_otu_table_list:
                 with open(args.input_gzip_archive_otu_table_list) as f:
                     for arc in f.readlines():
@@ -809,7 +807,7 @@ if __name__ == '__main__':
             otus.set_target_taxonomy_by_string(args.taxonomy)
 
         if args.cluster:
-            if args.stream_input:
+            if args.stream_inputs:
                 raise Exception("Streaming inputs is not currently known to work with cluster.")            
             logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
             o2 = OtuTableCollection()
@@ -820,7 +818,7 @@ if __name__ == '__main__':
         if args.collapse_coupled:
             if not args.output_otu_table:
                 raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
-            if args.stream_input:
+            if args.stream_inputs:
                 raise Exception("Streaming inputs is not currently known to work with collapse_coupled.")
             logging.info("Collapsing forward and reverse read OTU tables")
             o2 = OtuTableCollection()
@@ -828,7 +826,7 @@ if __name__ == '__main__':
             otus = o2
 
         if args.exclude_off_target_hits:
-            if args.stream_input:
+            if args.stream_inputs:
                 raise Exception("Streaming inputs is not currently known to work with exclude_off_target_hits.")
             logging.info("Removing hits that are not assigned to their target domains")
             o2 = OtuTableCollection()
