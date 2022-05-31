@@ -14,6 +14,7 @@ import sys
 import os
 import gzip
 import tempfile
+import json
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 
@@ -409,10 +410,14 @@ if __name__ == '__main__':
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
     summarise_io_args = summarise_parser.add_argument_group('input')
-    summarise_io_args.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Summarise these tables")
-    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-otu-tables', '--input_otu_tables', '--input-otu-table', '--input_otu_table', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-otu-tables-list', '--input_otu_tables_list', help="Summarise the OTU table files newline separated in this file")
+    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', '--input-archive-otu-table', '--input_archive_otu_table', nargs='+', help="Summarise these tables")
     summarise_io_args.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
         help="Summarise the list of newline-separated gzip-compressed archive OTU tables specified in this file")
+    summarise_io_args.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
+        help="Summarise the archive tables newline separated in this file")
+    summarise_io_args.add_argument('--stream-inputs', '--stream_inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_transformation_args.add_argument('--cluster-id', '--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -769,20 +774,43 @@ if __name__ == '__main__':
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse_paired_with_unpaired_archive_otu_table requires exactly two archive tables")
 
-        otus = OtuTableCollection()
-        otus.set_target_taxonomy_by_string(args.taxonomy)
-        if args.input_otu_tables:
-            for o in args.input_otu_tables:
-                otus.add_otu_table(open(o))
-        if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table:
-            for o in args.input_archive_otu_tables:
-                otus.add_archive_otu_table(open(o))
-        if args.input_gzip_archive_otu_table_list:
-            with open(args.input_gzip_archive_otu_table_list) as f:
-                for arc in f.readlines():
-                    otus.add_archive_otu_table(gzip.open(arc.strip()))
+        if args.stream_inputs:
+            from singlem.otu_table_collection import StreamingOtuTableCollection
+            if not args.output_otu_table:
+                raise Exception("--stream_inputs requires --output_otu_table to be defined")
+            if args.taxonomy:
+                raise Exception("--stream_inputs does not currently support --taxonomy")
+            otus = generate_streaming_otu_table_from_args(args, input_prefix=True)
+        else:
+            otus = OtuTableCollection()
+            if args.input_otu_tables:
+                for o in args.input_otu_tables:
+                    otus.add_otu_table(open(o))
+            if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table:
+                for o in args.input_archive_otu_tables:
+                    otus.add_archive_otu_table(open(o))
+            if args.input_otu_tables_list:
+                for l in args.input_otu_table_list:
+                    with open(l) as f:
+                        for o in f:
+                            otus.add_otu_table(open(o.strip()))
+            if args.input_archive_otu_tables:
+                for l in args.input_archive_otu_table_list:
+                    with open(l) as f:
+                        for o in f:
+                            otus.add_archive_otu_table(open(o.strip()))
+            if args.input_gzip_archive_otu_table_list:
+                with open(args.input_gzip_archive_otu_table_list) as f:
+                    for arc in f.readlines():
+                        try:
+                            otus.add_archive_otu_table(gzip.open(arc.strip()))
+                        except json.decoder.JSONDecodeError:
+                            logging.warning("Failed to parse JSON from archive OTU table {}, skipping".format(arc))
+            otus.set_target_taxonomy_by_string(args.taxonomy)
 
         if args.cluster:
+            if args.stream_input:
+                raise Exception("Streaming inputs is not currently known to work with cluster.")            
             logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
             o2 = OtuTableCollection()
             o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
@@ -792,12 +820,16 @@ if __name__ == '__main__':
         if args.collapse_coupled:
             if not args.output_otu_table:
                 raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
+            if args.stream_input:
+                raise Exception("Streaming inputs is not currently known to work with collapse_coupled.")
             logging.info("Collapsing forward and reverse read OTU tables")
             o2 = OtuTableCollection()
             o2.otu_table_objects.append(otus.collapse_coupled())
             otus = o2
 
         if args.exclude_off_target_hits:
+            if args.stream_input:
+                raise Exception("Streaming inputs is not currently known to work with exclude_off_target_hits.")
             logging.info("Removing hits that are not assigned to their target domains")
             o2 = OtuTableCollection()
             if args.metapackage:
