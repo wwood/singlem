@@ -488,10 +488,11 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='candidate euk sequences')
     required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True, help='euk sequence taxonomy')
 
-    metapackage_description = 'Create a metapackage (i.e. set of SingleM packages)'
+    metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
-    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages", required=True)
-    metapackage_parser.add_argument('--output-metapackage', '--output_metapackage', help='Path to write generated metapackage to', required=True)
+    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages")
+    metapackage_parser.add_argument('--metapackage', '--output-metapackage', '--output_metapackage', help='Path to write generated metapackage to', required=True)
+    metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
     metapackage_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
     current_default = 0.6
@@ -1026,13 +1027,18 @@ if __name__ == '__main__':
 
     elif args.subparser_name == 'metapackage':
         from singlem.metapackage import Metapackage
-        Metapackage.generate(
-            singlem_packages = args.singlem_packages,
-            output_path = args.output_metapackage,
-            threads = args.threads,
-            prefilter_clustering_threshold = args.prefilter_clustering_threshold,
-            prefilter_diamond_db = args.prefilter_diamond_db
-        )
+        if args.describe:
+            Metapackage.acquire(args.metapackage).describe()
+        else:
+            if not args.singlem_packages:
+                raise Exception("Must specify at least one singlem package to create a metapackage")
+            Metapackage.generate(
+                singlem_packages = args.singlem_packages,
+                output_path = args.metapackage,
+                threads = args.threads,
+                prefilter_clustering_threshold = args.prefilter_clustering_threshold,
+                prefilter_diamond_db = args.prefilter_diamond_db
+            )
 
     elif args.subparser_name == 'condense':
         from singlem.otu_table_collection import StreamingOtuTableCollection
