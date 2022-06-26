@@ -542,10 +542,10 @@ class Querier:
         first_chunk = True
         for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
-                row_chunks = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where_in(
+                row_chunks = dbm.table('otus').join('nucleotides','sequence_id','=','nucleotides.id').join('markers','marker_id','=','markers.id').where_in(
                     'sample_name', [sample for sample in chunk if sample is not None]).chunk(1000)
             elif taxonomy:
-                row_chunks = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where(
+                row_chunks = dbm.table('otus').join('nucleotides','sequence_id','=','nucleotides.id').join('markers','marker_id','=','markers.id').where(
                     'taxonomy', 'like', "%%%s%%" % taxonomy).chunk(1000)
             else:
                 raise Exception("Programming error")
