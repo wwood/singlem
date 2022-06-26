@@ -233,3 +233,15 @@ class Metapackage:
             for (name, seq, _) in SeqReader().readfq(f):
                 count += 1
         logging.info("After clustering, {} sequences remained".format(count))
+
+    def describe(self):
+        print('\t'.join(
+            ('name','version','target_domains','gene_description')
+        ))
+        for spkg in self.singlem_packages:
+            print('\t'.join((
+                spkg.graftm_package_basename(),
+                str(spkg.version),
+                ','.join(spkg.target_domains()),
+                spkg.gene_description()
+            )))
