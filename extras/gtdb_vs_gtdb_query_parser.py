@@ -44,6 +44,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--quiet', help='only output errors', action="store_true")
 
     parent_parser.add_argument('--gtdb-vs-gtdb-query', help='GTDB vs GTDB query result', required=True)
+    parent_parser.add_argument('--max-lineage-matching', type=int, help='minimum difference in lineage between GTDB and GTDB query e.g. 5 for genus')
     
     args = parent_parser.parse_args()
 
@@ -92,10 +93,9 @@ if __name__ == '__main__':
                 self_hit_taxonomy = row[hit_taxonomy_index]
             elif state == "finished_self_hit":
                 # best non-self hit
-                state = "finished_best_hit"
                 query_taxonomy2 = self_hit_taxonomy.split(';')
                 hit_taxonomy2 = row[hit_taxonomy_index].split(';')
-
+                
                 num_matching = 0
                 for i in range(len(query_taxonomy2)):
                     if query_taxonomy2[i] == hit_taxonomy2[i]:
@@ -103,7 +103,14 @@ if __name__ == '__main__':
                     else:
                         break
 
-                key = '{}:{}:{}'.format(row[marker_index], divergence, num_matching)
+                if args.max_lineage_matching is not None and num_matching > args.max_lineage_matching:
+                    continue
+
+                state = "finished_best_hit"
+                # if row[marker_index] == 'S3.10.ribosomal_protein_S19_rpsS' and query_taxonomy2[0] == 'd__Bacteria':
+                logging.debug('query {} hit {} divergence {}\t{}'.format(row[query_name_index], row[hit_name_index], divergence, num_matching))
+
+                key = '{}:{}:{}:{}'.format(row[marker_index], query_taxonomy2[0], divergence, num_matching)
                 if key in results:
                     results[key] += 1
                 else:
@@ -113,7 +120,7 @@ if __name__ == '__main__':
                 # that's probably rare enough it doesn't affect results.
                 pass
 
-    print('\t'.join(['marker', 'divergence', 'num_matching', 'count']))
+    print('\t'.join(['marker', 'query_domain', 'divergence', 'num_matching', 'count']))
     for (key, count) in results.items():
         print('{}\t{}'.format(key.replace(':','\t'), count))
                 
