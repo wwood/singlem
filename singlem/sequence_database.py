@@ -13,7 +13,7 @@ import numpy as np
 import scann
 import tensorflow as tf
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, select
 
 # Import masonite, pretty clunky
 sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
@@ -34,7 +34,7 @@ DEFAULT_NUM_THREADS = 1
 
 
 class SequenceDatabase:
-    version = 4
+    version = 5
     SQLITE_DB_NAME = 'otus.sqlite3'
     _marker_to_nmslib_nucleotide_index_file = {}
     _marker_to_nmslib_protein_index_file = {}
@@ -49,7 +49,7 @@ class SequenceDatabase:
 
     VERSION_KEY = 'singlem_database_version'
 
-    _REQUIRED_KEYS = {4: [VERSION_KEY]}
+    _REQUIRED_KEYS = {5: [VERSION_KEY]}
 
     NUCLEOTIDE_TYPE = 'nucleotide'
     PROTEIN_TYPE = 'protein'
@@ -222,7 +222,7 @@ class SequenceDatabase:
         found_version = db._contents_hash[SequenceDatabase.VERSION_KEY]
         logging.debug("Loading version {} SingleM database: {}".format(
             found_version, path))
-        if found_version == 4:
+        if found_version == 5:
             for key in SequenceDatabase._REQUIRED_KEYS[found_version]:
                 if key not in db._contents_hash:
                     raise Exception(
@@ -313,7 +313,7 @@ class SequenceDatabase:
         contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
         with open(contents_file_path, 'w') as f:
             json.dump({
-                SequenceDatabase.VERSION_KEY: 4,
+                SequenceDatabase.VERSION_KEY: 5,
             }, f)
 
         if pregenerated_sqlite3_db:
@@ -339,7 +339,13 @@ class SequenceDatabase:
                     my_tempdir = tmpdir
 
                 total_otu_count = 0
-                # create tempdir
+                
+                #################################################################
+                # sort by marker and sequence, for later getting the unique
+                # sequences, and collect the taxonomy hash.
+                taxonomy_name_to_id = {}
+                next_taxonomy_id = 1
+                taxonomy_loading_path = os.path.join(my_tempdir, 'taxonomy.tsv')
                 sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
                 # Have to set LC_COLLATE=C because otherwise dashes in sequences
                 # can be ignored. See
@@ -349,10 +355,20 @@ class SequenceDatabase:
                     stdout=None,
                     stderr=subprocess.PIPE,
                     universal_newlines=True)
-                for entry in otu_table_collection:
-                    total_otu_count += 1
-                    print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
-                                str(entry.coverage), entry.taxonomy)), file=proc.stdin)
+                with open(taxonomy_loading_path, 'w') as taxonomy_loading_file:
+                    for entry in otu_table_collection:
+                        total_otu_count += 1
+
+                        if entry.taxonomy in taxonomy_name_to_id:
+                            taxonomy_id = taxonomy_name_to_id[entry.taxonomy]
+                        else:
+                            taxonomy_id = next_taxonomy_id
+                            taxonomy_name_to_id[entry.taxonomy] = taxonomy_id
+                            next_taxonomy_id += 1
+                            taxonomy_loading_file.write('{}\t{}\n'.format(taxonomy_id, entry.taxonomy))
+
+                        print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
+                                    str(entry.coverage), str(taxonomy_id))), file=proc.stdin)
                 logging.info("Sorting {} OTU observations ..".format(total_otu_count))
                 proc.stdin.close()
                 proc.wait()
@@ -360,7 +376,18 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                logging.info("Loading taxonomy table ..")
+                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE taxonomy (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        " taxonomy text);\n"
+                        '.separator "\\t"\n'
+                        ".import {} taxonomy".format(taxonomy_loading_path))
+                logging.info("Loaded {} taxonomy entries".format(len(taxonomy_name_to_id)))
 
+
+
+                #################################################################
                 logging.info("Creating numbered OTU table tsv")
                 marker_index = 0
                 sequence_index = 0
@@ -390,7 +417,7 @@ class SequenceDatabase:
                             elif last_sequence != row[1]:
                                 last_sequence = row[1]
                                 sequence_index += 1
-                            print("\t".join(row[2:]+[str(marker_index),str(sequence_index)]), file=proc.stdin)
+                            print("\t".join(row[2:]+[str(marker_index),str(sequence_index),row[1]]), file=proc.stdin)
                             print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
                 logging.info("Sorting OTU observations by sample_name ..")
                 proc.stdin.close()
@@ -401,10 +428,9 @@ class SequenceDatabase:
                             proc.returncode, proc.stderr.read()))
 
                 logging.info("Importing OTU table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " sample_name text, num_hits int, coverage float, taxonomy text, marker_id int, sequence_id int);\n"
+                        " sample_name text, num_hits int, coverage float, taxonomy_id int, marker_id int, sequence_id int, sequence text);\n"
                         '.separator "\\t"\n'
                         ".import {} otus".format(numbered_table_file))
 
@@ -454,7 +480,7 @@ class SequenceDatabase:
                 c = db.cursor()
 
                 c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
-                c.execute("CREATE INDEX otu_taxonomy on otus (taxonomy)")
+                c.execute("CREATE INDEX otu_taxonomy on otus (taxonomy_id)")
                 c.execute("CREATE INDEX otu_marker on otus (marker_id)")
                 c.execute("CREATE INDEX otu_sequence on otus (sequence_id)")
 
@@ -464,6 +490,9 @@ class SequenceDatabase:
                 c.execute("CREATE INDEX nucleotides_marker_id on nucleotides (marker_id)")
                 c.execute("CREATE INDEX nucleotides_sequence on nucleotides (sequence)")
                 c.execute("CREATE INDEX nucleotides_marker_wise_id on nucleotides (marker_wise_id)")
+
+                logging.info("Creating SQL indexes on taxonomy ..")
+                c.execute("CREATE INDEX taxonomy_taxonomy on taxonomy (taxonomy)")
                 db.commit()
 
 
@@ -758,21 +787,37 @@ class SequenceDatabase:
         engine = create_engine(
             "sqlite:///"+sqlite_db_path,
             echo=logging.DEBUG >= logging.root.level)
-        
-        print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        batch_size = 10000
-        builder = select(
-            Marker.marker, Otu.sample_name, NucleotideSequence.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy
-        ).select_from(Otu).join_from(Otu, NucleotideSequence).join_from(Otu, Marker).execution_options(yield_per=batch_size)
-        if dump_order:
-            builder = builder.order_by(text(dump_order))
-        else:
-            builder = builder.order_by(Otu.id)
 
         with engine.connect() as conn:
+            # First cache the taxonomy
+            taxonomy_entries = [None]*(conn.execute('select count(id) from taxonomy').scalar()+1)
+            for row in conn.execute(select(Taxonomy.id, Taxonomy.taxonomy)).fetchall():
+                taxonomy_entries.insert(row.id, row.taxonomy)
+            logging.debug("Cached {} taxonomy entries".format(len(taxonomy_entries)))
+
+            # And markers
+            marker_entries = [None]*(conn.execute('select count(id) from markers').scalar()+1)
+            for row in conn.execute(select(Marker.id, Marker.marker)).fetchall():
+                marker_entries.insert(row.id, row.marker)
+            logging.debug("Cached {} marker entries".format(len(marker_entries)))
+        
+            print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
+            # DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
+            batch_size = 10000
+            builder = select(
+                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
+                ).execution_options(yield_per=batch_size)
+        
             for batch in conn.execute(builder).partitions(batch_size):
                 for row in batch:
-                    print("\t".join([str(r) for r in row]))
+                    print("\t".join([
+                        marker_entries[row.marker_id],
+                        row.sample_name,
+                        row.sequence,
+                        str(row.num_hits),
+                        '%.2f' % row.coverage,
+                        taxonomy_entries[row.taxonomy_id]
+                    ]))
 
 @numba.njit()
 def _base_to_binary(x):
