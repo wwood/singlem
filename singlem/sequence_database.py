@@ -787,16 +787,10 @@ class SequenceDatabase:
 
         with engine.connect() as conn:
             # First cache the taxonomy
-            taxonomy_entries = [None]*(conn.execute('select count(id) from taxonomy').scalar()+1)
-            for row in conn.execute(select(Taxonomy.id, Taxonomy.taxonomy)).fetchall():
-                taxonomy_entries.insert(row.id, row.taxonomy)
-            logging.debug("Cached {} taxonomy entries".format(len(taxonomy_entries)))
+            taxonomy_entries = Taxonomy.generate_python_index(conn)
 
             # And markers
-            marker_entries = [None]*(conn.execute('select count(id) from markers').scalar()+1)
-            for row in conn.execute(select(Marker.id, Marker.marker)).fetchall():
-                marker_entries.insert(row.id, row.marker)
-            logging.debug("Cached {} marker entries".format(len(marker_entries)))
+            marker_entries = Marker.generate_python_index(conn)
         
             print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
             # DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
