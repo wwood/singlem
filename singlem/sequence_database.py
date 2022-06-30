@@ -778,11 +778,8 @@ class SequenceDatabase:
             # break #DEBUG
     
     @staticmethod
-    def dump(db_path, dump_order=None):
-        """Dump the DB contents to STDOUT, requiring only that the DB is a version that
-        has an otus table in sqlite3 form (i.e. version 2 at least).
-
-        """
+    def dump(db_path):
+        """Dump the DB contents to STDOUT, requiring a version 5+ database"""
         sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
         engine = create_engine(
             "sqlite:///"+sqlite_db_path,
