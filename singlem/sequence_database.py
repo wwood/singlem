@@ -54,6 +54,23 @@ class SequenceDatabase:
     NUCLEOTIDE_TYPE = 'nucleotide'
     PROTEIN_TYPE = 'protein'
 
+    _marker_cache = None
+    _taxonomy_cache = None
+
+    def get_marker_via_cache(self, marker_id):
+        if self._marker_cache is None:
+            logging.info('Loading marker cache')
+            with self.engine.connect() as conn:
+                self._marker_cache = Marker.generate_python_index(conn)
+        return self._marker_cache[marker_id]
+
+    def get_taxonomy_via_cache(self, taxonomy_id):
+        if self._taxonomy_cache is None:
+            logging.info('Loading taxonomy cache')
+            with self.engine.connect() as conn:
+                self._taxonomy_cache = Taxonomy.generate_python_index(conn)
+        return self._taxonomy_cache[taxonomy_id]
+
     def add_sequence_db(self, marker_name, db_path, index_format, sequence_type):
         if index_format == 'nmslib':
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
@@ -403,22 +420,31 @@ class SequenceDatabase:
                     stderr=subprocess.PIPE,
                     universal_newlines=True)
                 numbered_marker_and_sequence_file = os.path.join(my_tempdir,'number_and_sequence_file')
+                numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
+                numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
                 with open(sorted_path) as csvfile_in:
                     reader = csv.reader(csvfile_in, delimiter="\t")
                     last_marker = None
                     last_sequence = None
-                    with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
-                        for row in reader:
-                            if last_marker != row[0]:
-                                last_marker = row[0]
-                                marker_index += 1
-                                last_sequence = row[1]
-                                sequence_index += 1
-                            elif last_sequence != row[1]:
-                                last_sequence = row[1]
-                                sequence_index += 1
-                            print("\t".join(row[2:]+[str(marker_index),str(sequence_index),row[1]]), file=proc.stdin)
-                            print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
+                    last_marker_wise_sequence_id = None
+                    with open(numbered_markers_file,'w') as markers_output_table_io:
+                        with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
+                            for row in reader:
+                                if last_marker != row[0]:
+                                    last_marker_wise_sequence_id = 0 # Annoy starts at 0, so go with that. nmslib is arbitrary.
+                                    last_marker = row[0]
+                                    marker_index += 1
+                                    last_sequence = row[1]
+                                    sequence_index += 1
+                                    # marker id, marker name
+                                    print("\t".join((str(marker_index), row[0])), file=markers_output_table_io)
+                                elif last_sequence != row[1]:
+                                    last_marker_wise_sequence_id += 1
+                                    last_sequence = row[1]
+                                    sequence_index += 1
+                                print("\t".join(row[2:]+[str(marker_index),str(sequence_index),row[1], str(last_marker_wise_sequence_id)]), file=proc.stdin)
+                                # seuence_id, marker_id, sequence, marker_wise_sequnce_id
+                                print("\t".join((str(sequence_index), str(marker_index), row[1], str(last_marker_wise_sequence_id))), file=nucleotides_output_table_io)
                 logging.info("Sorting OTU observations by sample_name ..")
                 proc.stdin.close()
                 proc.wait()
@@ -427,34 +453,13 @@ class SequenceDatabase:
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
 
+                #################################################################
                 logging.info("Importing OTU table into SQLite ..")
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " sample_name text, num_hits int, coverage float, taxonomy_id int, marker_id int, sequence_id int, sequence text);\n"
+                        " sample_name text, num_hits int, coverage float, taxonomy_id int, marker_id int, sequence_id int, sequence text, marker_wise_sequence_id int);\n"
                         '.separator "\\t"\n'
                         ".import {} otus".format(numbered_table_file))
-
-                logging.info("Creating markers and nucleotide table TSV files ..")
-                numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
-                numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
-                with open(numbered_marker_and_sequence_file) as csvfile_in:
-                    reader = csv.reader(csvfile_in, delimiter="\t")
-                    last_marker_id = None
-                    last_sequence_id = None
-                    last_marker_wise_sequence_id = None
-                    with open(numbered_markers_file,'w') as markers_output_table_io:
-                        with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
-                            for row in reader:
-                                if last_marker_id != row[0]:
-                                    last_marker_wise_sequence_id = 0 # Annoy starts at 0, so go with that. nmslib is arbitrary.
-                                    print("\t".join([row[0], row[2]]), file=markers_output_table_io)
-                                    print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
-                                    last_marker_id = row[0]
-                                    last_sequence_id = row[1]
-                                elif last_sequence_id != row[1]:
-                                    last_marker_wise_sequence_id += 1
-                                    print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
-                                    last_sequence_id = row[1]
 
                 logging.info("Importing markers table into SQLite ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
@@ -483,6 +488,7 @@ class SequenceDatabase:
                 c.execute("CREATE INDEX otu_taxonomy on otus (taxonomy_id)")
                 c.execute("CREATE INDEX otu_marker on otus (marker_id)")
                 c.execute("CREATE INDEX otu_sequence on otus (sequence_id)")
+                c.execute("CREATE INDEX otu_marker_wise_sequence_id on otus (marker_wise_sequence_id)")
 
                 c.execute("CREATE INDEX markers_marker on markers (marker)")
 

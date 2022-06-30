@@ -14,10 +14,10 @@ Base = declarative_base()
 class Otu(Base):
     '''
     sqlite> select * from otus limit 3;
-    id|sample_name|num_hits|coverage|taxonomy_id|marker_id|sequence_id|sequence
-    1|GB_GCA_000309865.1_protein|1|1.03|0|16|351|GCCGACCCCAATATCATCGCTGATCTGGACTCCCATCATCTACTATTCAAAGAAGGCATC
-    2|GB_GCA_000309865.1_protein|1|1.03|7|46|1087|ACCAGTAAGAACTGGGTGATCTGGGCAGCTGACTTTATGGAGAAATTTGATGCGGATCTG
-    3|GB_GCA_000309865.1_protein|1|1.03|8|50|1140|CGCTGGGAAGCTGGTGGAGCC------------AAAGGCCTGGATCGCGTGCATGAATTC
+    id|sample_name|num_hits|coverage|taxonomy_id|marker_id|sequence_id|sequence|marker_wise_sequence_id
+    1|GB_GCA_000309865.1_protein|1|1.03|1|16|351|GCCGACCCCAATATCATCGCTGATCTGGACTCCCATCATCTACTATTCAAAGAAGGCATC|6
+    2|GB_GCA_000309865.1_protein|1|1.03|8|46|1087|ACCAGTAAGAACTGGGTGATCTGGGCAGCTGACTTTATGGAGAAATTTGATGCGGATCTG|23
+    3|GB_GCA_000309865.1_protein|1|1.03|9|50|1140|CGCTGGGAAGCTGGTGGAGCC------------AAAGGCCTGGATCGCGTGCATGAATTC|11
     '''
     __tablename__ = 'otus'
     id = Column(Integer, primary_key=True)
@@ -28,8 +28,9 @@ class Otu(Base):
     taxonomy_id = Column(Integer, ForeignKey('taxonomy.id'), nullable=False, index=True)
     marker_id = Column(Integer, ForeignKey('markers.id'), nullable=False, index=True)
     sequence_id = Column(Integer, ForeignKey('nucleotides.id'), nullable=False, index=True)
-    # We include the sequence itself so dumping the database is faster
+    # We include the sequence itself and the marker_wise_id so dumping/querying the database is faster
     sequence = Column(String, nullable=False)
+    marker_wise_sequence_id = Column(Integer, nullable=False, index=True)
 
 class Taxonomy(Base):
     __tablename__ = 'taxonomy'

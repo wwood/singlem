@@ -421,30 +421,20 @@ class Querier:
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None, limit_per_sequence=None):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-            if self._query_result_from_db_builder_nucleotide is None:
-                self._query_result_from_db_builder_nucleotide = sdb.query_builder(). \
-                    table('otus'). \
-                    join('nucleotides','sequence_id','=','nucleotides.id'). \
-                    select_raw('nucleotides.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
-                    " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
-                if limit_per_sequence is not None:
-                    self._query_result_from_db_builder_nucleotide = self._query_result_from_db_builder_nucleotide + ' order by random() limit {}'.format(limit_per_sequence)
-            results = sdb.query_builder().statement(
-                self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id])
-            if results is None and hit_index <= 16:
-                # For very small indexes, SCANN can have dummy sequences that
-                # are not in the SQL DB. Ignore these.
-                pass
-            else:
-                for entry in results:
+            with sdb.engine.connect() as conn:
+                query2 = select(
+                    Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
+                ).where(Otu.marker_wise_sequence_id == int(hit_index)).where(Otu.marker_id == int(marker_id)).limit(limit_per_sequence)
+                for row in conn.execute(query2):
                     otu = OtuTableEntry()
                     otu.marker = marker
-                    otu.sample_name = entry['sample_name']
-                    otu.sequence = entry['sequence']
-                    otu.count = entry['num_hits']
-                    otu.coverage = entry['coverage']
-                    otu.taxonomy = entry['taxonomy']
+                    otu.sample_name = row.sample_name
+                    otu.count = row.num_hits
+                    otu.sequence = row.sequence
+                    otu.coverage = row.coverage
+                    otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
                     yield QueryResult(query, otu, div)
+
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
             if self._query_result_from_db_builder_protein is None:
                 self._query_result_from_db_builder_protein = sdb.query_builder(). \
@@ -470,7 +460,7 @@ class Querier:
                     otu.sequence = entry['nucleotide_sequence']
                     otu.count = entry['num_hits']
                     otu.coverage = entry['coverage']
-                    otu.taxonomy = entry['taxonomy']
+                    otu.taxonomy = sdb.get_taxonomy_via_cache(entry['taxonomy_id'])
                     yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
         else:
             raise Exception("unknown sequence_type")
