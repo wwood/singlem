@@ -24,6 +24,7 @@ class Renew:
         min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
         filter_minimum_protein = kwargs.pop('filter_minimum_protein')
+        assignment_singlem_db = kwargs.pop('assignment_singlem_db')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -137,6 +138,7 @@ class Renew:
                 known_sequence_taxonomy=None,
                 known_taxes=None,
                 output_jplace=output_jplace,
+                assignment_singlem_db=assignment_singlem_db,
             )
 
         # Write outputs
