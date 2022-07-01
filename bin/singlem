@@ -249,7 +249,8 @@ if __name__ == '__main__':
             '--assignment-method', '--assignment_method',
             choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
+                    pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                    pipe.ANNOY_ASSIGNMENT_METHOD),
             help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification [default: %s]' % (
             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
             current_default),
@@ -298,6 +299,7 @@ if __name__ == '__main__':
                                     metavar='length',
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
+        argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
@@ -355,7 +357,7 @@ if __name__ == '__main__':
 
     required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', '--otu-table', '--otu_table', nargs='+', help="Make a db from these OTU tables")
     required_makedb_arguments.add_argument('--otu-tables-list', '--otu_tables_list', help="Make a db from the OTU table files newline separated in this file")
-    required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
+    required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', '--archive-otu-table', '--archive_otu_table', nargs='+', help="Make a db from these archive tables")
     required_makedb_arguments.add_argument('--archive-otu-table-list', '--archive_otu_table_list',
         help="Make a db from the archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', '--gzip_archive_otu_table_list',
@@ -736,6 +738,7 @@ if __name__ == '__main__':
             min_orf_length = get_min_orf_length(args, subparser='renew'),
             restrict_read_length = args.restrict_read_length,
             filter_minimum_protein = args.filter_minimum_protein,
+            assignment_singlem_db = args.assignment_singlem_db,
             )
 
     elif args.subparser_name == 'summarise':

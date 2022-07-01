@@ -22,7 +22,7 @@ from .graftm_result import GraftMResult
 from .placement_parser import PlacementParser
 from .taxonomy_bihash import TaxonomyBihash
 from .diamond_spkg_searcher import DiamondSpkgSearcher
-from .pipe_sequence_extractor import PipeSequenceExtractor, ExtractedReads
+from .pipe_sequence_extractor import PipeSequenceExtractor
 from .kingfisher_sra import KingfisherSra
 
 from graftm.sequence_extractor import SequenceExtractor
@@ -32,6 +32,7 @@ from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 PPLACER_ASSIGNMENT_METHOD = 'pplacer'
 DIAMOND_ASSIGNMENT_METHOD = 'diamond'
 DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
+ANNOY_ASSIGNMENT_METHOD = 'annoy'
 NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 DEFAULT_THREADS = 1
 
@@ -422,6 +423,8 @@ class SearchPipe:
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
         known_taxes = kwargs.pop('known_taxes')
         output_jplace = kwargs.pop('output_jplace')
+        assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -429,7 +432,8 @@ class SearchPipe:
             logging.info("Running taxonomic assignment ..")
             assignment_result = self._assign_taxonomy(
                 extracted_reads, singlem_assignment_method, threads,
-                diamond_taxonomy_assignment_performance_parameters)
+                diamond_taxonomy_assignment_performance_parameters,
+                assignment_singlem_db)
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -575,8 +579,10 @@ class SearchPipe:
                         readset.unknown_sequences, readset.known_sequences))
 
                 if assign_taxonomy:
-                    # Add usage of prefilter results here
-                    if singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD or \
+                    if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD:
+                        taxonomies = best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
+
+                    elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD or \
                         singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                             best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                             taxonomies = {}
@@ -995,7 +1001,7 @@ class SearchPipe:
             analysing_pairs)
 
     def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads,
-        diamond_taxonomy_assignment_performance_parameters):
+        diamond_taxonomy_assignment_performance_parameters, assignment_singlem_db):
         
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
@@ -1019,6 +1025,16 @@ class SearchPipe:
                 io.write("\n")
                 io.write(s.unaligned_sequence)
                 io.write("\n")
+
+        if assignment_method == ANNOY_ASSIGNMENT_METHOD:
+            logging.info("Assigning taxonomy using ANNOY..")
+            # Import here so the query imports (which include TensorFlow, which
+            # is slow to load) don't slow down other assignment / no assignment
+            from .pipe_taxonomy_assigner_by_query import PipeTaxonomyAssignerByQuery
+            res = PipeTaxonomyAssignerByQuery().assign_taxonomy_with_annoy(
+                extracted_reads, assignment_singlem_db)
+            logging.info("Finished running taxonomic assignment")
+            return res
 
 
         # Run each one at a time serially so that the number of threads is
@@ -1073,6 +1089,8 @@ class SearchPipe:
                         tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
+
+            
 
             if len(tmp_files) > 0:
                 if assignment_method == DIAMOND_ASSIGNMENT_METHOD or \
