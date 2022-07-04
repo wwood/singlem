@@ -79,7 +79,7 @@ class PipeTaxonomyAssignerByQuery:
         if lca == []:
             return 'Root'
         else:
-            return '; '.join(lca)
+            return 'Root; '+'; '.join(lca)
 
 class QueryTaxonomicAssignmentResult:
     def __init__(self, spkg_to_sample_to_name_to_taxonomy):

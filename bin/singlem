@@ -720,7 +720,9 @@ if __name__ == '__main__':
             diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
             diamond_package_assignment = not args.hmmsearch_package_assignment,
             diamond_prefilter_db = args.diamond_prefilter_db,
-            diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters)
+            diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
+            assignment_singlem_db = args.assignment_singlem_db,
+        )
 
     elif args.subparser_name=='renew':
         from singlem.renew import Renew
@@ -732,6 +734,7 @@ if __name__ == '__main__':
             assignment_method = args.assignment_method,
             output_jplace = args.output_jplace,
             output_extras = args.output_extras,
+            metapackage_path = args.singlem_metapackage,
             singlem_packages = args.singlem_packages,
             diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
             evalue = args.evalue,
