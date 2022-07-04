@@ -125,6 +125,7 @@ class SearchPipe:
         diamond_package_assignment = kwargs.pop('diamond_package_assignment')
         diamond_prefilter_db = kwargs.pop('diamond_prefilter_db')
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
+        assignment_singlem_db = kwargs.pop('assignment_singlem_db')
 
         working_directory = kwargs.pop('working_directory')
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm')
@@ -406,6 +407,7 @@ class SearchPipe:
             known_sequence_taxonomy=known_sequence_taxonomy,
             known_taxes=known_taxes,
             output_jplace=output_jplace,
+            assignment_singlem_db=assignment_singlem_db,
         )
 
         if len(transcript_tempfile_name_to_desired_name) > 0:
@@ -580,7 +582,7 @@ class SearchPipe:
 
                 if assign_taxonomy:
                     if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD:
-                        taxonomies = best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
+                        taxonomies = assignment_result.get_best_hits(singlem_package, sample_name)
 
                     elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD or \
                         singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
