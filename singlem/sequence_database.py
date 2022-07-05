@@ -250,6 +250,7 @@ class SequenceDatabase:
 
         db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
         db.engine = create_engine("sqlite:///" + db.sqlite_file)
+        db.sqlalchemy_connection = db.engine.connect()
 
         nmslib_nucleotide_index_files = glob.glob("%s/nucleotide_indices_nmslib/*.nmslib_index" % path)
         logging.debug("Found nmslib_nucleotide_index_files: %s" % ", ".join(nmslib_nucleotide_index_files))
