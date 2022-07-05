@@ -50,7 +50,6 @@ class PipeTaxonomyAssignerByQuery:
                 final_result[spkg_key][sample_name][hit.query.name] = lca
 
         for (spkg_key, queries) in spkg_queries.items():
-            # for hit in querier.query_by_sequence_similarity_with_annoy(queries, sdb, 3, SequenceDatabase.NUCLEOTIDE_TYPE, 1):
             for hit in querier.query_with_queries(queries, sdb, 3, 'annoy', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
                 # hit has (query, subject, divergence)
                 # subject has .taxonomy
@@ -88,3 +87,6 @@ class QueryTaxonomicAssignmentResult:
 
     def get_best_hits(self, singlem_package, sample_name):
         return self._spkg_to_sample_to_name_to_taxonomy[singlem_package.base_directory()][sample_name]
+
+    def is_assigned_taxonomy(self, singlem_package, sample_name, sequence_name):
+        return sequence_name in self._spkg_to_sample_to_name_to_taxonomy[singlem_package.base_directory()][sample_name]

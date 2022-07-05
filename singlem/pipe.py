@@ -585,8 +585,10 @@ class SearchPipe:
                     if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD:
                         taxonomies = assignment_result.get_best_hits(singlem_package, sample_name)
 
-                    elif singlem_assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD or \
-                        singlem_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                    elif singlem_assignment_method in (
+                        DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                        DIAMOND_ASSIGNMENT_METHOD,
+                        ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
                             best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                             taxonomies = {}
                             if analysing_pairs:
@@ -1034,15 +1036,13 @@ class SearchPipe:
             # Import here so the query imports (which include TensorFlow, which
             # is slow to load) don't slow down other assignment / no assignment
             from .pipe_taxonomy_assigner_by_query import PipeTaxonomyAssignerByQuery
-            res = PipeTaxonomyAssignerByQuery().assign_taxonomy_with_annoy(
+            query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy_with_annoy(
                 extracted_reads, assignment_singlem_db)
             if assignment_method == ANNOY_ASSIGNMENT_METHOD:
                 logging.info("Finished running taxonomic assignment")
-                return res
+                return query_based_assignment_result
             else:
-                logging.info("Finished running annoy taxonomic assignment, now running diamond")
-                import IPython; IPython.embed()
-                import sys; sys.exit(1)
+                logging.info("Finished running annoy taxonomic assignment, now running diamond ..")
 
 
 
@@ -1094,7 +1094,15 @@ class SearchPipe:
                 else:
                     if len(readset.sequences) > 0:
                         tmp = generate_tempfile_for_readset(readset)
-                        write_unaligned_fasta(readset.unknown_sequences, tmp)
+                        if assignment_method == ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD:
+                            # Only assign taxonomy to the sequences that are
+                            # still "unknown" after the query.
+                            still_unknown_sequences = \
+                                [u for u in readset.sequences if not \
+                                    query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset.sample_name, u.name)]
+                        else:
+                            still_unknown_sequences = readset.unknown_sequences
+                        write_unaligned_fasta(still_unknown_sequences, tmp)
                         tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
@@ -1102,8 +1110,11 @@ class SearchPipe:
             
 
             if len(tmp_files) > 0:
-                if assignment_method == DIAMOND_ASSIGNMENT_METHOD or \
-                    assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                if assignment_method in (
+                    DIAMOND_ASSIGNMENT_METHOD, 
+                    DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                    
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
                         # Running DIAMOND from here uses too much RAM when there
                         # are very many sequences to assign taxonomy to (>4000?)
@@ -1255,6 +1266,11 @@ class SearchPipe:
         logging.info("Finished running taxonomic assignment")
         if assignment_method == DIAMOND_ASSIGNMENT_METHOD or assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
             return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
+        elif assignment_method == ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD:
+            return QueryThenDiamondTaxonomicAssignmentResult(
+                query_based_assignment_result, 
+                DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs),
+                extracted_reads.analysing_pairs)
         elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
             return SingleMPipeTaxonomicAssignmentResult(graftm_align_directory_base)
         else:
@@ -1536,3 +1552,13 @@ class DiamondTaxonomicAssignmentResult:
 
     def get_best_hits(self, singlem_package, sample_name):
         return self._package_to_sample_to_best_hits[singlem_package.base_directory()][sample_name]
+
+class QueryThenDiamondTaxonomicAssignmentResult:
+    def __init__(self, query_assignment_result, diamond_assignment_result, analysing_pairs):
+        self._query_assignment_result = query_assignment_result
+        self._diamond_assignment_result = diamond_assignment_result
+
+    def get_best_hits(self, singlem_package, sample_name):
+        # Merge the dictionaries
+        return {**self._query_assignment_result.get_best_hits(singlem_package, sample_name),
+            **self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)}
