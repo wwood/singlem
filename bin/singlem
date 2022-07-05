@@ -251,7 +251,9 @@ if __name__ == '__main__':
                     pipe.DIAMOND_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                     pipe.ANNOY_ASSIGNMENT_METHOD,
-                    pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD),
+                    pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD),
             help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification [default: %s]' % (
             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
             current_default),
