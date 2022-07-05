@@ -782,6 +782,7 @@ class SequenceDatabase:
             logging.info("Finished writing protein indices to disk")
 
             # break #DEBUG
+
     
     @staticmethod
     def dump(db_path):

@@ -561,6 +561,11 @@ if __name__ == '__main__':
     required_trim_package_hmmsarguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Input package to trim HMMs from")
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
 
+    taxonomy_assignment_db_description = 'Create a taxonomy assignment database (expert mode)'
+    taxonomy_assignment_db_parser = new_subparser(subparsers, 'taxonomy_db', taxonomy_assignment_db_description)
+    taxonomy_assignment_db_parser.add_argument('--input-db', '--input_db', required=True, help="input (normal) SingleM database")
+    taxonomy_assignment_db_parser.add_argument('--output-db', '--output_db', required=True, help="output (taxonomy assignment) SingleM database")
+
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table:
@@ -645,6 +650,7 @@ if __name__ == '__main__':
         print('    regenerate   -> %s' % regenerate_description)
         print('    chainsaw     -> %s' % chainsaw_description)
         print('    metapackage  -> %s' % metapackage_description)
+        print('    taxonomy_db  -> %s' % taxonomy_assignment_db_description)
 
         print('\n  Use singlem <command> -h for command-specific help.\n'\
             '  Some commands also have an extended --full-help flag.\n')
@@ -1160,6 +1166,11 @@ if __name__ == '__main__':
                 output_style = 'sparse')# There is only sparse type atm.
         else:
             raise Exception("Either --db or --subject-otu-tables must be specified.")
+
+    elif args.subparser_name=='taxonomy_db':
+        from singlem.taxonomy_db import TaxonomyDB
+        TaxonomyDB.create_from_otu_table(
+            args.input_db, args.output_db)
 
     else:
         raise Exception("Programming error")
