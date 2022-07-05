@@ -11,8 +11,6 @@ import csv
 import subprocess
 import time
 
-from io import StringIO
-
 from .metapackage import Metapackage
 from .singlem import OrfMUtils, FastaNameToSampleName
 from .otu_table import OtuTable
@@ -34,6 +32,8 @@ DIAMOND_ASSIGNMENT_METHOD = 'diamond'
 DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
 ANNOY_ASSIGNMENT_METHOD = 'annoy'
 ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD = 'annoy_then_diamond'
+SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD = 'scann_then_diamond'
+NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD = 'naive_then_diamond'
 NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 DEFAULT_THREADS = 1
 
@@ -588,7 +588,9 @@ class SearchPipe:
                     elif singlem_assignment_method in (
                         DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                         DIAMOND_ASSIGNMENT_METHOD,
-                        ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                        ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                             best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                             taxonomies = {}
                             if analysing_pairs:
@@ -1031,18 +1033,32 @@ class SearchPipe:
                 io.write(s.unaligned_sequence)
                 io.write("\n")
 
-        if assignment_method == ANNOY_ASSIGNMENT_METHOD or assignment_method == ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD:
-            logging.info("Assigning taxonomy using ANNOY..")
+        if assignment_method in (
+            ANNOY_ASSIGNMENT_METHOD,
+            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+
+            logging.info("Assigning taxonomy by singlem query ..")
             # Import here so the query imports (which include TensorFlow, which
             # is slow to load) don't slow down other assignment / no assignment
             from .pipe_taxonomy_assigner_by_query import PipeTaxonomyAssignerByQuery
-            query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy_with_annoy(
-                extracted_reads, assignment_singlem_db)
+            from .sequence_database import ANNOY_INDEX_FORMAT, SCANN_INDEX_FORMAT, NAIVE_INDEX_FORMAT
+            if assignment_method in (ANNOY_ASSIGNMENT_METHOD, ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                method = ANNOY_INDEX_FORMAT
+            elif assignment_method == SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD:
+                method = SCANN_INDEX_FORMAT
+            elif assignment_method == NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD:
+                method = NAIVE_INDEX_FORMAT
+            else:
+                raise Exception("Programming error")
+            query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy(
+                extracted_reads, assignment_singlem_db, method)
             if assignment_method == ANNOY_ASSIGNMENT_METHOD:
                 logging.info("Finished running taxonomic assignment")
                 return query_based_assignment_result
             else:
-                logging.info("Finished running annoy taxonomic assignment, now running diamond ..")
+                logging.info("Finished running singlem query-based taxonomic assignment, now running diamond ..")
 
 
 
@@ -1094,7 +1110,11 @@ class SearchPipe:
                 else:
                     if len(readset.sequences) > 0:
                         tmp = generate_tempfile_for_readset(readset)
-                        if assignment_method == ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD:
+                        if assignment_method in (
+                            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+
                             # Only assign taxonomy to the sequences that are
                             # still "unknown" after the query.
                             still_unknown_sequences = \
@@ -1120,7 +1140,9 @@ class SearchPipe:
                 if assignment_method in (
                     DIAMOND_ASSIGNMENT_METHOD, 
                     DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                     
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
                         # Running DIAMOND from here uses too much RAM when there
@@ -1184,7 +1206,9 @@ class SearchPipe:
                                         best_hits[query] = best_hit_ids[0]
                                 elif assignment_method in (
                                     DIAMOND_ASSIGNMENT_METHOD,
-                                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                                    SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                                    NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                                     for (query, best_hit_ids) in chunk_best_hits.items():
                                         best_hits[query] = self.lca_taxonomy(tax_hash, best_hit_ids)
                                 else:
@@ -1275,7 +1299,10 @@ class SearchPipe:
         logging.info("Finished running taxonomic assignment")
         if assignment_method == DIAMOND_ASSIGNMENT_METHOD or assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
             return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
-        elif assignment_method == ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD:
+        elif assignment_method in (
+            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
             return QueryThenDiamondTaxonomicAssignmentResult(
                 query_based_assignment_result, 
                 DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs),

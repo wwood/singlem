@@ -185,7 +185,7 @@ class Querier:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
             return self.query_by_sqlite(queries, sdb)
-        elif search_method == 'naive':
+        elif search_method == 'naive' or search_method == 'scann-naive':
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         elif search_method == 'annoy':
@@ -259,9 +259,8 @@ class Querier:
             else:
                 index_format = 'scann'
             index = sdb.get_sequence_index(marker, index_format, sequence_type)
-            # When scann DB is absent due to too few seqs
             if index is None:
-                continue
+                raise Exception("The marker '{}' does not appear to be '{}' indexed in the singlem db".format(marker, index_format))
             logging.info("Querying index for {}".format(marker))
             m = sdb.query_builder().table('markers').where('marker',marker).first()
             if m is None:
