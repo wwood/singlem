@@ -33,6 +33,7 @@ PPLACER_ASSIGNMENT_METHOD = 'pplacer'
 DIAMOND_ASSIGNMENT_METHOD = 'diamond'
 DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
 ANNOY_ASSIGNMENT_METHOD = 'annoy'
+ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD = 'annoy_then_diamond'
 NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 DEFAULT_THREADS = 1
 
@@ -1028,15 +1029,21 @@ class SearchPipe:
                 io.write(s.unaligned_sequence)
                 io.write("\n")
 
-        if assignment_method == ANNOY_ASSIGNMENT_METHOD:
+        if assignment_method == ANNOY_ASSIGNMENT_METHOD or assignment_method == ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD:
             logging.info("Assigning taxonomy using ANNOY..")
             # Import here so the query imports (which include TensorFlow, which
             # is slow to load) don't slow down other assignment / no assignment
             from .pipe_taxonomy_assigner_by_query import PipeTaxonomyAssignerByQuery
             res = PipeTaxonomyAssignerByQuery().assign_taxonomy_with_annoy(
                 extracted_reads, assignment_singlem_db)
-            logging.info("Finished running taxonomic assignment")
-            return res
+            if assignment_method == ANNOY_ASSIGNMENT_METHOD:
+                logging.info("Finished running taxonomic assignment")
+                return res
+            else:
+                logging.info("Finished running annoy taxonomic assignment, now running diamond")
+                import IPython; IPython.embed()
+                import sys; sys.exit(1)
+
 
 
         # Run each one at a time serially so that the number of threads is
