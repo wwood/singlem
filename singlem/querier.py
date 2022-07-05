@@ -421,19 +421,18 @@ class Querier:
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None, limit_per_sequence=None):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-            with sdb.engine.connect() as conn:
-                query2 = select(
-                    Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
-                ).where(Otu.marker_wise_sequence_id == int(hit_index)).where(Otu.marker_id == int(marker_id)).limit(limit_per_sequence)
-                for row in conn.execute(query2):
-                    otu = OtuTableEntry()
-                    otu.marker = marker
-                    otu.sample_name = row.sample_name
-                    otu.count = row.num_hits
-                    otu.sequence = row.sequence
-                    otu.coverage = row.coverage
-                    otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
-                    yield QueryResult(query, otu, div)
+            query2 = select(
+                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
+            ).where(Otu.marker_wise_sequence_id == int(hit_index)).where(Otu.marker_id == int(marker_id)).limit(limit_per_sequence)
+            for row in sdb.sqlalchemy_connection.execute(query2):
+                otu = OtuTableEntry()
+                otu.marker = marker
+                otu.sample_name = row.sample_name
+                otu.count = row.num_hits
+                otu.sequence = row.sequence
+                otu.coverage = row.coverage
+                otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
+                yield QueryResult(query, otu, div)
 
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
             if self._query_result_from_db_builder_protein is None:
