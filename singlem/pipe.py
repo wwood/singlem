@@ -1098,8 +1098,15 @@ class SearchPipe:
                             # Only assign taxonomy to the sequences that are
                             # still "unknown" after the query.
                             still_unknown_sequences = \
-                                [u for u in readset.sequences if not \
+                                [u for u in readset.unknown_sequences if not \
                                     query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset.sample_name, u.name)]
+                            logging.info("Assigning taxonomy with DIAMOND for {} out of {} sequences ({:.1f}%) for sample {}, package {}".format(
+                                len(still_unknown_sequences), 
+                                len(readset.unknown_sequences),
+                                100.0*len(still_unknown_sequences)/len(readset.unknown_sequences),
+                                readset.sample_name,
+                                os.path.basename(singlem_package.base_directory())))
+                            write_unaligned_fasta(still_unknown_sequences, tmp)
                         else:
                             still_unknown_sequences = readset.unknown_sequences
                         write_unaligned_fasta(still_unknown_sequences, tmp)
@@ -1175,7 +1182,9 @@ class SearchPipe:
                                 if assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
                                     for (query, best_hit_ids) in chunk_best_hits.items():
                                         best_hits[query] = best_hit_ids[0]
-                                elif assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                                elif assignment_method in (
+                                    DIAMOND_ASSIGNMENT_METHOD,
+                                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
                                     for (query, best_hit_ids) in chunk_best_hits.items():
                                         best_hits[query] = self.lca_taxonomy(tax_hash, best_hit_ids)
                                 else:
