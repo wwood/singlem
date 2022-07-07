@@ -11,7 +11,6 @@ import csv
 import extern
 import numpy as np
 import scann
-import tensorflow as tf
 
 from sqlalchemy import create_engine, select
 
@@ -27,7 +26,7 @@ from numba.core import types
 import Bio.Data.CodonTable
 from annoy import AnnoyIndex
 
-from .otu_table import OtuTableEntry, OtuTable
+from .otu_table import OtuTable
 from .singlem_database_models import *
 
 DEFAULT_NUM_THREADS = 1
@@ -145,6 +144,7 @@ class SequenceDatabase:
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         elif index_format in [SCANN_INDEX_FORMAT, NAIVE_INDEX_FORMAT]:
+            import tensorflow as tf
             if sequence_type == 'nucleotide':
                 if index_format == SCANN_INDEX_FORMAT:
                     markers_to_paths = self._marker_to_scann_nucleotide_index_file
@@ -715,6 +715,7 @@ class SequenceDatabase:
 
     def create_scann_indexes(self, generate_brute_force_index):
         logging.info("Creating scann sequence indices ..")
+        import tensorflow as tf
         nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
         nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
         os.makedirs(nucleotide_db_dir_ah)
