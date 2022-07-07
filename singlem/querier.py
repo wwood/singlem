@@ -180,7 +180,8 @@ class Querier:
         return MarkerSortedQueryInput(sorted_io)
 
     def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence):
-        sdb.query_builder(check=True)
+        if sequence_type == SequenceDatabase.PROTEIN_TYPE: # Nucleotides now work with sqlalchemy so not needed.
+            sdb.query_builder(check=True)
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")

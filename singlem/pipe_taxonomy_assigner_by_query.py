@@ -55,14 +55,15 @@ class PipeTaxonomyAssignerByQuery:
             final_result = [{},{}]
         else:
             final_result = [{}]
+
         # TODO: test different values of max_search_nearest_neighbours
-        def process_hits_batch(spkg_key, final_result, current_hits, pair_index):
+        def process_hits_batch(spkg_key, current_hits, pair_index):
             # Get LCA of taxonomy of best hits
             lca = self._lca_taxonomy([h.subject.taxonomy for h in current_hits])
             # We want the final result to be a hash of spkg to sample name to hash of sequence name to taxonomy
             for hit in current_hits:
                 sample_name = aligned_seqs_to_package_and_sample_name[pair_index][hit.query.sequence][1]
-                if spkg_key not in final_result:
+                if spkg_key not in final_result[pair_index]:
                     final_result[pair_index][spkg_key] = {}
                 if sample_name not in final_result[pair_index][spkg_key]:
                     final_result[pair_index][spkg_key][sample_name] = {}
@@ -78,15 +79,14 @@ class PipeTaxonomyAssignerByQuery:
                 if last_query != hit.query.name:
                     if last_query is not None:
                         # Process last hits batch
-                        process_hits_batch(spkg_key, final_result, last_hits, pair_index)
+                        process_hits_batch(spkg_key, last_hits, pair_index)
                     last_query = hit.query.name
                     last_hits = [hit]
                 else:
                     last_hits.append(hit)
             # Process the last hit
             if last_query is not None:
-                process_hits_batch(spkg_key, final_result, last_hits, pair_index)
-            return final_result
+                process_hits_batch(spkg_key, last_hits, pair_index)
 
         for (spkg_key, queries) in spkg_queries.items():
             if analysing_pairs:
@@ -101,14 +101,15 @@ class PipeTaxonomyAssignerByQuery:
             return QueryTaxonomicAssignmentResult(final_result[0], analysing_pairs)
 
     def _lca_taxonomy(self, taxonomy_strings):
-        lca = []
-        hit_taxonomies = list([list(t.split('; ')) for t in taxonomy_strings])
-
-        for (i, taxon) in enumerate(hit_taxonomies[0]):
-            if all([len(h) > i and h[i]==taxon for h in hit_taxonomies]):
-                lca.append(taxon)
-            else:
-                break
+        hit_taxonomies = list([list([ta.strip() for ta in t.split(';')]) for t in taxonomy_strings])
+        lca = hit_taxonomies[0]
+        for taxonomy in hit_taxonomies[1:]:
+            if len(taxonomy) < len(lca):
+                lca = lca[:len(taxonomy)]
+            for i, tax in enumerate(taxonomy):
+                if i >= len(lca) or tax != lca[i]:
+                    lca = lca[:i]
+                    break
         if lca == []:
             return 'Root'
         else:
@@ -134,12 +135,19 @@ class QueryTaxonomicAssignmentResult:
         # if self._analysing_pairs:
         #     return self._spkg_to_sample_to_name_to_taxonomy[singlem_package.base_directory()][sample_name]
         # else:
+        spkg_key = singlem_package.base_directory()
+        if spkg_key not in self._spkg_to_sample_to_name_to_taxonomy:
+            return {}
         return self._spkg_to_sample_to_name_to_taxonomy[singlem_package.base_directory()][sample_name]
 
     def is_assigned_taxonomy(self, singlem_package, sample_name, sequence_name, pair_index):
+        spkg_key = singlem_package.base_directory()
+        if spkg_key not in self._spkg_to_sample_to_name_to_taxonomy:
+            # When no hits are found at all from that pkg
+            return False
         if pair_index is None:
             # single-ended case
-            return sequence_name in self._spkg_to_sample_to_name_to_taxonomy[singlem_package.base_directory()][sample_name]
+            return sequence_name in self._spkg_to_sample_to_name_to_taxonomy[spkg_key][sample_name]
         else:
             # paired-ended case
-            return sequence_name in self._spkg_to_sample_to_name_to_taxonomy[singlem_package.base_directory()][sample_name][pair_index]
+            return sequence_name in self._spkg_to_sample_to_name_to_taxonomy[spkg_key][sample_name][pair_index]
