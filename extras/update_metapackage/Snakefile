@@ -30,6 +30,26 @@ rule all:
         output_dir + "/metapackage/" + config["new_metapackage"],
         output_dir + "/sra/done"
 
+rule shadow:
+    input:
+        output_dir + "/shadow_GTDB/genomes.tsv"
+
+###########################
+### Shadow GTDB genomes ###
+###########################
+rule produce_shadow_list:
+    output:
+        genomes = output_dir + "/shadow_GTDB/genomes.tsv",
+    params:
+        gtdb_sp_clusters = config["gtdb_sp_clusters"],
+        gtdb_bac_metadata = config["gtdb_bac_metadata"],
+        gtdb_arc_metadata = config["gtdb_arc_metadata"],
+    log:
+        logs_dir + "/shadow_GTDB/genomes.log"
+    script:
+        "scripts/produce_shadow_list.py"
+
+
 ####################
 ### HMM searches ###
 ####################
