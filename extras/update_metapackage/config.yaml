@@ -16,3 +16,6 @@ sra_seqs_2:
   DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_2.fastq
   SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_2.fastq
   SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_2.fastq
+gtdb_sp_clusters: /work/microbiome/db/gtdb/gtdb_release207/auxillary_files/sp_clusters_r207.tsv
+gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release207/bac120_metadata_r207.tsv
+gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release207/ar53_metadata_r207.tsv
