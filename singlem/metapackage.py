@@ -22,7 +22,7 @@ class Metapackage:
     SINGLEM_PACKAGES = 'singlem_packages'
     NUCLEOTIDE_SDB = 'nucleotide_sdb'
 
-    _CURRENT_FORMAT_VERSION = 1
+    _CURRENT_FORMAT_VERSION = 2
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -67,7 +67,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v != 1:
+        if v != 2:
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -107,13 +107,12 @@ class Metapackage:
             dest = os.path.join(output_path, relpath)
             logging.info("Copying package {} to be {} ..".format(pkg, dest))
             shutil.copytree(pkg, dest)
-        
+
         # Copy nucleotide SingleM db into output directory
-        if nucleotide_sdb:
-            nucleotide_sdb_name = os.path.basename(nucleotide_sdb)
-            nucleotide_sdb_path = os.path.join(output_path, nucleotide_sdb_name)
-            logging.info("Copying SingleM db {} to {} ..".format(nucleotide_sdb, nucleotide_sdb_path))
-            shutil.copytree(nucleotide_sdb, nucleotide_sdb_path)
+        nucleotide_sdb_name = os.path.basename(nucleotide_sdb)
+        nucleotide_sdb_path = os.path.join(output_path, nucleotide_sdb_name)
+        logging.info("Copying SingleM db {} to {} ..".format(nucleotide_sdb, nucleotide_sdb_path))
+        shutil.copytree(nucleotide_sdb, nucleotide_sdb_path)
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -149,13 +148,11 @@ class Metapackage:
         if not prefilter_diamond_db:
             os.remove(prefilter_path)
 
-        contents_hash = {Metapackage.VERSION_KEY: 1,
+        contents_hash = {Metapackage.VERSION_KEY: 2,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
-                        Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name
+                        Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
+                        Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name
                         }
-
-        if nucleotide_sdb:
-            contents_hash[Metapackage.NUCLEOTIDE_SDB] = nucleotide_sdb_name
 
         # save contents file
         with open(os.path.join(output_path, Metapackage._CONTENTS_FILE_NAME), 'w') as f:
