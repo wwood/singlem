@@ -1,9 +1,10 @@
 """
 models.py
-- Data classes for SingleM databases
+- SQLAlchemy Data classes for SingleM databases
 """
+import logging
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Float
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, select
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -13,10 +14,10 @@ Base = declarative_base()
 class Otu(Base):
     '''
     sqlite> select * from otus limit 3;
-    id|sample_name|num_hits|coverage|taxonomy|marker_id|sequence_id
-    1|minimal|7|15.1|Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales|1|1
-    2|minimal|9|19.5|Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus|2|2
-    3|minimal|6|12.4|Root; k__Bacteria; p__Firmicutes; c__Bacilli|3|3
+    id|sample_name|num_hits|coverage|taxonomy_id|marker_id|sequence_id|sequence|marker_wise_sequence_id
+    1|GB_GCA_000309865.1_protein|1|1.03|1|16|351|GCCGACCCCAATATCATCGCTGATCTGGACTCCCATCATCTACTATTCAAAGAAGGCATC|6
+    2|GB_GCA_000309865.1_protein|1|1.03|8|46|1087|ACCAGTAAGAACTGGGTGATCTGGGCAGCTGACTTTATGGAGAAATTTGATGCGGATCTG|23
+    3|GB_GCA_000309865.1_protein|1|1.03|9|50|1140|CGCTGGGAAGCTGGTGGAGCC------------AAAGGCCTGGATCGCGTGCATGAATTC|11
     '''
     __tablename__ = 'otus'
     id = Column(Integer, primary_key=True)
@@ -24,9 +25,29 @@ class Otu(Base):
     sample_name = Column(String, nullable=False, index=True)
     num_hits = Column(Integer, nullable=False)
     coverage = Column(Float, nullable=False)
-    taxonomy = Column(String, nullable=False, index=True)
+    taxonomy_id = Column(Integer, ForeignKey('taxonomy.id'), nullable=False, index=True)
     marker_id = Column(Integer, ForeignKey('markers.id'), nullable=False, index=True)
     sequence_id = Column(Integer, ForeignKey('nucleotides.id'), nullable=False, index=True)
+    # We include the sequence itself and the marker_wise_id so dumping/querying the database is faster
+    sequence = Column(String, nullable=False)
+    marker_wise_sequence_id = Column(Integer, nullable=False, index=True)
+
+class Taxonomy(Base):
+    __tablename__ = 'taxonomy'
+    id = Column(Integer, primary_key=True)
+    taxonomy = Column(String, nullable=False, index=True)
+
+    @staticmethod
+    def generate_python_index(connection):
+        """ Cache all taxonomy entries in a list, where the ID is the ID
+        from the table and the entry is the taxonomy string """
+
+        taxonomy_entries = [None]*(connection.execute('select count(id) from taxonomy').scalar()+1)
+        for row in connection.execute(select(Taxonomy.id, Taxonomy.taxonomy)).fetchall():
+            taxonomy_entries.insert(row.id, row.taxonomy)
+        logging.debug("Cached {} taxonomy entries".format(len(taxonomy_entries)))
+        return taxonomy_entries
+        
 
 class NucleotideSequence(Base):
     '''
@@ -49,6 +70,17 @@ class Marker(Base):
     marker = Column(String, nullable=False, index=True)
     otus = relationship('Otu', backref='marker')
     nucleotides = relationship('NucleotideSequence', backref='marker')
+
+    @staticmethod
+    def generate_python_index(connection):
+        """ Cache all taxonomy entries in a list, where the ID is the ID
+        from the table and the entry is the taxonomy string """
+
+        marker_entries = [None]*(connection.execute('select count(id) from markers').scalar()+1)
+        for row in connection.execute(select(Marker.id, Marker.marker)).fetchall():
+            marker_entries.insert(row.id, row.marker)
+        logging.debug("Cached {} marker entries".format(len(marker_entries)))
+        return marker_entries
 
 class ProteinSequence(Base):
     '''

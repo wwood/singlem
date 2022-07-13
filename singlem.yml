@@ -4,7 +4,7 @@ channels:
   - defaults
   - masonite
 dependencies:
-  - python>=3.6
+  - python>=3.6 # stuck at 3.6 for orator
   - diamond=2.0.11
   - biopython
   - hmmer

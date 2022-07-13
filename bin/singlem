@@ -14,6 +14,7 @@ import sys
 import os
 import gzip
 import tempfile
+import json
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 
@@ -248,7 +249,11 @@ if __name__ == '__main__':
             '--assignment-method', '--assignment_method',
             choices=(pipe.PPLACER_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD),
+                    pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                    pipe.ANNOY_ASSIGNMENT_METHOD,
+                    pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD),
             help='method of assigning taxonomy to sequences. Using \'%s\' means than an example hit ID is given instead of a taxonomic classification [default: %s]' % (
             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
             current_default),
@@ -297,6 +302,7 @@ if __name__ == '__main__':
                                     metavar='length',
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
+        argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
@@ -352,8 +358,9 @@ if __name__ == '__main__':
 
     required_makedb_arguments = makedb_parser.add_argument_group('required arguments')
 
-    required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', nargs='+', help="Make a db from these OTU tables")
-    required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', nargs='+', help="Make a db from these archive tables")
+    required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', '--otu-table', '--otu_table', nargs='+', help="Make a db from these OTU tables")
+    required_makedb_arguments.add_argument('--otu-tables-list', '--otu_tables_list', help="Make a db from the OTU table files newline separated in this file")
+    required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', '--archive-otu-table', '--archive_otu_table', nargs='+', help="Make a db from these archive tables")
     required_makedb_arguments.add_argument('--archive-otu-table-list', '--archive_otu_table_list',
         help="Make a db from the archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', '--gzip_archive_otu_table_list',
@@ -403,15 +410,18 @@ if __name__ == '__main__':
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
     query_other_args.add_argument('--dump', action='store_true', help='Print all OTUs in the DB')
     current_default = None
-    query_other_args.add_argument('--dump-order', help='When using --dump, order OTUs by this field e.g. \'sample_name\' or \'marker\' [default: {}]'.format(current_default), choices=['marker','sample_name','sequence','num_hits','coverage','taxonomy'], default=current_default)
 
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
     summarise_io_args = summarise_parser.add_argument_group('input')
-    summarise_io_args.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Summarise these tables")
-    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-otu-tables', '--input_otu_tables', '--input-otu-table', '--input_otu_table', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-otu-tables-list', '--input_otu_tables_list', help="Summarise the OTU table files newline separated in this file")
+    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', '--input-archive-otu-table', '--input_archive_otu_table', nargs='+', help="Summarise these tables")
     summarise_io_args.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
         help="Summarise the list of newline-separated gzip-compressed archive OTU tables specified in this file")
+    summarise_io_args.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
+        help="Summarise the archive tables newline separated in this file")
+    summarise_io_args.add_argument('--stream-inputs', '--stream_inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_transformation_args.add_argument('--cluster-id', '--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -482,11 +492,12 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='candidate euk sequences')
     required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True, help='euk sequence taxonomy')
 
-    metapackage_description = 'Create a metapackage (i.e. set of SingleM packages)'
+    metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
-    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages", required=True)
+    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages")
     metapackage_parser.add_argument('--nucleotide-sdb', '--nucleotide_sdb', help="Nucleotide SingleM database for initial assignment pass")
-    metapackage_parser.add_argument('--output-metapackage', '--output_metapackage', help='Path to write generated metapackage to', required=True)
+    metapackage_parser.add_argument('--metapackage', '--output-metapackage', '--output_metapackage', help='Path to write generated metapackage to', required=True)
+    metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
     metapackage_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
     current_default = 0.6
@@ -532,8 +543,9 @@ if __name__ == '__main__':
 
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
 
-    required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', nargs='+', help="Condense these table(s).")
-    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', nargs='+', help="Condense from these archive tables")
+    required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', '--input-otu-table', '--input_otu_table', nargs='+', help="Condense these table(s).")
+    required_condense_arguments.add_argument('--input-otu-tables-list', '--input_otu_tables_list', help="Condense the OTU table files newline separated in this file")
+    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', '--input-archive-otu-table', '--input_archive_otu_table', nargs='+', help="Condense from these archive tables")
     required_condense_arguments.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
         help="Condense from the archive tables newline separated in this file")
     required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
@@ -552,6 +564,11 @@ if __name__ == '__main__':
     required_trim_package_hmmsarguments = trim_package_hmms_parser.add_argument_group("required arguments")
     required_trim_package_hmmsarguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Input package to trim HMMs from")
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
+
+    taxonomy_assignment_db_description = 'Create a taxonomy assignment database (expert mode)'
+    taxonomy_assignment_db_parser = new_subparser(subparsers, 'taxonomy_db', taxonomy_assignment_db_description)
+    taxonomy_assignment_db_parser.add_argument('--input-db', '--input_db', required=True, help="input (normal) SingleM database")
+    taxonomy_assignment_db_parser.add_argument('--output-db', '--output_db', required=True, help="output (taxonomy assignment) SingleM database")
 
 
     def validate_pipe_args(args, subparser='pipe'):
@@ -578,22 +595,28 @@ if __name__ == '__main__':
     def generate_streaming_otu_table_from_args(args, input_prefix=False):
         if input_prefix:
             otu_tables = args.input_otu_tables
+            otu_tables_list = args.input_otu_tables_list
             archive_otu_tables = args.input_archive_otu_tables
             archive_otu_table_list = args.input_archive_otu_table_list
             gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list
         else:
             otu_tables = args.otu_tables
+            otu_tables_list = args.otu_tables_list
             archive_otu_tables = args.archive_otu_tables
             archive_otu_table_list = args.archive_otu_table_list
             gzip_archive_otu_table_list = args.gzip_archive_otu_table_list
 
-        if not otu_tables and not archive_otu_tables and \
+        if not otu_tables and not otu_tables_list and not archive_otu_tables and \
             not archive_otu_table_list and not gzip_archive_otu_table_list:
             raise Exception("{} requires input OTU tables or archive tables".format(args.subparser_name))
         otus = StreamingOtuTableCollection()
         if otu_tables:
             for o in otu_tables:
                 otus.add_otu_table_file(o)
+        if otu_tables_list:
+            with open(otu_tables_list) as f:
+                for o in f:
+                    otus.add_otu_table_file(o.strip())
         if archive_otu_tables:
             for o in archive_otu_tables:
                 otus.add_archive_otu_table_file(o.strip())
@@ -631,6 +654,7 @@ if __name__ == '__main__':
         print('    regenerate   -> %s' % regenerate_description)
         print('    chainsaw     -> %s' % chainsaw_description)
         print('    metapackage  -> %s' % metapackage_description)
+        print('    taxonomy_db  -> %s' % taxonomy_assignment_db_description)
 
         print('\n  Use singlem <command> -h for command-specific help.\n'\
             '  Some commands also have an extended --full-help flag.\n')
@@ -706,7 +730,9 @@ if __name__ == '__main__':
             diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
             diamond_package_assignment = not args.hmmsearch_package_assignment,
             diamond_prefilter_db = args.diamond_prefilter_db,
-            diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters)
+            diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
+            assignment_singlem_db = args.assignment_singlem_db,
+        )
 
     elif args.subparser_name=='renew':
         from singlem.renew import Renew
@@ -718,12 +744,14 @@ if __name__ == '__main__':
             assignment_method = args.assignment_method,
             output_jplace = args.output_jplace,
             output_extras = args.output_extras,
+            metapackage_path = args.singlem_metapackage,
             singlem_packages = args.singlem_packages,
             diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
             evalue = args.evalue,
             min_orf_length = get_min_orf_length(args, subparser='renew'),
             restrict_read_length = args.restrict_read_length,
             filter_minimum_protein = args.filter_minimum_protein,
+            assignment_singlem_db = args.assignment_singlem_db,
             )
 
     elif args.subparser_name == 'summarise':
@@ -762,20 +790,41 @@ if __name__ == '__main__':
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse_paired_with_unpaired_archive_otu_table requires exactly two archive tables")
 
-        otus = OtuTableCollection()
-        otus.set_target_taxonomy_by_string(args.taxonomy)
-        if args.input_otu_tables:
-            for o in args.input_otu_tables:
-                otus.add_otu_table(open(o))
-        if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table:
-            for o in args.input_archive_otu_tables:
-                otus.add_archive_otu_table(open(o))
-        if args.input_gzip_archive_otu_table_list:
-            with open(args.input_gzip_archive_otu_table_list) as f:
-                for arc in f.readlines():
-                    otus.add_archive_otu_table(gzip.open(arc.strip()))
+        if args.stream_inputs:
+            from singlem.otu_table_collection import StreamingOtuTableCollection
+            if not args.output_otu_table:
+                raise Exception("--stream_inputs requires --output_otu_table to be defined")
+            if args.taxonomy:
+                raise Exception("--stream_inputs does not currently support --taxonomy")
+            otus = generate_streaming_otu_table_from_args(args, input_prefix=True)
+        else:
+            otus = OtuTableCollection()
+            if args.input_otu_tables:
+                for o in args.input_otu_tables:
+                    otus.add_otu_table(open(o))
+            if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table:
+                for o in args.input_archive_otu_tables:
+                    otus.add_archive_otu_table(open(o))
+            if args.input_otu_tables_list:
+                with open(args.input_otu_tables_list) as f:
+                    for o in f:
+                        otus.add_otu_table(open(o.strip()))
+            if args.input_archive_otu_table_list:
+                with open(args.input_archive_otu_table_list) as f:
+                    for o in f:
+                        otus.add_archive_otu_table(open(o.strip()))
+            if args.input_gzip_archive_otu_table_list:
+                with open(args.input_gzip_archive_otu_table_list) as f:
+                    for arc in f.readlines():
+                        try:
+                            otus.add_archive_otu_table(gzip.open(arc.strip()))
+                        except json.decoder.JSONDecodeError:
+                            logging.warning("Failed to parse JSON from archive OTU table {}, skipping".format(arc))
+            otus.set_target_taxonomy_by_string(args.taxonomy)
 
         if args.cluster:
+            if args.stream_inputs:
+                raise Exception("Streaming inputs is not currently known to work with cluster.")            
             logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
             o2 = OtuTableCollection()
             o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
@@ -785,12 +834,16 @@ if __name__ == '__main__':
         if args.collapse_coupled:
             if not args.output_otu_table:
                 raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
+            if args.stream_inputs:
+                raise Exception("Streaming inputs is not currently known to work with collapse_coupled.")
             logging.info("Collapsing forward and reverse read OTU tables")
             o2 = OtuTableCollection()
             o2.otu_table_objects.append(otus.collapse_coupled())
             otus = o2
 
         if args.exclude_off_target_hits:
+            if args.stream_inputs:
+                raise Exception("Streaming inputs is not currently known to work with exclude_off_target_hits.")
             logging.info("Removing hits that are not assigned to their target domains")
             o2 = OtuTableCollection()
             if args.metapackage:
@@ -989,14 +1042,19 @@ if __name__ == '__main__':
 
     elif args.subparser_name == 'metapackage':
         from singlem.metapackage import Metapackage
-        Metapackage.generate(
-            singlem_packages = args.singlem_packages,
-            nucleotide_sdb = args.nucleotide_sdb,
-            output_path = args.output_metapackage,
-            threads = args.threads,
-            prefilter_clustering_threshold = args.prefilter_clustering_threshold,
-            prefilter_diamond_db = args.prefilter_diamond_db
-        )
+        if args.describe:
+            Metapackage.acquire(args.metapackage).describe()
+        else:
+            if not args.singlem_packages:
+                raise Exception("Must specify at least one singlem package to create a metapackage")
+            Metapackage.generate(
+                singlem_packages = args.singlem_packages,
+                nucleotide_sdb = args.nucleotide_sdb,
+                output_path = args.metapackage,
+                threads = args.threads,
+                prefilter_clustering_threshold = args.prefilter_clustering_threshold,
+                prefilter_diamond_db = args.prefilter_diamond_db
+            )
 
     elif args.subparser_name == 'condense':
         from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -1061,7 +1119,7 @@ if __name__ == '__main__':
         if args.db:
             if args.dump:
                 logging.debug("Dumping SingleM database {}".format(args.db))
-                SequenceDatabase.dump(args.db, args.dump_order)
+                SequenceDatabase.dump(args.db)
             elif args.sample_names or args.taxonomy or args.sample_list:
                 definition_type_count = 0
                 if args.sample_names: definition_type_count += 1
@@ -1113,6 +1171,11 @@ if __name__ == '__main__':
                 output_style = 'sparse')# There is only sparse type atm.
         else:
             raise Exception("Either --db or --subject-otu-tables must be specified.")
+
+    elif args.subparser_name=='taxonomy_db':
+        from singlem.taxonomy_db import TaxonomyDB
+        TaxonomyDB.create_from_otu_table(
+            args.input_db, args.output_db)
 
     else:
         raise Exception("Programming error")

@@ -16,6 +16,12 @@ class ArchiveOtuTable:
         self.singlem_packages = singlem_packages
         self.fields = self.FIELDS
         self.data = []
+        if singlem_packages is not None:
+            self.alignment_hmm_sha256s = list([s.alignment_hmm_sha256() for s in self.singlem_packages])
+            self.singlem_package_sha256s = list([s.singlem_package_sha256() for s in self.singlem_packages])
+        else:
+            self.alignment_hmm_sha256s = None
+            self.singlem_package_sha256s = None
 
     def write_to(self, output_io):
         json.dump({"version": self.version,
