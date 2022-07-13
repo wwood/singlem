@@ -55,6 +55,9 @@ if __name__ == '__main__':
     parent_parser.add_argument('--output', help='output profile from CoverM', required=True)
     parent_parser.add_argument('--coverm-extra-args', help='extra arguments for CoverM e.g. --threads')
     parent_parser.add_argument('--gtdb-genome-location-hack', help='one off hack to change IDs', action="store_true")
+    current_default = '--max-divergence 0'
+    parent_parser.add_argument('--singlem-query-extra-args', help='extra arguments for SingleM query [default: \'{current_default}\']', default=current_default)
+    parent_parser.add_argument('--output-query-file', help='output singlem query result to this file [not required]')
 
     args = parent_parser.parse_args()
 
@@ -76,16 +79,22 @@ if __name__ == '__main__':
 
     # Query profile against genome DB
     logging.info("Querying genome database with SingleM query ..")
-    cmd = "singlem query --query-otu-table {} --db {} --max-divergence {}".format(
-        args.singlem_profile, args.reference_genome_singlem_database, 0)
+    cmd = "singlem query --query-otu-table {} --db {} {}".format(
+        args.singlem_profile, args.reference_genome_singlem_database, args.singlem_query_extra_args)
     query_result = dt.fread(extern.run(cmd))
+    if args.output_query_file:
+        logging.info("Writing query file to {} ..".format(args.output_query_file))
+        # Have to go via pandas because want tsv output
+        query_result.to_pandas().to_csv(args.output_query_file, sep="\t", index=False)
 
     # Find reference genome locations that match the read profile
-    hit_samples = dt.unique(query_result[:,f.sample])
+    logging.info("Finding reference genome locations that match the read profile ..")
+    hit_samples = dt.Frame({'sample': list(set(query_result['sample'].to_list()[0]))})
     hit_samples[:,'present']=True
     hit_samples.key = 'sample'
 
     if args.gtdb_genome_location_hack:
+        logging.info("Applying GTDB genome location hack ..")
         r = re.compile(r'^.._(.*)_protein$')
         hit_samples = dt.Frame({
             'sample': dt.Frame([r.match(x).groups(1) for x in hit_samples['sample'].to_list()[0]])})
@@ -106,6 +115,5 @@ if __name__ == '__main__':
 
         cmd = "coverm genome --genome-fasta-list {} -1 {} -2 {} -o {} {}".format(
             f.name, args.forward, args.reverse, args.output, args.coverm_extra_args if args.coverm_extra_args else '')
-        import IPython; IPython.embed()
         extern.run(cmd)
     logging.info("Finished")
