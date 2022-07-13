@@ -15,7 +15,6 @@ class Renew:
         output_archive_otu_table = kwargs.pop('output_archive_otu_table')
         output_otu_table = kwargs.pop('otu_table')
         output_extras = kwargs.pop('output_extras')
-        singlem_packages = kwargs.pop('singlem_packages')
         threads = kwargs.pop('threads')
         singlem_assignment_method = kwargs.pop('assignment_method')
         output_jplace = kwargs.pop('output_jplace')
@@ -24,14 +23,19 @@ class Renew:
         min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
         filter_minimum_protein = kwargs.pop('filter_minimum_protein')
+        assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+
+        logging.info("Acquiring singlem packages ..")
+        metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
+        kwargs.pop('singlem_packages', None)
+        kwargs.pop('metapackage_path', None)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+        kwargs['metapackage_object'] = metapackage
 
         # Create a dict of singlem package name (i.e. the string in the OTU
         # table) to singlem package object
-        logging.info("Acquiring singlem packages ..")
-        metapackage = Metapackage(singlem_packages)
         marker_name_to_spkg = {}
         for spkg in metapackage:
             marker_name = spkg.graftm_package_basename().replace('.gpkg','')
@@ -137,6 +141,7 @@ class Renew:
                 known_sequence_taxonomy=None,
                 known_taxes=None,
                 output_jplace=output_jplace,
+                assignment_singlem_db=assignment_singlem_db,
             )
 
         # Write outputs

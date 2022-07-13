@@ -3,11 +3,24 @@ import tempfile
 import csv
 import numpy as np
 import extern
+import sys
 
 from queue import Queue
-from collections import OrderedDict
 from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
+
+# Set CSV field limit to deal with pipe --output-extras as per
+# https://github.com/wwood/singlem/issues/89 following
+# https://stackoverflow.com/questions/15063936/csv-error-field-larger-than-field-limit-131072
+maxInt = sys.maxsize
+while True:
+    # decrease the maxInt value by factor 10
+    # as long as the OverflowError occurs.
+    try:
+        csv.field_size_limit(maxInt)
+        break
+    except OverflowError:
+        maxInt = int(maxInt/10)
 
 class Condenser:
     """ Combines otu table output for each marker into a single otu table"""
