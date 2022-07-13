@@ -32,7 +32,9 @@ rule all:
 
 rule shadow:
     input:
-        output_dir + "/shadow_GTDB/genomes.tsv"
+        output_dir + "/shadow_GTDB/genomes.tsv",
+        output_dir + "/shadow_GTDB/genomes",
+        output_dir + "/shadow_GTDB/genomes/done"
 
 ###########################
 ### Shadow GTDB genomes ###
@@ -49,6 +51,43 @@ rule produce_shadow_list:
     script:
         "scripts/produce_shadow_list.py"
 
+rule download_shadows:
+    input:
+        output_dir + "/shadow_GTDB/genomes.tsv"
+    output:
+        directory(output_dir + "/shadow_GTDB/downloads")
+    threads: 32
+    params:
+        logs = logs_dir + "/shadow_GTDB/downloads"
+    conda:
+        "envs/ncbi_genome_download.yml"
+    shell:
+        "mkdir -p {params.logs} "
+        "&& cat {input} "
+        "| parallel -j {threads} --col-sep '\t' "
+        "genome_updater.sh "
+        "-d '\"refseq,genbank\"' "
+        "-f '\"genomic.fna.gz\"' "
+        "-M 'gtdb' "
+        "-F \"1:{{2}}\" "
+        "-m "
+        "-o {output}/{{1}} "
+        "-b shadow "
+        "'&>' {params.logs}/{{1}}.log"
+
+rule link_shadows:
+    input:
+        output_dir + "/shadow_GTDB/downloads"
+    output:
+        dir = directory(output_dir + "/shadow_GTDB/genomes"),
+        touch = output_dir + "/shadow_GTDB/genomes/done"
+    log:
+        logs_dir + "/shadow_GTDB/links.log"
+    shell:
+        "find {input} -name '*.fna.gz' "
+        "| parallel -j {threads} "
+        "ln -s {{}} {output}/{{= 's=.*/==;s/\(GC[AF]_[^_]*\).*/\1.fna.gz/' =}} "
+        "&& touch {output.touch}"
 
 ####################
 ### HMM searches ###

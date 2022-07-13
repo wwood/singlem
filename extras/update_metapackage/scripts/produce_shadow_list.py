@@ -5,6 +5,7 @@
 # Produce list of non-representative genomes.
 
 import pandas as pd
+import numpy as np
 
 NUM_PER_CLUSTER = 20
 
@@ -27,4 +28,11 @@ shadows = (clusters
     .head(NUM_PER_CLUSTER)
     )
 
-shadows[["Clustered genomes"]].to_csv(snakemake.output.genomes, sep="\t", index=False, header=False)
+shadows["Clustered genomes"] = shadows["Clustered genomes"].str.replace(r"RS_|GB_", "", regex=True)
+shadows = (shadows[["Clustered genomes"]]
+    .groupby(np.arange(len(shadows)) // 1000)
+    .agg(",".join)
+    .reset_index()
+    )
+
+shadows[["index", "Clustered genomes"]].to_csv(snakemake.output.genomes, sep="\t", index=False, header=False)
