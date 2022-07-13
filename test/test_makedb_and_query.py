@@ -52,6 +52,18 @@ class Tests(unittest.TestCase):
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]), message)
 
+    def test_makedb_and_dump(self):
+        with tempfile.TemporaryDirectory() as d:
+            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods none" %(path_to_script,
+                                                            d,
+                                                            path_to_data)
+            extern.run(cmd)
+
+            observed = extern.run("%s query --dump --db %s/db" % (path_to_script, d))
+            with open('%s/methanobacteria/otus.transcripts.on_target.csv' % path_to_data) as f:
+                expected = [l.split("\t") for l in f.read().split("\n")]
+            self.assertEqualOtuTable(expected, observed)
+
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
             cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,

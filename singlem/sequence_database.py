@@ -11,9 +11,8 @@ import csv
 import extern
 import numpy as np
 import scann
-import tensorflow as tf
 
-from sqlalchemy import create_engine, select, text
+from sqlalchemy import create_engine, select
 
 # Import masonite, pretty clunky
 sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
@@ -27,14 +26,19 @@ from numba.core import types
 import Bio.Data.CodonTable
 from annoy import AnnoyIndex
 
-from .otu_table import OtuTableEntry, OtuTable
+from .otu_table import OtuTable
 from .singlem_database_models import *
 
 DEFAULT_NUM_THREADS = 1
 
+ANNOY_INDEX_FORMAT = 'annoy'
+NMSLIB_INDEX_FORMAT = 'nmslib'
+SCANN_INDEX_FORMAT = 'scann'
+NAIVE_INDEX_FORMAT = 'scann-naive'
+
 
 class SequenceDatabase:
-    version = 4
+    version = 5
     SQLITE_DB_NAME = 'otus.sqlite3'
     _marker_to_nmslib_nucleotide_index_file = {}
     _marker_to_nmslib_protein_index_file = {}
@@ -49,34 +53,51 @@ class SequenceDatabase:
 
     VERSION_KEY = 'singlem_database_version'
 
-    _REQUIRED_KEYS = {4: [VERSION_KEY]}
+    _REQUIRED_KEYS = {5: [VERSION_KEY]}
 
     NUCLEOTIDE_TYPE = 'nucleotide'
     PROTEIN_TYPE = 'protein'
 
+    _marker_cache = None
+    _taxonomy_cache = None
+
+    def get_marker_via_cache(self, marker_id):
+        if self._marker_cache is None:
+            logging.info('Loading marker cache')
+            with self.engine.connect() as conn:
+                self._marker_cache = Marker.generate_python_index(conn)
+        return self._marker_cache[marker_id]
+
+    def get_taxonomy_via_cache(self, taxonomy_id):
+        if self._taxonomy_cache is None:
+            logging.info('Loading taxonomy cache')
+            with self.engine.connect() as conn:
+                self._taxonomy_cache = Taxonomy.generate_python_index(conn)
+        return self._taxonomy_cache[taxonomy_id]
+
     def add_sequence_db(self, marker_name, db_path, index_format, sequence_type):
-        if index_format == 'nmslib':
+        if index_format == NMSLIB_INDEX_FORMAT:
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_nmslib_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_nmslib_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format == 'annoy':
+        elif index_format == ANNOY_INDEX_FORMAT:
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_annoy_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_annoy_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format == 'scann':
+        elif index_format == SCANN_INDEX_FORMAT:
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_scann_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_scann_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format == 'scann-naive':
+        elif index_format == NAIVE_INDEX_FORMAT:
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_scann_naive_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
@@ -88,7 +109,7 @@ class SequenceDatabase:
 
     def get_sequence_index(self, marker_name, index_format, sequence_type):
         index = None
-        if index_format == 'nmslib':
+        if index_format == NMSLIB_INDEX_FORMAT:
             if sequence_type == 'nucleotide':
                 if marker_name in self._marker_to_nmslib_nucleotide_index_file:
                     index_path = self._marker_to_nmslib_nucleotide_index_file[marker_name]
@@ -105,7 +126,7 @@ class SequenceDatabase:
                     return index
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format == 'annoy':
+        elif index_format == ANNOY_INDEX_FORMAT:
             if sequence_type == 'nucleotide':
                 if marker_name in self._marker_to_annoy_nucleotide_index_file:
                     index_path = self._marker_to_annoy_nucleotide_index_file[marker_name]
@@ -122,14 +143,15 @@ class SequenceDatabase:
                     return index
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format in ['scann','scann-naive']:
+        elif index_format in [SCANN_INDEX_FORMAT, NAIVE_INDEX_FORMAT]:
+            import tensorflow as tf
             if sequence_type == 'nucleotide':
-                if index_format == 'scann':
+                if index_format == SCANN_INDEX_FORMAT:
                     markers_to_paths = self._marker_to_scann_nucleotide_index_file
                 else:
                     markers_to_paths = self._marker_to_scann_naive_nucleotide_index_file
             elif sequence_type == 'protein':
-                if index_format == 'scann':
+                if index_format == SCANN_INDEX_FORMAT:
                     markers_to_paths = self._marker_to_scann_protein_index_file
                 else:
                     markers_to_paths = self._marker_to_scann_naive_protein_index_file
@@ -139,7 +161,7 @@ class SequenceDatabase:
             if marker_name in markers_to_paths:
                 index_path = markers_to_paths[marker_name]
                 logging.debug("Loading index for {} from {}".format(marker_name, index_path))
-                if index_format == 'scann':
+                if index_format == SCANN_INDEX_FORMAT:
                     index = scann.scann_ops_pybind.load_searcher(index_path)
                 else:
                     reloaded = tf.compat.v2.saved_model.load(export_dir=index_path)
@@ -222,7 +244,7 @@ class SequenceDatabase:
         found_version = db._contents_hash[SequenceDatabase.VERSION_KEY]
         logging.debug("Loading version {} SingleM database: {}".format(
             found_version, path))
-        if found_version == 4:
+        if found_version == 5:
             for key in SequenceDatabase._REQUIRED_KEYS[found_version]:
                 if key not in db._contents_hash:
                     raise Exception(
@@ -233,54 +255,55 @@ class SequenceDatabase:
 
         db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
         db.engine = create_engine("sqlite:///" + db.sqlite_file)
+        db.sqlalchemy_connection = db.engine.connect()
 
         nmslib_nucleotide_index_files = glob.glob("%s/nucleotide_indices_nmslib/*.nmslib_index" % path)
         logging.debug("Found nmslib_nucleotide_index_files: %s" % ", ".join(nmslib_nucleotide_index_files))
         for g in nmslib_nucleotide_index_files:
             marker = os.path.basename(g).replace('.nmslib_index','')
-            db.add_sequence_db(marker, g, 'nmslib','nucleotide')
+            db.add_sequence_db(marker, g, NMSLIB_INDEX_FORMAT,'nucleotide')
 
         nmslib_protein_index_files = glob.glob("%s/protein_indices_nmslib/*.nmslib_index" % path)
         logging.debug("Found nmslib_protein_index_files: %s" % ", ".join(nmslib_protein_index_files))
         for g in nmslib_protein_index_files:
             marker = os.path.basename(g).replace('.nmslib_index','')
-            db.add_sequence_db(marker, g, 'nmslib','protein')
+            db.add_sequence_db(marker, g, NMSLIB_INDEX_FORMAT,'protein')
 
         annoy_nucleotide_index_files = glob.glob("%s/nucleotide_indices_annoy/*.annoy_index" % path)
         logging.debug("Found annoy_nucleotide_index_files: %s" % ", ".join(annoy_nucleotide_index_files))
         for g in annoy_nucleotide_index_files:
             marker = os.path.basename(g).replace('.annoy_index','')
-            db.add_sequence_db(marker, g, 'annoy','nucleotide')
+            db.add_sequence_db(marker, g, ANNOY_INDEX_FORMAT,'nucleotide')
 
         annoy_protein_index_files = glob.glob("%s/protein_indices_annoy/*.annoy_index" % path)
         logging.debug("Found annoy_protein_index_files: %s" % ", ".join(nmslib_protein_index_files))
         for g in annoy_protein_index_files:
             marker = os.path.basename(g).replace('.annoy_index','')
-            db.add_sequence_db(marker, g, 'annoy','protein')
+            db.add_sequence_db(marker, g, ANNOY_INDEX_FORMAT,'protein')
         
         scann_nucleotide_index_files = glob.glob("%s/nucleotide_indices_scann/*" % path)
         logging.debug("Found scann_nucleotide_index_files: %s" % ", ".join(scann_nucleotide_index_files))
         for g in scann_nucleotide_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, 'scann','nucleotide')
+            db.add_sequence_db(marker, g, SCANN_INDEX_FORMAT,'nucleotide')
         
         scann_naive_nucleotide_index_files = glob.glob("%s/nucleotide_indices_scann_brute_force/*" % path)
         logging.debug("Found scann_brute_force_nucleotide_index_files: %s" % ", ".join(scann_naive_nucleotide_index_files))
         for g in scann_naive_nucleotide_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, 'scann-naive','nucleotide')
+            db.add_sequence_db(marker, g, NAIVE_INDEX_FORMAT,'nucleotide')
         
         scann_protein_index_files = glob.glob("%s/protein_indices_scann/*" % path)
         logging.debug("Found scann_protein_index_files: %s" % ", ".join(scann_protein_index_files))
         for g in scann_protein_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, 'scann','protein')
+            db.add_sequence_db(marker, g, SCANN_INDEX_FORMAT,'protein')
         
         scann_naive_protein_index_files = glob.glob("%s/protein_indices_scann_brute_force/*" % path)
         logging.debug("Found scann_brute_force_protein_index_files: %s" % ", ".join(scann_naive_protein_index_files))
         for g in scann_naive_protein_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, 'scann-naive','protein')
+            db.add_sequence_db(marker, g, NAIVE_INDEX_FORMAT,'protein')
 
         return db
 
@@ -298,7 +321,7 @@ class SequenceDatabase:
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
         num_annoy_protein_trees = 10,
-        sequence_database_methods = ['annoy','scann']):
+        sequence_database_methods = [ANNOY_INDEX_FORMAT,SCANN_INDEX_FORMAT]):
 
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
@@ -313,7 +336,7 @@ class SequenceDatabase:
         contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
         with open(contents_file_path, 'w') as f:
             json.dump({
-                SequenceDatabase.VERSION_KEY: 4,
+                SequenceDatabase.VERSION_KEY: 5,
             }, f)
 
         if pregenerated_sqlite3_db:
@@ -339,7 +362,13 @@ class SequenceDatabase:
                     my_tempdir = tmpdir
 
                 total_otu_count = 0
-                # create tempdir
+                
+                #################################################################
+                # sort by marker and sequence, for later getting the unique
+                # sequences, and collect the taxonomy hash.
+                taxonomy_name_to_id = {}
+                next_taxonomy_id = 1
+                taxonomy_loading_path = os.path.join(my_tempdir, 'taxonomy.tsv')
                 sorted_path = os.path.join(my_tempdir,'makedb_sort_output')
                 # Have to set LC_COLLATE=C because otherwise dashes in sequences
                 # can be ignored. See
@@ -349,10 +378,20 @@ class SequenceDatabase:
                     stdout=None,
                     stderr=subprocess.PIPE,
                     universal_newlines=True)
-                for entry in otu_table_collection:
-                    total_otu_count += 1
-                    print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
-                                str(entry.coverage), entry.taxonomy)), file=proc.stdin)
+                with open(taxonomy_loading_path, 'w') as taxonomy_loading_file:
+                    for entry in otu_table_collection:
+                        total_otu_count += 1
+
+                        if entry.taxonomy in taxonomy_name_to_id:
+                            taxonomy_id = taxonomy_name_to_id[entry.taxonomy]
+                        else:
+                            taxonomy_id = next_taxonomy_id
+                            taxonomy_name_to_id[entry.taxonomy] = taxonomy_id
+                            next_taxonomy_id += 1
+                            taxonomy_loading_file.write('{}\t{}\n'.format(taxonomy_id, entry.taxonomy))
+
+                        print("\t".join((entry.marker, entry.sequence, entry.sample_name, str(entry.count),
+                                    str(entry.coverage), str(taxonomy_id))), file=proc.stdin)
                 logging.info("Sorting {} OTU observations ..".format(total_otu_count))
                 proc.stdin.close()
                 proc.wait()
@@ -360,7 +399,18 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                logging.info("Loading taxonomy table ..")
+                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
+                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
+                    "CREATE TABLE taxonomy (id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                        " taxonomy text);\n"
+                        '.separator "\\t"\n'
+                        ".import {} taxonomy".format(taxonomy_loading_path))
+                logging.info("Loaded {} taxonomy entries".format(len(taxonomy_name_to_id)))
 
+
+
+                #################################################################
                 logging.info("Creating numbered OTU table tsv")
                 marker_index = 0
                 sequence_index = 0
@@ -376,22 +426,31 @@ class SequenceDatabase:
                     stderr=subprocess.PIPE,
                     universal_newlines=True)
                 numbered_marker_and_sequence_file = os.path.join(my_tempdir,'number_and_sequence_file')
+                numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
+                numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
                 with open(sorted_path) as csvfile_in:
                     reader = csv.reader(csvfile_in, delimiter="\t")
                     last_marker = None
                     last_sequence = None
-                    with open(numbered_marker_and_sequence_file,'w') as marker_and_sequence_foutput_table_io:
-                        for row in reader:
-                            if last_marker != row[0]:
-                                last_marker = row[0]
-                                marker_index += 1
-                                last_sequence = row[1]
-                                sequence_index += 1
-                            elif last_sequence != row[1]:
-                                last_sequence = row[1]
-                                sequence_index += 1
-                            print("\t".join(row[2:]+[str(marker_index),str(sequence_index)]), file=proc.stdin)
-                            print("\t".join([str(marker_index),str(sequence_index),row[0],row[1]]), file=marker_and_sequence_foutput_table_io)
+                    last_marker_wise_sequence_id = None
+                    with open(numbered_markers_file,'w') as markers_output_table_io:
+                        with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
+                            for row in reader:
+                                if last_marker != row[0]:
+                                    last_marker_wise_sequence_id = 0 # Annoy starts at 0, so go with that. nmslib is arbitrary.
+                                    last_marker = row[0]
+                                    marker_index += 1
+                                    last_sequence = row[1]
+                                    sequence_index += 1
+                                    # marker id, marker name
+                                    print("\t".join((str(marker_index), row[0])), file=markers_output_table_io)
+                                elif last_sequence != row[1]:
+                                    last_marker_wise_sequence_id += 1
+                                    last_sequence = row[1]
+                                    sequence_index += 1
+                                print("\t".join(row[2:]+[str(marker_index),str(sequence_index),row[1], str(last_marker_wise_sequence_id)]), file=proc.stdin)
+                                # seuence_id, marker_id, sequence, marker_wise_sequnce_id
+                                print("\t".join((str(sequence_index), str(marker_index), row[1], str(last_marker_wise_sequence_id))), file=nucleotides_output_table_io)
                 logging.info("Sorting OTU observations by sample_name ..")
                 proc.stdin.close()
                 proc.wait()
@@ -400,35 +459,13 @@ class SequenceDatabase:
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
 
+                #################################################################
                 logging.info("Importing OTU table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
                     "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " sample_name text, num_hits int, coverage float, taxonomy text, marker_id int, sequence_id int);\n"
+                        " sample_name text, num_hits int, coverage float, taxonomy_id int, marker_id int, sequence_id int, sequence text, marker_wise_sequence_id int);\n"
                         '.separator "\\t"\n'
                         ".import {} otus".format(numbered_table_file))
-
-                logging.info("Creating markers and nucleotide table TSV files ..")
-                numbered_markers_file = os.path.join(my_tempdir,'makedb_numbered_markers_file')
-                numbered_sequences_file = os.path.join(my_tempdir,'makedb_numbered_sequences_file')
-                with open(numbered_marker_and_sequence_file) as csvfile_in:
-                    reader = csv.reader(csvfile_in, delimiter="\t")
-                    last_marker_id = None
-                    last_sequence_id = None
-                    last_marker_wise_sequence_id = None
-                    with open(numbered_markers_file,'w') as markers_output_table_io:
-                        with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
-                            for row in reader:
-                                if last_marker_id != row[0]:
-                                    last_marker_wise_sequence_id = 0 # Annoy starts at 0, so go with that. nmslib is arbitrary.
-                                    print("\t".join([row[0], row[2]]), file=markers_output_table_io)
-                                    print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
-                                    last_marker_id = row[0]
-                                    last_sequence_id = row[1]
-                                elif last_sequence_id != row[1]:
-                                    last_marker_wise_sequence_id += 1
-                                    print("\t".join([row[1], row[0], row[3], str(last_marker_wise_sequence_id)]), file=nucleotides_output_table_io)
-                                    last_sequence_id = row[1]
 
                 logging.info("Importing markers table into SQLite ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
@@ -454,9 +491,10 @@ class SequenceDatabase:
                 c = db.cursor()
 
                 c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
-                c.execute("CREATE INDEX otu_taxonomy on otus (taxonomy)")
+                c.execute("CREATE INDEX otu_taxonomy on otus (taxonomy_id)")
                 c.execute("CREATE INDEX otu_marker on otus (marker_id)")
                 c.execute("CREATE INDEX otu_sequence on otus (sequence_id)")
+                c.execute("CREATE INDEX otu_marker_wise_sequence_id on otus (marker_wise_sequence_id)")
 
                 c.execute("CREATE INDEX markers_marker on markers (marker)")
 
@@ -464,6 +502,9 @@ class SequenceDatabase:
                 c.execute("CREATE INDEX nucleotides_marker_id on nucleotides (marker_id)")
                 c.execute("CREATE INDEX nucleotides_sequence on nucleotides (sequence)")
                 c.execute("CREATE INDEX nucleotides_marker_wise_id on nucleotides (marker_wise_id)")
+
+                logging.info("Creating SQL indexes on taxonomy ..")
+                c.execute("CREATE INDEX taxonomy_taxonomy on taxonomy (taxonomy)")
                 db.commit()
 
 
@@ -548,14 +589,16 @@ class SequenceDatabase:
 
         # Create sequence indices
         sdb = SequenceDatabase.acquire(db_path)
-        if 'scann' in sequence_database_methods or 'naive' in sequence_database_methods:
-            sdb.create_scann_indexes('naive' in sequence_database_methods)
+        if 'naive' in sequence_database_methods:
+            sequence_database_methods.append(NAIVE_INDEX_FORMAT)
+        if SCANN_INDEX_FORMAT in sequence_database_methods or NAIVE_INDEX_FORMAT in sequence_database_methods:
+            sdb.create_scann_indexes(NAIVE_INDEX_FORMAT in sequence_database_methods)
 
-        if 'nmslib' in sequence_database_methods:
+        if NMSLIB_INDEX_FORMAT in sequence_database_methods:
             sdb.create_nmslib_nucleotide_indexes()
             sdb.create_nmslib_protein_indexes()
 
-        if 'annoy' in sequence_database_methods:
+        if ANNOY_INDEX_FORMAT in sequence_database_methods:
             sdb.create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
             sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
@@ -672,6 +715,7 @@ class SequenceDatabase:
 
     def create_scann_indexes(self, generate_brute_force_index):
         logging.info("Creating scann sequence indices ..")
+        import tensorflow as tf
         nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
         nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
         os.makedirs(nucleotide_db_dir_ah)
@@ -747,32 +791,40 @@ class SequenceDatabase:
             logging.info("Finished writing protein indices to disk")
 
             # break #DEBUG
+
     
     @staticmethod
-    def dump(db_path, dump_order=None):
-        """Dump the DB contents to STDOUT, requiring only that the DB is a version that
-        has an otus table in sqlite3 form (i.e. version 2 at least).
-
-        """
+    def dump(db_path):
+        """Dump the DB contents to STDOUT, requiring a version 5+ database"""
         sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
         engine = create_engine(
             "sqlite:///"+sqlite_db_path,
             echo=logging.DEBUG >= logging.root.level)
-        
-        print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-        batch_size = 10000
-        builder = select(
-            Marker.marker, Otu.sample_name, NucleotideSequence.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy
-        ).select_from(Otu).join_from(Otu, NucleotideSequence).join_from(Otu, Marker).execution_options(yield_per=batch_size)
-        if dump_order:
-            builder = builder.order_by(text(dump_order))
-        else:
-            builder = builder.order_by(Otu.id)
 
         with engine.connect() as conn:
+            # First cache the taxonomy
+            taxonomy_entries = Taxonomy.generate_python_index(conn)
+
+            # And markers
+            marker_entries = Marker.generate_python_index(conn)
+        
+            print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
+            # DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
+            batch_size = 10000
+            builder = select(
+                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
+                ).execution_options(yield_per=batch_size)
+        
             for batch in conn.execute(builder).partitions(batch_size):
                 for row in batch:
-                    print("\t".join([str(r) for r in row]))
+                    print("\t".join([
+                        marker_entries[row.marker_id],
+                        row.sample_name,
+                        row.sequence,
+                        str(row.num_hits),
+                        '%.2f' % row.coverage,
+                        taxonomy_entries[row.taxonomy_id]
+                    ]))
 
 @numba.njit()
 def _base_to_binary(x):

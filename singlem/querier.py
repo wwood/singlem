@@ -180,12 +180,13 @@ class Querier:
         return MarkerSortedQueryInput(sorted_io)
 
     def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence):
-        sdb.query_builder(check=True)
+        if sequence_type == SequenceDatabase.PROTEIN_TYPE: # Nucleotides now work with sqlalchemy so not needed.
+            sdb.query_builder(check=True)
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
             return self.query_by_sqlite(queries, sdb)
-        elif search_method == 'naive':
+        elif search_method == 'naive' or search_method == 'scann-naive':
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         elif search_method == 'annoy':
@@ -259,9 +260,8 @@ class Querier:
             else:
                 index_format = 'scann'
             index = sdb.get_sequence_index(marker, index_format, sequence_type)
-            # When scann DB is absent due to too few seqs
             if index is None:
-                continue
+                raise Exception("The marker '{}' does not appear to be '{}' indexed in the singlem db".format(marker, index_format))
             logging.info("Querying index for {}".format(marker))
             m = sdb.query_builder().table('markers').where('marker',marker).first()
             if m is None:
@@ -421,30 +421,19 @@ class Querier:
 
     def query_result_from_db(self, sdb, query, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=None, limit_per_sequence=None):
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-            if self._query_result_from_db_builder_nucleotide is None:
-                self._query_result_from_db_builder_nucleotide = sdb.query_builder(). \
-                    table('otus'). \
-                    join('nucleotides','sequence_id','=','nucleotides.id'). \
-                    select_raw('nucleotides.sequence as sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
-                    " where nucleotides.marker_wise_id = '?' and nucleotides.marker_id = '?'"
-                if limit_per_sequence is not None:
-                    self._query_result_from_db_builder_nucleotide = self._query_result_from_db_builder_nucleotide + ' order by random() limit {}'.format(limit_per_sequence)
-            results = sdb.query_builder().statement(
-                self._query_result_from_db_builder_nucleotide, [int(hit_index), marker_id])
-            if results is None and hit_index <= 16:
-                # For very small indexes, SCANN can have dummy sequences that
-                # are not in the SQL DB. Ignore these.
-                pass
-            else:
-                for entry in results:
-                    otu = OtuTableEntry()
-                    otu.marker = marker
-                    otu.sample_name = entry['sample_name']
-                    otu.sequence = entry['sequence']
-                    otu.count = entry['num_hits']
-                    otu.coverage = entry['coverage']
-                    otu.taxonomy = entry['taxonomy']
-                    yield QueryResult(query, otu, div)
+            query2 = select(
+                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
+            ).where(Otu.marker_wise_sequence_id == int(hit_index)).where(Otu.marker_id == int(marker_id)).limit(limit_per_sequence)
+            for row in sdb.sqlalchemy_connection.execute(query2):
+                otu = OtuTableEntry()
+                otu.marker = marker
+                otu.sample_name = row.sample_name
+                otu.count = row.num_hits
+                otu.sequence = row.sequence
+                otu.coverage = row.coverage
+                otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
+                yield QueryResult(query, otu, div)
+
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
             if self._query_result_from_db_builder_protein is None:
                 self._query_result_from_db_builder_protein = sdb.query_builder(). \
@@ -452,7 +441,7 @@ class Querier:
                     join('nucleotides','sequence_id','=','nucleotides.id'). \
                     join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
                     join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
-                    select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy').to_sql() + \
+                    select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy_id').to_sql() + \
                     " where proteins.marker_wise_id = '?' and nucleotides.marker_id = '?'"
                 if limit_per_sequence is not None:
                     self._query_result_from_db_builder_protein = self._query_result_from_db_builder_protein + ' order by random() limit {}'.format(limit_per_sequence)
@@ -470,7 +459,7 @@ class Querier:
                     otu.sequence = entry['nucleotide_sequence']
                     otu.count = entry['num_hits']
                     otu.coverage = entry['coverage']
-                    otu.taxonomy = entry['taxonomy']
+                    otu.taxonomy = sdb.get_taxonomy_via_cache(entry['taxonomy_id'])
                     yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
         else:
             raise Exception("unknown sequence_type")
@@ -542,10 +531,10 @@ class Querier:
         first_chunk = True
         for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
-                row_chunks = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where_in(
+                row_chunks = dbm.table('otus').join('nucleotides','sequence_id','=','nucleotides.id').join('markers','marker_id','=','markers.id').where_in(
                     'sample_name', [sample for sample in chunk if sample is not None]).chunk(1000)
             elif taxonomy:
-                row_chunks = dbm.table('otus').join('markers','marker_id','=','markers.id').join('nucleotides','sequence_id','=','nucleotides.id').where(
+                row_chunks = dbm.table('otus').join('nucleotides','sequence_id','=','nucleotides.id').join('markers','marker_id','=','markers.id').where(
                     'taxonomy', 'like', "%%%s%%" % taxonomy).chunk(1000)
             else:
                 raise Exception("Programming error")
