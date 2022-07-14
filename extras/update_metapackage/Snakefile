@@ -23,7 +23,7 @@ genomes = ["/".join(g.split("/")[-2:]) for g in genome_paths]
 if not "max_threads" in config: config["max_threads"] = 8
 
 wildcard_constraints:
-    genome = "(archaea|bacteria)/\w+.\d_protein.faa"
+    genome = "(archaea|bacteria)/\w+.\d+_protein.faa"
 
 rule all:
     input:
@@ -32,9 +32,8 @@ rule all:
 
 rule shadow:
     input:
-        output_dir + "/shadow_GTDB/genomes.tsv",
-        output_dir + "/shadow_GTDB/genomes",
-        output_dir + "/shadow_GTDB/genomes/done"
+        output_dir + "/shadow_GTDB/genomes/done",
+        output_dir + "/shadow_GTDB/prodigal/done"
 
 ###########################
 ### Shadow GTDB genomes ###
@@ -81,12 +80,32 @@ rule link_shadows:
     output:
         dir = directory(output_dir + "/shadow_GTDB/genomes"),
         touch = output_dir + "/shadow_GTDB/genomes/done"
-    log:
-        logs_dir + "/shadow_GTDB/links.log"
+    threads: 32
     shell:
         "find {input} -name '*.fna.gz' "
         "| parallel -j {threads} "
-        "ln -s {{}} {output}/{{= 's=.*/==;s/\(GC[AF]_[^_]*\).*/\1.fna.gz/' =}} "
+        "gunzip {{}} "
+        "'&&' ln -s {{.}} {output.dir}/{{= 's=.*/==;s/(GC[AF]_[^_]*).*/$1.fna/' =}} "
+        "&& touch {output.touch}"
+
+rule prodigal_shadows:
+    input:
+        dir = output_dir + "/shadow_GTDB/genomes",
+        touch = output_dir + "/shadow_GTDB/genomes/done"
+    output:
+        dir = directory(output_dir + "/shadow_GTDB/prodigal"),
+        touch = output_dir + "/shadow_GTDB/prodigal/done"
+    threads: 32
+    params:
+        logs = logs_dir + "/shadow_GTDB/prodigal"
+    conda:
+        "envs/prodigal.yml"
+    shell:
+        "mkdir -p {params.logs} "
+        "&& find {input.dir} -name '*.fna' "
+        "| parallel -j {threads} "
+        "prodigal -i {{}} -d {output.dir}/{{/.}}_protein.fna "
+        "'&>' {params.logs}/{{/.}}.log "
         "&& touch {output.touch}"
 
 ####################
