@@ -269,9 +269,76 @@ rule create_SingleM_packages:
         "--sequence_prefix {params.spkg_name}~ "
         "&> {log}"
 
+############################
+### Metapackage creation ###
+############################
+rule SingleM_transcripts:
+    input:
+        dir = config["gtdb_protein_fna_reps"],
+        shadow_dir = output_dir + "/shadow_GTDB/prodigal",
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index)
+    output:
+        dir = directory(output_dir + "/transcripts"),
+        touch = output_dir + "/transcripts/done"
+    threads: 64
+    params:
+        singlem = singlem_bin,
+        logs = logs_dir + "/transcripts"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "mkdir -p {params.logs} "
+        "&& cat <( find {input.dir} -name '*.fna' ) <( find {input.shadow_dir} -name '*.fna' ) "
+        "| parallel -j {threads} "
+        "{params.singlem} pipe "
+        "--forward {{}} "
+        "--singlem-packages {input.packages} "
+        "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
+        "--no-assign-taxonomy "
+        "'&>' {params.logs}/{{/.}}.log"
+        "&& touch {output.touch}"
+
+rule assign_taxonomy:
+    input:
+        dir = output_dir + "/transcripts",
+        touch = output_dir + "/transcripts/done"
+    output:
+        output_dir + "/taxonomy/transcripts.otu_table.tsv"
+    params:
+        bac_metadata = config["gtdb_bac_metadata"],
+        arc_metadata = config["gtdb_arc_metadata"]
+    conda:
+        "../../singlem.yml"
+    shell:
+        "../assign_gtdb_taxonomy_to_gtdb_genomes.py "
+        "--otu-table-list <( find {input.dir} -name '*.otu_table.tsv' ) "
+        "--gtdb-bac {params.bac_metadata} "
+        "--gtdb-arc {params.arc_metadata} "
+        "> {output}"
+
+rule make_sdb:
+    input:
+        output_dir + "/taxonomy/transcripts.otu_table.tsv"
+    output:
+        output_dir + "/taxonomy/transcripts.sdb"
+    threads: 32
+    params:
+        singlem = singlem_bin
+    log:
+        logs_dir + "/taxonomy/makedb.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} makedb "
+        "--otu-table {input} "
+        "--db {output} "
+        "--threads {threads} "
+        "&> {log}"
+
 rule create_SingleM_metapackage:
     input:
-        expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index)
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index),
+        sdb = output_dir + "/taxonomy/transcripts.sdb"
     output:
         directory(output_dir + "/metapackage/" + config["new_metapackage"])
     params:
@@ -283,7 +350,8 @@ rule create_SingleM_metapackage:
         "../../singlem.yml"
     shell:
         "{params.singlem} metapackage "
-        "--singlem-packages {input} "
+        "--singlem-packages {input.packages} "
+        "--nucleotide-sdb {input.sdb} "
         "--output-metapackage {output} "
         "--threads {threads} "
         "&> {log}"
