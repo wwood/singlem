@@ -14,6 +14,7 @@ from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
+from .condense import CondensedCommunityProfile
 
 class Summariser:
     @staticmethod
@@ -459,3 +460,66 @@ class Summariser:
         #     "otus": transformed.to_json(orient='values')},
         #     output_table_io)
         logging.info("Finished writing collapsed output table")
+
+    @staticmethod
+    def write_biobox(input_condensed_table_path, output_biobox_path):
+        # # Taxonomic Profiling Output
+        # @SampleID:SAMPLEID
+        # @Version:0.9.1
+        # @Ranks:superkingdom|phylum|class|order|family|genus|species
+        # @TaxonomyID:ncbi-taxonomy_DATE
+        # @@TAXID	RANK	TAXPATH	TAXPATHSN	PERCENTAGE
+        # 2	superkingdom	2	Bacteria	98.81211
+        # 2157	superkingdom	2157	Archaea	1.18789
+        # 1239	phylum	2|1239	Bacteria|Firmicutes	59.75801
+        # 1224	phylum	2|1224	Bacteria|Proteobacteria	18.94674
+        # 28890	phylum	2157|28890	Archaea|Euryarchaeotes	1.18789
+
+        levels = ['kingdom','phylum','class','order','family','genus','species']
+        total_coverages = [0.0]*len(levels)
+
+        with open(output_biobox_path,'w') as out:
+            for s in [
+                "# Taxonomic Profiling Output",
+                "@SampleID:SAMPLEID",
+                "@Version:0.9.1",
+                "@Ranks:kingdom|phylum|class|order|family|genus|species",
+                "@TaxonomyID:ncbi-taxonomy_DATE",
+                "@@TAXID	RANK	TAXPATH	TAXPATHSN	PERCENTAGE"
+            ]:
+                print(s, file=out)
+                
+            with open(input_condensed_table_path) as f:
+                for condensed_table in CondensedCommunityProfile.each_sample_wise(f):
+                    # Pass 1 - collect total coverage for top level
+                    tax_numbers = {}
+                    for wordnode in condensed_table.breadth_first_iter():
+                        level = wordnode.calculate_level()-1
+                        if level == -1: continue
+                        if level > 0: break
+                        total_coverages[level] += wordnode.get_full_coverage()
+                        taxpathsn = '|'.join(wordnode.get_taxonomy()[1:])
+
+                    total_coverage = total_coverages[0]
+                    # Pass 2 - calculate percents
+                    for wordnode in condensed_table.breadth_first_iter():
+                        # Percent includes unassigned
+                        level = wordnode.calculate_level()-1
+                        if level == -1: continue
+                        cov = wordnode.get_full_coverage()
+                        percent = cov/total_coverages[0]
+                        taxonomy = wordnode.get_taxonomy()[1:]
+                        taxpathsn = '|'.join(taxonomy)
+                        tax_numbers[taxpathsn] = len(tax_numbers)+1
+                        taxpaths = []
+                        for i, t in enumerate(taxonomy):
+                            taxpaths.append(tax_numbers['|'.join(taxonomy[:(i+1)])])
+                        taxpath = '|'.join([str(tp) for tp in taxpaths])
+                        # @@TAXID	RANK	TAXPATH	TAXPATHSN	PERCENTAGE
+                        print('\t'.join([
+                            str(taxpaths[-1]),
+                            levels[level],
+                            taxpath,
+                            taxpathsn,
+                            str(percent*100.)
+                        ]), file=out)

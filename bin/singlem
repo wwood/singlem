@@ -422,6 +422,7 @@ if __name__ == '__main__':
     summarise_io_args.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
         help="Summarise the archive tables newline separated in this file")
     summarise_io_args.add_argument('--stream-inputs', '--stream_inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
+    summarise_io_args.add_argument('--input-condensed-otu-table', '--input_condensed_otu_table', help="Path to condensed OTU table")
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_transformation_args.add_argument('--cluster-id', '--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -441,6 +442,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--unifrac-by-taxonomy', '--unifrac_by_taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
     summarise_output_args.add_argument('--biom-prefix', '--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered-output-otu-table', '--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
+    summarise_output_args.add_argument('--output-biobox', '--output_biobox', help='output biobox to this file')
     summarise_output_args.add_argument('--exclude-off-target-hits', '--exclude_off_target_hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
     summarise_output_args.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Packages used in the creation of the OTU tables")
     summarise_output_args.add_argument('--metapackage', '--singlem-metapackage', '--singlem_metapackage', help='Metapackage used in the creation of the OTU tables')
@@ -774,10 +776,12 @@ if __name__ == '__main__':
         if args.rarefied_output_otu_table: num_output_types += 1
         if args.wide_format_otu_table: num_output_types += 1
         if args.collapse_paired_with_unpaired_archive_otu_table: num_output_types += 1
+        if args.output_biobox: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
-            raise Exception("Summary requires input OTU tables or archive tables")
+            if not args.input_condensed_otu_table and args.output_biobox:
+                raise Exception("Summary requires input OTU tables or archive tables")
         if args.exclude_off_target_hits:
             if not args.singlem_packages and not args.metapackage:
                 raise Exception("--exclude_off_target_hits currently requires --metapackage or --singlem-packages to be defined")
@@ -905,6 +909,8 @@ if __name__ == '__main__':
             Summariser.write_collapsed_paired_with_unpaired_otu_table(
                 archive_otu_tables = args.input_archive_otu_tables,
                 output_table_io = open(args.collapse_paired_with_unpaired_archive_otu_table,'w'))
+        elif args.output_biobox:
+            Summariser.write_biobox(args.input_condensed_otu_table, args.output_biobox)
 
         else: raise Exception("Programming error")
         logging.info("Finished")
