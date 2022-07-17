@@ -295,7 +295,8 @@ rule SingleM_transcripts:
         "--singlem-packages {input.packages} "
         "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
         "--no-assign-taxonomy "
-        "'&>' {params.logs}/{{/.}}.log"
+        "--no-diamond-prefilter "
+        "'&>' {params.logs}/{{/.}}.log "
         "&& touch {output.touch}"
 
 rule assign_taxonomy:
