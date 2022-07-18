@@ -83,6 +83,7 @@ class Metapackage:
     def generate(**kwargs):
         singlem_packages = kwargs.pop('singlem_packages')
         nucleotide_sdb = kwargs.pop('nucleotide_sdb')
+        no_nucleotide_sdb = kwargs.pop('no_nucleotide_sdb', False)
         prefilter_clustering_threshold = kwargs.pop('prefilter_clustering_threshold')
         output_path = kwargs.pop('output_path')
         threads = kwargs.pop('threads')
@@ -109,10 +110,14 @@ class Metapackage:
             shutil.copytree(pkg, dest)
 
         # Copy nucleotide SingleM db into output directory
-        nucleotide_sdb_name = os.path.basename(nucleotide_sdb)
-        nucleotide_sdb_path = os.path.join(output_path, nucleotide_sdb_name)
-        logging.info("Copying SingleM db {} to {} ..".format(nucleotide_sdb, nucleotide_sdb_path))
-        shutil.copytree(nucleotide_sdb, nucleotide_sdb_path)
+        if no_nucleotide_sdb:
+            logging.info("Skipping SingleM db")
+            nucleotide_sdb_name = ""
+        else:
+            nucleotide_sdb_name = os.path.basename(nucleotide_sdb)
+            nucleotide_sdb_path = os.path.join(output_path, nucleotide_sdb_name)
+            logging.info("Copying SingleM db {} to {} ..".format(nucleotide_sdb, nucleotide_sdb_path))
+            shutil.copytree(nucleotide_sdb, nucleotide_sdb_path)
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:

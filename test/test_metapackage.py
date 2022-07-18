@@ -41,6 +41,16 @@ class Tests(unittest.TestCase):
 
     def test_metapackage_create_on_target_fasta(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --output-metapackage {}/a.smpkg".format(
+                path_to_script, f
+            )
+            extern.run(cmd)
+            with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
+                self.assertEqual('{"singlem_metapackage_version": 2, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": ""}',
+                con.read())
+
+    def test_metapackage_create_with_sdb(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
             cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --nucleotide_sdb test/data/a.sdb --output-metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
