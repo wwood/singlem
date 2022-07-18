@@ -46,7 +46,7 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 2, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": ""}',
+                self.assertEqual('{"singlem_metapackage_version": 2, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null}',
                 con.read())
 
     def test_metapackage_create_with_sdb(self):
