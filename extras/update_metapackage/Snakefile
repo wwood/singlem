@@ -272,11 +272,31 @@ rule create_SingleM_packages:
 ############################
 ### Metapackage creation ###
 ############################
+rule create_draft_SingleM_metapackage:
+    input:
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index)
+    output:
+        directory(output_dir + "/draft_metapackage.smpkg")
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/draft_metapackage.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} metapackage "
+        "--singlem-packages {input.packages} "
+        "--no-nucleotide-sdb "
+        "--output-metapackage {output} "
+        "--threads {threads} "
+        "&> {log}"
+
 rule SingleM_transcripts:
     input:
         dir = config["gtdb_protein_fna_reps"],
         shadow_dir = output_dir + "/shadow_GTDB/prodigal",
-        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index)
+        metapackage = output_dir + "/draft_metapackage.smpkg"
     output:
         dir = directory(output_dir + "/transcripts"),
         touch = output_dir + "/transcripts/done"
@@ -292,10 +312,9 @@ rule SingleM_transcripts:
         "| parallel -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
-        "--singlem-packages {input.packages} "
+        "--singlem-metapackage {input.metapackage} "
         "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
         "--no-assign-taxonomy "
-        "--no-diamond-prefilter "
         "'&>' {params.logs}/{{/.}}.log "
         "&& touch {output.touch}"
 
