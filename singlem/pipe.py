@@ -614,15 +614,24 @@ class SearchPipe:
                         NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                             best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                             taxonomies = {}
+                            equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
+                            equal_best_taxonomies = {}
                             if analysing_pairs:
                                 for (name, best_hits) in best_hit_hash[1].items():
                                     taxonomies[name] = best_hits
                                 for (name, best_hits) in best_hit_hash[0].items():
                                     # Overwrite reverse hit with the forward hit
                                     taxonomies[name] = best_hits
+                                for (name, equal_best_hits) in equal_best_hit_hash[1].items():
+                                    equal_best_taxonomies[name] = equal_best_hits
+                                for (name, equal_best_hits) in equal_best_hit_hash[0].items():
+                                    # Overwrite reverse hit with the forward hit
+                                    equal_best_taxonomies[name] = equal_best_hits
                             else:
                                 for (name, best_hits) in best_hit_hash.items():
                                     taxonomies[name] = best_hits
+                                for (name, equal_best_hits) in equal_best_hit_hash.items():
+                                    equal_best_taxonomies[name] = equal_best_hits
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         bihash_key = singlem_package.base_directory()
@@ -670,7 +679,11 @@ class SearchPipe:
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
                     taxonomies,
-                    equal_best_taxonomies if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD else None,
+                    equal_best_taxonomies if singlem_assignment_method in (
+                        ANNOY_ASSIGNMENT_METHOD,
+                        ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None))
 
                 if output_jplace:
@@ -1658,6 +1671,13 @@ class DiamondTaxonomicAssignmentResult:
             else:
                 return {}
 
+    def get_equal_best_hits(self, singlem_package, sample_name):
+        # FIXME: Not implemented yet, no reason why not really.
+        if self._analysing_pairs:
+            return [{},{}]
+        else:
+            return {}
+
 class QueryThenDiamondTaxonomicAssignmentResult:
     def __init__(self, query_assignment_result, diamond_assignment_result, analysing_pairs):
         self._query_assignment_result = query_assignment_result
@@ -1673,3 +1693,7 @@ class QueryThenDiamondTaxonomicAssignmentResult:
         else:
             return {**self._query_assignment_result.get_best_hits(singlem_package, sample_name),
                 **self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)}
+
+    def get_equal_best_hits(self, singlem_package, sample_name):
+        # Right now just return the query best hits
+        return self._query_assignment_result.get_equal_best_hits(singlem_package, sample_name)
