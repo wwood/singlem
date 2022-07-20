@@ -4,10 +4,11 @@ from .otu_table_entry import OtuTableEntry
 
 
 class ArchiveOtuTable:
-    version = 2
+    version = 3
 
     FIELDS_VERSION1 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
     FIELDS_VERSION2 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences')
+    FIELDS_VERSION3 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies')
     FIELDS = FIELDS_VERSION2
 
     READ_NAME_FIELD_INDEX=6
@@ -35,7 +36,7 @@ class ArchiveOtuTable:
     def read(input_io):
         otus = ArchiveOtuTable()
         j = json.load(input_io)
-        if not j['version'] in [1,2]:
+        if not j['version'] in [1,2,3]:
             raise Exception("Wrong OTU table version detected")
         otus.version = j['version']
 

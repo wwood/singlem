@@ -85,7 +85,7 @@ class SearchPipe:
             metapackage):
         regular_output_fields = str.split('gene sample sequence num_hits coverage taxonomy')
         otu_table_object.fields = regular_output_fields + \
-            str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences')
+            str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies')
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
                 if output_extras:
@@ -530,7 +530,8 @@ class SearchPipe:
                     list([ns[0] for ns in names_and_sequences]),
                     info.aligned_lengths,
                     known_tax,
-                    list([ns[1] for ns in names_and_sequences])]
+                    list([ns[1] for ns in names_and_sequences]),
+                    info.equal_best_taxonomies]
                 otu_table_object.data.append(to_print)
 
         def extract_placement_parser(
@@ -562,6 +563,7 @@ class SearchPipe:
                 NO_ASSIGNMENT_METHOD,
                 known_taxes,
                 known_sequence_taxonomy,
+                None,
                 None)
             add_info(known_infos, otu_table_object, True)
 
@@ -585,15 +587,24 @@ class SearchPipe:
                     if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD:
                         best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                         taxonomies = {}
+                        equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
+                        equal_best_taxonomies = {}
                         if analysing_pairs:
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
                                 # Overwrite reverse hit with the forward hit
                                 taxonomies[name] = best_hits
+                            for (name, equal_best_hits) in equal_best_hit_hash[1].items():
+                                equal_best_taxonomies[name] = equal_best_hits
+                            for (name, equal_best_hits) in equal_best_hit_hash[0].items():
+                                # Overwrite reverse hit with the forward hit
+                                equal_best_taxonomies[name] = equal_best_hits
                         else:
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
+                            for (name, equal_best_hits) in equal_best_hit_hash.items():
+                                equal_best_taxonomies[name] = equal_best_hits
 
                     elif singlem_assignment_method in (
                         DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
@@ -659,6 +670,7 @@ class SearchPipe:
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
                     taxonomies,
+                    equal_best_taxonomies if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None))
 
                 if output_jplace:
@@ -715,6 +727,7 @@ class SearchPipe:
                                      assignment_method,
                                      otu_sequence_assigned_taxonomies,
                                      per_read_taxonomies,
+                                     per_read_equal_best_taxonomies,
                                      placement_parser):
         '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
         assignment-related results, yield over 'Info' objects that contain e.g.
@@ -729,6 +742,7 @@ class SearchPipe:
         otu_sequence_assigned_taxonomies: dict of str to str
             assignments known based on the OTU sequence alone
         per_read_taxonomies: dict-like of read name to taxonomy
+        per_read_equal_best_taxonomies: dict-like of read name to list of taxonomies that are equal top hits.
         placement_parser: PlacementParser
             Used only if assignment_method is PPLACER_ASSIGNMENT_METHOD.
         '''
@@ -736,6 +750,7 @@ class SearchPipe:
             def __init__(self):
                 self.count = 0
                 self.taxonomies = []
+                self.equal_best_taxonomies = []
                 self.names = []
                 self.unaligned_sequences = []
                 self.coverage = 0.0
@@ -748,11 +763,16 @@ class SearchPipe:
             if s.aligned_sequence in otu_sequence_assigned_taxonomies or \
                 per_read_taxonomies is None:
                     tax = None
+                    equal_best_tax = None
             else:
                 try:
                     tax = per_read_taxonomies[s.name]
+                    if per_read_equal_best_taxonomies is not None:
+                        equal_best_tax = per_read_equal_best_taxonomies[s.name]
                 except KeyError:
                     tax = ''
+                    if per_read_equal_best_taxonomies is not None:
+                        equal_best_tax = ''
                     if assignment_method != NO_ASSIGNMENT_METHOD and \
                        assignment_method != PPLACER_ASSIGNMENT_METHOD:
                         # happens sometimes when HMMER picks up something where
@@ -769,6 +789,8 @@ class SearchPipe:
             collected_info.count += 1
             if per_read_taxonomies is not None:
                 collected_info.taxonomies.append(tax)
+            if per_read_equal_best_taxonomies is not None:
+                collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
             collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
@@ -776,10 +798,11 @@ class SearchPipe:
             collected_info.orf_names.append(s.orf_name)
 
         class Info:
-            def __init__(self, seq, count, taxonomy, names, unaligned_sequences, coverage, aligned_lengths):
+            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths):
                 self.seq = seq
                 self.count = count
                 self.taxonomy = taxonomy
+                self.equal_best_taxonomies = equal_best_taxonomies
                 self.names = names
                 self.unaligned_sequences = unaligned_sequences
                 self.coverage = coverage
@@ -802,10 +825,14 @@ class SearchPipe:
                 tax = ''
             else:
                 tax = self._median_taxonomy(collected_info.taxonomies)
+                if per_read_equal_best_taxonomies is not None:
+                    # For query assigned taxonomies this is right
+                    equal_best_tax = collected_info.equal_best_taxonomies[0]
 
             yield Info(seq,
                        collected_info.count,
                        tax,
+                       equal_best_tax if per_read_equal_best_taxonomies is not None else None,
                        collected_info.names,
                        collected_info.unaligned_sequences,
                        collected_info.coverage,
