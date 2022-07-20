@@ -436,6 +436,7 @@ class SequenceDatabase:
                     with open(numbered_markers_file,'w') as markers_output_table_io:
                         with open(numbered_sequences_file,'w') as nucleotides_output_table_io:
                             for row in reader:
+                                new_nucleotide = False
                                 if last_marker != row[0]:
                                     last_marker_wise_sequence_id = 0 # Annoy starts at 0, so go with that. nmslib is arbitrary.
                                     last_marker = row[0]
@@ -444,13 +445,16 @@ class SequenceDatabase:
                                     sequence_index += 1
                                     # marker id, marker name
                                     print("\t".join((str(marker_index), row[0])), file=markers_output_table_io)
+                                    new_nucleotide = True
                                 elif last_sequence != row[1]:
                                     last_marker_wise_sequence_id += 1
                                     last_sequence = row[1]
                                     sequence_index += 1
+                                    new_nucleotide = True
                                 print("\t".join(row[2:]+[str(marker_index),str(sequence_index),row[1], str(last_marker_wise_sequence_id)]), file=proc.stdin)
-                                # seuence_id, marker_id, sequence, marker_wise_sequnce_id
-                                print("\t".join((str(sequence_index), str(marker_index), row[1], str(last_marker_wise_sequence_id))), file=nucleotides_output_table_io)
+                                if new_nucleotide:
+                                    # seuence_id, marker_id, sequence, marker_wise_sequnce_id
+                                    print("\t".join((str(sequence_index), str(marker_index), row[1], str(last_marker_wise_sequence_id))), file=nucleotides_output_table_io)
                 logging.info("Sorting OTU observations by sample_name ..")
                 proc.stdin.close()
                 proc.wait()
