@@ -495,6 +495,9 @@ if __name__ == '__main__':
     metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
     metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages")
+    metapackage_parser_sdb = metapackage_parser.add_mutually_exclusive_group(required = True)
+    metapackage_parser_sdb.add_argument('--nucleotide-sdb', '--nucleotide_sdb', help="Nucleotide SingleM database for initial assignment pass")
+    metapackage_parser_sdb.add_argument('--no-nucleotide-sdb', '--no_nucleotide_sdb', action='store_true', help="Skip nucleotide SingleM database")
     metapackage_parser.add_argument('--metapackage', '--output-metapackage', '--output_metapackage', help='Path to write generated metapackage to', required=True)
     metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
@@ -1048,6 +1051,7 @@ if __name__ == '__main__':
                 raise Exception("Must specify at least one singlem package to create a metapackage")
             Metapackage.generate(
                 singlem_packages = args.singlem_packages,
+                nucleotide_sdb = args.nucleotide_sdb,
                 output_path = args.metapackage,
                 threads = args.threads,
                 prefilter_clustering_threshold = args.prefilter_clustering_threshold,
