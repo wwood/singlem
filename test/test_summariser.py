@@ -219,6 +219,7 @@ minimal2	0.2
                         r = f.read()
                         self.assertTrue(r=='2\nminimal2\nminimal\t0.109937\n' or r=='2\nminimal\nminimal2\t0.109937\n')
 
+    @unittest.skip("Default packages no longer in git repo, and may not contain trees anyway, unsure")
     def test_get_tree_default(self):
         cmd = "{} get_tree".format(path_to_script)
         observed = extern.run(cmd)
