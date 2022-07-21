@@ -2,3 +2,4 @@ guix*
 real_data
 db
 __pycache__/
+.snakemake/

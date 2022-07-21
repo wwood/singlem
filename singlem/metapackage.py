@@ -20,8 +20,9 @@ class Metapackage:
     VERSION_KEY = 'singlem_metapackage_version'
     PREFILTER_DB_PATH_KEY = 'prefilter_db_path'
     SINGLEM_PACKAGES = 'singlem_packages'
+    NUCLEOTIDE_SDB = 'nucleotide_sdb'
 
-    _CURRENT_FORMAT_VERSION = 1
+    _CURRENT_FORMAT_VERSION = 2
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -66,7 +67,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v != 1:
+        if v != 2:
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -81,6 +82,7 @@ class Metapackage:
     @staticmethod
     def generate(**kwargs):
         singlem_packages = kwargs.pop('singlem_packages')
+        nucleotide_sdb = kwargs.pop('nucleotide_sdb')
         prefilter_clustering_threshold = kwargs.pop('prefilter_clustering_threshold')
         output_path = kwargs.pop('output_path')
         threads = kwargs.pop('threads')
@@ -105,6 +107,16 @@ class Metapackage:
             dest = os.path.join(output_path, relpath)
             logging.info("Copying package {} to be {} ..".format(pkg, dest))
             shutil.copytree(pkg, dest)
+
+        # Copy nucleotide SingleM db into output directory
+        if nucleotide_sdb:
+            nucleotide_sdb_name = os.path.basename(nucleotide_sdb)
+            nucleotide_sdb_path = os.path.join(output_path, nucleotide_sdb_name)
+            logging.info("Copying SingleM db {} to {} ..".format(nucleotide_sdb, nucleotide_sdb_path))
+            shutil.copytree(nucleotide_sdb, nucleotide_sdb_path)
+        else:
+            logging.info("Skipping SingleM db")
+            nucleotide_sdb_name = None
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -140,9 +152,10 @@ class Metapackage:
         if not prefilter_diamond_db:
             os.remove(prefilter_path)
 
-        contents_hash = {Metapackage.VERSION_KEY: 1,
+        contents_hash = {Metapackage.VERSION_KEY: 2,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
-                        Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name
+                        Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
+                        Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name
                         }
 
         # save contents file
@@ -221,7 +234,7 @@ class Metapackage:
     def dereplicate_prefilter_fasta(self, input_fasta_path, output_fasta_path, threads, clustering_threshold):
         '''Run CD-HIT to dereplicate the prefilter FASTA file'''
         # Use -n 3 since why not, and required for 0.6 threshold
-        extern.run('cd-hit -n 3 -i {} -o {} -T {} -c {}'.format(
+        extern.run('cd-hit -n 3 -M 0 -i {} -o {} -T {} -c {}'.format(
             input_fasta_path,
             output_fasta_path,
             threads,

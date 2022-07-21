@@ -1,0 +1,22 @@
+output_dir: /work/microbiome/msingle/sam/1_gtdb_r207_smpkg/20220513
+metapackage: /work/microbiome/msingle/mess/89_S3.metapackage_20211101.smpkg
+new_metapackage: S3.metapackage_20220513.smpkg
+gtdb_protein_faa_reps: /scratch/microbiome/aroneys/projects/12-SingleM-gtdb-r207/data/processed/protein_faa_reps
+gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release207/bac120_taxonomy_r207.tsv
+gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release207/ar53_taxonomy_r207.tsv
+pfams: /work/microbiome/msingle/sam/HMMs/Pfam
+tigrfams: /work/microbiome/msingle/sam/HMMs/TIGRfams.HMM
+uniprot_seq: /work/microbiome/abisko/aroneys/uniprot/uniref100_20210616/uniprot_sprot.fa
+uniprot_tax: /work/microbiome/abisko/aroneys/uniprot/uniref100_20210616/uniprot_sprot_taxonomy.tsv
+sra_seqs_1:
+  DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_1.fastq
+  SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_1.fastq
+  SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_1.fastq
+sra_seqs_2:
+  DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_2.fastq
+  SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_2.fastq
+  SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_2.fastq
+gtdb_sp_clusters: /work/microbiome/db/gtdb/gtdb_release207/auxillary_files/sp_clusters_r207.tsv
+gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release207/bac120_metadata_r207.tsv
+gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release207/ar53_metadata_r207.tsv
+gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_fna_reps/
