@@ -108,6 +108,19 @@ rule prodigal_shadows:
         "'&>' {params.logs}/{{/.}}.log "
         "&& touch {output.touch}"
 
+rule prodigal_rename:
+    input:
+        dir = output_dir + "/shadow_GTDB/prodigal",
+        touch = output_dir + "/shadow_GTDB/prodigal/done"
+    output:
+        touch = output_dir + "/shadow_GTDB/prodigal/rename_done"
+    threads: 32
+    shell:
+        "find {input.dir} -name '*.fna' "
+        "| parallel -j {threads} "
+        "mv {{}} {{= 's/GCA_/GB_GCA_/;s/GCF_/RS_GCF_/' =}}"
+        "&& touch {output.touch}"
+
 ####################
 ### HMM searches ###
 ####################
@@ -296,6 +309,7 @@ rule SingleM_transcripts:
     input:
         dir = config["gtdb_protein_fna_reps"],
         shadow_dir = output_dir + "/shadow_GTDB/prodigal",
+        shadow_touch = output_dir + "/shadow_GTDB/prodigal/rename_done",
         metapackage = output_dir + "/draft_metapackage.smpkg"
     output:
         dir = directory(output_dir + "/transcripts"),
@@ -340,7 +354,7 @@ rule make_sdb:
     input:
         output_dir + "/taxonomy/transcripts.otu_table.tsv"
     output:
-        output_dir + "/taxonomy/transcripts.sdb"
+        directory(output_dir + "/taxonomy/transcripts.sdb")
     threads: 32
     params:
         singlem = singlem_bin
