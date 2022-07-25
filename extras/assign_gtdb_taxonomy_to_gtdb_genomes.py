@@ -64,7 +64,7 @@ if __name__ == '__main__':
         pd.read_csv(args.gtdb_bacterial_metadata, sep="\t"),
         pd.read_csv(args.gtdb_archaeal_metadata, sep="\t")
     ])
-    gtdb = gtdb[gtdb["gtdb_representative"] == "t"]
+    # gtdb = gtdb[gtdb["gtdb_representative"] == "t"]
     # gtdb["phylum"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[1])
     # gtdb["class"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[2])
     # gtdb["order"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[3])
