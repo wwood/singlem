@@ -27,3 +27,7 @@ class OtuTableEntry:
     def __str__(self):
         return "\t".join([self.marker, self.sample_name, self.sequence,
                           str(self.count), str(self.coverage), self.taxonomy])
+
+    def to_list(self):
+        return [self.marker, self.sample_name, self.sequence,
+            self.count, self.coverage, self.taxonomy]

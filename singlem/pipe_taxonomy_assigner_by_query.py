@@ -117,6 +117,7 @@ class QueryTaxonomicAssignmentResult:
             self._spkg_to_sample_to_name_to_taxonomies = spkg_to_sample_to_name_to_taxonomies
 
     def _lca_taxonomy(self, taxonomy_strings):
+        # TODO: Same as Taxonomy.lca_taxonomy_of_strings I think
         hit_taxonomies = list([list([ta.strip() for ta in t.split(';')]) for t in taxonomy_strings])
         lca = hit_taxonomies[0]
         for taxonomy in hit_taxonomies[1:]:
@@ -152,7 +153,17 @@ class QueryTaxonomicAssignmentResult:
         spkg_key = singlem_package.base_directory()
         if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
             return {}
-        return self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]
+        # Add Root to be consistent with the lca
+        if self._analysing_pairs:
+            return [{
+                name: ['Root; '+tax for tax in taxonomies]
+                for (name, taxonomies) in name_to_taxonomies.items()
+            } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
+        else:
+            return {
+                name: ['Root; '+tax for tax in taxonomies]
+                for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items()
+            }
 
     def is_assigned_taxonomy(self, singlem_package, sample_name, sequence_name, pair_index):
         spkg_key = singlem_package.base_directory()

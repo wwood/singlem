@@ -242,6 +242,7 @@ class StreamingOtuTableCollection:
                     yield current_sample, current_otus
                 current_sample = otu.sample_name
                 current_otus = OtuTable()
-            current_otus.add([otu])
+            current_otus.fields = otu.fields
+            current_otus.data.append(otu.data)
         if current_sample is not None:
             yield current_sample, current_otus
