@@ -6,8 +6,12 @@ import extern
 import sys
 
 from queue import Queue
+
+from singlem.otu_table import OtuTable
+from singlem.otu_table_entry import OtuTableEntry
 from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
+from .taxonomy import Taxonomy
 
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
@@ -53,6 +57,7 @@ class Condenser:
         metapackage_path = kwargs.pop('metapackage_path')
         trim_percent = kwargs.pop('trim_percent') / 100
         min_taxon_coverage = kwargs.pop('min_taxon_coverage')
+        apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -95,9 +100,12 @@ class Condenser:
 
         for sample, sample_otus in input_otu_table.each_sample_otus():
             logging.debug("Processing sample {} ..".format(sample))
-            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
+            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation)
 
-    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage):
+    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation):
+        if apply_expectation_maximisation:
+            sample_otus = self._apply_expectation_maximization(sample_otus)
+
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
         marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
@@ -115,6 +123,8 @@ class Condenser:
                     excluded_markers.add(gene)
                 continue
             
+            if tax_split[0] != 'Root':
+                raise Exception("OTU tables to condense must contain 'Root' as the first taxon in the taxonomy")
             # ensure OTU is assigned to the domain level or higher
             if len(tax_split) < 2:  # contains at least Root; d__DOMAIN
                 continue
@@ -162,18 +172,6 @@ class Condenser:
                     [m.get_full_coverage() for m in node_list],
                     total_num_markers,
                     trim_percent)
-                # import IPython; IPython.embed()
-                # print()
-                # print(node_list)
-                # logging.debug("Found abundance {} for taxon {}".format(abundance, node_list[0].get_taxonomy()))
-                # if node_list[0].get_taxonomy() in [
-                #     ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia'],
-                #     ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia', 'o__Poseidoniales'],
-                #     ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia', 'o__MGIII']
-                # ]:
-                #     # 09/03/2021 12:49:57 PM DEBUG: Found abundance 96.214375 for taxon ['Root', 'd__Archaea', 'p__Thermoplasmatota', 'c__Poseidoniia', 'o__MGIII']
-                #     [m.get_full_coverage() for m in node_list]
-                #     import IPython; IPython.embed()
 
                 # If stat > 0, add stat to tree and queue children
                 if abundance > 0:
@@ -216,6 +214,183 @@ class Condenser:
             return sum(coverages) / total_num_measures
         else:
             return _tmean(coverages+([0]*(total_num_measures-len(coverages))), proportiontocut)
+
+    def _apply_expectation_maximization(self, sample_otus):
+        logging.info("Applying core expectation maximization algorithm to OTU table")
+        core_return = self._apply_expectation_maximization_core(sample_otus)
+        if core_return is None:
+            return sample_otus
+
+        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = core_return
+        
+        logging.debug("Gathering equivalence classes")
+        eq_classes = self._gather_equivalence_classes_from_list_of_species_lists(best_hit_taxonomy_sets)
+        
+        logging.debug("Demultiplexing OTU table")
+        demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, best_hits_field_index, eq_classes)
+
+        logging.info("Finished expectation maximization")
+        return demux_otus
+
+    def _species_list_to_key(self, species_list):
+        return '~'.join(species_list)
+    def _key_to_species_list(self, key):
+        return key.split('~')
+
+    def _apply_expectation_maximization_core(self, sample_otus):
+        # Set up initial conditions. The coverage of each species is set to 1
+        species_to_coverage = {}
+        best_hits_field_index = None
+        best_hit_taxonomy_sets = set()
+        for otu in sample_otus:
+            if best_hits_field_index is None:
+                best_hits_field_index = otu.fields.index('equal_best_hit_taxonomies')
+            best_hit_taxonomies = otu.data[best_hits_field_index]
+            if best_hit_taxonomies is not None:
+                best_hit_taxonomy_sets.add(self._species_list_to_key(best_hit_taxonomies))
+                for best_hit_tax in best_hit_taxonomies:
+                    if best_hit_tax not in species_to_coverage:
+                        species_to_coverage[best_hit_tax] = 1
+        if best_hits_field_index is None:
+            return None # No equal_best_hit_taxonomies field found, so no EM to do
+        logging.debug(best_hit_taxonomy_sets)
+
+        # The fraction of each undecided OTU is the ratio of that class's
+        # coverage (coverage in the current iteration) to the total coverage of
+        # all best hits of the undecided OTU
+        while True: # while not converged
+            next_species_to_coverage = {}
+            # logging.debug("Starting iteration with species abundances: {}".format(species_to_coverage))
+            for otu in sample_otus:
+                unnormalised_coverages = {}
+                best_hit_taxonomies = otu.data[best_hits_field_index]
+                if best_hit_taxonomies is not None:
+                    for best_hit_tax in best_hit_taxonomies:
+                        unnormalised_coverages[best_hit_tax] = species_to_coverage[best_hit_tax]
+                total_coverage = sum(unnormalised_coverages.values())
+                for tax, unnormalised_coverage in unnormalised_coverages.items():
+                    next_species_to_coverage[tax] = next_species_to_coverage.get(tax, 0) + unnormalised_coverage / total_coverage * otu.coverage
+            # Has any species changed in abundance by >0.001? If not, we're done
+            need_another_iteration = False
+            for tax, next_coverage in next_species_to_coverage.items():
+                if abs(next_coverage - species_to_coverage[tax]) > 0.00001:
+                    need_another_iteration = True
+                    break
+            species_to_coverage = next_species_to_coverage
+            if not need_another_iteration:
+                break
+        
+        # Round each genome to 4 decimal places in coverage, removing entries with 0 coverage
+        # Use 4 decimals to avoid rounding to 0 when one OTU is split between many species
+        rounded_species_to_coverage = {}
+        for tax, coverage in species_to_coverage.items():
+            cov2 = round(coverage, 3)
+            if cov2 > 0:
+                rounded_species_to_coverage[tax] = cov2
+
+        return rounded_species_to_coverage, \
+            list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets]), \
+            best_hits_field_index
+
+    def _demultiplex_otus(self, sample_otus, species_to_coverage, best_hits_field_index, eq_classes):
+        ''' Return a new OTU table where the OTUs have been demultiplexed. This
+        table likely contains OTUs which have the same window sequence.
+
+        For species that cannot be differentiated according to the eq class,
+        collapse them into an LCA taxonomy '''
+
+        # Convert eq_classes into a dict of species to LCA
+        species_to_equivalence_class_lca = {}
+        for sp, eq_class in eq_classes.items():
+            species_to_equivalence_class_lca[sp] = Taxonomy.lca_taxonomy_of_strings(eq_class)
+        # logging.debug("Species to LCA: {}".format(species_to_equivalence_class_lca))
+
+        # Generate new OTU table
+        new_otu_table = OtuTable()
+        new_otu_table.fields = sample_otus.fields
+        for otu in sample_otus:
+            if otu.data[best_hits_field_index] is None:
+                new_otu_table.add_otu(otu)
+            else:
+                lca_to_coverage = {}
+                for tax in otu.data[best_hits_field_index]:
+                    if tax in species_to_coverage: # If not, then it was removed by EM
+                        lca = species_to_equivalence_class_lca[tax]
+                        cov = species_to_coverage[tax]
+                        if lca not in lca_to_coverage:
+                            lca_to_coverage[lca] = cov
+                        else:
+                            lca_to_coverage[lca] += cov
+                # logging.debug("LCA to coverage: {}".format(lca_to_coverage))
+                total_coverage = sum(lca_to_coverage.values())
+                
+                for lca, coverage in lca_to_coverage.items():
+                    if len(lca) < len(otu.taxonomy):
+                        logging.warning("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
+                        # import IPython; IPython.embed()
+                    new_otu = OtuTableEntry()
+                    # marker = None
+                    # sample_name = None
+                    # sequence = None
+                    # count = None
+                    # taxonomy = None
+                    # coverage = None
+                    # data = None
+                    # fields = None
+                    new_otu.marker = otu.marker
+                    new_otu.sample_name = otu.sample_name
+                    new_otu.sequence = otu.sequence
+                    new_otu.count = otu.count
+                    new_otu.taxonomy = lca
+                    new_otu.coverage = coverage / total_coverage * otu.coverage
+                    # logging.debug("Adding OTU taxonomy {} with coverage {}".format(lca, new_otu.coverage))
+                    new_otu_table.add([new_otu])
+        return new_otu_table
+        
+    def _gather_equivalence_classes_from_list_of_species_lists(self, species_sets):
+        """ Return a dict of species to set of species that are not disinguished
+        by any species set """
+        species_to_eq_class = {}
+        for species_set in species_sets:
+            # Find all new species in this set. Together they form a new equivalence class
+            new_species_in_set = set()
+            old_species_in_set = set()
+            for species in species_set:
+                if species in species_to_eq_class:
+                    old_species_in_set.add(species)
+                else:
+                    new_species_in_set.add(species)
+            if len(new_species_in_set) > 0:
+                for sp in new_species_in_set:
+                    species_to_eq_class[sp] = new_species_in_set
+
+            if len(old_species_in_set) > 0:
+                next_set = old_species_in_set
+                more_to_go = True
+                while more_to_go:
+                    one_prev_eq_class = species_to_eq_class[list(next_set)[0]]
+                    # Form at most 3 new equivalence classes, corresponding to
+                    # the areas of a 2-circle venn diagram
+                    #
+                    # We use Python set operations
+                    extras = one_prev_eq_class - next_set
+                    old_others = next_set - one_prev_eq_class
+                    intersection = next_set & one_prev_eq_class
+                    # Species in the left set form a new class, if there are any
+                    if len(extras) > 0:
+                        for sp in extras:
+                            species_to_eq_class[sp] = extras
+                    # Species in the intersection form a new class, if needed
+                    if len(intersection) != len(one_prev_eq_class):
+                        for sp in intersection:
+                            species_to_eq_class[sp] = intersection
+                    # Species in the right set are recorded already in one or more other classes. Iterate these classes
+                    if len(old_others) > 0:
+                        next_set = old_others
+                        more_to_go = True
+                    else:
+                        more_to_go = False
+        return species_to_eq_class
 
 def _tmean(data, proportiontocut):
     """
@@ -349,9 +524,10 @@ class CondensedCommunityProfile:
                 current_root = WordNode(None, 'Root')
                 taxons_to_wordnode = {current_root.word: current_root}
             
-            taxons_split = taxonomy.split('; ')
+            taxons_split = list([s.strip() for s in taxonomy.split(';')])
             last_taxon = current_root
             wn = None
+            logging.debug("Analysing taxon %s" % taxons_split)
             for tax in taxons_split:
                 if tax not in taxons_to_wordnode:
                     wn = WordNode(last_taxon, tax)
