@@ -326,17 +326,8 @@ class Condenser:
                 
                 for lca, coverage in lca_to_coverage.items():
                     if len(lca) < len(otu.taxonomy):
-                        logging.warning("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
-                        # import IPython; IPython.embed()
+                        logging.error("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
                     new_otu = OtuTableEntry()
-                    # marker = None
-                    # sample_name = None
-                    # sequence = None
-                    # count = None
-                    # taxonomy = None
-                    # coverage = None
-                    # data = None
-                    # fields = None
                     new_otu.marker = otu.marker
                     new_otu.sample_name = otu.sample_name
                     new_otu.sequence = otu.sequence

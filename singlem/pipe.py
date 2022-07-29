@@ -780,8 +780,6 @@ class SearchPipe:
             else:
                 try:
                     tax = per_read_taxonomies[s.name]
-                    if per_read_equal_best_taxonomies is not None:
-                        equal_best_tax = per_read_equal_best_taxonomies[s.name]
                 except KeyError:
                     tax = ''
                     if per_read_equal_best_taxonomies is not None:
@@ -790,8 +788,14 @@ class SearchPipe:
                        assignment_method != PPLACER_ASSIGNMENT_METHOD:
                         # happens sometimes when HMMER picks up something where
                         # diamond does not, or when --no_assign_taxonomy is specified.
-                        logging.debug("Did not find any taxonomy information for %s" % s.name)
+                        logging.warning("Did not find any taxonomy information for %s" % s.name)
                         tax = 'Root'
+                try:
+                    if per_read_equal_best_taxonomies is not None:
+                        equal_best_tax = per_read_equal_best_taxonomies[s.name]
+                except KeyError:
+                    if per_read_equal_best_taxonomies is not None:
+                        equal_best_tax = None
 
             try:
                 collected_info = seq_to_collected_info[s.aligned_sequence]
@@ -802,7 +806,7 @@ class SearchPipe:
             collected_info.count += 1
             if per_read_taxonomies is not None:
                 collected_info.taxonomies.append(tax)
-            if per_read_equal_best_taxonomies is not None:
+            if per_read_equal_best_taxonomies is not None and equal_best_tax is not None:
                 collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
             collected_info.unaligned_sequences.append(s.unaligned_sequence)
@@ -840,7 +844,10 @@ class SearchPipe:
                 tax = self._median_taxonomy(collected_info.taxonomies)
                 if per_read_equal_best_taxonomies is not None:
                     # For query assigned taxonomies this is right
-                    equal_best_tax = collected_info.equal_best_taxonomies[0]
+                    if collected_info.equal_best_taxonomies != []:
+                        equal_best_tax = collected_info.equal_best_taxonomies[0]
+                    else:
+                        equal_best_tax = None
 
             yield Info(seq,
                        collected_info.count,
@@ -1684,15 +1691,35 @@ class QueryThenDiamondTaxonomicAssignmentResult:
         self._diamond_assignment_result = diamond_assignment_result
         self._analysing_pairs = analysing_pairs
 
-    def get_best_hits(self, singlem_package, sample_name):
+    def get_best_hits(self, singlem_package, sample_name, truncate_diamond_hits_to_species_level=True):
         # Merge the dictionaries
         if self._analysing_pairs:
             query_best_hits = self._query_assignment_result.get_best_hits(singlem_package, sample_name)
             diamond_best_hits = self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)
+            if truncate_diamond_hits_to_species_level:
+                raise NotImplementedError("Truncating diamond hits to species level is not implemented yet")
             return [ {**query_best_hits[0], **diamond_best_hits[0]}, {**query_best_hits[1], **diamond_best_hits[1]} ]
         else:
+            diamond_hash = self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)
+            if truncate_diamond_hits_to_species_level:
+                diamond_hash = self._truncate_diamond_taxonomy(diamond_hash)
             return {**self._query_assignment_result.get_best_hits(singlem_package, sample_name),
-                **self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)}
+                **diamond_hash}
+
+    def _truncate_diamond_taxonomy(self, diamond_best_hits_input):
+        diamond_best_hits = {}
+        for (tax_id, taxonomy) in diamond_best_hits_input.items():
+            levels = [s.strip() for s in taxonomy.split(';')]
+            if len(levels) > 7:
+                species = levels[7]
+                if not species.startswith('s__'):
+                    raise Exception("DIAMOND hit taxonomy's species level taxon does not start with 's__' as expected")
+                new_taxonomy = ';'.join(levels[:7])
+                logging.debug("Truncating diamond hit taxonomy {} to genus level: {}".format(taxonomy, new_taxonomy))
+                diamond_best_hits[tax_id] = new_taxonomy
+            else:
+                diamond_best_hits[tax_id] = taxonomy
+        return diamond_best_hits
 
     def get_equal_best_hits(self, singlem_package, sample_name):
         # Right now just return the query best hits
