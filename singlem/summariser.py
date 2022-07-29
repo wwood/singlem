@@ -446,6 +446,7 @@ class Summariser:
                 'nucleotides_aligned':[list(itertools.chain(*grouped['nucleotides_aligned']))],
                 'taxonomy_by_known?':[grouped.iloc[0]['taxonomy_by_known?']],
                 'read_unaligned_sequences':[list(itertools.chain(*grouped['read_unaligned_sequences']))],
+                'equal_best_hit_taxonomies':[grouped.iloc[0]['equal_best_hit_taxonomies']],
             })
         transformed = df.groupby(['sequence','gene'], as_index=False).apply(combine_rows)[ArchiveOtuTable.FIELDS]
 
