@@ -53,8 +53,8 @@ class Renew:
         logging.info("Reading in archive OTU table ..")
         with open(input_archive_otu_table) as f:
             input_otus = ArchiveOtuTable.read(f)
-        if input_otus.version != 2:
-            raise Exception("Currently only version 2 archive otu tables are supported")
+        if input_otus.version < 2:
+            raise Exception("Currently only version 2+ archive otu tables are supported")
         logging.info("Read in {} OTUs".format(len(input_otus.data)))        
         
         # Generate ExtractedReads. Never analysing pairs because no 2 reads with

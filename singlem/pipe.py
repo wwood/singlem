@@ -1140,11 +1140,11 @@ class SearchPipe:
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 0)],
                             [u for u in readset[1].unknown_sequences if not \
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1)]]
-                        logging.info("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({:.1f}% and {:.1f}%) for sample {}, package {}".format(
+                        logging.info("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({}% and {}%) for sample {}, package {}".format(
                             len(still_unknown_sequences[0]), len(still_unknown_sequences[1]),
                             len(readset[0].unknown_sequences), len(readset[1].unknown_sequences),
-                            100.0*len(still_unknown_sequences[0])/len(readset[0].unknown_sequences),
-                            100.0*len(still_unknown_sequences[1])/len(readset[1].unknown_sequences),
+                            "{:.1f}".format(100.0*len(still_unknown_sequences[0])/len(readset[0].unknown_sequences)) if len(readset[0].unknown_sequences) > 0 else 'n/a',
+                            "{:.1f}".format(100.0*len(still_unknown_sequences[1])/len(readset[1].unknown_sequences)) if len(readset[1].unknown_sequences) > 0 else 'n/a',
                             readset[0].sample_name,
                             os.path.basename(singlem_package.base_directory())))
                     else:
@@ -1166,11 +1166,11 @@ class SearchPipe:
                         forward_tmp.write(">dummy\n{}\n".format(dummy_sequence))
 
                         forward_seq_names = {}
-                        for (i, s) in enumerate(still_unknown_sequences[0].unknown_sequences):
+                        for (i, s) in enumerate(still_unknown_sequences[0]):
                             forward_seq_names[s.name] = i
                             write_unaligned_fasta([s], forward_tmp)
                         reverse_name_to_seq = {}
-                        for s in still_unknown_sequences[1].unknown_sequences:
+                        for s in still_unknown_sequences[1]:
                             reverse_name_to_seq[s.name] = s
                         for name in forward_seq_names.keys():
                             if name in reverse_name_to_seq:
@@ -1205,7 +1205,6 @@ class SearchPipe:
                                 100.0*len(still_unknown_sequences)/len(readset.unknown_sequences),
                                 readset.sample_name,
                                 os.path.basename(singlem_package.base_directory())))
-                            write_unaligned_fasta(still_unknown_sequences, tmp)
                         else:
                             still_unknown_sequences = readset.unknown_sequences
                         write_unaligned_fasta(still_unknown_sequences, tmp)
@@ -1697,8 +1696,14 @@ class QueryThenDiamondTaxonomicAssignmentResult:
             query_best_hits = self._query_assignment_result.get_best_hits(singlem_package, sample_name)
             diamond_best_hits = self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)
             if truncate_diamond_hits_to_species_level:
-                raise NotImplementedError("Truncating diamond hits to species level is not implemented yet")
-            return [ {**query_best_hits[0], **diamond_best_hits[0]}, {**query_best_hits[1], **diamond_best_hits[1]} ]
+                diamond_best_hits = [
+                    self._truncate_diamond_taxonomy(diamond_best_hits[0]),
+                    self._truncate_diamond_taxonomy(diamond_best_hits[1])
+                ]
+            if query_best_hits == {}:
+                return diamond_best_hits
+            else:
+                return [ {**query_best_hits[0], **diamond_best_hits[0]}, {**query_best_hits[1], **diamond_best_hits[1]} ]
         else:
             diamond_hash = self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)
             if truncate_diamond_hits_to_species_level:
@@ -1723,4 +1728,8 @@ class QueryThenDiamondTaxonomicAssignmentResult:
 
     def get_equal_best_hits(self, singlem_package, sample_name):
         # Right now just return the query best hits
-        return self._query_assignment_result.get_equal_best_hits(singlem_package, sample_name)
+        ret = self._query_assignment_result.get_equal_best_hits(singlem_package, sample_name)
+        if ret == {} and self._analysing_pairs:
+            return [{},{}]
+        else:
+            return ret

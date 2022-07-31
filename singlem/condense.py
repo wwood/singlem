@@ -310,7 +310,7 @@ class Condenser:
         new_otu_table.fields = sample_otus.fields
         for otu in sample_otus:
             if otu.data[best_hits_field_index] is None:
-                new_otu_table.add_otu(otu)
+                new_otu_table.add([otu])
             else:
                 lca_to_coverage = {}
                 for tax in otu.data[best_hits_field_index]:
