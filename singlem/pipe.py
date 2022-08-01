@@ -787,7 +787,8 @@ class SearchPipe:
                     if assignment_method != NO_ASSIGNMENT_METHOD and \
                        assignment_method != PPLACER_ASSIGNMENT_METHOD:
                         # happens sometimes when HMMER picks up something where
-                        # diamond does not, or when --no_assign_taxonomy is specified.
+                        # diamond does not, or when the prefilter hit qualifies
+                        # but the hit to the gene-specific dmnd does not.
                         logging.warning("Did not find any taxonomy information for %s" % s.name)
                         tax = 'Root'
                 try:
@@ -1291,7 +1292,6 @@ class SearchPipe:
                                         best_hits[query] = self.lca_taxonomy(tax_hash, best_hit_ids)
                                 else:
                                     raise Exception("Programming error")
-
 
 
                         with open(query) as query_in:
