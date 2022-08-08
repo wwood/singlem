@@ -22,6 +22,7 @@ from .taxonomy_bihash import TaxonomyBihash
 from .diamond_spkg_searcher import DiamondSpkgSearcher
 from .pipe_sequence_extractor import PipeSequenceExtractor
 from .kingfisher_sra import KingfisherSra
+from .archive_otu_table import ArchiveOtuTable
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -85,9 +86,7 @@ class SearchPipe:
             archive_otu_table,
             output_extras,
             metapackage):
-        regular_output_fields = str.split('gene sample sequence num_hits coverage taxonomy')
-        otu_table_object.fields = regular_output_fields + \
-            str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies')
+        otu_table_object.fields = ArchiveOtuTable.FIELDS
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
                 if output_extras:
