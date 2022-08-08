@@ -4,13 +4,19 @@ from .otu_table_entry import OtuTableEntry
 
 
 class ArchiveOtuTable:
-    version = 3
+    version = 4
 
     FIELDS_VERSION1 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?')
     FIELDS_VERSION2 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences')
     FIELDS_VERSION3 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies')
     FIELDS_VERSION4 = str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
-    FIELDS = FIELDS_VERSION4
+    FIELDS_OF_EACH_VERSION = [
+        FIELDS_VERSION1,
+        FIELDS_VERSION2,
+        FIELDS_VERSION3,
+        FIELDS_VERSION4,
+    ]
+    FIELDS = FIELDS_OF_EACH_VERSION[version-1]
 
     READ_NAME_FIELD_INDEX=6
 
@@ -45,11 +51,7 @@ class ArchiveOtuTable:
         otus.singlem_package_sha256s = j['singlem_package_sha256s']
 
         otus.fields = j['fields']
-        if otus.fields != [
-            ArchiveOtuTable.FIELDS_VERSION1,
-            ArchiveOtuTable.FIELDS_VERSION2,
-            ArchiveOtuTable.FIELDS_VERSION3,
-            ArchiveOtuTable.FIELDS_VERSION4][j['version']-1]:
+        if otus.fields != FIELDS_OF_EACH_VERSION[j['version']-1]:
             raise Exception("Unexpected archive OTU table format detected")
 
         otus.data = j['otus']

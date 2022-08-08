@@ -39,7 +39,7 @@ from singlem.sequence_classes import SeqReader
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
-    headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences')
+    headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
     maxDiff = None
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
@@ -902,7 +902,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # more frequently)
         expected = [
             "\t".join(self.headers_with_extras),
-            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT',
+            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	None	diamond',
             '']
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
@@ -1042,7 +1042,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs_and_inseqs2.manually_different_species.otu_table.csv.sdb'),
         )
-        self.assertEqual(json.loads('{"version": 3, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies"], "otus": [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"]]]}'),
+        self.assertEqual(json.loads('{"version": 4, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies"], "otus": [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based"]]}'),
             json.loads(extern.run(cmd)))
 
     def test_scann_then_diamond_assignment_single(self):
