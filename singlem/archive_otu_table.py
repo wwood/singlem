@@ -51,7 +51,7 @@ class ArchiveOtuTable:
         otus.singlem_package_sha256s = j['singlem_package_sha256s']
 
         otus.fields = j['fields']
-        if otus.fields != FIELDS_OF_EACH_VERSION[j['version']-1]:
+        if otus.fields != ArchiveOtuTable.FIELDS_OF_EACH_VERSION[j['version']-1]:
             raise Exception("Unexpected archive OTU table format detected")
 
         otus.data = j['otus']
