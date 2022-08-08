@@ -35,6 +35,8 @@ ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD = 'annoy_then_diamond'
 SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD = 'scann_then_diamond'
 NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD = 'naive_then_diamond'
 NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
+
+QUERY_BASED_ASSIGNMENT_METHOD = 'singlem_query_based'
 DEFAULT_THREADS = 1
 
 class SearchPipe:
@@ -531,7 +533,8 @@ class SearchPipe:
                     info.aligned_lengths,
                     known_tax,
                     list([ns[1] for ns in names_and_sequences]),
-                    info.equal_best_taxonomies]
+                    info.equal_best_taxonomies,
+                    info.taxonomy_assignment_method]
                 otu_table_object.data.append(to_print)
 
         def extract_placement_parser(
@@ -564,6 +567,7 @@ class SearchPipe:
                 known_taxes,
                 known_sequence_taxonomy,
                 None,
+                None,
                 None)
             add_info(known_infos, otu_table_object, True)
 
@@ -585,6 +589,7 @@ class SearchPipe:
 
                 if assign_taxonomy:
                     if singlem_assignment_method == ANNOY_ASSIGNMENT_METHOD:
+                        assignment_methods = SingleAnswerAssignmentMethodStore(QUERY_BASED_ASSIGNMENT_METHOD)
                         best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                         taxonomies = {}
                         equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
@@ -633,7 +638,15 @@ class SearchPipe:
                                 for (name, equal_best_hits) in equal_best_hit_hash.items():
                                     equal_best_taxonomies[name] = equal_best_hits
 
+                            if singlem_assignment_method in (
+                                DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                                DIAMOND_ASSIGNMENT_METHOD):
+                                assignment_methods = SingleAnswerAssignmentMethodStore(singlem_assignment_method)
+                            else:
+                                assignment_methods = assignment_result.get_taxonomy_assignment_methods(singlem_package, sample_name)
+
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
+                        assignment_methods = SingleAnswerAssignmentMethodStore(singlem_assignment_method)
                         bihash_key = singlem_package.base_directory()
                         if bihash_key in package_to_taxonomy_bihash:
                             taxonomy_bihash = package_to_taxonomy_bihash[bihash_key]
@@ -663,11 +676,13 @@ class SearchPipe:
                                 taxonomy_bihash)
                         taxonomies = {}
                     elif singlem_assignment_method == NO_ASSIGNMENT_METHOD:
+                        assignment_methods = SingleAnswerAssignmentMethodStore(singlem_assignment_method)
                         taxonomies = {}
                     else:
                         raise Exception("Programming error")
 
                 else: # Taxonomy has not been assigned.
+                    assignment_methods = SingleAnswerAssignmentMethodStore(NO_ASSIGNMENT_METHOD)
                     if known_sequence_taxonomy:
                         taxonomies = known_sequence_tax
                     else:
@@ -684,7 +699,8 @@ class SearchPipe:
                         ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
-                    placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None))
+                    placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
+                    assignment_methods))
 
                 if output_jplace:
                     if analysing_pairs:
@@ -741,7 +757,8 @@ class SearchPipe:
                                      otu_sequence_assigned_taxonomies,
                                      per_read_taxonomies,
                                      per_read_equal_best_taxonomies,
-                                     placement_parser):
+                                     placement_parser,
+                                     taxonomy_assignment_methods):
         '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
         assignment-related results, yield over 'Info' objects that contain e.g.
         the counts of the aggregated sequences and corresponding median
@@ -758,6 +775,8 @@ class SearchPipe:
         per_read_equal_best_taxonomies: dict-like of read name to list of taxonomies that are equal top hits.
         placement_parser: PlacementParser
             Used only if assignment_method is PPLACER_ASSIGNMENT_METHOD.
+        taxonomy_assignment_methods: SingleAnswerAssignmentMethodStore or MultiAnswerAssignmentMethodStore
+            What method(s) were used to assign taxonomy to individual OTUs.
         '''
         class CollectedInfo:
             def __init__(self):
@@ -816,7 +835,7 @@ class SearchPipe:
             collected_info.orf_names.append(s.orf_name)
 
         class Info:
-            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths):
+            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths, taxonomy_assignment_method):
                 self.seq = seq
                 self.count = count
                 self.taxonomy = taxonomy
@@ -825,6 +844,7 @@ class SearchPipe:
                 self.unaligned_sequences = unaligned_sequences
                 self.coverage = coverage
                 self.aligned_lengths = aligned_lengths
+                self.taxonomy_assignment_method = taxonomy_assignment_method
 
         for seq, collected_info in seq_to_collected_info.items():
             if s.aligned_sequence in otu_sequence_assigned_taxonomies:
@@ -857,7 +877,8 @@ class SearchPipe:
                        collected_info.names,
                        collected_info.unaligned_sequences,
                        collected_info.coverage,
-                       collected_info.aligned_lengths)
+                       collected_info.aligned_lengths,
+                       taxonomy_assignment_methods.get_assignment_method(collected_info.names[0])) # All seqs in OTU have the same assignment method
 
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
@@ -1733,3 +1754,51 @@ class QueryThenDiamondTaxonomicAssignmentResult:
             return [{},{}]
         else:
             return ret
+
+    def get_taxonomy_assignment_methods(self, singlem_package, sample_name):
+        query_best_hits = self._query_assignment_result.get_best_hits(singlem_package, sample_name)
+        query_names = set()
+        diamond_best_hits = self._diamond_assignment_result.get_best_hits(singlem_package, sample_name)
+        diamond_names = set()
+
+        if self._analysing_pairs:
+            for name in query_best_hits[0]:
+                query_names.add(name)
+            for name in diamond_best_hits[0]:
+                diamond_names.add(name)
+            for name in query_best_hits[1]:
+                query_names.add(name)
+            for name in diamond_best_hits[1]:
+                diamond_names.add(name)
+        else:
+            for name in query_best_hits:
+                query_names.add(name)
+            for name in diamond_best_hits:
+                diamond_names.add(name)
+
+        assignment_methods = MultiAnswerAssignmentMethodsStore()
+        assignment_methods.add_assignment_method(DIAMOND_ASSIGNMENT_METHOD, diamond_names)
+        assignment_methods.add_assignment_method(QUERY_BASED_ASSIGNMENT_METHOD, query_names)
+
+        return assignment_methods
+
+class MultiAnswerAssignmentMethodsStore:
+    '''Store the assignment methods used to assign each read name'''
+    def __init__(self):
+        self._assignment_methods = []
+
+    def add_assignment_method(self, method, read_names):
+        self._assignment_methods.append((method, read_names))
+
+    def get_assignment_method(self, read_name):
+        founds = list([method for (method, read_names) in self._assignment_methods if read_name in read_names])
+        if len(founds) != 1:
+            raise Exception("Unexpected lack (or >1 found) of assignment method for read name {}".format(read_name))
+        return founds[0]
+        
+class SingleAnswerAssignmentMethodStore:
+    def __init__(self, method):
+        self._method = method
+
+    def get_assignment_method(self, _read_name):
+        return self._method
