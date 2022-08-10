@@ -621,7 +621,6 @@ class SearchPipe:
                             taxonomies = {}
                             equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                             equal_best_taxonomies = {}
-                            import IPython; IPython.embed()
                             if analysing_pairs:
                                 for (name, best_hits) in best_hit_hash[1].items():
                                     taxonomies[name] = best_hits
@@ -1681,16 +1680,25 @@ class DiamondTaxonomicAssignmentResult:
 
     def get_best_hits(self, singlem_package, sample_name):
         '''Return the lca of the taxonomies of the equal best hits for each read
-        in the sample/spkg
+        in the sample/spkg.
+
+        Read the taxhash for this singlem package to convert.
+
+        From some old code: Convert best hit IDs to taxonomies. Previously this
+        was cached, but it takes ~600MB of RAM for this hash across 83 packages,
+        so for the sake of RAM saving we don't cache, and so each time a new
+        sample is analysed it is read in again.
         '''
-        # FIXME: tax_hash is read in twice, I think.
+        logging.debug("Reading taxonomy hash for {}".format(singlem_package.base_directory()))
+        tax_hash = singlem_package.taxonomy_hash()
+
         equal_best_hits = self.get_equal_best_hits(singlem_package, sample_name)
         if self._analysing_pairs:
             return [
-                {k:self._lca_string(v) for k,v in equal_best_hits[0].items()},
-                {k:self._lca_string(v) for k,v in equal_best_hits[1].items()}]
+                {k:self._lca_string([tax_hash[tax_id] for tax_id in v]) for k,v in equal_best_hits[0].items()},
+                {k:self._lca_string([tax_hash[tax_id] for tax_id in v]) for k,v in equal_best_hits[1].items()}]
         else:
-            return {k:self._lca_string(v) for k,v in equal_best_hits.items()}
+            return {k:self._lca_string([tax_hash[tax_id] for tax_id in v]) for k,v in equal_best_hits.items()}
 
     def _lca_string(self, taxon_list):
         taxon_list2 = Taxonomy.lca_taxonomy_of_taxon_lists(taxon_list)
@@ -1700,29 +1708,13 @@ class DiamondTaxonomicAssignmentResult:
             return 'Root; '+taxon_list2
 
     def get_equal_best_hits(self, singlem_package, sample_name):
-        '''Return each value is a DIAMOND ID. Read the taxhash for this singlem
-        package to convert.
+        '''Return each value as a DIAMOND ID.'''
 
-        From some old code: Convert best hit IDs to taxonomies. Previously this
-        was cached, but it takes ~600MB of RAM for this hash across 83 packages,
-        so for the sake of RAM saving we don't cache, and so each time a new
-        sample is analysed it is read in again.
-        '''
         spkg_key = singlem_package.base_directory()
         if spkg_key in self._package_to_sample_to_best_hits and \
             sample_name in self._package_to_sample_to_best_hits[spkg_key]:
 
-            logging.debug("Reading taxonomy hash for {}".format(spkg_key))
-            tax_hash = singlem_package.taxonomy_hash()
-
-            best_hit_ids = self._package_to_sample_to_best_hits[spkg_key][sample_name]
-            if self._analysing_pairs:
-                best_hit_taxons = [
-                    {k: [tax_hash[tax_id] for tax_id in v] for k,v in best_hit_ids[0].items()},
-                    {k: [tax_hash[tax_id] for tax_id in v] for k,v in best_hit_ids[1].items()}]
-            else:
-                best_hit_taxons = {k: [tax_hash[tax_id] for tax_id in v] for k,v in best_hit_ids.items()}
-            return best_hit_taxons
+            return self._package_to_sample_to_best_hits[spkg_key][sample_name]
         else:
             # When no seqs are assigned taxonomy by diamond
             if self._analysing_pairs:
