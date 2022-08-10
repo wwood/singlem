@@ -23,6 +23,7 @@ from .diamond_spkg_searcher import DiamondSpkgSearcher
 from .pipe_sequence_extractor import PipeSequenceExtractor
 from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
+from .taxonomy import Taxonomy
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -92,7 +93,7 @@ class SearchPipe:
                 if output_extras:
                     otu_table_object.write_to(f, otu_table_object.fields)
                 else:
-                    otu_table_object.write_to(f, regular_output_fields)
+                    otu_table_object.write_to(f, str.split('gene sample sequence num_hits coverage taxonomy'))
         if archive_otu_table:
             with open(archive_otu_table, 'w') as f:
                 otu_table_object.archive(metapackage).write_to(f)
@@ -620,6 +621,7 @@ class SearchPipe:
                             taxonomies = {}
                             equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                             equal_best_taxonomies = {}
+                            import IPython; IPython.embed()
                             if analysing_pairs:
                                 for (name, best_hits) in best_hit_hash[1].items():
                                     taxonomies[name] = best_hits
@@ -694,6 +696,7 @@ class SearchPipe:
                     known_sequence_tax if known_sequence_taxonomy else {},
                     taxonomies,
                     equal_best_taxonomies if singlem_assignment_method in (
+                        DIAMOND_ASSIGNMENT_METHOD,
                         ANNOY_ASSIGNMENT_METHOD,
                         ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
@@ -1253,17 +1256,6 @@ class SearchPipe:
                         # Run diamond runs per chunk, collecting best hits
                         best_hits = {}
 
-                        # To save even further RAM, process to an LCA each
-                        # taxonomy of the hits, rather than summarising it later
-                        # on, unless of course we only want an example.
-                        if assignment_method != DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                            # Convert best hit IDs to taxonomies. Previously this
-                            # was cached, but it takes ~600MB of RAM for this hash
-                            # across 83 packages, so for the sake of RAM saving we
-                            # don't cache, and so each time a new sample is analysed
-                            # it is read in again.
-                            tax_hash = singlem_package.taxonomy_hash()
-
                         def run_diamond_chunk(query_file_path):
                             with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
                                 cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
@@ -1309,7 +1301,7 @@ class SearchPipe:
                                     SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
                                     NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                                     for (query, best_hit_ids) in chunk_best_hits.items():
-                                        best_hits[query] = self.lca_taxonomy(tax_hash, best_hit_ids)
+                                        best_hits[query] = best_hit_ids
                                 else:
                                     raise Exception("Programming error")
 
@@ -1395,8 +1387,10 @@ class SearchPipe:
 
         extern.run_many(commands, num_threads=assignment_threads)
         logging.info("Finished running taxonomic assignment")
-        if assignment_method == DIAMOND_ASSIGNMENT_METHOD or assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+        if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
             return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
+        elif assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+            return DiamondExampleTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
         elif assignment_method in (
             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
             SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
@@ -1686,6 +1680,73 @@ class DiamondTaxonomicAssignmentResult:
                     self._package_to_sample_to_best_hits[pkg][sample_name] = bests
 
     def get_best_hits(self, singlem_package, sample_name):
+        '''Return the lca of the taxonomies of the equal best hits for each read
+        in the sample/spkg
+        '''
+        # FIXME: tax_hash is read in twice, I think.
+        equal_best_hits = self.get_equal_best_hits(singlem_package, sample_name)
+        if self._analysing_pairs:
+            return [
+                {k:self._lca_string(v) for k,v in equal_best_hits[0].items()},
+                {k:self._lca_string(v) for k,v in equal_best_hits[1].items()}]
+        else:
+            return {k:self._lca_string(v) for k,v in equal_best_hits.items()}
+
+    def _lca_string(self, taxon_list):
+        taxon_list2 = Taxonomy.lca_taxonomy_of_taxon_lists(taxon_list)
+        if len(taxon_list2) == 0:
+            return 'Root'
+        else:
+            return 'Root; '+taxon_list2
+
+    def get_equal_best_hits(self, singlem_package, sample_name):
+        '''Return each value is a DIAMOND ID. Read the taxhash for this singlem
+        package to convert.
+
+        From some old code: Convert best hit IDs to taxonomies. Previously this
+        was cached, but it takes ~600MB of RAM for this hash across 83 packages,
+        so for the sake of RAM saving we don't cache, and so each time a new
+        sample is analysed it is read in again.
+        '''
+        spkg_key = singlem_package.base_directory()
+        if spkg_key in self._package_to_sample_to_best_hits and \
+            sample_name in self._package_to_sample_to_best_hits[spkg_key]:
+
+            logging.debug("Reading taxonomy hash for {}".format(spkg_key))
+            tax_hash = singlem_package.taxonomy_hash()
+
+            best_hit_ids = self._package_to_sample_to_best_hits[spkg_key][sample_name]
+            if self._analysing_pairs:
+                best_hit_taxons = [
+                    {k: [tax_hash[tax_id] for tax_id in v] for k,v in best_hit_ids[0].items()},
+                    {k: [tax_hash[tax_id] for tax_id in v] for k,v in best_hit_ids[1].items()}]
+            else:
+                best_hit_taxons = {k: [tax_hash[tax_id] for tax_id in v] for k,v in best_hit_ids.items()}
+            return best_hit_taxons
+        else:
+            # When no seqs are assigned taxonomy by diamond
+            if self._analysing_pairs:
+                return [{},{}]
+            else:
+                return {}
+
+class DiamondExampleTaxonomicAssignmentResult:
+    def __init__(self, best_hit_results, analysing_pairs):
+        self._analysing_pairs = analysing_pairs
+        self._singlem_package_taxonomy_hashes = {}
+        self._package_to_sample_to_best_hits = {}
+        for (singlem_package, sample_names, best_hits) in best_hit_results:
+            pkg = singlem_package.base_directory()
+            if pkg not in self._package_to_sample_to_best_hits:
+                self._package_to_sample_to_best_hits[pkg] = {}
+            if analysing_pairs:
+                for (sample_name, bests0, bests1) in zip(sample_names, best_hits[0], best_hits[1]):
+                    self._package_to_sample_to_best_hits[pkg][sample_name] = [bests0, bests1]
+            else:
+                for (sample_name, bests) in zip(sample_names, best_hits):
+                    self._package_to_sample_to_best_hits[pkg][sample_name] = bests
+
+    def get_best_hits(self, singlem_package, sample_name):
         spkg_key = singlem_package.base_directory()
         if spkg_key in self._package_to_sample_to_best_hits and \
             sample_name in self._package_to_sample_to_best_hits[spkg_key]:
@@ -1698,7 +1759,7 @@ class DiamondTaxonomicAssignmentResult:
                 return {}
 
     def get_equal_best_hits(self, singlem_package, sample_name):
-        # FIXME: Not implemented yet, no reason why not really.
+        # equal best hits doesn't make sense when only 1 top hit is taken
         if self._analysing_pairs:
             return [{},{}]
         else:
