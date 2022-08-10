@@ -12,8 +12,12 @@ class Taxonomy:
     @staticmethod
     def lca_taxonomy_of_strings(taxonomy_strings):
         hit_taxonomies = list([list([ta.strip() for ta in t.split(';')]) for t in taxonomy_strings])
-        lca = hit_taxonomies[0]
-        for taxonomy in hit_taxonomies[1:]:
+        return Taxonomy.lca_taxonomy_of_lists(hit_taxonomies)
+
+    @staticmethod
+    def lca_taxonomy_of_taxon_lists(taxonomy_lists):
+        lca = taxonomy_lists[0]
+        for taxonomy in taxonomy_lists[1:]:
             if len(taxonomy) < len(lca):
                 lca = lca[:len(taxonomy)]
             for i, tax in enumerate(taxonomy):
