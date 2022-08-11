@@ -848,6 +848,9 @@ class SearchPipe:
                 self.taxonomy_assignment_method = taxonomy_assignment_method
 
         for seq, collected_info in seq_to_collected_info.items():
+            # All seqs in OTU have the same assignment method
+            otu_taxonomy_assignment_method = taxonomy_assignment_methods.get_assignment_method(collected_info.names[0])
+
             if s.aligned_sequence in otu_sequence_assigned_taxonomies:
                 tax = otu_sequence_assigned_taxonomies[s.aligned_sequence].taxonomy
             elif assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
@@ -865,11 +868,14 @@ class SearchPipe:
             else:
                 tax = self._median_taxonomy(collected_info.taxonomies)
                 if per_read_equal_best_taxonomies is not None:
-                    # For query assigned taxonomies this is right
-                    if collected_info.equal_best_taxonomies != []:
-                        equal_best_tax = collected_info.equal_best_taxonomies[0]
+                    if otu_taxonomy_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                        equal_best_tax = collected_info.equal_best_taxonomies
                     else:
-                        equal_best_tax = None
+                        # For query assigned taxonomies this is right
+                        if collected_info.equal_best_taxonomies != []:
+                            equal_best_tax = collected_info.equal_best_taxonomies[0]
+                        else:
+                            equal_best_tax = None
 
             yield Info(seq,
                        collected_info.count,
@@ -879,7 +885,7 @@ class SearchPipe:
                        collected_info.unaligned_sequences,
                        collected_info.coverage,
                        collected_info.aligned_lengths,
-                       taxonomy_assignment_methods.get_assignment_method(collected_info.names[0])) # All seqs in OTU have the same assignment method
+                       otu_taxonomy_assignment_method) 
 
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
@@ -1801,11 +1807,18 @@ class QueryThenDiamondTaxonomicAssignmentResult:
 
     def get_equal_best_hits(self, singlem_package, sample_name):
         # Right now just return the query best hits
-        ret = self._query_assignment_result.get_equal_best_hits(singlem_package, sample_name)
-        if ret == {} and self._analysing_pairs:
-            return [{},{}]
+        query_equals = self._query_assignment_result.get_equal_best_hits(singlem_package, sample_name)
+        diamond_equals = self._diamond_assignment_result.get_equal_best_hits(singlem_package, sample_name)
+
+        if self._analysing_pairs:
+            if query_equals == {}:
+                query_equals = [{},{}]
+            return [
+                {**query_equals[0], **diamond_equals[0]},
+                {**query_equals[1], **diamond_equals[1]}
+            ]
         else:
-            return ret
+            return {**query_equals, **diamond_equals}
 
     def get_taxonomy_assignment_methods(self, singlem_package, sample_name):
         query_best_hits = self._query_assignment_result.get_best_hits(singlem_package, sample_name)
