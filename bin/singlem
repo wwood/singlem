@@ -1030,7 +1030,7 @@ if __name__ == '__main__':
     elif args.subparser_name == 'chance':
         from singlem.otu_table_collection import OtuTableCollection
         from singlem.chancer import Chancer
-        from singlem.taxonomy import Taxonomy
+        from singlem.taxonomy import TaxonomyUtils
 
         chancer = Chancer()
         metagenomes = OtuTableCollection()
@@ -1039,7 +1039,7 @@ if __name__ == '__main__':
                 metagenomes.add_otu_table(f)
         chancer.run_and_print(
             metagenomes = metagenomes,
-            target_taxonomy = Taxonomy.split_taxonomy(args.taxonomy))
+            target_taxonomy = TaxonomyUtils.split_taxonomy(args.taxonomy))
 
     elif args.subparser_name == 'chainsaw':
         from singlem.chainsaw import Chainsaw
