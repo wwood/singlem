@@ -34,7 +34,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.metapackage import Metapackage
 from singlem.otu_table_collection import OtuTableCollection
-from singlem.taxonomy import Taxonomy
+from singlem.taxonomy import TaxonomyUtils
 
 class Tests(unittest.TestCase):
     maxDiff = None
