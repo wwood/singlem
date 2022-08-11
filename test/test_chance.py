@@ -34,7 +34,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.chancer import Chancer
 from singlem.otu_table_collection import OtuTableCollection
-from singlem.taxonomy import Taxonomy
+from singlem.taxonomy import TaxonomyUtils
 
 class Tests(unittest.TestCase):
     chance_headers = str.split('sample total_seqs homogeneity_index')
@@ -85,7 +85,7 @@ class Tests(unittest.TestCase):
             ["minimal\t9.0\t2.5"],
             [str(rp) for rp in Chancer().predict_samples(
                 metagenomes = table_collection,
-                target_taxonomy = Taxonomy.split_taxonomy(
+                target_taxonomy = TaxonomyUtils.split_taxonomy(
                     'Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae'))]
         )
 

@@ -23,7 +23,7 @@ from .diamond_spkg_searcher import DiamondSpkgSearcher
 from .pipe_sequence_extractor import PipeSequenceExtractor
 from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
-from .taxonomy import Taxonomy
+from .taxonomy import TaxonomyUtils
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -1701,7 +1701,7 @@ class DiamondTaxonomicAssignmentResult:
             return {k:self._lca_string([tax_hash[tax_id] for tax_id in v]) for k,v in equal_best_hits.items()}
 
     def _lca_string(self, taxon_list):
-        taxon_list2 = Taxonomy.lca_taxonomy_of_taxon_lists(taxon_list)
+        taxon_list2 = TaxonomyUtils.lca_taxonomy_of_taxon_lists(taxon_list)
         if len(taxon_list2) == 0:
             return 'Root'
         else:

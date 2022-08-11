@@ -11,7 +11,7 @@ from singlem.otu_table import OtuTable
 from singlem.otu_table_entry import OtuTableEntry
 from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
-from .taxonomy import Taxonomy
+from .taxonomy import TaxonomyUtils
 
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
@@ -302,7 +302,7 @@ class Condenser:
         # Convert eq_classes into a dict of species to LCA
         species_to_equivalence_class_lca = {}
         for sp, eq_class in eq_classes.items():
-            species_to_equivalence_class_lca[sp] = Taxonomy.lca_taxonomy_of_strings(eq_class)
+            species_to_equivalence_class_lca[sp] = TaxonomyUtils.lca_taxonomy_of_strings(eq_class)
         # logging.debug("Species to LCA: {}".format(species_to_equivalence_class_lca))
 
         # Generate new OTU table

@@ -1,4 +1,4 @@
-class Taxonomy:
+class TaxonomyUtils:
     @staticmethod
     def split_taxonomy(taxonomy_string):
         if taxonomy_string:
@@ -12,7 +12,7 @@ class Taxonomy:
     @staticmethod
     def lca_taxonomy_of_strings(taxonomy_strings):
         hit_taxonomies = list([list([ta.strip() for ta in t.split(';')]) for t in taxonomy_strings])
-        return Taxonomy.lca_taxonomy_of_lists(hit_taxonomies)
+        return TaxonomyUtils.lca_taxonomy_of_taxon_lists(hit_taxonomies)
 
     @staticmethod
     def lca_taxonomy_of_taxon_lists(taxonomy_lists):

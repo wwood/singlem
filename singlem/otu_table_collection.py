@@ -6,7 +6,7 @@ import json
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table import OtuTable
-from .taxonomy import Taxonomy
+from .taxonomy import TaxonomyUtils
 from .otu_table_entry import OtuTableEntry
 
 class OtuTableCollection:
@@ -46,7 +46,7 @@ class OtuTableCollection:
         '''Set the target_taxonomy instance variable by a string, which
         gets parsed into the requisite array form and stored in the instance
         variable'''
-        self.target_taxonomy = Taxonomy.split_taxonomy(taxonomy_string)
+        self.target_taxonomy = TaxonomyUtils.split_taxonomy(taxonomy_string)
 
     def example_field_names(self):
         '''Return the field names of the first OTU table'''

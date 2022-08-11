@@ -3,6 +3,7 @@ import os
 
 from .querier import Querier, QueryInputSequence
 from .sequence_database import *
+from .taxonomy import TaxonomyUtils
 
 class PipeTaxonomyAssignerByQuery:
     def _prepare_query_sequences(self, extracted_reads):
@@ -117,16 +118,7 @@ class QueryTaxonomicAssignmentResult:
             self._spkg_to_sample_to_name_to_taxonomies = spkg_to_sample_to_name_to_taxonomies
 
     def _lca_taxonomy(self, taxonomy_strings):
-        # TODO: Same as Taxonomy.lca_taxonomy_of_strings I think
-        hit_taxonomies = list([list([ta.strip() for ta in t.split(';')]) for t in taxonomy_strings])
-        lca = hit_taxonomies[0]
-        for taxonomy in hit_taxonomies[1:]:
-            if len(taxonomy) < len(lca):
-                lca = lca[:len(taxonomy)]
-            for i, tax in enumerate(taxonomy):
-                if i >= len(lca) or tax != lca[i]:
-                    lca = lca[:i]
-                    break
+        lca = TaxonomyUtils.lca_taxonomy_of_strings(taxonomy_strings)
         if lca == []:
             return 'Root'
         else:
