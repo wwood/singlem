@@ -1845,7 +1845,11 @@ class MultiAnswerAssignmentMethodsStore:
     def get_assignment_method(self, read_name):
         founds = list([method for (method, read_names) in self._assignment_methods if read_name in read_names])
         if len(founds) != 1:
-            raise Exception("Unexpected lack (or >1 found) of assignment method for read name {}".format(read_name))
+            # This happens occassionally when no taxonomy is assigned to a read
+            # at all e.g. if pre-filter picks it up but the later single gene
+            # DIAMOND doesn't.
+            logging.warning("Unexpected lack (or >1 found) of assignment method for read name {}".format(read_name))
+            return None
         return founds[0]
         
 class SingleAnswerAssignmentMethodStore:
