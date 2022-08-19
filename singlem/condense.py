@@ -104,6 +104,8 @@ class Condenser:
 
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation):
         if apply_expectation_maximisation:
+            # Remove off-target OTUs genes
+            sample_otus = self._remove_off_target_otus(sample_otus, markers)
             sample_otus = self._apply_expectation_maximization(sample_otus)
 
         # Stage 1: Build a tree of the observed OTU abundance that is 
@@ -123,15 +125,7 @@ class Condenser:
                     excluded_markers.add(gene)
                 continue
             
-            if tax_split[0] != 'Root':
-                raise Exception("OTU tables to condense must contain 'Root' as the first taxon in the taxonomy")
-            # ensure OTU is assigned to the domain level or higher
-            if len(tax_split) < 2:  # contains at least Root; d__DOMAIN
-                continue
-            domain = tax_split[1].strip('d__')
-
-            # ensure the domain of this OTU is targeted by the gene
-            if domain not in markers[gene]: 
+            if not self._is_targeted_by_marker(otu, tax_split, markers):
                 continue
 
             if gene not in marker_to_taxon_counts:
@@ -214,6 +208,26 @@ class Condenser:
             return sum(coverages) / total_num_measures
         else:
             return _tmean(coverages+([0]*(total_num_measures-len(coverages))), proportiontocut)
+
+    def _remove_off_target_otus(self, sample_otus, markers):
+        """
+        Remove OTUs from the OTU table that are not targeted by that marker.
+        """
+        return [otu for otu in sample_otus if self._is_targeted_by_marker(otu, otu.taxonomy_array, markers)]
+
+    def _is_targeted_by_marker(self, otu, tax_split, markers):
+        '''return True if the OTU (i.e. domain of the taxonomy) is targeted by
+        the marker, else False'''
+        if tax_split[0] != 'Root':
+            raise Exception("OTU tables to condense must contain 'Root' as the first taxon in the taxonomy")
+        # ensure OTU is assigned to the domain level or higher
+        if len(tax_split) < 2:  # contains at least Root; d__DOMAIN
+            return False
+        if not tax_split[1].startswith('d__'):
+            raise Exception("Unexpected domain name in OTU table: {}".format(tax_split[1]))
+        domain = tax_split[1].strip('d__')
+
+        return domain in markers[otu.marker]
 
     def _apply_expectation_maximization(self, sample_otus):
         logging.info("Applying core expectation maximization algorithm to OTU table")
