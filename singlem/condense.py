@@ -12,7 +12,7 @@ from singlem.otu_table_entry import OtuTableEntry
 from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
 from .taxonomy import TaxonomyUtils
-from .pipe import QUERY_BASED_ASSIGNMENT_METHOD
+from .taxonomy import *
 
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
@@ -337,7 +337,7 @@ class Condenser:
         new_otu_table = OtuTable()
         new_otu_table.fields = sample_otus.fields
         for otu in sample_otus:
-            if otu.equal_best_hit_taxonomies() is None:
+            if otu.equal_best_hit_taxonomies() != QUERY_BASED_ASSIGNMENT_METHOD:
                 new_otu_table.add([otu])
             else:
                 lca_to_coverage = {}

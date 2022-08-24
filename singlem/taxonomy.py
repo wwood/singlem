@@ -1,3 +1,14 @@
+PPLACER_ASSIGNMENT_METHOD = 'pplacer'
+DIAMOND_ASSIGNMENT_METHOD = 'diamond'
+DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD = 'diamond_example'
+ANNOY_ASSIGNMENT_METHOD = 'annoy'
+ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD = 'annoy_then_diamond'
+SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD = 'scann_then_diamond'
+NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD = 'naive_then_diamond'
+NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
+
+QUERY_BASED_ASSIGNMENT_METHOD = 'singlem_query_based'
+
 class TaxonomyUtils:
     @staticmethod
     def split_taxonomy(taxonomy_string):
