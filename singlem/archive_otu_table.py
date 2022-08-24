@@ -19,6 +19,8 @@ class ArchiveOtuTable:
     FIELDS = FIELDS_OF_EACH_VERSION[version-1]
 
     READ_NAME_FIELD_INDEX=6
+    EQUAL_BEST_HIT_TAXONOMIES_INDEX=FIELDS_VERSION4.index('equal_best_hit_taxonomies')
+    TAXONOMY_ASSIGNMENT_METHOD_INDEX=FIELDS_VERSION4.index('taxonomy_assignment_method')
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -75,3 +77,9 @@ class ArchiveOtuTableEntry(OtuTableEntry):
     def read_names(self):
         '''Return a list of read names for this OTU'''
         return self.data[ArchiveOtuTable.READ_NAME_FIELD_INDEX]
+
+    def equal_best_hit_taxonomies(self):
+        return self.data[ArchiveOtuTable.EQUAL_BEST_HIT_TAXONOMIES_INDEX]
+
+    def taxonomy_assignment_method(self):
+        return self.data[ArchiveOtuTable.TAXONOMY_ASSIGNMENT_METHOD_INDEX]
