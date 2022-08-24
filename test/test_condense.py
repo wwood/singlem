@@ -30,6 +30,8 @@ import extern
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.otu_table import OtuTable
 from singlem.condense  import Condenser
+from singlem.archive_otu_table import ArchiveOtuTable
+from singlem.pipe import QUERY_BASED_ASSIGNMENT_METHOD
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data','condense')
@@ -72,75 +74,118 @@ class Tests(unittest.TestCase):
                     self.assertListEqual(list(observed), list(expected))
 
     def test_apply_expectation_maximization_core_trivial(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
+        # str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.05,'tax1',['tax1']]
+            str.split('g1 sample1 seq1')+[1,1.05,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD]
         ]
-        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = Condenser()._apply_expectation_maximization_core(otus)
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0, {'d__Bacteria': 1})
         self.assertEqual(
-            {'tax1': 1.05},
+            {'d__Bacteria; tax1': 1.05},
             species_to_coverage
         )
 
     def test_apply_expectation_maximization_core_split1(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1']],
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']]
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1','d__Bacteria; tax2'],QUERY_BASED_ASSIGNMENT_METHOD]
         ]
-        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = Condenser()._apply_expectation_maximization_core(otus)
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0, {'d__Bacteria': 1})
         self.assertEqual(
-            {'tax1': 2.2},
+            {'d__Bacteria; tax1': 2.2},
             species_to_coverage
         )
 
     def test_apply_expectation_maximization_core_split2(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']],
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1']]
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1','d__Bacteria; tax2'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD]
         ]
-        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = Condenser()._apply_expectation_maximization_core(otus)
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0, {'d__Bacteria': 1})
         self.assertEqual(
-            {'tax1': 2.2},
+            {'d__Bacteria; tax1': 2.2},
             species_to_coverage
         )
 
     def test_apply_expectation_maximization_core_split3(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']],
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2','tax3']]
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1','d__Bacteria; tax2'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1','d__Bacteria; tax2','d__Bacteria; tax3'],QUERY_BASED_ASSIGNMENT_METHOD]
         ]
-        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = Condenser()._apply_expectation_maximization_core(otus)
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0, {'d__Bacteria': 1})
         self.assertEqual(
-            {'tax1': 1.1, 'tax2': 1.1},
+            {'d__Bacteria; tax1': 1.1, 'd__Bacteria; tax2': 1.1},
             species_to_coverage
         )
 
     def test_apply_expectation_maximization_core_split4(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']],
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2','tax3']],
-            str.split('g1 sample1 seq1')+[1,1.2,'',['tax5','tax4']]
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1','d__Bacteria; tax2'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['d__Bacteria; tax1','d__Bacteria; tax2','d__Bacteria; tax3'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g1 sample1 seq1')+[1,1.2,'','','','','',['d__Bacteria; tax5','d__Bacteria; tax4'],QUERY_BASED_ASSIGNMENT_METHOD]
         ]
-        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = Condenser()._apply_expectation_maximization_core(otus)
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0, {'d__Bacteria': 1})
         self.assertEqual(
-            {'tax1': 1.1, 'tax2': 1.1, 'tax4': 0.6, 'tax5': 0.6},
+            {'d__Bacteria; tax1': 1.1, 'd__Bacteria; tax2': 1.1, 'd__Bacteria; tax4': 0.6, 'd__Bacteria; tax5': 0.6},
             species_to_coverage
         )
         self.assertEqual(sorted([
-            ['tax1', 'tax2'],
-            ['tax1', 'tax2', 'tax3'],
-            ['tax5', 'tax4']
+            ['d__Bacteria; tax1', 'd__Bacteria; tax2'],
+            ['d__Bacteria; tax1', 'd__Bacteria; tax2', 'd__Bacteria; tax3'],
+            ['d__Bacteria; tax5', 'd__Bacteria; tax4']
         ]), sorted(best_hit_taxonomy_sets))
-        self.assertEqual(6, best_hits_field_index)
+
+    def test_apply_expectation_maximization_core_trimmed_mean_trivial(self):
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
+        # str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
+        otus.data = [
+            str.split('g1 sample1 seq1')+[1,1.06,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g2 sample1 seq1')+[1,1.05,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD],
+        ]
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0.4, {'d__Bacteria': 3})
+        self.assertEqual(
+            {'d__Bacteria; tax1': 1.05},
+            species_to_coverage
+        )
+
+    def test_apply_expectation_maximization_core_trimmed_mean_two_species(self):
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
+        # str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
+        otus.data = [
+            str.split('g1 sample1 seq1')+[1,1.06,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g2 sample1 seq1')+[1,1.05,'','','','','',['d__Bacteria; tax1', 'd__Bacteria; tax2'],QUERY_BASED_ASSIGNMENT_METHOD],
+        ]
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0.4, {'d__Bacteria': 3})
+        self.assertEqual(
+            {'d__Bacteria; tax1': 1.05},
+            species_to_coverage
+        )
+
+    def test_apply_expectation_maximization_core_trimmed_mean_no_hits(self):
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
+        # str.split('gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
+        otus.data = [
+            # same gene for each OTU
+            str.split('g1 sample1 seq1')+[1,1.06,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD],
+            str.split('g1 sample1 seq1')+[1,1.05,'','','','','',['d__Bacteria; tax1'],QUERY_BASED_ASSIGNMENT_METHOD],
+        ]
+        species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_expectation_maximization_core(otus, 0.4, {'d__Bacteria': 3})
+        self.assertEqual(
+            {},
+            species_to_coverage
+        )
 
     def test_gather_equivalence_classes_from_list_of_species_lists1(self):
         species_lists = [['tax1'], ['tax2']]
@@ -184,10 +229,10 @@ class Tests(unittest.TestCase):
         )
 
     def test_demultiplex_otus1(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['tax1']],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['tax1']],
             # str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']],
             # str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2','tax3']]
         ]
@@ -197,14 +242,14 @@ class Tests(unittest.TestCase):
         ]
         self.assertEqual(
             expected,
-            Condenser()._demultiplex_otus(otus, {'tax1': 1}, 6, {'tax1': {'tax1'}}).data
+            Condenser()._demultiplex_otus(otus, {'tax1': 1}, {'tax1': {'tax1'}}).data
         )
 
     def test_demultiplex_otus2(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['Rooter; tax1','Rooter; tax2']],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['Rooter; tax1','Rooter; tax2']],
             # str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']],
             # str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2','tax3']]
         ]
@@ -214,16 +259,16 @@ class Tests(unittest.TestCase):
         ]
         self.assertEqual(
             expected,
-            Condenser()._demultiplex_otus(otus, {'Rooter; tax1': 1, 'Rooter; tax2': 1}, 6, \
+            Condenser()._demultiplex_otus(otus, {'Rooter; tax1': 1, 'Rooter; tax2': 1}, \
                 {'Rooter; tax1': {'Rooter; tax1','Rooter; tax2'}, 'Rooter; tax2': {'Rooter; tax1','Rooter; tax2'}} \
                 ).data
         )
 
     def test_demultiplex_otus3(self):
-        otus = OtuTable()
-        otus.fields = str.split('gene sample sequence num_hits coverage taxonomy equal_best_hit_taxonomies')
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
         otus.data = [
-            str.split('g1 sample1 seq1')+[1,1.1,'',['Rooter; tax1','Rooter; tax2']],
+            str.split('g1 sample1 seq1')+[1,1.1,'','','','','',['Rooter; tax1','Rooter; tax2']],
             # str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2']],
             # str.split('g1 sample1 seq1')+[1,1.1,'',['tax1','tax2','tax3']]
         ]
@@ -234,12 +279,12 @@ class Tests(unittest.TestCase):
         ]
         self.assertEqual(
             expected,
-            Condenser()._demultiplex_otus(otus, {'Rooter; tax1': 1, 'Rooter; tax2': 1}, 6, \
+            Condenser()._demultiplex_otus(otus, {'Rooter; tax1': 1, 'Rooter; tax2': 1}, \
                 {'Rooter; tax1': {'Rooter; tax1'}, 'Rooter; tax2': {'Rooter; tax2'}} \
                 ).data
         )
 
 if __name__ == "__main__":
-    # import logging
-    # logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    import logging
+    logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     unittest.main()

@@ -12,6 +12,7 @@ from singlem.otu_table_entry import OtuTableEntry
 from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
 from .taxonomy import TaxonomyUtils
+from .pipe import QUERY_BASED_ASSIGNMENT_METHOD
 
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
@@ -106,7 +107,7 @@ class Condenser:
         if apply_expectation_maximisation:
             # Remove off-target OTUs genes
             sample_otus = self._remove_off_target_otus(sample_otus, markers)
-            sample_otus = self._apply_expectation_maximization(sample_otus)
+            sample_otus = self._apply_expectation_maximization(sample_otus, trim_percent, target_domains)
 
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
@@ -229,19 +230,19 @@ class Condenser:
 
         return domain in markers[otu.marker]
 
-    def _apply_expectation_maximization(self, sample_otus):
+    def _apply_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain):
         logging.info("Applying core expectation maximization algorithm to OTU table")
-        core_return = self._apply_expectation_maximization_core(sample_otus)
+        core_return = self._apply_expectation_maximization_core(sample_otus, trim_percent, genes_per_domain)
         if core_return is None:
             return sample_otus
 
-        species_to_coverage, best_hit_taxonomy_sets, best_hits_field_index = core_return
+        species_to_coverage, best_hit_taxonomy_sets = core_return
         
         logging.debug("Gathering equivalence classes")
         eq_classes = self._gather_equivalence_classes_from_list_of_species_lists(best_hit_taxonomy_sets)
         
         logging.debug("Demultiplexing OTU table")
-        demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, best_hits_field_index, eq_classes)
+        demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes)
 
         logging.info("Finished expectation maximization")
         return demux_otus
@@ -251,39 +252,53 @@ class Condenser:
     def _key_to_species_list(self, key):
         return key.split('~')
 
-    def _apply_expectation_maximization_core(self, sample_otus):
+    def _apply_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
         # Set up initial conditions. The coverage of each species is set to 1
         species_to_coverage = {}
-        best_hits_field_index = None
         best_hit_taxonomy_sets = set()
+        some_em_to_do = False
         for otu in sample_otus:
-            if best_hits_field_index is None:
-                best_hits_field_index = otu.fields.index('equal_best_hit_taxonomies')
-            best_hit_taxonomies = otu.data[best_hits_field_index]
-            if best_hit_taxonomies is not None:
+            best_hit_taxonomies = otu.equal_best_hit_taxonomies()
+            if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD and best_hit_taxonomies is not None:
+                some_em_to_do = True
                 best_hit_taxonomy_sets.add(self._species_list_to_key(best_hit_taxonomies))
                 for best_hit_tax in best_hit_taxonomies:
                     if best_hit_tax not in species_to_coverage:
                         species_to_coverage[best_hit_tax] = 1
-        if best_hits_field_index is None:
-            return None # No equal_best_hit_taxonomies field found, so no EM to do
+        if some_em_to_do is False:
+            return None
         logging.debug(best_hit_taxonomy_sets)
 
         # The fraction of each undecided OTU is the ratio of that class's
         # coverage (coverage in the current iteration) to the total coverage of
         # all best hits of the undecided OTU
         while True: # while not converged
-            next_species_to_coverage = {}
+            next_species_to_gene_to_coverage = {}
             # logging.debug("Starting iteration with species abundances: {}".format(species_to_coverage))
             for otu in sample_otus:
                 unnormalised_coverages = {}
-                best_hit_taxonomies = otu.data[best_hits_field_index]
-                if best_hit_taxonomies is not None:
+                best_hit_taxonomies = otu.equal_best_hit_taxonomies()
+                if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD and best_hit_taxonomies is not None:
                     for best_hit_tax in best_hit_taxonomies:
                         unnormalised_coverages[best_hit_tax] = species_to_coverage[best_hit_tax]
                 total_coverage = sum(unnormalised_coverages.values())
+
                 for tax, unnormalised_coverage in unnormalised_coverages.items():
-                    next_species_to_coverage[tax] = next_species_to_coverage.get(tax, 0) + unnormalised_coverage / total_coverage * otu.coverage
+                    # Record the total for each gene so a trimmed mean can be taken afterwards
+                    if tax not in next_species_to_gene_to_coverage:
+                        next_species_to_gene_to_coverage[tax] = {}
+                    if otu.marker not in next_species_to_gene_to_coverage[tax]:
+                        next_species_to_gene_to_coverage[tax][otu.marker] = 0
+                    next_species_to_gene_to_coverage[tax][otu.marker] = next_species_to_gene_to_coverage[tax][otu.marker] + unnormalised_coverage / total_coverage * otu.coverage
+                    
+            # Calculate the trimmed mean for each species
+            next_species_to_coverage = {}
+            for tax, gene_to_coverage in next_species_to_gene_to_coverage.items():
+                num_markers = genes_per_domain[tax.split(';')[0]]
+                logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
+                trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
+                next_species_to_coverage[tax] = trimmed_mean
+
             # Has any species changed in abundance by >0.001? If not, we're done
             need_another_iteration = False
             for tax, next_coverage in next_species_to_coverage.items():
@@ -303,10 +318,9 @@ class Condenser:
                 rounded_species_to_coverage[tax] = cov2
 
         return rounded_species_to_coverage, \
-            list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets]), \
-            best_hits_field_index
+            list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets])
 
-    def _demultiplex_otus(self, sample_otus, species_to_coverage, best_hits_field_index, eq_classes):
+    def _demultiplex_otus(self, sample_otus, species_to_coverage, eq_classes):
         ''' Return a new OTU table where the OTUs have been demultiplexed. This
         table likely contains OTUs which have the same window sequence.
 
@@ -323,11 +337,11 @@ class Condenser:
         new_otu_table = OtuTable()
         new_otu_table.fields = sample_otus.fields
         for otu in sample_otus:
-            if otu.data[best_hits_field_index] is None:
+            if otu.equal_best_hit_taxonomies() is None:
                 new_otu_table.add([otu])
             else:
                 lca_to_coverage = {}
-                for tax in otu.data[best_hits_field_index]:
+                for tax in otu.equal_best_hit_taxonomies():
                     if tax in species_to_coverage: # If not, then it was removed by EM
                         lca = species_to_equivalence_class_lca[tax]
                         cov = species_to_coverage[tax]
