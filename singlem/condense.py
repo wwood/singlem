@@ -214,7 +214,7 @@ class Condenser:
         """
         Remove OTUs from the OTU table that are not targeted by that marker.
         """
-        return [otu for otu in sample_otus if self._is_targeted_by_marker(otu, otu.taxonomy_array, markers)]
+        return [otu for otu in sample_otus if self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers)]
 
     def _is_targeted_by_marker(self, otu, tax_split, markers):
         '''return True if the OTU (i.e. domain of the taxonomy) is targeted by
