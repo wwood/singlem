@@ -1206,7 +1206,7 @@ class SearchPipe:
                         reverse_tmp.close()
                         tmp_files.append([readset[0].sample_name, forward_tmp, reverse_tmp])
                 else:
-                    if len(readset.sequences) > 0:
+                    if len(readset.unknown_sequences) > 0:
                         tmp = generate_tempfile_for_readset(readset)
                         if assignment_method in (
                             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
