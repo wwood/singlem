@@ -596,6 +596,9 @@ if __name__ == '__main__':
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
 
     def generate_streaming_otu_table_from_args(args, input_prefix=False, archive_only=False):
+        if archive_only:
+            otu_tables = False
+            otu_tables_list = False
         if input_prefix:
             if not archive_only:
                 otu_tables = args.input_otu_tables
@@ -1069,7 +1072,7 @@ if __name__ == '__main__':
         from singlem.otu_table_collection import StreamingOtuTableCollection
         from singlem.condense import Condenser
 
-        otus = generate_streaming_otu_table_from_args(args, input_prefix=True)
+        otus = generate_streaming_otu_table_from_args(args, input_prefix=True, archive_only=True)
         if not args.output_otu_table and not args.krona:
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
