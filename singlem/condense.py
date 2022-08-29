@@ -110,6 +110,39 @@ class Condenser:
             sample_otus = self._remove_off_target_otus(sample_otus, markers)
             sample_otus = self._apply_expectation_maximization(sample_otus, trim_percent, target_domains)
 
+        # Condense via trimmed mean from domain to species
+        condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
+
+        # Attribute genus-level down to species level to account for sequencing error
+        self._push_down_genus_to_species(condensed_otus, 0.1)
+
+        return condensed_otus
+
+    def _push_down_genus_to_species(self, condensed_otus, max_push_down_fraction):
+        '''Pushes coverage down proportionally from genus to species level,
+        modifying the condensed tree in place'''
+
+        for wordnode in condensed_otus.breadth_first_iter():
+            if wordnode.calculate_level() == 6: # Corresponds to genus level
+                if not wordnode.word.startswith('g__'):
+                    raise Exception("Expected genus level OTU to start with 'g__', found {}".format(wordnode.word))
+
+                species_node_names = list(wordnode.children.keys()) # Do this once to avoid potential changes in order
+                total_species_coverage = sum([wordnode.children[s].coverage for s in species_node_names])
+                if total_species_coverage == 0:
+                    continue # Do nothing, cannot push down at all
+                total_genus_coverage = wordnode.coverage + total_species_coverage
+
+                extra_coverage_to_push_down = total_genus_coverage * max_push_down_fraction
+                if extra_coverage_to_push_down > wordnode.coverage: # if all genus-only coverage is taken up
+                    extra_coverage_to_push_down = wordnode.coverage
+
+                wordnode.coverage -= extra_coverage_to_push_down
+                
+                for species_node in wordnode.children.values():
+                    species_node.coverage += extra_coverage_to_push_down * species_node.coverage / total_species_coverage
+
+    def _condense_domain_to_species(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage):
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
         marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
