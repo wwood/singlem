@@ -228,20 +228,19 @@ class StreamingOtuTableCollection:
                 except json.decoder.JSONDecodeError:
                     logging.error(f"JSON parsing error in {file_path}, skipping this one")
 
-    def each_sample_otus(self):
+    def each_sample_otus(self, generate_archive_otu_table=False):
         '''Yield over a set of OTU tables, where each set contains all the OTUs
         from a single sample. The sample name and an OtuTable is yielded each
         time. Assumes that the input OTUs are ordered by sample name. This can
         only be done once since the data is streamed in.'''
 
-        current_otus = OtuTable()
         current_sample = None
         for otu in self:
             if otu.sample_name != current_sample:
                 if current_sample is not None:
                     yield current_sample, current_otus
                 current_sample = otu.sample_name
-                current_otus = OtuTable()
+                current_otus = ArchiveOtuTable() if generate_archive_otu_table else OtuTable()
             current_otus.fields = otu.fields
             current_otus.data.append(otu.data)
         if current_sample is not None:

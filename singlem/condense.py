@@ -6,6 +6,7 @@ import extern
 import sys
 
 from queue import Queue
+from singlem.archive_otu_table import ArchiveOtuTable
 
 from singlem.otu_table import OtuTable
 from singlem.otu_table_entry import OtuTableEntry
@@ -99,7 +100,7 @@ class Condenser:
             if target_domains[domain] in [1, 2]:
                 raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. Only {} markers for domain '{}' found".format(target_domains[domain], domain))
 
-        for sample, sample_otus in input_otu_table.each_sample_otus():
+        for sample, sample_otus in input_otu_table.each_sample_otus(generate_archive_otu_table=True):
             logging.debug("Processing sample {} ..".format(sample))
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation)
 
@@ -214,7 +215,10 @@ class Condenser:
         """
         Remove OTUs from the OTU table that are not targeted by that marker.
         """
-        return [otu for otu in sample_otus if self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers)]
+        table = ArchiveOtuTable()
+        table.fields = sample_otus.fields
+        table.data = [otu.data for otu in sample_otus if self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers)]
+        return table
 
     def _is_targeted_by_marker(self, otu, tax_split, markers):
         '''return True if the OTU (i.e. domain of the taxonomy) is targeted by
@@ -232,7 +236,12 @@ class Condenser:
 
     def _apply_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain):
         logging.info("Applying core expectation maximization algorithm to OTU table")
-        core_return = self._apply_expectation_maximization_core(sample_otus, trim_percent, genes_per_domain)
+        # core_return = self._apply_expectation_maximization_core(sample_otus, trim_percent, genes_per_domain)
+
+        # Do not use trimmed mean for EM, as it seems to give slightly worse
+        # results (not well benchmarked though)
+        core_return = self._apply_expectation_maximization_core(sample_otus, 0, genes_per_domain)
+
         if core_return is None:
             return sample_otus
 
@@ -280,8 +289,12 @@ class Condenser:
                 best_hit_taxonomies = otu.equal_best_hit_taxonomies()
                 if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD and best_hit_taxonomies is not None:
                     for best_hit_tax in best_hit_taxonomies:
-                        unnormalised_coverages[best_hit_tax] = species_to_coverage[best_hit_tax]
+                        if best_hit_tax in species_to_coverage: # Can get removed during trimmed mean
+                            unnormalised_coverages[best_hit_tax] = species_to_coverage[best_hit_tax]
                 total_coverage = sum(unnormalised_coverages.values())
+                if total_coverage == 0:
+                    # This OTU has been removed by the previous iteration through trimmed mean
+                    continue
 
                 for tax, unnormalised_coverage in unnormalised_coverages.items():
                     # Record the total for each gene so a trimmed mean can be taken afterwards
@@ -294,12 +307,12 @@ class Condenser:
             # Calculate the trimmed mean for each species
             next_species_to_coverage = {}
             for tax, gene_to_coverage in next_species_to_gene_to_coverage.items():
-                num_markers = genes_per_domain[tax.split(';')[0]]
-                logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
+                num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
+                # logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
                 next_species_to_coverage[tax] = trimmed_mean
 
-            # Has any species changed in abundance by >0.001? If not, we're done
+            # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
             for tax, next_coverage in next_species_to_coverage.items():
                 if abs(next_coverage - species_to_coverage[tax]) > 0.00001:
@@ -310,7 +323,7 @@ class Condenser:
                 break
         
         # Round each genome to 4 decimal places in coverage, removing entries with 0 coverage
-        # Use 4 decimals to avoid rounding to 0 when one OTU is split between many species
+        # Use 3 decimals to avoid rounding to 0 when one OTU is split between many species
         rounded_species_to_coverage = {}
         for tax, coverage in species_to_coverage.items():
             cov2 = round(coverage, 3)
@@ -337,7 +350,7 @@ class Condenser:
         new_otu_table = OtuTable()
         new_otu_table.fields = sample_otus.fields
         for otu in sample_otus:
-            if otu.equal_best_hit_taxonomies() != QUERY_BASED_ASSIGNMENT_METHOD:
+            if otu.taxonomy_assignment_method() != QUERY_BASED_ASSIGNMENT_METHOD:
                 new_otu_table.add([otu])
             else:
                 lca_to_coverage = {}
@@ -349,7 +362,7 @@ class Condenser:
                             lca_to_coverage[lca] = cov
                         else:
                             lca_to_coverage[lca] += cov
-                # logging.debug("LCA to coverage: {}".format(lca_to_coverage))
+                logging.debug("LCA to coverage: {}".format(lca_to_coverage))
                 total_coverage = sum(lca_to_coverage.values())
                 
                 for lca, coverage in lca_to_coverage.items():
@@ -362,7 +375,7 @@ class Condenser:
                     new_otu.count = otu.count
                     new_otu.taxonomy = lca
                     new_otu.coverage = coverage / total_coverage * otu.coverage
-                    # logging.debug("Adding OTU taxonomy {} with coverage {}".format(lca, new_otu.coverage))
+                    logging.debug("Adding OTU taxonomy {} with coverage {}".format(lca, new_otu.coverage))
                     new_otu_table.add([new_otu])
         return new_otu_table
         
