@@ -104,11 +104,15 @@ class Condenser:
             logging.debug("Processing sample {} ..".format(sample))
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation)
 
-    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation):
+    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation, apply_diamond_expectation_maximisation=True):
+        # Remove off-target OTUs genes
+        sample_otus = self._remove_off_target_otus(sample_otus, markers)
+
         if apply_expectation_maximisation:
-            # Remove off-target OTUs genes
-            sample_otus = self._remove_off_target_otus(sample_otus, markers)
-            sample_otus = self._apply_expectation_maximization(sample_otus, trim_percent, target_domains)
+            sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains)
+
+        # if apply_diamond_expectation_maximisation:
+        #     sample_otus = self._apply_diamond_expectation_maximization(sample_otus, target_domains)
 
         # Condense via trimmed mean from domain to species
         condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
@@ -267,13 +271,13 @@ class Condenser:
 
         return domain in markers[otu.marker]
 
-    def _apply_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain):
+    def _apply_species_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain):
         logging.info("Applying core expectation maximization algorithm to OTU table")
         # core_return = self._apply_expectation_maximization_core(sample_otus, trim_percent, genes_per_domain)
 
         # Do not use trimmed mean for EM, as it seems to give slightly worse
         # results (not well benchmarked though)
-        core_return = self._apply_expectation_maximization_core(sample_otus, 0, genes_per_domain)
+        core_return = self._apply_species_expectation_maximization_core(sample_otus, 0, genes_per_domain)
 
         if core_return is None:
             return sample_otus
@@ -294,7 +298,7 @@ class Condenser:
     def _key_to_species_list(self, key):
         return key.split('~')
 
-    def _apply_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
+    def _apply_species_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
         # Set up initial conditions. The coverage of each species is set to 1
         species_to_coverage = {}
         best_hit_taxonomy_sets = set()
