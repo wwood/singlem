@@ -34,8 +34,24 @@ class Condenser:
     def condense(self, **kwargs):
         output_otu_table = kwargs.pop('output_otu_table')
         krona_output_file = kwargs.pop('krona')
+        metapackage_path = kwargs.pop('metapackage_path')
+        singlem_packages = kwargs.pop('singlem_packages')
+        
+        if singlem_packages and metapackage_path:
+            raise Exception("Cannot specify both singlem packages and a metapackage")
+        if metapackage_path:
+            mpkg = Metapackage.acquire(metapackage_path)
+            singlem_package_objects = mpkg.singlem_packages
+        else:
+            singlem_package_objects = []
+            for path in singlem_packages:
+                spkg = SingleMPackage.acquire(path)
+                logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
+                singlem_package_objects.append(spkg)
+            logging.info("Loaded %i SingleM packages." % len(singlem_package_objects))
 
-        to_yield = self.condense_to_otu_table(**kwargs)
+        # Yield once per sample
+        to_yield = self._condense_to_otu_table(singlem_package_objects, **kwargs)
         if krona_output_file is not None:
             logging.info("Writing Krona to {}".format(krona_output_file))
             # Cache profiles if we need them twice, otherwise attempt to be
@@ -53,28 +69,13 @@ class Condenser:
 
         logging.info("Finished condense")
 
-    def condense_to_otu_table(self, **kwargs):
+    def _condense_to_otu_table(self, singlem_package_objects, **kwargs):
         input_otu_table = kwargs.pop('input_streaming_otu_table')
-        singlem_packages = kwargs.pop('singlem_packages')
-        metapackage_path = kwargs.pop('metapackage_path')
         trim_percent = kwargs.pop('trim_percent') / 100
         min_taxon_coverage = kwargs.pop('min_taxon_coverage')
         apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-
-        if singlem_packages and metapackage_path:
-            raise Exception("Cannot specify both singlem packages and a metapackage")
-        if metapackage_path:
-            mpkg = Metapackage.acquire(metapackage_path)
-            singlem_package_objects = mpkg.singlem_packages
-        else:
-            singlem_package_objects = []
-            for path in singlem_packages:
-                spkg = SingleMPackage.acquire(path)
-                logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
-                singlem_package_objects.append(spkg)
-            logging.info("Loaded %i SingleM packages." % len(singlem_package_objects))
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
@@ -102,17 +103,24 @@ class Condenser:
 
         for sample, sample_otus in input_otu_table.each_sample_otus(generate_archive_otu_table=True):
             logging.debug("Processing sample {} ..".format(sample))
-            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation)
+            apply_diamond_expectation_maximisation = True
+            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
+                apply_expectation_maximisation, apply_diamond_expectation_maximisation, singlem_package_objects)
 
-    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, apply_expectation_maximisation, apply_diamond_expectation_maximisation=True):
+    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
+            apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, singlem_package_objects):
+
         # Remove off-target OTUs genes
         sample_otus = self._remove_off_target_otus(sample_otus, markers)
 
-        if apply_expectation_maximisation:
+        if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains)
 
         # if apply_diamond_expectation_maximisation:
-        #     sample_otus = self._apply_diamond_expectation_maximization(sample_otus, target_domains)
+        #     # self._convert_diamond_best_hit_ids_to_taxonomies(singlem_package_objects, sample_otus)
+        #     # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
+        #     import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
+        #     sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains)
 
         # Condense via trimmed mean from domain to species
         condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
@@ -121,6 +129,51 @@ class Condenser:
         self._push_down_genus_to_species(condensed_otus, 0.1)
 
         return condensed_otus
+
+    def _convert_diamond_best_hit_ids_to_taxonomies(self, singlem_package_objects, sample_otus):
+        '''the best hit IDs are specified as ids, but we need taxon strings.
+        However, we cannot read in the id_to_name from all markers at once, as
+        this is too RAM intensive. We take advantage of the fact that the OTUs
+        are usually ordered by marker, so can cache just one marker at a time.
+        Convert sample_otus in place.''' 
+        #TODO: Could be faster by using sqlite3 or something where the entire
+        #hash doesn't have to be read in.
+
+        spkg_name_to_object = {}
+        for spkg in singlem_package_objects:
+            spkg_name_to_object[spkg.graftm_package_basename()] = spkg
+
+        current_marker = None
+        current_taxon_hash = None
+        num_otus_changed = 0
+        for otu in sample_otus:
+            if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
+                if otu.marker != current_marker:
+                    current_marker = otu.marker
+                    current_taxon_hash = spkg_name_to_object[current_marker].taxonomy_hash()
+                # Each sequence in the OTU is assigned a separate set of
+                # taxon_ids. Maybe we could do something more smart, but for the
+                # moment, just assume they are all equally likely
+                possible_names = set()
+                for taxon_id_list in otu.equal_best_hit_taxonomies():
+                    for taxon_id in taxon_id_list:
+                        taxon_name = current_taxon_hash[taxon_id]
+                        if not taxon_name[-2].startswith('g__'):
+                            if not taxon_name[0] == 'd__Eukaryota':
+                                raise Exception("Expected genus level taxon, but found {}, from ID".format(taxon_name, taxon_id))
+                            else:
+                                # This can happen when taxonomy is overall
+                                # Archaea so not previously filtered out, but
+                                # equal-best to Euk
+                                logging.debug("Ignoring equal-best hit Eukaryotic taxon {}".format(taxon_name))
+                                continue
+                        # Record only to genus level
+                        if taxon_name[0] != 'Root':
+                            taxon_name = ['Root']+taxon_name
+                        possible_names.add(';'.join(taxon_name[:-1]))
+                otu.data[ArchiveOtuTable.EQUAL_BEST_HIT_TAXONOMIES_INDEX] = list(possible_names)
+                num_otus_changed += 1
+        logging.info("Converted {} Diamond-assigned OTU taxon_ids to taxon strings".format(num_otus_changed))
 
     def _push_down_genus_to_species(self, condensed_otus, max_push_down_fraction):
         '''Pushes coverage down proportionally from genus to species level,
@@ -271,8 +324,100 @@ class Condenser:
 
         return domain in markers[otu.marker]
 
+    def _apply_genus_expectation_maximization(self, sample_otus, genes_per_domain):
+        logging.info("Applying genus-wise expectation maximization algorithm to OTU table")
+        
+        core_return = self._apply_genus_expectation_maximization_core(sample_otus, 0, genes_per_domain)
+
+        raise NotImplementedError("This is not implemented yet")
+    
+    def _apply_genus_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
+        # Set up initial conditions. The coverage of each genus is set to 1
+        genus_to_coverage = {}
+        best_hit_taxonomy_sets = set()
+        some_em_to_do = False
+        for otu in sample_otus:
+            best_hit_genera = otu.equal_best_hit_taxonomies()
+            if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
+                some_em_to_do = True
+                best_hit_taxonomy_sets.add(self._species_list_to_key(best_hit_genera))
+                for genus in best_hit_genera:
+                    if genus not in genus_to_coverage:
+                        genus_to_coverage[genus] = 1
+        if some_em_to_do is False:
+            return None
+        logging.debug(best_hit_taxonomy_sets)
+
+        # The fraction of each undecided OTU is the ratio of that class's
+        # coverage (coverage in the current iteration) to the total coverage of
+        # all best hits of the undecided OTU
+        while True: # while not converged
+            next_genus_to_gene_to_coverage = {}
+            # logging.debug("Starting iteration with species abundances: {}".format(species_to_coverage))
+
+            # Partition out the undecided coverage according to the current
+            # iteration's ratios
+            for otu in sample_otus:
+                unnormalised_coverages = {}
+                best_hit_taxonomies = otu.equal_best_hit_taxonomies()
+
+                # The DIAMOND assignments are already truncated to genus level.
+                # But the query-based ones go to species level.
+                if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
+                    best_hit_genera = best_hit_taxonomies
+                elif otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
+                    best_hit_genera = set(
+                        [';'.join([s.strip() for s in taxon.split(';')[:-1]]) for taxon in best_hit_taxonomies])
+                else:
+                    raise Exception("Unexpected taxonomy assignment method: {}".format(otu.taxonomy_assignment_method()))
+
+                for best_hit_genus in best_hit_genera:
+                    if best_hit_genus in genus_to_coverage: # Can get removed during trimmed mean
+                        unnormalised_coverages[best_hit_genus] = genus_to_coverage[best_hit_genus]
+                total_coverage = sum(unnormalised_coverages.values())
+                # if total_coverage == 0:
+                #     # This OTU has been removed by the previous iteration through trimmed mean
+                #     continue
+
+                for tax, unnormalised_coverage in unnormalised_coverages.items():
+                    # Record the total for each gene so a trimmed mean can be taken afterwards
+                    if tax not in next_genus_to_gene_to_coverage:
+                        next_genus_to_gene_to_coverage[tax] = {}
+                    if otu.marker not in next_genus_to_gene_to_coverage[tax]:
+                        next_genus_to_gene_to_coverage[tax][otu.marker] = 0
+                    next_genus_to_gene_to_coverage[tax][otu.marker] = next_genus_to_gene_to_coverage[tax][otu.marker] + unnormalised_coverage / total_coverage * otu.coverage
+                    
+            # Calculate the trimmed mean for each genus
+            next_genus_to_gene_to_coverage = {}
+            for tax, gene_to_coverage in next_genus_to_gene_to_coverage.items():
+                num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
+                logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
+                trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
+                next_genus_to_gene_to_coverage[tax] = trimmed_mean
+
+            # Has any species changed in abundance by a large enough amount? If not, we're done
+            need_another_iteration = False
+            for tax, next_coverage in next_genus_to_gene_to_coverage.items():
+                if abs(next_coverage - next_genus_to_coverage[tax]) > 0.00001:
+                    need_another_iteration = True
+                    break
+            next_genus_to_coverage = next_genus_to_gene_to_coverage
+            if not need_another_iteration:
+                break
+        
+        # Round each genome to 4 decimal places in coverage, removing entries with 0 coverage
+        # Use 3 decimals to avoid rounding to 0 when one OTU is split between many species
+        rounded_genus_to_coverage = {}
+        for tax, coverage in rounded_genus_to_coverage.items():
+            cov2 = round(coverage, 3)
+            if cov2 > 0:
+                rounded_genus_to_coverage[tax] = cov2
+
+        return rounded_genus_to_coverage, \
+            list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets])
+
     def _apply_species_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain):
-        logging.info("Applying core expectation maximization algorithm to OTU table")
+        logging.info("Applying species-wise expectation maximization algorithm to OTU table")
         # core_return = self._apply_expectation_maximization_core(sample_otus, trim_percent, genes_per_domain)
 
         # Do not use trimmed mean for EM, as it seems to give slightly worse
