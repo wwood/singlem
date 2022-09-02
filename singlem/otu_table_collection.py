@@ -175,6 +175,7 @@ class StreamingOtuTableCollection:
         self._otu_table_file_paths = []
         self._archive_table_file_paths = []
         self._gzip_archive_table_file_paths = []
+        self.min_archive_otu_table_version = None
 
     def add_otu_table(self, input_otu_table_io):
         '''Add a regular style OTU table to the collection.
@@ -207,14 +208,14 @@ class StreamingOtuTableCollection:
         since the data is streamed in.
         '''
         for io in self._archive_table_io_objects:
-            for otu in ArchiveOtuTable.read(io):
+            for otu in ArchiveOtuTable.read(io, min_version=self.min_archive_otu_table_version):
                 yield otu
         for io in self._otu_table_io_objects:
             for otu in OtuTable.each(io):
                 yield otu
         for file_path in self._archive_table_file_paths:
             with open(file_path) as f:
-                for otu in ArchiveOtuTable.read(f):
+                for otu in ArchiveOtuTable.read(f, min_version=self.min_archive_otu_table_version):
                     yield otu
         for file_path in self._otu_table_file_paths:
             with open(file_path) as f:
@@ -223,7 +224,7 @@ class StreamingOtuTableCollection:
         for file_path in self._gzip_archive_table_file_paths:
             with gzip.open(file_path) as f:
                 try:
-                    for otu in ArchiveOtuTable.read(f):
+                    for otu in ArchiveOtuTable.read(f, min_version=self.min_archive_otu_table_version):
                         yield otu
                 except json.decoder.JSONDecodeError:
                     logging.error(f"JSON parsing error in {file_path}, skipping this one")
