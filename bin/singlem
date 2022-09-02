@@ -466,7 +466,7 @@ if __name__ == '__main__':
     create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER",
         help="length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
-    create_specific_arguments.add_argument('--target_domains', '--target-domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea' or 'Bacteria' or 'Eukaryota'. Input with multiple domains must be space separated.", required=True)
+    create_specific_arguments.add_argument('--target_domains', '--target-domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
     create_specific_arguments.add_argument('--gene_description', '--gene-description', metavar="STRING", help="input long description of this marker package", required=True, type=str)
     create_specific_arguments.add_argument('--force', action='store_true', help='overwrite output path if it already exists [default: false]')
 

@@ -345,7 +345,7 @@ class SingleMPackageVersion3(SingleMPackageVersion2):
             raise Exception("Name of GraftM package cannot be %s" % SingleMPackage._CONTENTS_FILE_NAME)
         shutil.copytree(graftm_package_path, os.path.join(output_package_path, graftm_package_basename))
         for domain in target_domains:
-            if domain not in ['Archaea', 'Bacteria', 'Eukaryota']:
+            if domain not in ['Archaea', 'Bacteria', 'Eukaryota', 'Viruses']:
                 raise Exception("Invalid domain: %s" % domain)
         logging.info("SingleM package domain/s set to: %s" % ", ".join(target_domains))
         
@@ -401,7 +401,7 @@ class SingleMPackageVersion4(SingleMPackageVersion3):
             raise Exception("Name of GraftM package cannot be %s" % SingleMPackage._CONTENTS_FILE_NAME)
         shutil.copytree(graftm_package_path, os.path.join(output_package_path, graftm_package_basename))
         for domain in target_domains:
-            if domain not in ['Archaea', 'Bacteria', 'Eukaryota']:
+            if domain not in ['Archaea', 'Bacteria', 'Eukaryota', 'Viruses']:
                 raise Exception("Invalid domain: %s" % domain)
         logging.info("SingleM package domain/s set to: %s" % ", ".join(target_domains))
 
