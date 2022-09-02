@@ -6,13 +6,10 @@ import extern
 import sys
 
 from queue import Queue
-from singlem.archive_otu_table import ArchiveOtuTable
 
-from singlem.otu_table import OtuTable
-from singlem.otu_table_entry import OtuTableEntry
+from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
 from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
-from .taxonomy import TaxonomyUtils
 from .taxonomy import *
 
 # Set CSV field limit to deal with pipe --output-extras as per
@@ -73,7 +70,8 @@ class Condenser:
         input_otu_table = kwargs.pop('input_streaming_otu_table')
         trim_percent = kwargs.pop('trim_percent') / 100
         min_taxon_coverage = kwargs.pop('min_taxon_coverage')
-        apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
+        # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
+        output_after_em_otu_table = kwargs.pop('output_after_em_otu_table')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -105,22 +103,39 @@ class Condenser:
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-                apply_expectation_maximisation, apply_diamond_expectation_maximisation, singlem_package_objects)
+                True, apply_diamond_expectation_maximisation, singlem_package_objects, output_after_em_otu_table)
 
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-            apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, singlem_package_objects):
+            apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, singlem_package_objects,
+            output_after_em_otu_table):
 
         # Remove off-target OTUs genes
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        logging.info("Removing off-target OTUs from {}".format(sample))
         sample_otus = self._remove_off_target_otus(sample_otus, markers)
+        # logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+        logging.info("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.info("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
 
         if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains)
+        logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
-        # if apply_diamond_expectation_maximisation:
-        #     # self._convert_diamond_best_hit_ids_to_taxonomies(singlem_package_objects, sample_otus)
-        #     # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
-        #     import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
-        #     sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains)
+        if apply_diamond_expectation_maximisation:
+            logging.info("Converting DIAMOND IDs to taxons")
+            self._convert_diamond_best_hit_ids_to_taxonomies(singlem_package_objects, sample_otus)
+            # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+            # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
+            # import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
+            sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains)
+            # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+
+        if output_after_em_otu_table:
+            sample_otus.alignment_hmm_sha256s = 'na'
+            sample_otus.singlem_package_sha256s = 'na'
+            with open(output_after_em_otu_table,'w') as f:
+                sample_otus.write_to(f)
 
         # Condense via trimmed mean from domain to species
         condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
@@ -327,49 +342,83 @@ class Condenser:
     def _apply_genus_expectation_maximization(self, sample_otus, genes_per_domain):
         logging.info("Applying genus-wise expectation maximization algorithm to OTU table")
         
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
         core_return = self._apply_genus_expectation_maximization_core(sample_otus, 0, genes_per_domain)
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
 
-        raise NotImplementedError("This is not implemented yet")
+        if core_return is None:
+            return sample_otus
+
+        species_to_coverage, best_hit_taxonomy_sets = core_return
+
+        logging.info("Gathering equivalence classes")
+        eq_classes = self._gather_equivalence_classes_from_list_of_taxon_lists(best_hit_taxonomy_sets)
+        
+        logging.info("Demultiplexing OTU table")
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, DIAMOND_ASSIGNMENT_METHOD)
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+
+        # In [6]: sample_otus.alignment_hmm_sha256s = 'na'
+        # In [7]: sample_otus.singlem_package_sha256s = 'na'
+        # In [8]: with open('/tmp/before','w') as f: sample_otus.write_to(f)
+        # import IPython; IPython.embed()
+        # demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, QUERY_BASED_ASSIGNMENT_METHOD)
+        # demux_otus.alignment_hmm_sha256s = 'na'
+        # demux_otus.singlem_package_sha256s = 'na'
+        # with open('/tmp/after','w') as f: demux_otus.write_to(f)
+
+        logging.info("Finished genus expectation maximization")
+        return demux_otus
     
     def _apply_genus_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
+        def best_hit_genera_from_otu(otu):
+            # The DIAMOND assignments are already truncated to genus level.
+            # But the query-based ones go to species level.
+            best_hit_taxonomies = otu.equal_best_hit_taxonomies()
+            if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
+                best_hit_genera = best_hit_taxonomies
+            elif otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
+                best_hit_genera = set(
+                    [';'.join([s.strip() for s in taxon.split(';')[:-1]]) for taxon in best_hit_taxonomies])
+            else:
+                raise Exception("Unexpected taxonomy assignment method: {}".format(otu.taxonomy_assignment_method()))
+            return best_hit_genera
+
         # Set up initial conditions. The coverage of each genus is set to 1
         genus_to_coverage = {}
         best_hit_taxonomy_sets = set()
         some_em_to_do = False
         for otu in sample_otus:
-            best_hit_genera = otu.equal_best_hit_taxonomies()
+            best_hit_genera = best_hit_genera_from_otu(otu)
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
                 some_em_to_do = True
-                best_hit_taxonomy_sets.add(self._species_list_to_key(best_hit_genera))
-                for genus in best_hit_genera:
-                    if genus not in genus_to_coverage:
-                        genus_to_coverage[genus] = 1
+            best_hit_taxonomy_sets.add(self._species_list_to_key(best_hit_genera))
+            for genus in best_hit_genera:
+                if genus not in genus_to_coverage:
+                    genus_to_coverage[genus] = 1
         if some_em_to_do is False:
             return None
         logging.debug(best_hit_taxonomy_sets)
+        num_steps = 0
 
         # The fraction of each undecided OTU is the ratio of that class's
         # coverage (coverage in the current iteration) to the total coverage of
         # all best hits of the undecided OTU
         while True: # while not converged
             next_genus_to_gene_to_coverage = {}
+            num_steps += 1
             # logging.debug("Starting iteration with species abundances: {}".format(species_to_coverage))
 
             # Partition out the undecided coverage according to the current
             # iteration's ratios
             for otu in sample_otus:
                 unnormalised_coverages = {}
-                best_hit_taxonomies = otu.equal_best_hit_taxonomies()
-
-                # The DIAMOND assignments are already truncated to genus level.
-                # But the query-based ones go to species level.
-                if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
-                    best_hit_genera = best_hit_taxonomies
-                elif otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
-                    best_hit_genera = set(
-                        [';'.join([s.strip() for s in taxon.split(';')[:-1]]) for taxon in best_hit_taxonomies])
-                else:
-                    raise Exception("Unexpected taxonomy assignment method: {}".format(otu.taxonomy_assignment_method()))
+                best_hit_genera = best_hit_genera_from_otu(otu)
 
                 for best_hit_genus in best_hit_genera:
                     if best_hit_genus in genus_to_coverage: # Can get removed during trimmed mean
@@ -388,30 +437,33 @@ class Condenser:
                     next_genus_to_gene_to_coverage[tax][otu.marker] = next_genus_to_gene_to_coverage[tax][otu.marker] + unnormalised_coverage / total_coverage * otu.coverage
                     
             # Calculate the trimmed mean for each genus
-            next_genus_to_gene_to_coverage = {}
+            next_genus_to_coverage = {}
             for tax, gene_to_coverage in next_genus_to_gene_to_coverage.items():
                 num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
-                next_genus_to_gene_to_coverage[tax] = trimmed_mean
+                next_genus_to_coverage[tax] = trimmed_mean
 
             # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
-            for tax, next_coverage in next_genus_to_gene_to_coverage.items():
-                if abs(next_coverage - next_genus_to_coverage[tax]) > 0.00001:
+            for tax, next_coverage in next_genus_to_coverage.items():
+                if abs(next_coverage - genus_to_coverage[tax]) > 0.001: #> 0.00001:
+                    logging.debug("Taxonomy {} changed from {} to {}".format(tax, next_coverage, genus_to_coverage[tax]))
                     need_another_iteration = True
                     break
-            next_genus_to_coverage = next_genus_to_gene_to_coverage
+            genus_to_coverage = next_genus_to_coverage
             if not need_another_iteration:
                 break
         
         # Round each genome to 4 decimal places in coverage, removing entries with 0 coverage
         # Use 3 decimals to avoid rounding to 0 when one OTU is split between many species
         rounded_genus_to_coverage = {}
-        for tax, coverage in rounded_genus_to_coverage.items():
+        for tax, coverage in genus_to_coverage.items():
             cov2 = round(coverage, 3)
             if cov2 > 0:
                 rounded_genus_to_coverage[tax] = cov2
+        
+        logging.info("Genus-wise EM converged in {} steps".format(num_steps))
 
         return rounded_genus_to_coverage, \
             list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets])
@@ -428,12 +480,26 @@ class Condenser:
             return sample_otus
 
         species_to_coverage, best_hit_taxonomy_sets = core_return
+        logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
         
-        logging.debug("Gathering equivalence classes")
-        eq_classes = self._gather_equivalence_classes_from_list_of_species_lists(best_hit_taxonomy_sets)
+        logging.info("Gathering equivalence classes")
+        eq_classes = self._gather_equivalence_classes_from_list_of_taxon_lists(best_hit_taxonomy_sets)
         
-        logging.debug("Demultiplexing OTU table")
-        demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes)
+        logging.info("Demultiplexing OTU table")
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        
+        # In [6]: sample_otus.alignment_hmm_sha256s = 'na'
+
+        # In [7]: sample_otus.singlem_package_sha256s = 'na'
+
+        # In [8]: with open('/tmp/before','w') as f: sample_otus.write_to(f)
+        demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, QUERY_BASED_ASSIGNMENT_METHOD)
+        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        # demux_otus.alignment_hmm_sha256s = 'na'
+        # demux_otus.singlem_package_sha256s = 'na'
+        # with open('/tmp/after','w') as f: demux_otus.write_to(f)
 
         logging.info("Finished expectation maximization")
         return demux_otus
@@ -459,12 +525,14 @@ class Condenser:
         if some_em_to_do is False:
             return None
         logging.debug(best_hit_taxonomy_sets)
+        num_steps = 0
 
         # The fraction of each undecided OTU is the ratio of that class's
         # coverage (coverage in the current iteration) to the total coverage of
         # all best hits of the undecided OTU
         while True: # while not converged
             next_species_to_gene_to_coverage = {}
+            num_steps += 1
             # logging.debug("Starting iteration with species abundances: {}".format(species_to_coverage))
             for otu in sample_otus:
                 unnormalised_coverages = {}
@@ -500,6 +568,7 @@ class Condenser:
                 if abs(next_coverage - species_to_coverage[tax]) > 0.00001:
                     need_another_iteration = True
                     break
+
             species_to_coverage = next_species_to_coverage
             if not need_another_iteration:
                 break
@@ -512,15 +581,21 @@ class Condenser:
             if cov2 > 0:
                 rounded_species_to_coverage[tax] = cov2
 
+        logging.info("Species-wise EM converged in {} steps".format(num_steps))
+
         return rounded_species_to_coverage, \
             list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets])
 
-    def _demultiplex_otus(self, sample_otus, species_to_coverage, eq_classes):
+    def _demultiplex_otus(self, sample_otus, species_to_coverage, eq_classes, assignment_method):
         ''' Return a new OTU table where the OTUs have been demultiplexed. This
         table likely contains OTUs which have the same window sequence.
 
         For species that cannot be differentiated according to the eq class,
-        collapse them into an LCA taxonomy '''
+        collapse them into an LCA taxonomy.
+        
+        Only OTUs that have been assigned a taxonomy through the given
+        assignment_method are considered, the rest are included in the new OTU
+        table unchanged.'''
 
         # Convert eq_classes into a dict of species to LCA
         species_to_equivalence_class_lca = {}
@@ -528,11 +603,12 @@ class Condenser:
             species_to_equivalence_class_lca[sp] = TaxonomyUtils.lca_taxonomy_of_strings(eq_class)
         # logging.debug("Species to LCA: {}".format(species_to_equivalence_class_lca))
 
-        # Generate new OTU table
-        new_otu_table = OtuTable()
+        # Generate new OTU table. Has to be an Archive because this method is
+        # used twice, once for species EM and once for genus EM.
+        new_otu_table = ArchiveOtuTable()
         new_otu_table.fields = sample_otus.fields
         for otu in sample_otus:
-            if otu.taxonomy_assignment_method() != QUERY_BASED_ASSIGNMENT_METHOD:
+            if otu.taxonomy_assignment_method() != assignment_method:
                 new_otu_table.add([otu])
             else:
                 lca_to_coverage = {}
@@ -550,21 +626,18 @@ class Condenser:
                 for lca, coverage in lca_to_coverage.items():
                     if len(lca) < len(otu.taxonomy):
                         logging.error("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
-                    new_otu = OtuTableEntry()
-                    new_otu.marker = otu.marker
-                    new_otu.sample_name = otu.sample_name
-                    new_otu.sequence = otu.sequence
-                    new_otu.count = otu.count
-                    new_otu.taxonomy = lca
-                    new_otu.coverage = coverage / total_coverage * otu.coverage
+                    new_otu = ArchiveOtuTableEntry()
+                    new_otu.data = otu.data.copy()
+                    new_otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = lca
+                    new_otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] = coverage / total_coverage * otu.coverage
                     logging.debug("Adding OTU taxonomy {} with coverage {}".format(lca, new_otu.coverage))
                     new_otu_table.add([new_otu])
         return new_otu_table
         
-    def _gather_equivalence_classes_from_list_of_species_lists(self, species_sets):
+    def _gather_equivalence_classes_from_list_of_taxon_lists(self, species_sets):
         """ Return a dict of species to set of species that are not disinguished
         by any species set """
-        species_to_eq_class = {}
+        species_to_eq_class = {} # Applies equally to taxons generally
         for species_set in species_sets:
             # Find all new species in this set. Together they form a new equivalence class
             new_species_in_set = set()

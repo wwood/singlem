@@ -21,6 +21,8 @@ class ArchiveOtuTable:
     READ_NAME_FIELD_INDEX=6
     EQUAL_BEST_HIT_TAXONOMIES_INDEX=FIELDS_VERSION4.index('equal_best_hit_taxonomies')
     TAXONOMY_ASSIGNMENT_METHOD_INDEX=FIELDS_VERSION4.index('taxonomy_assignment_method')
+    COVERAGE_FIELD_INDEX = FIELDS_VERSION4.index('coverage')
+    TAXONOMY_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy')
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -32,6 +34,10 @@ class ArchiveOtuTable:
         else:
             self.alignment_hmm_sha256s = None
             self.singlem_package_sha256s = None
+    
+    def add(self, new_otus):
+        for otu in new_otus:
+            self.data.append(otu.data)
 
     def write_to(self, output_io):
         json.dump({"version": self.version,
@@ -42,12 +48,15 @@ class ArchiveOtuTable:
                   output_io)
 
     @staticmethod
-    def read(input_io):
+    def read(input_io, min_version=None):
         otus = ArchiveOtuTable()
         j = json.load(input_io)
         if not j['version'] in [1,2,3,4]:
             raise Exception("Wrong OTU table version detected")
         otus.version = j['version']
+        if min_version is not None and otus.version < min_version:
+            raise InsufficientArchiveOtuTableVersionException(
+                "OTU table version is too old, required: %d, found: %d" % (min_version, otus.version))
 
         otus.alignment_hmm_sha256s = j['alignment_hmm_sha256s']
         otus.singlem_package_sha256s = j['singlem_package_sha256s']
@@ -83,3 +92,6 @@ class ArchiveOtuTableEntry(OtuTableEntry):
 
     def taxonomy_assignment_method(self):
         return self.data[ArchiveOtuTable.TAXONOMY_ASSIGNMENT_METHOD_INDEX]
+
+class InsufficientArchiveOtuTableVersionException(Exception):
+    pass

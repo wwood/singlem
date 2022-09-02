@@ -558,7 +558,8 @@ if __name__ == '__main__':
     required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
     required_condense_arguments.add_argument('--min-taxon-coverage','--min_taxon_coverage', metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05, type=float)
-    required_condense_arguments.add_argument('--apply-expectation-maximisation', '--apply_expectation_maximisation', action='store_true', help='Apply expectation maximisation to the OTU table first.', default=False)
+    #required_condense_arguments.add_argument('--apply-expectation-maximisation', '--apply_expectation_maximisation', action='store_true', help='Apply expectation maximisation to the OTU table first.', default=False)
+    required_condense_arguments.add_argument('--output-after-em-otu-table', '--output_after_em_otu_table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
 
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
@@ -595,7 +596,9 @@ if __name__ == '__main__':
         if args.singlem_metapackage and args.singlem_packages:
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
 
-    def generate_streaming_otu_table_from_args(args, input_prefix=False, archive_only=False):
+    def generate_streaming_otu_table_from_args(args, 
+        input_prefix=False, archive_only=False, min_archive_otu_table_version=None):
+
         if archive_only:
             otu_tables = False
             otu_tables_list = False
@@ -622,6 +625,8 @@ if __name__ == '__main__':
                 not archive_otu_table_list and not gzip_archive_otu_table_list:
                 raise Exception("{} requires input OTU tables or archive OTU tables".format(args.subparser_name))
         otus = StreamingOtuTableCollection()
+        if min_archive_otu_table_version:
+            otus.min_archive_otu_table_version = min_archive_otu_table_version
         if otu_tables:
             for o in otu_tables:
                 otus.add_otu_table_file(o)
@@ -1072,7 +1077,7 @@ if __name__ == '__main__':
         from singlem.otu_table_collection import StreamingOtuTableCollection
         from singlem.condense import Condenser
 
-        otus = generate_streaming_otu_table_from_args(args, input_prefix=True, archive_only=True)
+        otus = generate_streaming_otu_table_from_args(args, input_prefix=True, archive_only=True, min_archive_otu_table_version=4)
         if not args.output_otu_table and not args.krona:
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
@@ -1083,7 +1088,7 @@ if __name__ == '__main__':
             output_otu_table = args.output_otu_table,
             krona = args.krona,
             min_taxon_coverage = args.min_taxon_coverage,
-            apply_expectation_maximisation = args.apply_expectation_maximisation)
+            output_after_em_otu_table = args.output_after_em_otu_table)
 
     elif args.subparser_name == 'trim_package_hmms':
         from singlem.trim_package_hmms import PackageHmmTrimmer
