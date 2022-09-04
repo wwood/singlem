@@ -74,20 +74,21 @@ class PipeTaxonomyAssignerByQuery:
             last_query = None
             last_hits = []
 
-            for hit in querier.query_with_queries(queries, sdb, 3, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
-                # hit has (query, subject, divergence)
-                # subject has .taxonomy
-                if last_query != hit.query.name:
-                    if last_query is not None:
-                        # Process last hits batch
-                        process_hits_batch(spkg_key, last_hits, pair_index)
-                    last_query = hit.query.name
-                    last_hits = [hit]
-                else:
-                    last_hits.append(hit)
-            # Process the last hit
-            if last_query is not None:
-                process_hits_batch(spkg_key, last_hits, pair_index)
+            if len(queries) > 0:
+                for hit in querier.query_with_queries(queries, sdb, 3, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
+                    # hit has (query, subject, divergence)
+                    # subject has .taxonomy
+                    if last_query != hit.query.name:
+                        if last_query is not None:
+                            # Process last hits batch
+                            process_hits_batch(spkg_key, last_hits, pair_index)
+                        last_query = hit.query.name
+                        last_hits = [hit]
+                    else:
+                        last_hits.append(hit)
+                # Process the last hit
+                if last_query is not None:
+                    process_hits_batch(spkg_key, last_hits, pair_index)
 
         for (spkg_key, queries) in spkg_queries.items():
             if analysing_pairs:
