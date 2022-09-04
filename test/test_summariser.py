@@ -291,7 +291,19 @@ minimal2	0.2
         ar = ArchiveOtuTable.read(StringIO(res))
         self.assertEqual(len(ar.data), 565)
         
-
+    def test_dump_raw_sequences(self):
+        cmd = '{} summarise --input-archive-otu-table {}/small.otu_table.4.11.22seqs.json --unaligned_sequences_dump_file /dev/stdout'.format(
+            path_to_script,
+            path_to_data)
+        res = extern.run(cmd)
+        expected = """
+            >HWI-ST1243:156:D1K83ACXX:7:1105:19152:28331
+            ACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATCCACGGTAGTCA
+            >HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482
+            ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+            """
+        expected = '\n'.join([line.strip() for line in expected.split('\n') if line.strip()])+"\n"
+        self.assertEqual(expected, res)
         
 
 if __name__ == "__main__":

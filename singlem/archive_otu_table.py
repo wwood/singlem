@@ -19,6 +19,7 @@ class ArchiveOtuTable:
     FIELDS = FIELDS_OF_EACH_VERSION[version-1]
 
     READ_NAME_FIELD_INDEX=6
+    UNALIGNED_SEQUENCE_FIELD_INDEX = FIELDS_VERSION4.index('read_unaligned_sequences')
     EQUAL_BEST_HIT_TAXONOMIES_INDEX=FIELDS_VERSION4.index('equal_best_hit_taxonomies')
     TAXONOMY_ASSIGNMENT_METHOD_INDEX=FIELDS_VERSION4.index('taxonomy_assignment_method')
     COVERAGE_FIELD_INDEX = FIELDS_VERSION4.index('coverage')
@@ -86,6 +87,9 @@ class ArchiveOtuTableEntry(OtuTableEntry):
     def read_names(self):
         '''Return a list of read names for this OTU'''
         return self.data[ArchiveOtuTable.READ_NAME_FIELD_INDEX]
+
+    def read_unaligned_sequences(self):
+        return self.data[ArchiveOtuTable.UNALIGNED_SEQUENCE_FIELD_INDEX]
 
     def equal_best_hit_taxonomies(self):
         return self.data[ArchiveOtuTable.EQUAL_BEST_HIT_TAXONOMIES_INDEX]
