@@ -110,7 +110,8 @@ class QueryTaxonomicAssignmentResult:
             for (spkg_key, sample_to_name_to_taxonomies) in spkg_to_sample_to_name_to_taxonomies[0].items():
                 self._spkg_to_sample_to_name_to_taxonomies[spkg_key] = {}
                 for (sample_name, name_to_taxonomies) in sample_to_name_to_taxonomies.items():
-                    self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] = [name_to_taxonomies]
+                    # Add an empty hash for the second readset, in case there are no hits for it.
+                    self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] = [name_to_taxonomies, {}]
             for (spkg_key, sample_to_name_to_taxonomies) in spkg_to_sample_to_name_to_taxonomies[1].items():
                 if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
                     self._spkg_to_sample_to_name_to_taxonomies[spkg_key] = {}
@@ -119,7 +120,7 @@ class QueryTaxonomicAssignmentResult:
                         # If only read2 has a hit, we need to add an empty read1 hash
                         self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] = [{}, name_to_taxonomies]
                     else:
-                        self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].append(name_to_taxonomies)
+                        self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name][1] = name_to_taxonomies
         else:
             self._spkg_to_sample_to_name_to_taxonomies = spkg_to_sample_to_name_to_taxonomies
 
@@ -134,7 +135,10 @@ class QueryTaxonomicAssignmentResult:
         """ Return dict of read name to LCA of taxonomic hits (or list of 2 dicts for paired reads) """
         spkg_key = singlem_package.base_directory()
         if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
-            return {}
+            if self._analysing_pairs:
+                return [{}, {}]
+            else:
+                return {}
         if self._analysing_pairs:
             return [{
                 name: self._lca_taxonomy(taxonomies)

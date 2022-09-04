@@ -1086,6 +1086,20 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    def test_scann_then_diamond_assignment_paired_only_read1_hits(self):
+        expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
+        '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs2	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
+        cmd = '{} pipe --forward {} --reverse {} --otu_table /dev/stdout --singlem_packages {} --assignment-singlem-db {} --assignment-method scann_then_diamond'.format(
+            path_to_script,
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
+            os.path.join(path_to_data, 'random.fna'), # i.e. no hits
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
+            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.sdb'),
+        )
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
+
 
 
 
