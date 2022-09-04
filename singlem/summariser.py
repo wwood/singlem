@@ -473,11 +473,15 @@ class Summariser:
         num_samples = 0
         num_otus = 0
         num_reads = 0
+        seq_name_counters = {}
         for sample, otus in input_otus.each_sample_otus(generate_archive_otu_table=True):
             num_samples += 1
             for otu in otus:
                 num_otus += 1
                 for read_name, read_seq in zip(otu.read_names(), otu.read_unaligned_sequences()):
                     num_reads += 1
-                    output_table_io.write(">{}\n{}\n".format(read_name, read_seq))
+                    if read_name not in seq_name_counters:
+                        seq_name_counters[read_name] = 0
+                    output_table_io.write(">{}~{}\n{}\n".format(read_name, seq_name_counters[read_name], read_seq))
+                    seq_name_counters[read_name] += 1
         logging.info("Wrote {} reads from {} OTUs in {} samples".format(num_reads, num_otus, num_samples))
