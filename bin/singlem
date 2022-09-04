@@ -595,6 +595,12 @@ if __name__ == '__main__':
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
         if args.singlem_metapackage and args.singlem_packages:
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
+        if not args.assignment_singlem_db and args.assignment_method in (
+            pipe.ANNOY_ASSIGNMENT_METHOD,
+            pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+            raise Exception("If --assignment-method is set to %s, then --assignment-singlem-db must be specified" % args.assignment_method)
 
     def generate_streaming_otu_table_from_args(args, 
         input_prefix=False, archive_only=False, min_archive_otu_table_version=None):
