@@ -112,8 +112,14 @@ class QueryTaxonomicAssignmentResult:
                 for (sample_name, name_to_taxonomies) in sample_to_name_to_taxonomies.items():
                     self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] = [name_to_taxonomies]
             for (spkg_key, sample_to_name_to_taxonomies) in spkg_to_sample_to_name_to_taxonomies[1].items():
+                if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
+                    self._spkg_to_sample_to_name_to_taxonomies[spkg_key] = {}
                 for (sample_name, name_to_taxonomies) in sample_to_name_to_taxonomies.items():
-                    self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].append(name_to_taxonomies)
+                    if sample_name not in self._spkg_to_sample_to_name_to_taxonomies[spkg_key]:
+                        # If only read2 has a hit, we need to add an empty read1 hash
+                        self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] = [{}, name_to_taxonomies]
+                    else:
+                        self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].append(name_to_taxonomies)
         else:
             self._spkg_to_sample_to_name_to_taxonomies = spkg_to_sample_to_name_to_taxonomies
 
