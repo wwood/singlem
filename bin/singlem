@@ -444,6 +444,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--exclude-off-target-hits', '--exclude_off_target_hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
     summarise_output_args.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Packages used in the creation of the OTU tables")
     summarise_output_args.add_argument('--metapackage', '--singlem-metapackage', '--singlem_metapackage', help='Metapackage used in the creation of the OTU tables')
+    summarise_output_args.add_argument('--unaligned-sequences-dump-file', '--unaligned_sequences_dump_file', help="Output unaligned sequences from in put archive OTU table to this file")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = new_subparser(subparsers, 'renew', renew_description)
@@ -798,6 +799,7 @@ if __name__ == '__main__':
         if args.rarefied_output_otu_table: num_output_types += 1
         if args.wide_format_otu_table: num_output_types += 1
         if args.collapse_paired_with_unpaired_archive_otu_table: num_output_types += 1
+        if args.unaligned_sequences_dump_file: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
@@ -813,13 +815,19 @@ if __name__ == '__main__':
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse_paired_with_unpaired_archive_otu_table requires exactly two archive tables")
 
-        if args.stream_inputs:
+        if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
-            if not args.output_otu_table:
-                raise Exception("--stream_inputs requires --output_otu_table to be defined")
+            if not args.output_otu_table and not args.unaligned_sequences_dump_file:
+                raise Exception("--stream_inputs requires --output_otu_table or --unaligned_sequences_dump_file to be defined")
             if args.taxonomy:
                 raise Exception("--stream_inputs does not currently support --taxonomy")
-            otus = generate_streaming_otu_table_from_args(args, input_prefix=True)
+            require_archive_input = args.unaligned_sequences_dump_file is not None
+            min_archive_otu_table_version = 2 if args.unaligned_sequences_dump_file else None
+            otus = generate_streaming_otu_table_from_args(
+                args,
+                input_prefix=True, 
+                archive_only=require_archive_input,
+                min_archive_otu_table_version=min_archive_otu_table_version)
         else:
             otus = OtuTableCollection()
             if args.input_otu_tables:
@@ -929,6 +937,10 @@ if __name__ == '__main__':
             Summariser.write_collapsed_paired_with_unpaired_otu_table(
                 archive_otu_tables = args.input_archive_otu_tables,
                 output_table_io = open(args.collapse_paired_with_unpaired_archive_otu_table,'w'))
+        elif args.unaligned_sequences_dump_file:
+            Summariser.dump_raw_sequences_from_archive_otu_table(
+                table_collection = otus,
+                output_table_io = open(args.unaligned_sequences_dump_file,'w'))
 
         else: raise Exception("Programming error")
         logging.info("Finished")

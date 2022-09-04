@@ -462,3 +462,22 @@ class Summariser:
         #     "otus": transformed.to_json(orient='values')},
         #     output_table_io)
         logging.info("Finished writing collapsed output table")
+
+    @staticmethod
+    def dump_raw_sequences_from_archive_otu_table(**kwargs):
+        input_otus = kwargs.pop('table_collection')
+        output_table_io = kwargs.pop('output_table_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        num_samples = 0
+        num_otus = 0
+        num_reads = 0
+        for sample, otus in input_otus.each_sample_otus(generate_archive_otu_table=True):
+            num_samples += 1
+            for otu in otus:
+                num_otus += 1
+                for read_name, read_seq in zip(otu.read_names(), otu.read_unaligned_sequences()):
+                    num_reads += 1
+                    output_table_io.write(">{}\n{}\n".format(read_name, read_seq))
+        logging.info("Wrote {} reads from {} OTUs in {} samples".format(num_reads, num_otus, num_samples))
