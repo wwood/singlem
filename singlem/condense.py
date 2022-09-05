@@ -322,7 +322,16 @@ class Condenser:
         """
         table = ArchiveOtuTable()
         table.fields = sample_otus.fields
-        table.data = [otu.data for otu in sample_otus if self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers)]
+        num_no_assignment_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is None])
+        num_assigned_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is not None])
+        logging.info("Found {} assigned and {} unassigned OTU coverage".format(num_assigned_otus, num_no_assignment_otus))
+        if num_no_assignment_otus > num_assigned_otus*0.05:
+            logging.warning("Found an expectedly high number of OTUs that have no taxonomy assigned by query or diamond: {} unassigned OTUs and {} assigned, in sample {}".format(num_no_assignment_otus, num_assigned_otus, sample_otus[0].sample))
+            if num_no_assignment_otus > num_assigned_otus*0.5:
+                raise Exception("Stopping: sample {} had too many unassigned OTUs".format(sample_otus[0].sample))
+        table.data = [otu.data for otu in sample_otus if \
+            self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers) and \
+            otu.taxonomy_assignment_method() is not None]
         return table
 
     def _is_targeted_by_marker(self, otu, tax_split, markers):
@@ -624,8 +633,12 @@ class Condenser:
                 total_coverage = sum(lca_to_coverage.values())
                 
                 for lca, coverage in lca_to_coverage.items():
-                    if len(lca) < len(otu.taxonomy):
-                        logging.error("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
+                    # This used to be a helpful sanity check, but it can
+                    # legitimately happen for diamond-assigned OTUs since the
+                    # median taxonomy can be longer than the final (and this is
+                    # a strlen check not an array length check atm)
+                    # if len(lca) < len(otu.taxonomy):
+                    #     logging.error("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
                     new_otu = ArchiveOtuTableEntry()
                     new_otu.data = otu.data.copy()
                     new_otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = lca

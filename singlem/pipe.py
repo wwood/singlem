@@ -838,8 +838,17 @@ class SearchPipe:
                 self.taxonomy_assignment_method = taxonomy_assignment_method
 
         for seq, collected_info in seq_to_collected_info.items():
-            # All seqs in OTU have the same assignment method
-            otu_taxonomy_assignment_method = taxonomy_assignment_methods.get_assignment_method(collected_info.names[0])
+            # All seqs in OTU have the same assignment method, except in rare
+            # cases such as when a sequence passes the prefilter but then has no
+            # diamond hits to an individual gene
+            otu_taxonomy_assignment_method = None
+            for name in collected_info.names:
+                # Sometimes an OTU will have have some reads with an assignment,
+                # and some with none. Take the first non-None value, as the all
+                # non-None values should be the same.
+                otu_taxonomy_assignment_method = taxonomy_assignment_methods.get_assignment_method(name)
+                if otu_taxonomy_assignment_method is not None:
+                    break
 
             if s.aligned_sequence in otu_sequence_assigned_taxonomies:
                 tax = otu_sequence_assigned_taxonomies[s.aligned_sequence].taxonomy
