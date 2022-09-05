@@ -340,7 +340,7 @@ class Condenser:
         table.fields = sample_otus.fields
         num_no_assignment_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is None])
         num_assigned_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is not None])
-        logging.info("Found {} assigned and {} unassigned OTU coverage".format(num_assigned_otus, num_no_assignment_otus))
+        logging.info("Found {:.2f} assigned and {:.2f} unassigned OTU coverage units".format(num_assigned_otus, num_no_assignment_otus))
         if num_no_assignment_otus > num_assigned_otus*0.05:
             logging.warning("Found an expectedly high number of OTUs that have no taxonomy assigned by query or diamond: {} unassigned OTUs and {} assigned, in sample {}".format(num_no_assignment_otus, num_assigned_otus, sample_otus[0].sample))
             if num_no_assignment_otus > num_assigned_otus*0.5:
