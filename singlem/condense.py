@@ -456,7 +456,7 @@ class Condenser:
             # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
             for tax, next_coverage in next_genus_to_coverage.items():
-                if abs(next_coverage - genus_to_coverage[tax]) > 0.001: #> 0.00001:
+                if abs(next_coverage - genus_to_coverage[tax]) > 0.001:
                     logging.debug("Taxonomy {} changed from {} to {}".format(tax, next_coverage, genus_to_coverage[tax]))
                     need_another_iteration = True
                     break
@@ -574,7 +574,7 @@ class Condenser:
             # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
             for tax, next_coverage in next_species_to_coverage.items():
-                if abs(next_coverage - species_to_coverage[tax]) > 0.00001:
+                if abs(next_coverage - species_to_coverage[tax]) > 0.001:
                     need_another_iteration = True
                     break
 
