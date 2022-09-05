@@ -143,7 +143,23 @@ class Condenser:
         # Attribute genus-level down to species level to account for sequencing error
         self._push_down_genus_to_species(condensed_otus, 0.1)
 
+        self._report_taxonomic_level_assignment_stats(condensed_otus)
+
         return condensed_otus
+
+    def _report_taxonomic_level_assignment_stats(self, condensed_otus):
+        level_coverage = [0.0]*7
+        level_count = [0]*7
+        for taxon in condensed_otus.breadth_first_iter():
+            level = taxon.calculate_level()-1
+            if level < 0: continue # skip Root
+            level_coverage[level] += taxon.coverage
+            level_count[level] += 1
+        total_coverage = sum(level_coverage)
+        logging.info("Taxonomic level coverage:")
+        ranks = ['kingdom','phylum','class','order','family','genus','species']
+        for level, rank in enumerate(ranks):
+            logging.info("{}:\t{:.2f}%\t{} taxons".format(rank, level_coverage[level]/total_coverage*100, level_count[level]))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, singlem_package_objects, sample_otus):
         '''the best hit IDs are specified as ids, but we need taxon strings.
