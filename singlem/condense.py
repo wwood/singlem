@@ -518,11 +518,12 @@ class Condenser:
     def _key_to_species_list(self, key):
         return key.split('~')
 
-    def _apply_species_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
+    def _apply_species_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain, min_genes_for_whitelist=10, proximity_cutoff=0.1):
         # Set up initial conditions. The coverage of each species is set to 1
         species_to_coverage = {}
         best_hit_taxonomy_sets = set()
         some_em_to_do = False
+        species_genes = {}
         for otu in sample_otus:
             best_hit_taxonomies = otu.equal_best_hit_taxonomies()
             if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD and best_hit_taxonomies is not None:
@@ -531,11 +532,20 @@ class Condenser:
                 for best_hit_tax in best_hit_taxonomies:
                     if best_hit_tax not in species_to_coverage:
                         species_to_coverage[best_hit_tax] = 1
+                if len(best_hit_taxonomies) == 1:
+                    sp = best_hit_taxonomies[0]
+                    if sp not in species_genes:
+                        species_genes[sp] = set()
+                    species_genes[sp].add(otu.marker)
+                species_genes
         if some_em_to_do is False:
             return None
         logging.debug(best_hit_taxonomy_sets)
-        num_steps = 0
 
+        species_whitelist = set([sp for (sp, genes) in species_genes.items() if len(genes) >= min_genes_for_whitelist])
+        logging.info("Found {} species uniquely hitting >= {} marker genes".format(len(species_whitelist), min_genes_for_whitelist))
+
+        num_steps = 0
         # The fraction of each undecided OTU is the ratio of that class's
         # coverage (coverage in the current iteration) to the total coverage of
         # all best hits of the undecided OTU
@@ -563,13 +573,21 @@ class Condenser:
                         next_species_to_gene_to_coverage[tax][otu.marker] = 0
                     next_species_to_gene_to_coverage[tax][otu.marker] = next_species_to_gene_to_coverage[tax][otu.marker] + unnormalised_coverage / total_coverage * otu.coverage
                     
-            # Calculate the trimmed mean for each species
+            # Calculate the (possibly trimmed) mean for each species
             next_species_to_coverage = {}
             for tax, gene_to_coverage in next_species_to_gene_to_coverage.items():
                 num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 # logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
                 next_species_to_coverage[tax] = trimmed_mean
+
+            # Remove species that appear to be noise based upon having low
+            # coverage and proximity to higher coverage species
+            failed_species = self._find_species_with_low_coverage_and_proximity_to_higher_coverage_species(
+                next_species_to_coverage, species_whitelist, proximity_cutoff)
+            for failed_s in failed_species:
+                logging.debug("Removing species {} due to low coverage and proximity to higher coverage species".format(failed_species))
+                del next_species_to_coverage[failed_s]
 
             # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
@@ -595,7 +613,28 @@ class Condenser:
         return rounded_species_to_coverage, \
             list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets])
 
-    def _demultiplex_otus(self, sample_otus, species_to_coverage, eq_classes, assignment_method):
+    def _find_species_with_low_coverage_and_proximity_to_higher_coverage_species(self,
+        species_to_coverage, species_whitelist, proximity_cutoff):
+        '''Return a list of species that is not in the species whitelist, and
+        is less than 10% of the total relative abundance of the genus
+        '''
+        genus_to_coverage = {}
+        for tax, coverage in species_to_coverage.items():
+            genus = tax.split(';')[6].strip()
+            if genus not in genus_to_coverage:
+                genus_to_coverage[genus] = 0
+            genus_to_coverage[genus] += coverage
+
+        failed_species = []
+        for tax, coverage in species_to_coverage.items():
+            genus = tax.split(';')[6].strip()
+            if tax not in species_whitelist and coverage < genus_to_coverage[genus] * proximity_cutoff:
+                failed_species.append(tax)
+        return failed_species
+
+
+    def _demultiplex_otus(self, sample_otus, species_to_coverage, eq_classes,
+    assignment_method):
         ''' Return a new OTU table where the OTUs have been demultiplexed. This
         table likely contains OTUs which have the same window sequence.
 
