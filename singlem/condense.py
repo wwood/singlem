@@ -1,3 +1,4 @@
+from curses import meta
 import logging
 import tempfile
 import csv
@@ -32,23 +33,13 @@ class Condenser:
         output_otu_table = kwargs.pop('output_otu_table')
         krona_output_file = kwargs.pop('krona')
         metapackage_path = kwargs.pop('metapackage_path')
-        singlem_packages = kwargs.pop('singlem_packages')
         
-        if singlem_packages and metapackage_path:
-            raise Exception("Cannot specify both singlem packages and a metapackage")
-        if metapackage_path:
-            mpkg = Metapackage.acquire(metapackage_path)
-            singlem_package_objects = mpkg.singlem_packages
-        else:
-            singlem_package_objects = []
-            for path in singlem_packages:
-                spkg = SingleMPackage.acquire(path)
-                logging.debug("Loading SingleM package: {}".format(spkg.graftm_package_basename()))
-                singlem_package_objects.append(spkg)
-            logging.info("Loaded %i SingleM packages." % len(singlem_package_objects))
+        metapackage = Metapackage.acquire(metapackage_path)
+        if metapackage.version != 3:
+            raise Exception("Condense function now only works with version 3 metapackages.")
 
         # Yield once per sample
-        to_yield = self._condense_to_otu_table(singlem_package_objects, **kwargs)
+        to_yield = self._condense_to_otu_table(metapackage, **kwargs)
         if krona_output_file is not None:
             logging.info("Writing Krona to {}".format(krona_output_file))
             # Cache profiles if we need them twice, otherwise attempt to be
@@ -66,7 +57,7 @@ class Condenser:
 
         logging.info("Finished condense")
 
-    def _condense_to_otu_table(self, singlem_package_objects, **kwargs):
+    def _condense_to_otu_table(self, metapackage, **kwargs):
         input_otu_table = kwargs.pop('input_streaming_otu_table')
         trim_percent = kwargs.pop('trim_percent') / 100
         min_taxon_coverage = kwargs.pop('min_taxon_coverage')
@@ -78,7 +69,7 @@ class Condenser:
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
         
-        for spkg in singlem_package_objects:
+        for spkg in metapackage.singlem_packages:
             # ensure v3 packages
             if not spkg.version in [3,4]:
                 raise Exception("Only works with v3 or v4 singlem packages.")
@@ -103,10 +94,10 @@ class Condenser:
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-                True, apply_diamond_expectation_maximisation, singlem_package_objects, output_after_em_otu_table)
+                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table)
 
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-            apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, singlem_package_objects,
+            apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
             output_after_em_otu_table):
 
         # Remove off-target OTUs genes
@@ -124,7 +115,7 @@ class Condenser:
 
         if apply_diamond_expectation_maximisation:
             logging.info("Converting DIAMOND IDs to taxons")
-            self._convert_diamond_best_hit_ids_to_taxonomies(singlem_package_objects, sample_otus)
+            self._convert_diamond_best_hit_ids_to_taxonomies(metapackage, sample_otus)
             # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
             # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
             # import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
@@ -161,34 +152,33 @@ class Condenser:
         for level, rank in enumerate(ranks):
             logging.info("{}:\t{:.2f}%\t{} taxons".format(rank, level_coverage[level]/total_coverage*100, level_count[level]))
 
-    def _convert_diamond_best_hit_ids_to_taxonomies(self, singlem_package_objects, sample_otus):
-        '''the best hit IDs are specified as ids, but we need taxon strings.
-        However, we cannot read in the id_to_name from all markers at once, as
-        this is too RAM intensive. We take advantage of the fact that the OTUs
-        are usually ordered by marker, so can cache just one marker at a time.
-        Convert sample_otus in place.''' 
-        #TODO: Could be faster by using sqlite3 or something where the entire
-        #hash doesn't have to be read in.
+    def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
+        '''Input OTU tables assigned taxonomy with diamond have sequence IDs as
+        their equal-best hits. This function converts these to taxon strings
+        instead.'''
 
-        spkg_name_to_object = {}
-        for spkg in singlem_package_objects:
-            spkg_name_to_object[spkg.graftm_package_basename()] = spkg
-
-        current_marker = None
-        current_taxon_hash = None
         num_otus_changed = 0
+        sequence_ids = set()
+        # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
-                if otu.marker != current_marker:
-                    current_marker = otu.marker
-                    current_taxon_hash = spkg_name_to_object[current_marker].taxonomy_hash()
+                for seq_id_list in otu.equal_best_hit_taxonomies():
+                    for seq_id in seq_id_list:
+                        sequence_ids.add(seq_id)
+
+        # Step 2: Get taxon strings
+        sequence_id_to_taxon = metapackage.get_taxonomy_of_reads(sequence_ids)
+
+        # Step 3: Write taxons to OTU table
+        for otu in sample_otus:
+            if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
                 # Each sequence in the OTU is assigned a separate set of
                 # taxon_ids. Maybe we could do something more smart, but for the
-                # moment, just assume they are all equally likely
+                # moment, just assume they are all equally best hits.
                 possible_names = set()
-                for taxon_id_list in otu.equal_best_hit_taxonomies():
-                    for taxon_id in taxon_id_list:
-                        taxon_name = current_taxon_hash[taxon_id]
+                for seq_id_list in otu.equal_best_hit_taxonomies():
+                    for seq_id in seq_id_list:
+                        taxon_name = sequence_id_to_taxon[seq_id]
                         if not taxon_name[-2].startswith('g__'):
                             if not taxon_name[0] == 'd__Eukaryota':
                                 raise Exception("Expected genus level taxon, but found {}, from ID".format(taxon_name, taxon_id))
