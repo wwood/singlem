@@ -84,6 +84,7 @@ class Metapackage:
             prefilter_path = os.path.join(metapackage_path, contents_hash[Metapackage.PREFILTER_DB_PATH_KEY]))
         mpkg._contents_hash = contents_hash
         mpkg._base_directory = metapackage_path
+        mpkg.version = v
 
         if v >= 3:
             mpkg._sqlite_db_path = os.path.join(metapackage_path, contents_hash[Metapackage.SQLITE_DB_PATH_KEY])
@@ -121,7 +122,9 @@ class Metapackage:
 
         # Copy nucleotide SingleM db into output directory
         if nucleotide_sdb:
-            nucleotide_sdb_name = os.path.basename(nucleotide_sdb)
+            # Remove trailing slash if present
+            nucleotide_sdb_abspath = os.path.abspath(nucleotide_sdb)
+            nucleotide_sdb_name = os.path.basename(nucleotide_sdb_abspath)
             nucleotide_sdb_path = os.path.join(output_path, nucleotide_sdb_name)
             logging.info("Copying SingleM db {} to {} ..".format(nucleotide_sdb, nucleotide_sdb_path))
             shutil.copytree(nucleotide_sdb, nucleotide_sdb_path)
@@ -131,10 +134,11 @@ class Metapackage:
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
-            if not prefilter_diamond_db.endswith('.dmnd'):
-                raise Exception("Predefined DIAMOND DB should end in .dmnd")
+            postfix = '.dmnd'
+            if not prefilter_diamond_db.endswith(postfix):
+                raise Exception("Predefined DIAMOND DB should end in ".format(postfix))
             prefilter_dmnd_name = os.path.basename(prefilter_diamond_db)
-            prefilter_dmnd_path = os.path.join(output_path, prefilter_name)
+            prefilter_dmnd_path = os.path.join(output_path, prefilter_dmnd_name)
             shutil.copy(prefilter_diamond_db, prefilter_dmnd_path)
         else:
             prefilter_name = 'prefilter.fna'
