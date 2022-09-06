@@ -59,5 +59,61 @@ class Tests(unittest.TestCase):
                 self.assertEqual('{"singlem_metapackage_version": 2, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb"}',
                 con.read())
 
+    def test_metapackage_read_name_store(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.v3.gpkg.spkg.smpkg/small.otu_table.v5.sdb --output-metapackage {}/a.smpkg".format(
+                path_to_script, f
+            )
+            extern.run(cmd)
+
+            mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))
+            
+            
+            # In [14]: h[list(h.keys())[3]]
+            # Out[14]:
+            # ['d__Bacteria',
+            # 'p__Proteobacteria',
+            # 'c__Betaproteobacteria',
+            # 'o__Burkholderiales',
+            # 'f__Comamonadaceae',
+            # 'g__Variovorax',
+            # 's__Variovorax_sp._CF313']
+
+            # In [15]: h[list(h.keys())[4]]
+            # Out[15]:
+            # ['d__Bacteria',
+            # 'p__Firmicutes',
+            # 'c__Bacilli',
+            # 'o__Lactobacillales',
+            # 'f__Leuconostocaceae',
+            # 'g__Weissella',
+            # 's__Weissella_hellenica']
+
+            # In [16]: list(h.keys())[3]
+            # Out[16]: '2513020051'
+
+            # In [17]: list(h.keys())[4]
+            # Out[17]: '2585428030'
+
+            self.assertEqual({
+                '2513020051': 
+                    ['d__Bacteria',
+                    'p__Proteobacteria',
+                    'c__Betaproteobacteria',
+                    'o__Burkholderiales',
+                    'f__Comamonadaceae',
+                    'g__Variovorax',
+                    's__Variovorax_sp._CF313'],
+                '2585428030':
+                    ['d__Bacteria',
+                    'p__Firmicutes',
+                    'c__Bacilli',
+                    'o__Lactobacillales',
+                    'f__Leuconostocaceae',
+                    'g__Weissella',
+                    's__Weissella_hellenica']
+            }, mp.get_taxonomy_of_reads(['2513020051', '2585428030']))
+
+
 if __name__ == "__main__":
     unittest.main()
