@@ -11,6 +11,7 @@ import json
 
 from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
+from .metapackage_read_name_store import MetapackageReadNameStore
 
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
@@ -21,13 +22,19 @@ class Metapackage:
     PREFILTER_DB_PATH_KEY = 'prefilter_db_path'
     SINGLEM_PACKAGES = 'singlem_packages'
     NUCLEOTIDE_SDB = 'nucleotide_sdb'
+    SQLITE_DB_PATH_KEY = 'sqlite_db_path_key'
 
-    _CURRENT_FORMAT_VERSION = 2
+    _CURRENT_FORMAT_VERSION = 3
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
                             PREFILTER_DB_PATH_KEY,
                             ],
+                    '3': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        SQLITE_DB_PATH_KEY,
+                        ],
                       }
 
     def __init__(self, package_paths=None, prefilter_path=None):
@@ -67,7 +74,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v != 2 and v != 1:
+        if v not in (1,2,3):
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -77,6 +84,10 @@ class Metapackage:
             prefilter_path = os.path.join(metapackage_path, contents_hash[Metapackage.PREFILTER_DB_PATH_KEY]))
         mpkg._contents_hash = contents_hash
         mpkg._base_directory = metapackage_path
+
+        if v >= 3:
+            mpkg._sqlite_db_path = os.path.join(metapackage_path, contents_hash[Metapackage.SQLITE_DB_PATH_KEY])
+
         return mpkg
 
     @staticmethod
@@ -152,10 +163,16 @@ class Metapackage:
         if not prefilter_diamond_db:
             os.remove(prefilter_path)
 
-        contents_hash = {Metapackage.VERSION_KEY: 2,
+        logging.info("Generating read name taxonomy store ..")
+        sqlitedb_path = os.path.join(output_path, 'read_taxonomies.sqlite3')
+        MetapackageReadNameStore.generate(
+            singlem_packages, sqlitedb_path)
+
+        contents_hash = {Metapackage.VERSION_KEY: 3,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
-                        Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name
+                        Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
+                        Metapackage.SQLITE_DB_PATH_KEY: os.path.basename(sqlitedb_path),
                         }
 
         # save contents file
@@ -258,3 +275,7 @@ class Metapackage:
                 ','.join(spkg.target_domains()),
                 spkg.gene_description()
             )))
+
+    def get_taxonomy_of_reads(self, read_names):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_taxonomy_of_reads(read_names)
