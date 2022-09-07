@@ -41,27 +41,27 @@ class Tests(unittest.TestCase):
 
     def test_metapackage_create_on_target_fasta(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --output-metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 2, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null}',
+                self.assertEqual('{"singlem_metapackage_version": 3, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3"}',
                 con.read())
 
     def test_metapackage_create_with_sdb(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --nucleotide_sdb test/data/a.sdb --output-metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --nucleotide-sdb test/data/a.sdb --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 2, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb"}',
+                self.assertEqual('{"singlem_metapackage_version": 3, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.sqlite3"}',
                 con.read())
 
     def test_metapackage_read_name_store(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.v3.gpkg.spkg.smpkg/small.otu_table.v5.sdb --output-metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.v3.gpkg.spkg.smpkg/small.otu_table.v5.sdb --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             extern.run(cmd)
