@@ -241,7 +241,7 @@ if __name__ == '__main__':
 
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
-        argument_group.add_argument('--otu-table', '--otu_table', metavar='filename', help='output OTU table')
+        argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
         current_default = MyParser.PIPE_DEFAULT_ASSIGNMENT_METHOD
@@ -258,7 +258,7 @@ if __name__ == '__main__':
             pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
             current_default),
             default=current_default)
-        argument_group.add_argument('--output-extras', '--output_extras', action='store_true',
+        argument_group.add_argument('--output-extras', action='store_true',
                                          help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) [default: not set]',
                                          default=False)
     common_pipe_arguments = pipe_parser.add_argument_group('Common options')
@@ -267,11 +267,11 @@ if __name__ == '__main__':
                                 nargs='+',
                                 metavar='sequence_file(s)',
                                 help='nucleotide read sequence(s) (forward or unpaired) to be searched')
-    sequence_input_group.add_argument('--genome-fasta-files','--genome_fasta_files',
+    sequence_input_group.add_argument('--genome-fasta-files',
                                 nargs='+',
                                 metavar='sequence_file(s)',
                                 help='nucleotide genome sequence(s) to be searched')
-    sequence_input_group.add_argument('--sra-files','--sra_files',
+    sequence_input_group.add_argument('--sra-files',
                                 nargs='+',
                                 metavar='sra_file(s)',
                                 help='.sra format files to be searched')
@@ -282,23 +282,23 @@ if __name__ == '__main__':
     add_common_pipe_arguments(common_pipe_arguments)
 
     def add_less_common_pipe_arguments(argument_group):
-        argument_group.add_argument('--archive-otu-table', '--archive_otu_table', metavar='filename', help='output OTU table in archive form for making DBs etc. [default: unused]')
-        argument_group.add_argument('--output-jplace', '--output_jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
-        argument_group.add_argument('--singlem-metapackage', '--singlem_metapackage', '--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-        argument_group.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
-        argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters', '--diamond_taxonomy_assignment_performance_parameters',
+        argument_group.add_argument('--archive-otu-table', metavar='filename', help='output OTU table in archive form for making DBs etc. [default: unused]')
+        argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
+        argument_group.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
+        argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the default set]')
+        argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
                                     help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
                                     default=SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
         argument_group.add_argument('--evalue', help='GraftM e-value cutoff [default: the GraftM default]')
-        argument_group.add_argument('--min-orf-length','--min_orf_length',
+        argument_group.add_argument('--min-orf-length',
                                     metavar='length',
                                     help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i for reads, %i for genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH,SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
                                     type=int)
-        argument_group.add_argument('--restrict-read-length','--restrict_read_length',
+        argument_group.add_argument('--restrict-read-length',
                                     metavar='length',
                                     help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
                                     type=int)
-        argument_group.add_argument('--filter-minimum-protein','--filter_minimum_protein',
+        argument_group.add_argument('--filter-minimum-protein',
                                     metavar='length',
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
@@ -307,39 +307,39 @@ if __name__ == '__main__':
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
 
-    less_common_pipe_arguments.add_argument('--working-directory', '--working_directory', metavar='directory', help='use intermediate working directory at a specified location, and do not delete it upon completion [default: not set, use a temporary directory]')
-    less_common_pipe_arguments.add_argument('--working-directory-dev-shm', '--working_directory_dev_shm', default=False, action='store_true', help='use an intermediate results temporary working directory in /dev/shm rather than the default [default: the usual temporary working directory, currently {}]'.format(
+    less_common_pipe_arguments.add_argument('--working-directory', metavar='directory', help='use intermediate working directory at a specified location, and do not delete it upon completion [default: not set, use a temporary directory]')
+    less_common_pipe_arguments.add_argument('--working-directory-dev-shm', default=False, action='store_true', help='use an intermediate results temporary working directory in /dev/shm rather than the default [default: the usual temporary working directory, currently {}]'.format(
         tempfile.gettempdir()
     ))
     less_common_pipe_arguments.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
-    less_common_pipe_arguments.add_argument('--filter-minimum-nucleotide','--filter_minimum_nucleotide',
+    less_common_pipe_arguments.add_argument('--filter-minimum-nucleotide',
                                 metavar='length',
                                 help='Ignore reads aligning in less than this many positions to each nucleotide HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE,
                                 type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
-    less_common_pipe_arguments.add_argument('--include-inserts', '--include_inserts', action='store_true',
+    less_common_pipe_arguments.add_argument('--include-inserts', action='store_true',
                                 help='print the entirety of the sequences, not just the aligned nucleotides [default: not set]', default=False)
-    less_common_pipe_arguments.add_argument('--known-otu-tables', '--known_otu_tables', nargs='+',
+    less_common_pipe_arguments.add_argument('--known-otu-tables', nargs='+',
                                 help='OTU tables previously generated with trusted taxonomies for each sequence [default: unused]')
-    less_common_pipe_arguments.add_argument('--no-assign-taxonomy', '--no_assign_taxonomy', action='store_true',
+    less_common_pipe_arguments.add_argument('--no-assign-taxonomy', action='store_true',
                                 help='Do not assign any taxonomy except for those already known [default: not set]',
                                 default=False)
-    less_common_pipe_arguments.add_argument('--known-sequence-taxonomy', '--known_sequence_taxonomy', metavar='FILE',
+    less_common_pipe_arguments.add_argument('--known-sequence-taxonomy', metavar='FILE',
                                 help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
-    less_common_pipe_arguments.add_argument('--no-diamond-prefilter', '--no_diamond_prefilter', action='store_true',
+    less_common_pipe_arguments.add_argument('--no-diamond-prefilter', action='store_true',
                                 help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages. Should be used with --hmmsearch-package-assignment. NOTE: ignored for nucleotide packages [default: protein packages: use the prefilter, nucleotide packages: do not use the prefilter]',
                                 default=False)
-    less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters', '--diamond_prefilter_performance_parameters',
+    less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters',
                                 help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
                                 default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
     less_common_pipe_arguments.add_argument('--hmmsearch-package-assignment', '--hmmsearch_package_assignment', action='store_true',
                                 help='Assign each sequence to a SingleM package using HMMSEARCH, and a sequence may then be assigned to multiple packages. [default: not set]',
                                 default=False)
-    less_common_pipe_arguments.add_argument('--diamond-prefilter-db', '--diamond_prefilter_db',
+    less_common_pipe_arguments.add_argument('--diamond-prefilter-db',
                                 help='Use this DB when running DIAMOND prefilter [default: not set, generate one from the SingleM packages]')
-    less_common_pipe_arguments.add_argument('--assignment-threads', '--assignment_threads', type=int,
+    less_common_pipe_arguments.add_argument('--assignment-threads',type=int,
                                 help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
                                 default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
-    less_common_pipe_arguments.add_argument('--sleep-after-mkfifo', '--sleep_after_mkfifo', type=int,
+    less_common_pipe_arguments.add_argument('--sleep-after-mkfifo', type=int,
                                 help='Sleep for this many seconds after running os.mkfifo [default: None]')
 
     seqs_description = 'Find the best window for a SingleM package.'
@@ -348,8 +348,8 @@ if __name__ == '__main__':
     seqs_arguments = seqs_parser.add_argument_group('seqs-specific arguments')
 
     seqs_arguments.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
-    seqs_arguments.add_argument('--alignment-type', '--alignment_type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
-    seqs_arguments.add_argument('--window-size', '--window_size', metavar='INT',
+    seqs_arguments.add_argument('--alignment-type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
+    seqs_arguments.add_argument('--window-size', metavar='INT',
         help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
 
@@ -358,18 +358,18 @@ if __name__ == '__main__':
 
     required_makedb_arguments = makedb_parser.add_argument_group('required arguments')
 
-    required_makedb_arguments.add_argument('--otu-tables', '--otu_tables', '--otu-table', '--otu_table', nargs='+', help="Make a db from these OTU tables")
-    required_makedb_arguments.add_argument('--otu-tables-list', '--otu_tables_list', help="Make a db from the OTU table files newline separated in this file")
-    required_makedb_arguments.add_argument('--archive-otu-tables', '--archive_otu_tables', '--archive-otu-table', '--archive_otu_table', nargs='+', help="Make a db from these archive tables")
-    required_makedb_arguments.add_argument('--archive-otu-table-list', '--archive_otu_table_list',
+    required_makedb_arguments.add_argument('--otu-tables', '--otu-table', nargs='+', help="Make a db from these OTU tables")
+    required_makedb_arguments.add_argument('--otu-tables-list', help="Make a db from the OTU table files newline separated in this file")
+    required_makedb_arguments.add_argument('--archive-otu-tables', '--archive-otu-table', nargs='+', help="Make a db from these archive tables")
+    required_makedb_arguments.add_argument('--archive-otu-table-list', 
         help="Make a db from the archive tables newline separated in this file")
-    required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', '--gzip_archive_otu_table_list',
+    required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', 
         help="Make a db from the gzip'd archive tables newline separated in this file")
-    required_makedb_arguments.add_argument('--db', '--db-path', '--db_path', help="Name of database to create e.g. tundra.sdb", required=True)
+    required_makedb_arguments.add_argument('--db', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
     current_default = ['annoy','scann']
-    makedb_other_args.add_argument('--sequence-database-methods', '--sequence_database_methods',
+    makedb_other_args.add_argument('--sequence-database-methods',
         nargs='+',
         choices = ['annoy','scann','nmslib','naive','none'],
         default = current_default,
@@ -385,28 +385,28 @@ if __name__ == '__main__':
     query_description = 'Find closely related sequences in a database.'
     query_parser = new_subparser(subparsers, 'query', query_description)
     query_db_args = query_parser.add_argument_group('DB/Subject arguments (one is required)')
-    query_db_args.add_argument('--db', '--db-path', '--db_path', help="Output from 'makedb' mode")
-    query_db_args.add_argument('--subject-otu-tables', '--subject_otu_tables', nargs='+', metavar='file',
+    query_db_args.add_argument('--db', help="Output from 'makedb' mode")
+    query_db_args.add_argument('--subject-otu-tables', nargs='+', metavar='file',
                                help='Pairwise align queries to this otu table (works with inserts, but is slow)')
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
-    query_otu_args.add_argument('--query-otu-table', '--query_otu_table', metavar='file', help="Query the database with all sequences in this OTU table")
+    query_otu_args.add_argument('--query-otu-table', metavar='file', help="Query the database with all sequences in this OTU table")
     current_default = 20
     query_otu_args.add_argument('--max-nearest-neighbours', '--max_nearest_neighbours', help="How many nearest neighbours to report. [default: {}]".format(current_default), type=int, default=current_default)
-    query_otu_args.add_argument('--max-divergence', '--max_divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
+    query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
     current_default = 'annoy'
-    query_otu_args.add_argument('--search-method', '--search_method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
+    query_otu_args.add_argument('--search-method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
     current_default = 'nucleotide'
-    query_otu_args.add_argument('--sequence-type', '--sequence_type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
+    query_otu_args.add_argument('--sequence-type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
         choices=['nucleotide','protein'])
     current_default = 100
-    query_otu_args.add_argument('--max-search-nearest-neighbours', '--max_search_nearest_neighbours', help="How many nearest neighbours to search for with approximate nearest neighbours. Of these hits, only --max-nearest-neighbours will actually be reported. Ignored for --search-method naive. [default: {}]".format(current_default), type=int, default=current_default)
+    query_otu_args.add_argument('--max-search-nearest-neighbours', help="How many nearest neighbours to search for with approximate nearest neighbours. Of these hits, only --max-nearest-neighbours will actually be reported. Ignored for --search-method naive. [default: {}]".format(current_default), type=int, default=current_default)
     # query_otu_args.add_argument('--stream-output','--stream_output', help='Stream output. Results may not be sorted by divergence [default: do not]', action='store_true')
     query_otu_args.add_argument('--threads', help='Use this many threads where possible [default 1]', default=1)
-    query_otu_args.add_argument('--limit-per-sequence','--limit_per_sequence', type=int, help='Print only this many arbitrarily chosen entries for each sequence that matches [default: No limit]')
-    query_otu_args.add_argument('--preload-db', '--preload_db', action='store_true', help='Cache all DB data in python-land instead of querying for it by SQL each time.')
+    query_otu_args.add_argument('--limit-per-sequence',type=int, help='Print only this many arbitrarily chosen entries for each sequence that matches [default: No limit]')
+    query_otu_args.add_argument('--preload-db', action='store_true', help='Cache all DB data in python-land instead of querying for it by SQL each time.')
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
-    query_other_args.add_argument('--sample-names', '--sample_names', metavar='name', help='Print all OTUs from these samples', nargs='+')
-    query_other_args.add_argument('--sample-list', '--sample_list', metavar='path', help='Print all OTUs from the samples listed in the file (newline-separated)')
+    query_other_args.add_argument('--sample-names', metavar='name', help='Print all OTUs from these samples', nargs='+')
+    query_other_args.add_argument('--sample-list', metavar='path', help='Print all OTUs from the samples listed in the file (newline-separated)')
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
     query_other_args.add_argument('--dump', action='store_true', help='Print all OTUs in the DB')
     current_default = None
@@ -414,43 +414,43 @@ if __name__ == '__main__':
     summarise_description = 'Summarise and transform OTU tables.'
     summarise_parser = new_subparser(subparsers, 'summarise', summarise_description)
     summarise_io_args = summarise_parser.add_argument_group('input')
-    summarise_io_args.add_argument('--input-otu-tables', '--input_otu_tables', '--input-otu-table', '--input_otu_table', nargs='+', help="Summarise these tables")
-    summarise_io_args.add_argument('--input-otu-tables-list', '--input_otu_tables_list', help="Summarise the OTU table files newline separated in this file")
-    summarise_io_args.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', '--input-archive-otu-table', '--input_archive_otu_table', nargs='+', help="Summarise these tables")
-    summarise_io_args.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
+    summarise_io_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-otu-tables-list', help="Summarise the OTU table files newline separated in this file")
+    summarise_io_args.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Summarise these tables")
+    summarise_io_args.add_argument('--input-gzip-archive-otu-table-list',
         help="Summarise the list of newline-separated gzip-compressed archive OTU tables specified in this file")
-    summarise_io_args.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
+    summarise_io_args.add_argument('--input-archive-otu-table-list',
         help="Summarise the archive tables newline separated in this file")
-    summarise_io_args.add_argument('--stream-inputs', '--stream_inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
+    summarise_io_args.add_argument('--stream-inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
-    summarise_transformation_args.add_argument('--cluster-id', '--cluster_id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    summarise_transformation_args.add_argument('--cluster-id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     summarise_transformation_args.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
-    summarise_transformation_args.add_argument('--rarefied-output-otu-table', '--rarefied_output_otu_table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
-    summarise_transformation_args.add_argument('--number-to-choose', '--number_to_choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
-    summarise_transformation_args.add_argument('--collapse-coupled', '--collapse_coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
-    summarise_transformation_args.add_argument('--collapse-paired-with-unpaired-archive-otu-table', '--collapse_paired_with_unpaired_archive_otu_table', help="For archive OTU tables that have both paired and unpaired components, merge these into a single output archive OTU table")
+    summarise_transformation_args.add_argument('--rarefied-output-otu-table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
+    summarise_transformation_args.add_argument('--number-to-choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
+    summarise_transformation_args.add_argument('--collapse-coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
+    summarise_transformation_args.add_argument('--collapse-paired-with-unpaired-archive-otu-table', help="For archive OTU tables that have both paired and unpaired components, merge these into a single output archive OTU table")
     summarise_output_args = summarise_parser.add_argument_group('output')
-    summarise_output_args.add_argument('--output-otu-table', '--output_otu_table', help="Output combined OTU table to this file")
-    summarise_output_args.add_argument('--output-translated-otu-table', '--output_translated_otu_table', help="Output combined OTU table to this file, with seqeunces translated into amino acids")
-    summarise_output_args.add_argument('--output-extras', '--output_extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
+    summarise_output_args.add_argument('--output-otu-table', help="Output combined OTU table to this file")
+    summarise_output_args.add_argument('--output-translated-otu-table', help="Output combined OTU table to this file, with seqeunces translated into amino acids")
+    summarise_output_args.add_argument('--output-extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
     summarise_output_args.add_argument('--krona', help="Name of krona file to generate")
-    summarise_output_args.add_argument('--wide-format-otu-table', '--wide_format_otu_table', help="Name of output species by site CSV file")
-    summarise_output_args.add_argument('--strain-overview-table', '--strain_overview_table', help="Name of output strains table to generate")
-    summarise_output_args.add_argument('--unifrac-by-otu', '--unifrac_by_otu', help="Output UniFrac format file where entries are OTU sequences")
-    summarise_output_args.add_argument('--unifrac-by-taxonomy', '--unifrac_by_taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
+    summarise_output_args.add_argument('--wide-format-otu-table', help="Name of output species by site CSV file")
+    summarise_output_args.add_argument('--strain-overview-table', help="Name of output strains table to generate")
+    summarise_output_args.add_argument('--unifrac-by-otu', help="Output UniFrac format file where entries are OTU sequences")
+    summarise_output_args.add_argument('--unifrac-by-taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
     summarise_output_args.add_argument('--biom-prefix', '--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
-    summarise_output_args.add_argument('--clustered-output-otu-table', '--clustered_output_otu_table', help="Output an OTU table with extra information about the clusters")
-    summarise_output_args.add_argument('--exclude-off-target-hits', '--exclude_off_target_hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
-    summarise_output_args.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Packages used in the creation of the OTU tables")
-    summarise_output_args.add_argument('--metapackage', '--singlem-metapackage', '--singlem_metapackage', help='Metapackage used in the creation of the OTU tables')
-    summarise_output_args.add_argument('--unaligned-sequences-dump-file', '--unaligned_sequences_dump_file', 
+    summarise_output_args.add_argument('--clustered-output-otu-table', help="Output an OTU table with extra information about the clusters")
+    summarise_output_args.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
+    summarise_output_args.add_argument('--singlem-packages', nargs='+', help="Packages used in the creation of the OTU tables")
+    summarise_output_args.add_argument('--metapackage', '--singlem-metapackage', help='Metapackage used in the creation of the OTU tables')
+    summarise_output_args.add_argument('--unaligned-sequences-dump-file',
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads, but ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = new_subparser(subparsers, 'renew', renew_description)
     renew_input_args = renew_parser.add_argument_group('input')
-    renew_input_args.add_argument('--input-archive-otu-table', '--input_archive_otu_table', help="Renew this table", required=True)
+    renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
     renew_common = renew_input_args.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
     renew_less_common = renew_input_args.add_argument_group("Less common arguments shared with 'pipe'")
@@ -461,15 +461,15 @@ if __name__ == '__main__':
 
     create_specific_arguments = create_parser.add_argument_group('create-specific arguments')
 
-    create_specific_arguments.add_argument('--input-graftm-package', '--input_graftm_package', metavar="PATH", help="input package", required=True)
-    create_specific_arguments.add_argument('--input-taxonomy', '--input_taxonomy', metavar="PATH", help="input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
-    create_specific_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
-    create_specific_arguments.add_argument('--hmm-position', '--hmm_position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
-    create_specific_arguments.add_argument('--window-size', '--window_size', metavar="INTEGER",
+    create_specific_arguments.add_argument('--input-graftm-package', metavar="PATH", help="input package", required=True)
+    create_specific_arguments.add_argument('--input-taxonomy', metavar="PATH", help="input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
+    create_specific_arguments.add_argument('--output-singlem-package', metavar="PATH", help="output package", required=True)
+    create_specific_arguments.add_argument('--hmm-position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
+    create_specific_arguments.add_argument('--window-size', metavar="INTEGER",
         help="length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
-    create_specific_arguments.add_argument('--target_domains', '--target-domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
-    create_specific_arguments.add_argument('--gene_description', '--gene-description', metavar="STRING", help="input long description of this marker package", required=True, type=str)
+    create_specific_arguments.add_argument('--target_domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
+    create_specific_arguments.add_argument('--gene-description', metavar="STRING", help="input long description of this marker package", required=True, type=str)
     create_specific_arguments.add_argument('--force', action='store_true', help='overwrite output path if it already exists [default: false]')
 
     get_tree_description = 'Extract path to Newick tree file in a SingleM package.'
@@ -477,103 +477,102 @@ if __name__ == '__main__':
 
     required_get_tree_arguments = get_tree_parser.add_argument_group('required arguments')
 
-    required_get_tree_arguments.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help='SingleM packages to use [default: use the default set]')
+    required_get_tree_arguments.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the default set]')
 
     regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = new_subparser(subparsers, 'regenerate', regenerate_description)
-    regenerate_parser.add_argument('--min-aligned-percent', '--min_aligned_percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
-    regenerate_parser.add_argument('--window-position', '--window_position', help="change window position of output package [default: do not change]", type=int, default=False)
-    regenerate_parser.add_argument('--sequence-prefix', '--sequence_prefix', help="add a prefix to sequence names", type=str, default="")
+    regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
+    regenerate_parser.add_argument('--window-position', help="change window position of output package [default: do not change]", type=int, default=False)
+    regenerate_parser.add_argument('--sequence-prefix', help="add a prefix to sequence names", type=str, default="")
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
-    required_regenerate_arguments.add_argument('--input-singlem-package', '--input_singlem_package', metavar="PATH", help="input package", required=True)
-    required_regenerate_arguments.add_argument('--output-singlem-package', '--output_singlem_package', metavar="PATH", help="output package", required=True)
-    required_regenerate_arguments.add_argument('--input-sequences', '--input_sequences', required=True, help='all sequences for new package')
-    required_regenerate_arguments.add_argument('--input-taxonomy', '--input_taxonomy', required=True, help='input sequence taxonomy')
-    required_regenerate_arguments.add_argument('--euk-sequences', '--euk_sequences', required=True, help='candidate euk sequences')
-    required_regenerate_arguments.add_argument('--euk-taxonomy', '--euk_taxonomy', required=True, help='euk sequence taxonomy')
+    required_regenerate_arguments.add_argument('--input-singlem-package', metavar="PATH", help="input package", required=True)
+    required_regenerate_arguments.add_argument('--output-singlem-package', metavar="PATH", help="output package", required=True)
+    required_regenerate_arguments.add_argument('--input-sequences', required=True, help='all sequences for new package')
+    required_regenerate_arguments.add_argument('--input-taxonomy', required=True, help='input sequence taxonomy')
+    required_regenerate_arguments.add_argument('--euk-sequences', required=True, help='candidate euk sequences')
+    required_regenerate_arguments.add_argument('--euk-taxonomy', required=True, help='euk sequence taxonomy')
 
     metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
-    metapackage_parser.add_argument('--singlem-packages', '--singlem_packages', nargs='+', help="Input packages")
+    metapackage_parser.add_argument('--singlem-packages', nargs='+', help="Input packages")
     metapackage_parser_sdb = metapackage_parser.add_mutually_exclusive_group(required = True)
-    metapackage_parser_sdb.add_argument('--nucleotide-sdb', '--nucleotide_sdb', help="Nucleotide SingleM database for initial assignment pass")
-    metapackage_parser_sdb.add_argument('--no-nucleotide-sdb', '--no_nucleotide_sdb', action='store_true', help="Skip nucleotide SingleM database")
-    metapackage_parser.add_argument('--metapackage', '--output-metapackage', '--output_metapackage', help='Path to write generated metapackage to', required=True)
+    metapackage_parser_sdb.add_argument('--nucleotide-sdb', help="Nucleotide SingleM database for initial assignment pass")
+    metapackage_parser_sdb.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
+    metapackage_parser.add_argument('--metapackage', help='Path to write generated metapackage to', required=True)
     metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
     metapackage_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
     current_default = 0.6
-    metapackage_parser.add_argument('--prefilter-clustering-threshold', '--prefilter_clustering_threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %i]' % current_default, default=current_default)
-    metapackage_parser.add_argument('--prefilter-diamond-db', '--prefilter_diamond_db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
+    metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %i]' % current_default, default=current_default)
+    metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
 
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = new_subparser(subparsers, 'appraise', appraise_description)
     appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
-    appraise_otu_table_options.add_argument('--metagenome-otu-tables', '--metagenome_otu_tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
-    appraise_otu_table_options.add_argument('--genome-otu-tables', '--genome_otu_tables', nargs='+', help="output of 'pipe' run on genomes")
-    appraise_otu_table_options.add_argument('--assembly-otu-tables', '--assembly_otu_tables', nargs='+', help="output of 'pipe' run on assembled sequence")
+    appraise_otu_table_options.add_argument('--metagenome-otu-tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    appraise_otu_table_options.add_argument('--genome-otu-tables', nargs='+', help="output of 'pipe' run on genomes")
+    appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
-    appraise_inexact_options.add_argument('--sequence-identity', '--sequence_identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
     appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also specified)', default=None)
-    appraise_plot_group.add_argument('--plot-marker', '--plot_marker', help='Marker gene to plot OTUs from', default=None)
-    appraise_plot_group.add_argument('--plot-basename', '--plot_basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
+    appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
+    appraise_plot_group.add_argument('--plot-basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
     appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
-    appraise_otu_table_group.add_argument('--output-binned-otu-table', '--output_binned_otu_table', help="output OTU table of binned populations", default=None)
-    appraise_otu_table_group.add_argument('--output-unbinned-otu-table', '--output_unbinned_otu_table', help="output OTU table of assembled but not binned populations", default=None)
-    appraise_otu_table_group.add_argument('--output-assembled-otu-table', '--output_assembled_otu_table', help="output OTU table of all assembled populations", default=None)
-    appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', '--output_unaccounted_for_otu_table', help="Output OTU table of populations not accounted for", default=None)
+    appraise_otu_table_group.add_argument('--output-binned-otu-table', help="output OTU table of binned populations", default=None)
+    appraise_otu_table_group.add_argument('--output-unbinned-otu-table', help="output OTU table of assembled but not binned populations", default=None)
+    appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
+    appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
 
     chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
     chance_parser = new_subparser(subparsers, 'chance', chance_description)
-    chance_parser.add_argument('--otu-tables', '--otu_tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
+    chance_parser.add_argument('--otu-tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
     chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = new_subparser(subparsers, 'chainsaw', chainsaw_description)
-    chainsaw_parser.add_argument('--keep-tree', '--keep_tree', action='store_true', help="Stop tree info from being removed", default=False)
+    chainsaw_parser.add_argument('--keep-tree', action='store_true', help="Stop tree info from being removed", default=False)
     required_chainsaw_arguments = chainsaw_parser.add_argument_group("required arguments")
-    required_chainsaw_arguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Remove tree info and trim unaligned sequences from this package")
-    required_chainsaw_arguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
-    required_chainsaw_arguments.add_argument('--sequence-prefix', '--sequence_prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
+    required_chainsaw_arguments.add_argument('--input-singlem-package', required=True, help="Remove tree info and trim unaligned sequences from this package")
+    required_chainsaw_arguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
+    required_chainsaw_arguments.add_argument('--sequence-prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
 
     condense_description = 'Combine OTU tables across different markers into a single OTU table.'
     condense_parser = new_subparser(subparsers, 'condense', condense_description)
     current_default = 10
-    condense_parser.add_argument('--trim-percent', '--trim_percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+    condense_parser.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
 
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
 
-    required_condense_arguments.add_argument('--input-otu-tables', '--input_otu_tables', '--input-otu-table', '--input_otu_table', nargs='+', help="Condense these table(s).")
-    required_condense_arguments.add_argument('--input-otu-tables-list', '--input_otu_tables_list', help="Condense the OTU table files newline separated in this file")
-    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input_archive_otu_tables', '--input-archive-otu-table', '--input_archive_otu_table', nargs='+', help="Condense from these archive tables")
-    required_condense_arguments.add_argument('--input-archive-otu-table-list', '--input_archive_otu_table_list',
+    required_condense_arguments.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Condense these table(s).")
+    required_condense_arguments.add_argument('--input-otu-tables-list', help="Condense the OTU table files newline separated in this file")
+    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
+    required_condense_arguments.add_argument('--input-archive-otu-table-list',
         help="Condense from the archive tables newline separated in this file")
-    required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list', '--input_gzip_archive_otu_table_list',
+    required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list',
         help="Condense from the gzip'd archive tables newline separated in this file")
 
-    required_condense_arguments.add_argument('--singlem-metapackage', '--singlem_metapackage', '--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-    required_condense_arguments.add_argument('--output-otu-table', '--output_otu_table', metavar='filename', help="output OTU table")
+    required_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
+    required_condense_arguments.add_argument('--output-otu-table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
-    required_condense_arguments.add_argument('--min-taxon-coverage','--min_taxon_coverage', metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05, type=float)
-    #required_condense_arguments.add_argument('--apply-expectation-maximisation', '--apply_expectation_maximisation', action='store_true', help='Apply expectation maximisation to the OTU table first.', default=False)
-    required_condense_arguments.add_argument('--output-after-em-otu-table', '--output_after_em_otu_table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
+    required_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05, type=float)
+    required_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
 
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = new_subparser(subparsers, 'trim_package_hmms', trim_package_hmms_description)
-    trim_package_hmms_parser.add_argument('--keep-tree', '--keep_tree', action='store_true', help="Stop tree info from being removed", default=False)
+    trim_package_hmms_parser.add_argument('--keep-tree', action='store_true', help="Stop tree info from being removed", default=False)
     required_trim_package_hmmsarguments = trim_package_hmms_parser.add_argument_group("required arguments")
-    required_trim_package_hmmsarguments.add_argument('--input-singlem-package', '--input_singlem_package', required=True, help="Input package to trim HMMs from")
-    required_trim_package_hmmsarguments.add_argument('--output-singlem-package', '--output_singlem_package', required=True, help="Package to be created")
+    required_trim_package_hmmsarguments.add_argument('--input-singlem-package', required=True, help="Input package to trim HMMs from")
+    required_trim_package_hmmsarguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
 
     taxonomy_assignment_db_description = 'Create a taxonomy assignment database (expert mode)'
     taxonomy_assignment_db_parser = new_subparser(subparsers, 'taxonomy_db', taxonomy_assignment_db_description)
-    taxonomy_assignment_db_parser.add_argument('--input-db', '--input_db', required=True, help="input (normal) SingleM database")
-    taxonomy_assignment_db_parser.add_argument('--output-db', '--output_db', required=True, help="output (taxonomy assignment) SingleM database")
+    taxonomy_assignment_db_parser.add_argument('--input-db', required=True, help="input (normal) SingleM database")
+    taxonomy_assignment_db_parser.add_argument('--output-db', required=True, help="output (taxonomy assignment) SingleM database")
 
 
     def validate_pipe_args(args, subparser='pipe'):
@@ -1100,7 +1099,7 @@ if __name__ == '__main__':
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
             input_streaming_otu_table = otus,
-            metapackage_path = args.singlem_metapackage,
+            metapackage_path = args.metapackage,
             trim_percent = args.trim_percent,
             output_otu_table = args.output_otu_table,
             krona = args.krona,
