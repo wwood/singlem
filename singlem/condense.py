@@ -550,6 +550,7 @@ class Condenser:
 
         species_whitelist = set([sp for (sp, genes) in species_genes.items() if len(genes) >= min_genes_for_whitelist])
         logging.info("Found {} species uniquely hitting >= {} marker genes".format(len(species_whitelist), min_genes_for_whitelist))
+        logging.debug("Species whitelist: {}".format(species_whitelist))
 
         num_steps = 0
         # The fraction of each undecided OTU is the ratio of that class's
