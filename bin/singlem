@@ -443,7 +443,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--clustered-output-otu-table', help="Output an OTU table with extra information about the clusters")
     summarise_output_args.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
     summarise_output_args.add_argument('--singlem-packages', nargs='+', help="Packages used in the creation of the OTU tables")
-    summarise_output_args.add_argument('--metapackage', '--singlem-metapackage', help='Metapackage used in the creation of the OTU tables')
+    summarise_output_args.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     summarise_output_args.add_argument('--unaligned-sequences-dump-file',
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads, but ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
 
@@ -593,7 +593,7 @@ if __name__ == '__main__':
             raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
         if args.sra_files and args.no_diamond_prefilter:
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
-        if args.singlem_metapackage and args.singlem_packages:
+        if args.metapackage and args.singlem_packages:
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
         if not args.assignment_singlem_db and args.assignment_method in (
             pipe.ANNOY_ASSIGNMENT_METHOD,
@@ -745,7 +745,7 @@ if __name__ == '__main__':
             working_directory = args.working_directory,
             working_directory_dev_shm = args.working_directory_dev_shm,
             force = args.force,
-            metapackage_path = args.singlem_metapackage,
+            metapackage_path = args.metapackage,
             singlem_packages = args.singlem_packages,
             assign_taxonomy = not args.no_assign_taxonomy,
             known_sequence_taxonomy = args.known_sequence_taxonomy,
@@ -767,7 +767,7 @@ if __name__ == '__main__':
             assignment_method = args.assignment_method,
             output_jplace = args.output_jplace,
             output_extras = args.output_extras,
-            metapackage_path = args.singlem_metapackage,
+            metapackage_path = args.metapackage,
             singlem_packages = args.singlem_packages,
             diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
             evalue = args.evalue,
