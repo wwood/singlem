@@ -150,7 +150,10 @@ class Condenser:
         logging.info("Taxonomic level coverage:")
         ranks = ['kingdom','phylum','class','order','family','genus','species']
         for level, rank in enumerate(ranks):
-            logging.info("{}:\t{:.2f}%\t{} taxons".format(rank, level_coverage[level]/total_coverage*100, level_count[level]))
+            logging.info("{}:\t{:.2f}%\t{} taxons".format(
+                rank, 
+                level_coverage[level]/total_coverage*100 if total_coverage > 0 else 0,
+                level_count[level]))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
         '''Input OTU tables assigned taxonomy with diamond have sequence IDs as
