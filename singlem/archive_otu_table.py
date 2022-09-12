@@ -19,6 +19,7 @@ class ArchiveOtuTable:
     FIELDS = FIELDS_OF_EACH_VERSION[version-1]
 
     READ_NAME_FIELD_INDEX=6
+    SAMPLE_ID_FIELD_INDEX = FIELDS_VERSION4.index('sample')
     UNALIGNED_SEQUENCE_FIELD_INDEX = FIELDS_VERSION4.index('read_unaligned_sequences')
     EQUAL_BEST_HIT_TAXONOMIES_INDEX=FIELDS_VERSION4.index('equal_best_hit_taxonomies')
     TAXONOMY_ASSIGNMENT_METHOD_INDEX=FIELDS_VERSION4.index('taxonomy_assignment_method')
