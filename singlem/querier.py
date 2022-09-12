@@ -66,19 +66,23 @@ class Querier:
             raise Exception("Programming error")
 
     def preload_nucleotide_db(self, sdb, marker_id):
-        marker_name = sdb.query_builder().table('markers').where('id',marker_id).first()['marker']
-        logging.info("Caching nucleotide data for marker {}..".format(marker_name))
-        
-        d1 = pd.DataFrame(
-            sdb.query_builder(). \
-                table('otus'). \
-                join('nucleotides','sequence_id','=','nucleotides.id'). \
-                select_raw('nucleotides.marker_wise_id as nucleotides_marker_wise_id, nucleotides.sequence as nucleotide_sequence, sample_name, num_hits, coverage, taxonomy'). \
-                where('nucleotides.marker_id', marker_id). \
-                order_by('nucleotides_marker_wise_id').get(), 
-            columns = ('nucleotides_marker_wise_id','nucleotide_sequence', \
-                'sample_name', 'num_hits', 'coverage', 'taxonomy')
-        )
+        with sdb.sqlalchemy_connection as conn:
+            marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
+            logging.info("Caching nucleotide data for marker {}..".format(marker_name))
+
+            query = select([
+                Otu.marker_wise_sequence_id,
+                Otu.sequence,
+                Otu.sample_name,
+                Otu.num_hits,
+                Otu.coverage,
+                Taxonomy.taxonomy]) \
+                    .where(Otu.taxonomy_id == Taxonomy.id) \
+                    .where(Otu.marker_id == marker_id)
+            result = conn.execute(query)
+            d1 = pd.DataFrame(result.fetchall(), 
+                columns = ('nucleotides_marker_wise_id','nucleotide_sequence', \
+                    'sample_name', 'num_hits', 'coverage', 'taxonomy'))
         return d1
 
     def preload_protein_db(self, sdb, marker_id):
