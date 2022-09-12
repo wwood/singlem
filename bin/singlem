@@ -395,7 +395,7 @@ if __name__ == '__main__':
     query_otu_args.add_argument('--query-archive-otu-table-list', help="Query the database with all sequences in archive tables newline separated in this file")
     query_otu_args.add_argument('--query-gzip-archive-otu-table-list', help="Query the database with all sequences in gzip'd archive tables newline separated in this file")
     current_default = 20
-    query_otu_args.add_argument('--max-nearest-neighbours', '--max_nearest_neighbours', help="How many nearest neighbours to report. [default: {}]".format(current_default), type=int, default=current_default)
+    query_otu_args.add_argument('--max-nearest-neighbours', '--max_nearest_neighbours', help="How many nearest neighbours to report. Each neighbour is a distinct sequence from the DB/subject. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
     current_default = 'naive'
     query_otu_args.add_argument('--search-method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
@@ -406,7 +406,7 @@ if __name__ == '__main__':
     query_otu_args.add_argument('--max-search-nearest-neighbours', help="How many nearest neighbours to search for with approximate nearest neighbours. Of these hits, only --max-nearest-neighbours will actually be reported. Ignored for --search-method naive. [default: {}]".format(current_default), type=int, default=current_default)
     # query_otu_args.add_argument('--stream-output','--stream_output', help='Stream output. Results may not be sorted by divergence [default: do not]', action='store_true')
     query_otu_args.add_argument('--threads', help='Use this many threads where possible [default 1]', default=1)
-    query_otu_args.add_argument('--limit-per-sequence',type=int, help='Print only this many arbitrarily chosen entries for each sequence that matches [default: No limit]')
+    query_otu_args.add_argument('--limit-per-sequence',type=int, help='How many identities (samples/genomes from DB/subject with identical sequences) to report for each distinct, matched sequence (arbitrarily chosen) [default: No limit]')
     query_otu_args.add_argument('--preload-db', action='store_true', help='Cache all DB data in python-land instead of querying for it by SQL each time.')
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
     query_other_args.add_argument('--sample-names', metavar='name', help='Print all OTUs from these samples', nargs='+')
