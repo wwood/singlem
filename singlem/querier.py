@@ -188,8 +188,6 @@ class Querier:
         return MarkerSortedQueryInput(sorted_io)
 
     def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence):
-        if sequence_type == SequenceDatabase.PROTEIN_TYPE: # Nucleotides now work with sqlalchemy so not needed.
-            sdb.query_builder(check=True)
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
@@ -447,18 +445,24 @@ class Querier:
                 yield QueryResult(query, otu, div)
 
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-            if self._query_result_from_db_builder_protein is None:
-                self._query_result_from_db_builder_protein = sdb.query_builder(). \
-                    table('otus'). \
-                    join('nucleotides','sequence_id','=','nucleotides.id'). \
-                    join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                    join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
-                    select_raw('nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy_id').to_sql() + \
-                    " where proteins.marker_wise_id = '?' and nucleotides.marker_id = '?'"
-                if limit_per_sequence is not None:
-                    self._query_result_from_db_builder_protein = self._query_result_from_db_builder_protein + ' order by random() limit {}'.format(limit_per_sequence)
-            results = sdb.query_builder().statement(
-                self._query_result_from_db_builder_protein, [int(hit_index), marker_id])
+            query2 = select([
+                Otu.sequence,
+                ProteinSequence.protein_sequence,
+                Otu.sample_name,
+                Otu.num_hits,
+                Otu.coverage,
+                Otu.taxonomy_id]) \
+                    .where(Otu.taxonomy_id == Taxonomy.id) \
+                    .where(Otu.marker_id == marker_id) \
+                    .where(NucleotideSequence.id == Otu.sequence_id) \
+                    .where(NucleotidesProteins.protein_id == ProteinSequence.id) \
+                    .where(ProteinSequence.marker_wise_id == int(hit_index)) \
+                    .where(Otu.marker_id == marker_id)
+            if limit_per_sequence is not None:
+                query2 = query2.limit(limit_per_sequence)
+
+            results = sdb.sqlalchemy_connection.execute(query2)
+
             if results is None and hit_index <= 16:
                 # For very small indexes, SCANN can have dummy sequences that
                 # are not in the SQL DB. Ignore these.
@@ -468,7 +472,7 @@ class Querier:
                     otu = OtuTableEntry()
                     otu.marker = marker
                     otu.sample_name = entry['sample_name']
-                    otu.sequence = entry['nucleotide_sequence']
+                    otu.sequence = entry['sequence']
                     otu.count = entry['num_hits']
                     otu.coverage = entry['coverage']
                     otu.taxonomy = sdb.get_taxonomy_via_cache(entry['taxonomy_id'])
