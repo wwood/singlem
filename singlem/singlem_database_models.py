@@ -91,7 +91,7 @@ class ProteinSequence(Base):
     '''
     __tablename__ = 'proteins'
     id = Column(Integer, primary_key=True)
-    marker_id = Column(Integer, ForeignKey('markers.id'), nullable=False, index=True)
+    marker_wise_id = Column(Integer, nullable=False, index=True)
     protein_sequence = Column(String, nullable=False, index=True)
 
     # nucleotide_proteins = relationship('NucleotidesProteins', back_populates='nucleotide_sequence.protein_id')
