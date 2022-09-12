@@ -226,7 +226,7 @@ class SequenceDatabase:
         return qb
 
     @staticmethod
-    def acquire(path):
+    def acquire(path, min_version=None):
         db = SequenceDatabase()
         db.base_directory = path
 
@@ -244,6 +244,10 @@ class SequenceDatabase:
         found_version = db._contents_hash[SequenceDatabase.VERSION_KEY]
         logging.debug("Loading version {} SingleM database: {}".format(
             found_version, path))
+        if min_version is not None:
+            if found_version < min_version:
+                raise Exception("SingleM database version {} is too old for this operations. Version {} or newer is required.".format(
+                    found_version, min_version))
         if found_version == 5:
             for key in SequenceDatabase._REQUIRED_KEYS[found_version]:
                 if key not in db._contents_hash:

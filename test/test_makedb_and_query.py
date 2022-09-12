@@ -150,6 +150,30 @@ class Tests(unittest.TestCase):
 
 
 
+    def test_query_with_otu_table_two_samples_preload_db(self):
+        with tempfile.NamedTemporaryFile(mode='w') as f:
+            query = [self.headers,
+                     # second sequence with an extra A at the end
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+                     ] # converted A to T in the middle
+            query = "\n".join(["\t".join(x) for x in query])
+            f.write(query)
+            f.flush()
+
+            cmd = "%s query --preload-db --query-otu-table %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
+
+            import IPython; IPython.embed()
+
+            expected = 'query_name\tquery_sequence\tdivergence\tnum_hits\tsample\tmarker\thit_sequence\ttaxonomy\nminimal\tCGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nmaximal\tCGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n'.split('\n')
+            observed = extern.run(cmd).split('\n')
+            self.assertEqual(expected, observed)
+
+
+
     # def test_query_with_otu_table_two_samples_same_sequence(self):
     #     with tempfile.NamedTemporaryFile(mode='w') as f:
     #         query = [self.headers,
