@@ -188,9 +188,13 @@ class Querier:
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         elif search_method == 'annoy':
+            if preload_db:
+                raise NotImplementedError("Preloading the database is not supported for the annoy search method")
             return self.query_by_sequence_similarity_with_annoy(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'nmslib':
+            if preload_db:
+                raise NotImplementedError("Preloading the database is not supported for the nmslib search method")
             return self.query_by_sequence_similarity_with_nmslib(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'scann':
