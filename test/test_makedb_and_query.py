@@ -83,7 +83,7 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
@@ -97,6 +97,26 @@ class Tests(unittest.TestCase):
                 observed = extern.run(cmd)
                 self.assertEqual(observed.split("\n")[0], "\t".join(self.protein_query_result_headers))
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
+
+
+    def test_protein_search_methanobacteria_preload_db(self):
+        with tempfile.TemporaryDirectory() as d:
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
+                                                            d,
+                                                            path_to_data)
+            extern.run(cmd)
+
+            for method in ['scann','naive']: # not implemented for 'annoy','nmslib',
+                cmd = "%s query --preload-db --sequence-type protein --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s --max-nearest-neighbours 2" % (
+                    path_to_script,
+                    path_to_data,
+                    d,
+                    method)
+                observed = extern.run(cmd)
+                self.assertEqual(observed.split("\n")[0], "\t".join(self.protein_query_result_headers))
+                self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
+
+
 
 
 

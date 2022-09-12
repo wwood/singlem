@@ -13,6 +13,7 @@ import itertools
 import math
 from bird_tool_utils import iterable_chunks
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from .sequence_database import SequenceDatabase
 from . import sequence_database
@@ -66,7 +67,7 @@ class Querier:
             raise Exception("Programming error")
 
     def preload_nucleotide_db(self, sdb, marker_id):
-        with sdb.sqlalchemy_connection as conn:
+        with Session(sdb.sqlalchemy_connection) as conn:
             marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
             logging.info("Caching nucleotide data for marker {}..".format(marker_name))
 
@@ -86,21 +87,26 @@ class Querier:
         return d1
 
     def preload_protein_db(self, sdb, marker_id):
-        marker_name = sdb.query_builder().table('markers').where('id',marker_id).first()['marker']
-        logging.info("Caching protein data for marker {}..".format(marker_name))
+        with Session(sdb.sqlalchemy_connection) as conn:
+            marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
+            logging.info("Caching protein data for marker {}..".format(marker_name))
 
-        d1 = pd.DataFrame(
-            sdb.query_builder(). \
-                table('otus'). \
-                join('nucleotides','sequence_id','=','nucleotides.id'). \
-                join('nucleotides_proteins','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                join('proteins','nucleotides_proteins.protein_id','=','proteins.id'). \
-                select_raw('proteins.marker_wise_id as proteins_marker_wise_id, nucleotides.sequence as nucleotide_sequence, proteins.protein_sequence as protein_sequence, sample_name, num_hits, coverage, taxonomy'). \
-                where('nucleotides.marker_id', marker_id). \
-                order_by('proteins_marker_wise_id').get(),
-            columns = ('proteins_marker_wise_id','nucleotide_sequence','protein_sequence', \
-                'sample_name', 'num_hits', 'coverage', 'taxonomy')
-        )
+            query = select([
+                ProteinSequence.marker_wise_id,
+                Otu.sequence,
+                ProteinSequence.protein_sequence,
+                Otu.sample_name,
+                Otu.num_hits,
+                Otu.coverage,
+                Taxonomy.taxonomy]) \
+                    .where(Otu.taxonomy_id == Taxonomy.id) \
+                    .where(Otu.marker_id == marker_id) \
+                    .where(NucleotideSequence.id == Otu.sequence_id) \
+                    .where(NucleotidesProteins.protein_id == ProteinSequence.id)
+            result = conn.execute(query)
+            d1 = pd.DataFrame(result.fetchall(), 
+                columns = ('proteins_marker_wise_id','nucleotide_sequence','protein_sequence', \
+                'sample_name', 'num_hits', 'coverage', 'taxonomy'))
         return d1
 
     def query_subject_otu_table(self, **kwargs):
