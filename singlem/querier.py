@@ -30,7 +30,7 @@ class Querier:
         self._query_result_from_db_builder_protein = None
 
     def query(self, **kwargs):
-        db = SequenceDatabase.acquire(kwargs.pop('db'))
+        db = SequenceDatabase.acquire(kwargs.pop('db'), min_version=5)
         max_divergence = kwargs.pop('max_divergence')
         output_style = kwargs.pop('output_style')
         query_otu_table = kwargs.pop('query_otu_table')
@@ -509,7 +509,7 @@ class Querier:
                         yield QueryResult(queries_list[qid], otu, 0)
 
     def print_samples(self, **kwargs):
-        db = SequenceDatabase.acquire(kwargs.pop('db'))
+        db = SequenceDatabase.acquire(kwargs.pop('db'), min_version=5)
         sample_names = kwargs.pop('sample_names')
         taxonomy = kwargs.pop('taxonomy')
         output_io = kwargs.pop('output_io')
