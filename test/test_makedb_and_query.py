@@ -139,7 +139,7 @@ class Tests(unittest.TestCase):
             f.write(query)
             f.flush()
 
-            cmd = "%s query --query_otu_table %s --db %s" % (
+            cmd = "%s query --query-otu-table %s --db %s" % (
                 path_to_script,
                 f.name,
                 os.path.join(path_to_data,'a.sdb'))
@@ -147,6 +147,7 @@ class Tests(unittest.TestCase):
             expected = 'query_name\tquery_sequence\tdivergence\tnum_hits\tsample\tmarker\thit_sequence\ttaxonomy\nminimal\tCGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nmaximal\tCGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n'.split('\n')
             observed = extern.run(cmd).split('\n')
             self.assertEqual(expected, observed)
+
 
 
     # def test_query_with_otu_table_two_samples_same_sequence(self):
