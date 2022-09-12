@@ -390,6 +390,10 @@ if __name__ == '__main__':
                                help='Pairwise align queries to this otu table (works with inserts, but is slow)')
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
     query_otu_args.add_argument('--query-otu-table', metavar='file', help="Query the database with all sequences in this OTU table")
+    query_otu_args.add_argument('--query-otu-tables-list', help="Query the database with all sequences in OTU table files newline separated in this file")
+    query_otu_args.add_argument('--query-archive-otu-tables', nargs='+', help="Query the database with all sequences in these archive tables")
+    query_otu_args.add_argument('--query-archive-otu-table-list', help="Query the database with all sequences in archive tables newline separated in this file")
+    query_otu_args.add_argument('--query-gzip-archive-otu-table-list', help="Query the database with all sequences in gzip'd archive tables newline separated in this file")
     current_default = 20
     query_otu_args.add_argument('--max-nearest-neighbours', '--max_nearest_neighbours', help="How many nearest neighbours to report. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
@@ -603,7 +607,7 @@ if __name__ == '__main__':
             raise Exception("If --assignment-method is set to %s, then --assignment-singlem-db must be specified" % args.assignment_method)
 
     def generate_streaming_otu_table_from_args(args, 
-        input_prefix=False, archive_only=False, min_archive_otu_table_version=None):
+        input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
 
         if archive_only:
             otu_tables = False
@@ -615,6 +619,12 @@ if __name__ == '__main__':
             archive_otu_tables = args.input_archive_otu_tables
             archive_otu_table_list = args.input_archive_otu_table_list
             gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list
+        elif query_prefix:
+            otu_tables = args.query_otu_table
+            otu_tables_list = args.query_otu_tables_list
+            archive_otu_tables = args.query_archive_otu_tables
+            archive_otu_table_list = args.query_archive_otu_table_list
+            gzip_archive_otu_table_list = args.query_gzip_archive_otu_table_list
         else:
             if not archive_only:
                 otu_tables = args.otu_tables
@@ -1146,6 +1156,7 @@ if __name__ == '__main__':
         # Import here to avoid the slow tensorflow import in other subcommands
         from singlem.querier import Querier
         from singlem.sequence_database import SequenceDatabase
+        from singlem.otu_table_collection import StreamingOtuTableCollection
         querier = Querier()
         if args.db and args.subject_otu_tables:
             raise Exception("Cannot specify both --db and --subject_otu_tables")
@@ -1177,7 +1188,7 @@ if __name__ == '__main__':
                         db = args.db,
                         max_divergence = args.max_divergence,
                         output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
-                        query_otu_table = args.query_otu_table,
+                        query_otu_table = generate_streaming_otu_table_from_args(args, query_prefix=True),
                         num_threads = args.threads,
                         search_method = args.search_method,
                         sequence_type = args.sequence_type,
@@ -1199,7 +1210,7 @@ if __name__ == '__main__':
             querier.query_subject_otu_table(
                 query_sequence = args.query_sequence,
                 max_divergence = args.max_divergence,
-                query_otu_table = args.query_otu_table,
+                query_otu_table = generate_streaming_otu_table_from_args(args, query_prefix=True),
                 query_fasta = args.query_fasta,
                 subject_otu_collection = otus,
                 output_style = 'sparse')# There is only sparse type atm.
