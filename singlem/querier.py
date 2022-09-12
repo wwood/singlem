@@ -147,10 +147,8 @@ class Querier:
 
 
 
-    def prepare_query_sequences(self, query_otu_table, num_threads):
+    def prepare_query_sequences(self, otus, num_threads):
         '''return an iterable of QueryInputSequence objects sorted by marker.'''
-        otus = StreamingOtuTableCollection()
-        otus.add_otu_table_file(query_otu_table)
 
         # To reduce RAM requirements, sort the input by marker, so that the DBs
         # can be dropped when that marker is finished being queried.
