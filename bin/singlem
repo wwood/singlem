@@ -397,7 +397,7 @@ if __name__ == '__main__':
     current_default = 20
     query_otu_args.add_argument('--max-nearest-neighbours', '--max_nearest_neighbours', help="How many nearest neighbours to report. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
-    current_default = 'annoy'
+    current_default = 'naive'
     query_otu_args.add_argument('--search-method', help="How to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
     current_default = 'nucleotide'
     query_otu_args.add_argument('--sequence-type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
