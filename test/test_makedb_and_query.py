@@ -166,8 +166,6 @@ class Tests(unittest.TestCase):
                 f.name,
                 os.path.join(path_to_data,'a.sdb'))
 
-            import IPython; IPython.embed()
-
             expected = 'query_name\tquery_sequence\tdivergence\tnum_hits\tsample\tmarker\thit_sequence\ttaxonomy\nminimal\tCGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nmaximal\tCGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n'.split('\n')
             observed = extern.run(cmd).split('\n')
             self.assertEqual(expected, observed)
