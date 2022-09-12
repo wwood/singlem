@@ -389,7 +389,7 @@ if __name__ == '__main__':
     query_db_args.add_argument('--subject-otu-tables', nargs='+', metavar='file',
                                help='Pairwise align queries to this otu table (works with inserts, but is slow)')
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
-    query_otu_args.add_argument('--query-otu-table', metavar='file', help="Query the database with all sequences in this OTU table")
+    query_otu_args.add_argument('--query-otu-table', '--query-otu-tables', nargs='+', metavar='file', help="Query the database with all sequences in this OTU table")
     query_otu_args.add_argument('--query-otu-tables-list', help="Query the database with all sequences in OTU table files newline separated in this file")
     query_otu_args.add_argument('--query-archive-otu-tables', nargs='+', help="Query the database with all sequences in these archive tables")
     query_otu_args.add_argument('--query-archive-otu-table-list', help="Query the database with all sequences in archive tables newline separated in this file")
