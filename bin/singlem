@@ -374,7 +374,8 @@ if __name__ == '__main__':
         choices = ['annoy','scann','nmslib','naive','none'],
         default = current_default,
         help='Index sequences using these methods. Note that specifying "naive" means "scann" databases will also be built [default {}]'.format(current_default))
-
+    current_default = ['nucleotide']
+    makedb_other_args.add_argument('--sequence-database-types', help='Index sequences using these types. [default: {}]'.format(current_default), nargs='+', default=['nucleotide'], choices=['nucleotide','protein'])
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
     DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
     makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES,type=int)
@@ -1146,12 +1147,16 @@ if __name__ == '__main__':
             else:
                 sequence_database_methods = []
 
-        singlem.sequence_database.SequenceDatabase.create_from_otu_table\
-            (args.db, otus, num_threads=args.threads, pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
+        singlem.sequence_database.SequenceDatabase.create_from_otu_table(
+            args.db, 
+            otus, 
+            num_threads=args.threads, 
+            pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
             num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
             num_annoy_protein_trees=args.num_annoy_protein_trees,
             tmpdir = args.tmpdir,
-            sequence_database_methods = sequence_database_methods)
+            sequence_database_methods = sequence_database_methods,
+            sequence_database_types = args.sequence_database_types)
     elif args.subparser_name=='query':
         # Import here to avoid the slow tensorflow import in other subcommands
         from singlem.querier import Querier
