@@ -150,10 +150,7 @@ class Condenser:
         logging.info("Taxonomic level coverage:")
         ranks = ['kingdom','phylum','class','order','family','genus','species']
         for level, rank in enumerate(ranks):
-            logging.info("{}:\t{:.2f}%\t{} taxons".format(
-                rank, 
-                level_coverage[level]/total_coverage*100 if total_coverage > 0 else 0,
-                level_count[level]))
+            logging.info("{}:\t{:.2f}%\t{} taxons".format(rank, level_coverage[level]/total_coverage*100, level_count[level]))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
         '''Input OTU tables assigned taxonomy with diamond have sequence IDs as
@@ -333,12 +330,9 @@ class Condenser:
         table.fields = sample_otus.fields
         num_no_assignment_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is None])
         num_assigned_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is not None])
-        logging.info("Found {} assigned and {} unassigned OTU coverage".format(num_assigned_otus, num_no_assignment_otus))
+        logging.info("Found {:.2f} assigned and {:.2f} unassigned OTU coverage units".format(num_assigned_otus, num_no_assignment_otus))
         if num_no_assignment_otus > num_assigned_otus*0.05:
-            logging.warning("Found an expectedly high number of OTUs that have no taxonomy assigned by query or diamond: {} unassigned OTUs and {} assigned, in sample {}".format(
-                num_no_assignment_otus, 
-                num_assigned_otus, 
-                sample_otus.data[0][ArchiveOtuTable.SAMPLE_ID_FIELD_INDEX]))
+            logging.warning("Found an expectedly high number of OTUs that have no taxonomy assigned by query or diamond: {} unassigned OTUs and {} assigned, in sample {}".format(num_no_assignment_otus, num_assigned_otus, sample_otus[0].sample))
             if num_no_assignment_otus > num_assigned_otus*0.5:
                 raise Exception("Stopping: sample {} had too many unassigned OTUs".format(sample_otus[0].sample))
         table.data = [otu.data for otu in sample_otus if \

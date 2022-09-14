@@ -107,7 +107,7 @@ class Tests(unittest.TestCase):
     def test_clusterer_all_cluster_all_good(self):
         metagenome_otu_table = [self.headers,
                     ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                    ['4.11.ribosomal_protein_L10','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATT','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATT','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
                     ]
         metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
 
@@ -205,7 +205,9 @@ class Tests(unittest.TestCase):
                     ]
         metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
 
-        genomes_otu_table = [self.headers,['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+        genomes_otu_table = [self.headers,
+                    ['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATA','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+                    ['4.11.ribosomal_protein_L10','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATT','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
                     ]
         genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
 
@@ -731,7 +733,7 @@ class Tests(unittest.TestCase):
                 'GGTACCGGCGTCATCGCCGGTGGGGCGGCACGCGCCATCTTGGAGATGGCCGGCATCCGC',
                 '1','1.06','Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria']
         ]
-        assemblies = "\n".join(["\t".join(x) for x in genomes_otu_table])
+        assemblies = "\n".join(["\t".join(x) for x in assemblies_otu_table])
 
         appraiser = Appraiser()
         metagenome_collection = OtuTableCollection()

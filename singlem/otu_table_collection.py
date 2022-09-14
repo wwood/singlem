@@ -33,6 +33,9 @@ class OtuTableCollection:
 
     def add_archive_otu_table(self, input_archive_table_io):
         self.archive_table_objects.append(ArchiveOtuTable.read(input_archive_table_io))
+    
+    def add_otu_table_object(self, input_otu_table_object):
+        self.otu_table_objects.append(input_otu_table_object)
 
     def add_otu_table_collection(self, otu_table_collection):
         '''Append an OtuTableCollection to this collection.
