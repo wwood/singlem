@@ -1,10 +1,14 @@
 import logging
+import os
 import sys
+import tempfile
 
 from .otu_table import OtuTable
 from .otu_table_collection import OtuTableCollection
 from .sequence_searcher import SequenceSearcher
 from .appraisal_result import Appraisal, AppraisalResult
+from .querier import Querier
+from .sequence_database import SequenceDatabase
 
 class Appraiser:
     def appraise(self, **kwargs):
@@ -44,91 +48,46 @@ class Appraiser:
 
         appraising_assembly = assembly_otu_table_collection is not None
 
-        if sequence_identity is None:
-            genome_otu_sequences = set()
-            genome_names = set()
+        if appraising_binning:
+            sample_to_binned = self._appraise_inexactly(
+                metagenome_otu_table_collection,
+                filtered_genome_otus,
+                sequence_identity)
+            sample_to_building_block = sample_to_binned
+        if assembly_otu_table_collection:
+            sample_to_assembled = self._appraise_inexactly(
+                metagenome_otu_table_collection,
+                assembly_otu_table_collection,
+                sequence_identity)
+            sample_to_building_block = sample_to_assembled
+
+        app = Appraisal()
+        app.appraisal_results = []
+        for sample in list(sample_to_building_block.keys()):
+            res = AppraisalResult()
+            res.metagenome_sample_name = sample
+            seen_otu_sequences = set()
             if appraising_binning:
-                for otu in filtered_genome_otus:
-                    genome_otu_sequences.add(otu.sequence)
-                    genome_names.add(otu.sample_name)
+                binning_building_block = sample_to_binned[sample]
+                res.num_binned = binning_building_block.num_found
+                res.binned_otus = binning_building_block.found_otus
+                for otu in res.binned_otus:
+                    seen_otu_sequences.add(otu.sequence)
             if appraising_assembly:
-                assembly_sequences = set()
-                for otu in assembly_otu_table_collection:
-                    assembly_sequences.add(otu.sequence)
-            if appraising_binning:
-                logging.info("Read in %i unique sequences from the %i reference genomes" %\
-                             (len(genome_otu_sequences), len(genome_names)))
-
-            # read in metagenome OTU sequences
-            sample_name_to_appraisal = {}
+                assembled_building_block = sample_to_assembled[sample]
+                res.num_assembled = assembled_building_block.num_found
+                res.assembled_otus = assembled_building_block.found_otus
+                for otu in res.assembled_otus:
+                    seen_otu_sequences.add(otu.sequence)
+            not_seen_otus = []
             for otu in metagenome_otu_table_collection:
-                try:
-                    appraisal = sample_name_to_appraisal[otu.sample_name]
-                except KeyError:
-                    appraisal = AppraisalResult()
-                    appraisal.metagenome_sample_name = otu.sample_name
-                    sample_name_to_appraisal[otu.sample_name] = appraisal
-
-                count = otu.count
-                if appraising_binning and otu.sequence in genome_otu_sequences:
-                    appraisal.num_binned += count
-                    appraisal.binned_otus.append(otu)
-                    # Probably this 'if' condition is not necessary, but just to check.
-                    if appraising_assembly and otu.sequence in assembly_sequences:
-                        appraisal.num_assembled += count
-                        appraisal.assembled_otus.append(otu)
-                elif appraising_assembly and otu.sequence in assembly_sequences:
-                    appraisal.num_assembled += count
-                    appraisal.assembled_otus.append(otu)
-                else:
-                    appraisal.num_not_found += count
-                    appraisal.not_found_otus.append(otu)
-
-            app = Appraisal()
-            app.appraisal_results = list(sample_name_to_appraisal.values())
-            return app
-
-        else:
-            if appraising_binning:
-                sample_to_binned = self._appraise_inexactly(
-                    metagenome_otu_table_collection,
-                    filtered_genome_otus,
-                    sequence_identity)
-                sample_to_building_block = sample_to_binned
-            if assembly_otu_table_collection:
-                sample_to_assembled = self._appraise_inexactly(
-                    metagenome_otu_table_collection,
-                    assembly_otu_table_collection,
-                    sequence_identity)
-                sample_to_building_block = sample_to_assembled
-
-            app = Appraisal()
-            app.appraisal_results = []
-            for sample in list(sample_to_building_block.keys()):
-                res = AppraisalResult()
-                res.metagenome_sample_name = sample
-                seen_otu_sequences = set()
-                if appraising_binning:
-                    binning_building_block = sample_to_binned[sample]
-                    res.num_binned = binning_building_block.num_found
-                    res.binned_otus = binning_building_block.found_otus
-                    for otu in res.binned_otus:
-                        seen_otu_sequences.add(otu.sequence)
-                if appraising_assembly:
-                    assembled_building_block = sample_to_assembled[sample]
-                    res.num_assembled = assembled_building_block.num_found
-                    res.assembled_otus = assembled_building_block.found_otus
-                    for otu in res.assembled_otus:
-                        seen_otu_sequences.add(otu.sequence)
-                not_seen_otus = []
-                for otu in metagenome_otu_table_collection:
-                    if otu.sample_name == sample and otu.sequence not in seen_otu_sequences:
-                        not_seen_otus.append(otu)
-                res.not_found_otus = not_seen_otus
-                for otu in not_seen_otus:
-                    res.num_not_found += otu.count
-                app.appraisal_results.append(res)
-            return app
+                if otu.sample_name == sample and otu.sequence not in seen_otu_sequences:
+                    not_seen_otus.append(otu)
+            res.not_found_otus = not_seen_otus
+            for otu in not_seen_otus:
+                res.num_not_found += otu.count
+            app.appraisal_results.append(res)
+        return app
 
 
     def _appraise_inexactly(self, metagenome_otu_table_collection,
@@ -139,26 +98,46 @@ class Appraiser:
         have been found, using inexact matching.
 
         '''
-        found_otu_table = OtuTable()
-        found_otu_table.add(found_otu_collection)
-        found_collection = OtuTableCollection()
-        found_collection.otu_table_objects = [found_otu_table]
+        if sequence_identity:
+            max_divergence = 60 * (1 - sequence_identity)
+        else:
+            max_divergence = 0
+
+        tmp = tempfile.TemporaryDirectory()
+        sdb_path = os.path.join(tmp.name, "tmp.sdb")
+        sequence_database = SequenceDatabase()
+        sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = ['naive'])
+        sdb_tmp = sequence_database.acquire(sdb_path)
+
+        found_genes = [table.marker for table in found_otu_collection]
+        metagenome_table = OtuTable()
+        for otu in metagenome_otu_table_collection:
+            if otu.marker in found_genes:
+                metagenome_table.add([otu])
+
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table_object(metagenome_table)
+
+        querier = Querier()
+        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, 'naive', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
 
         sample_to_building_block = {}
-
-        for uc in SequenceSearcher().global_search(metagenome_otu_table_collection,
-                                         found_otu_collection,
-                                         sequence_identity):
-            q = uc.query
+        for hit in queries:
+            # hit has (query, subject, divergence)
+            # subject has .taxonomy
+            q = hit.query
             if q.sample_name in sample_to_building_block:
                 appraisal = sample_to_building_block[q.sample_name]
             else:
                 appraisal = AppraisalBuildingBlock()
                 sample_to_building_block[q.sample_name] = appraisal
 
-            if uc.target is not None:
-                appraisal.num_found += q.count
-                appraisal.found_otus.append(q)
+            appraisal.num_found += q.count
+            appraisal.found_otus.append(q)
+
+        for otu in metagenome_otu_table_collection:
+            if otu.sample_name not in sample_to_building_block:
+                sample_to_building_block[otu.sample_name] = AppraisalBuildingBlock()
 
         return sample_to_building_block
 
