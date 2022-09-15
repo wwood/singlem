@@ -448,7 +448,50 @@ class Tests(unittest.TestCase):
                           "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'])])+"\n",
                          not_found_otu_table_io.getvalue())
 
+    def test_print_appraisal_output_found_in(self):
+        metagenome_otu_table = [self.headers,
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    ['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+                    ]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
 
+        genomes_otu_table = [self.headers,['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+                    ]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 output_found_in=True)
+        self.assertEqual(2, len(app.appraisal_results))
+        res = sorted(app.appraisal_results)
+        a = res[1]
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual('genome', a.binned_otus[0].data[a.binned_otus[0].fields.index('found_in')])
+        a = res[0]
+        self.assertEqual('another', a.metagenome_sample_name)
+        self.assertEqual('', a.not_found_otus[0].data[a.not_found_otus[0].fields.index('found_in')])
+
+        to_print = StringIO()
+        found_otu_table_io = StringIO()
+        not_found_otu_table_io = StringIO()
+        appraiser.print_appraisal(app, True, to_print,
+                                  binned_otu_table_io=found_otu_table_io,
+                                  unaccounted_for_otu_table_io=not_found_otu_table_io,
+                                  output_found_in=True)
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers + ['found_in']),
+                          "\t".join(['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales', 'genome'])
+                          ])+"\n",
+                         found_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers + ['found_in']),
+                          "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus', ''])])+"\n",
+                         not_found_otu_table_io.getvalue())
 
     def test_contamination(self):
         metagenome_otu_table = [

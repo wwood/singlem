@@ -530,6 +530,7 @@ if __name__ == '__main__':
     appraise_otu_table_group.add_argument('--output-unbinned-otu-table', help="output OTU table of assembled but not binned populations", default=None)
     appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
     appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
+    appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
 
     chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
     chance_parser = new_subparser(subparsers, 'chance', chance_description)
@@ -996,6 +997,7 @@ if __name__ == '__main__':
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                 metagenome_otu_table_collection=metagenomes,
                                 assembly_otu_table_collection=assemblies,
+                                output_found_in = args.output_found_in,
                                 sequence_identity=(args.sequence_identity if args.imperfect else None))
 
         if args.output_binned_otu_table:
@@ -1028,6 +1030,7 @@ if __name__ == '__main__':
             app,
             doing_binning = genomes is not None,
             doing_assembly = assemblies is not None,
+            output_found_in = args.output_found_in,
             binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
             unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
             assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
