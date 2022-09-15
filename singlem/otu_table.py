@@ -65,6 +65,28 @@ class OtuTable:
                 e.coverage,
                 e.taxonomy])
 
+    def add_with_extras(self, otu_table_entries, extra_entries):
+        '''Add OtuTableEntry objects to this OTU table. Default data
+        and extra entries are saved'''
+        for e in otu_table_entries:
+            e_list = [
+                e.marker,
+                e.sample_name,
+                e.sequence,
+                e.count,
+                e.coverage,
+                e.taxonomy]
+            for extra_field in extra_entries:
+                try:
+                    e_list.append(e.data[e.fields.index(extra_field)])
+                except IndexError:
+                    e_list.append('')
+            self.data.append(e_list)
+
+        for extra_field in extra_entries:
+            if extra_field not in self.fields:
+                self.fields.append(extra_field)
+
     @staticmethod
     def read(input_otu_table_io):
         otus = OtuTable()
