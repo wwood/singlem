@@ -132,6 +132,9 @@ class Appraiser:
                 appraisal = AppraisalBuildingBlock()
                 sample_to_building_block[q.sample_name] = appraisal
 
+            if True:
+                q.add_found_data(hit.subject.sample_name)
+
             appraisal.num_found += q.count
             appraisal.found_otus.append(q)
 
@@ -221,14 +224,25 @@ class Appraiser:
                 assembled.append(appraisal_result.num_assembled)
                 assembled_not_binned.append(num_assembled_not_binned)
             not_founds.append(appraisal_result.num_not_found)
-            if binned_otu_table_io:
-                binned_table.add(appraisal_result.binned_otus)
-            if unbinned_otu_table_io:
-                unbinned_table.add(appraisal_result.assembled_not_binned_otus())
-            if assembled_otu_table_io:
-                assembled_table.add(appraisal_result.assembled_otus)
-            if unaccounted_for_otu_table_io:
-                unaccounted_for_table.add(appraisal_result.not_found_otus)
+
+            if not True:
+                if binned_otu_table_io:
+                    binned_table.add(appraisal_result.binned_otus)
+                if unbinned_otu_table_io:
+                    unbinned_table.add(appraisal_result.assembled_not_binned_otus())
+                if assembled_otu_table_io:
+                    assembled_table.add(appraisal_result.assembled_otus)
+                if unaccounted_for_otu_table_io:
+                    unaccounted_for_table.add(appraisal_result.not_found_otus)
+            else:
+                if binned_otu_table_io:
+                    binned_table.add_with_extras(appraisal_result.binned_otus, ['found_in'])
+                if unbinned_otu_table_io:
+                    unbinned_table.add_with_extras(appraisal_result.assembled_not_binned_otus(), ['found_in'])
+                if assembled_otu_table_io:
+                    assembled_table.add_with_extras(appraisal_result.assembled_otus, ['found_in'])
+                if unaccounted_for_otu_table_io:
+                    unaccounted_for_table.add_with_extras(appraisal_result.not_found_otus, ['found_in'])
 
         print_sample(sum(binned) if doing_binning else None,
                      sum(assembled) if doing_assembly else None,
