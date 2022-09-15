@@ -40,6 +40,9 @@ class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
     maxDiff = None
 
+    def setUp(self):
+        OtuTable._clear_cache()
+
     def _sort_appraisal_results(self, appraisal_results):
         sorted_appraisal_results = list(sorted(
             appraisal_results,

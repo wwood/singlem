@@ -11,6 +11,11 @@ class OtuTable:
         self.fields = self.DEFAULT_OUTPUT_FIELDS
         self.data = []
 
+    @classmethod
+    def _clear_cache(cls):
+        # For testing only, to clear the class-variable cache
+        cls.DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
+
     @staticmethod
     def each(otu_table_io):
         '''yield an OtuTableEntry object for each entry in the OTU table.

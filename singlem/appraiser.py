@@ -282,14 +282,24 @@ class Appraiser:
                      mypercent_binned=mean(binned_means)*100 if doing_binning else None,
                      mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
 
-        if binned_otu_table_io:
-            binned_table.write_to(binned_otu_table_io)
-        if unbinned_otu_table_io:
-            unbinned_table.write_to(unbinned_otu_table_io)
-        if assembled_otu_table_io:
-            assembled_table.write_to(assembled_otu_table_io)
-        if unaccounted_for_otu_table_io:
-            unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
+        if not output_found_in:
+            if binned_otu_table_io:
+                binned_table.write_to(binned_otu_table_io)
+            if unbinned_otu_table_io:
+                unbinned_table.write_to(unbinned_otu_table_io)
+            if assembled_otu_table_io:
+                assembled_table.write_to(assembled_otu_table_io)
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
+        else:
+            if binned_otu_table_io:
+                binned_table.write_to(binned_otu_table_io, fields_to_print=binned_table.fields)
+            if unbinned_otu_table_io:
+                unbinned_table.write_to(unbinned_otu_table_io, fields_to_print=binned_table.fields)
+            if assembled_otu_table_io:
+                assembled_table.write_to(assembled_otu_table_io, fields_to_print=binned_table.fields)
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table.write_to(unaccounted_for_otu_table_io, fields_to_print=binned_table.fields)
 
 
 class AppraisalBuildingBlock:
