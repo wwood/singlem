@@ -29,7 +29,10 @@ class OtuTableEntry:
             self.fields.append('found_in')
             self.data.append(found_in)
         else:
-            self.data[self.fields.index('found_in')] = self.data[self.fields.index('found_in')] + ',' + found_in
+            try:
+                self.data[self.fields.index('found_in')] = self.data[self.fields.index('found_in')] + ',' + found_in
+            except IndexError:
+                self.data.append(found_in)
 
     def __str__(self):
         return "\t".join([self.marker, self.sample_name, self.sequence,

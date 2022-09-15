@@ -29,6 +29,7 @@ class Appraiser:
         metagenome_otu_table_collection = kwargs.pop('metagenome_otu_table_collection')
         assembly_otu_table_collection = kwargs.pop('assembly_otu_table_collection', None)
         sequence_identity = kwargs.pop('sequence_identity', None)
+        output_found_in = kwargs.pop('output_found_in', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -52,13 +53,15 @@ class Appraiser:
             sample_to_binned = self._appraise_inexactly(
                 metagenome_otu_table_collection,
                 filtered_genome_otus,
-                sequence_identity)
+                sequence_identity,
+                output_found_in)
             sample_to_building_block = sample_to_binned
         if assembly_otu_table_collection:
             sample_to_assembled = self._appraise_inexactly(
                 metagenome_otu_table_collection,
                 assembly_otu_table_collection,
-                sequence_identity)
+                sequence_identity,
+                output_found_in)
             sample_to_building_block = sample_to_assembled
 
         app = Appraisal()
@@ -82,6 +85,8 @@ class Appraiser:
             not_seen_otus = []
             for otu in metagenome_otu_table_collection:
                 if otu.sample_name == sample and otu.sequence not in seen_otu_sequences:
+                    if output_found_in:
+                        otu.add_found_data('')
                     not_seen_otus.append(otu)
             res.not_found_otus = not_seen_otus
             for otu in not_seen_otus:
@@ -92,7 +97,8 @@ class Appraiser:
 
     def _appraise_inexactly(self, metagenome_otu_table_collection,
                             found_otu_collection,
-                            sequence_identity):
+                            sequence_identity,
+                            output_found_in):
         '''Given a metagenome sample collection and OTUs 'found' either by binning or
         assembly, return a AppraisalBuildingBlock representing the OTUs that
         have been found, using inexact matching.
@@ -132,7 +138,7 @@ class Appraiser:
                 appraisal = AppraisalBuildingBlock()
                 sample_to_building_block[q.sample_name] = appraisal
 
-            if True:
+            if output_found_in:
                 q.add_found_data(hit.subject.sample_name)
 
             appraisal.num_found += q.count
@@ -150,6 +156,7 @@ class Appraiser:
                         doing_binning,
                         output_io=sys.stdout,
                         doing_assembly=False,
+                        output_found_in=False,
                         binned_otu_table_io=None,
                         unbinned_otu_table_io=None,
                         assembled_otu_table_io=None,
@@ -225,7 +232,7 @@ class Appraiser:
                 assembled_not_binned.append(num_assembled_not_binned)
             not_founds.append(appraisal_result.num_not_found)
 
-            if not True:
+            if not output_found_in:
                 if binned_otu_table_io:
                     binned_table.add(appraisal_result.binned_otus)
                 if unbinned_otu_table_io:
