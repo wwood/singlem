@@ -76,7 +76,7 @@ class Condenser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         markers = {} # set of markers used to the domains they target
-        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
+        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
         
         for spkg in singlem_package_objects:
             # ensure v3 packages
@@ -92,6 +92,8 @@ class Condenser:
                     target_domains["Bacteria"] += [marker_name]
                 elif domain == "Eukaryota":
                     target_domains["Eukaryota"] += [marker_name]
+                elif domain == "Viruses":
+                    target_domains["Viruses"] += [marker_name]
                 else:
                     raise Exception("Domain: {} not supported.".format(domain))
                 
