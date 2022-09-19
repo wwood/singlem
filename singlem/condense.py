@@ -16,6 +16,11 @@ from .taxonomy import *
 # https://github.com/wwood/singlem/issues/89 following
 # https://stackoverflow.com/questions/15063936/csv-error-field-larger-than-field-limit-131072
 maxInt = sys.maxsize
+
+ARCHAEA_NAME = "Archaea"
+BACTERIA_NAME = "Bacteria"
+EUKARYOTA_NAME = "Eukaryotes"
+VIRUSES_NAME = "Viruses"
 while True:
     # decrease the maxInt value by factor 10
     # as long as the OverflowError occurs.
@@ -76,7 +81,7 @@ class Condenser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         markers = {} # set of markers used to the domains they target
-        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
+        target_domains = {ARCHAEA_NAME: [], BACTERIA_NAME: [], EUKARYOTA_NAME: [], VIRUSES_NAME: []}
         
         for spkg in singlem_package_objects:
             # ensure v3 packages
@@ -86,14 +91,14 @@ class Condenser:
             markers[marker_name] = spkg.target_domains()
             # count number of markers for each domain
             for domain in spkg.target_domains():
-                if domain == "Archaea":
-                    target_domains["Archaea"] += [marker_name]
-                elif domain == "Bacteria":
-                    target_domains["Bacteria"] += [marker_name]
-                elif domain == "Eukaryota":
-                    target_domains["Eukaryota"] += [marker_name]
-                elif domain == "Viruses":
-                    target_domains["Viruses"] += [marker_name]
+                if domain == ARCHAEA_NAME:
+                    target_domains[ARCHAEA_NAME] += [marker_name]
+                elif domain == BACTERIA_NAME:
+                    target_domains[BACTERIA_NAME] += [marker_name]
+                elif domain == EUKARYOTA_NAME:
+                    target_domains[EUKARYOTA_NAME] += [marker_name]
+                elif domain == VIRUSES_NAME:
+                    target_domains[VIRUSES_NAME] += [marker_name]
                 else:
                     raise Exception("Domain: {} not supported.".format(domain))
                 
