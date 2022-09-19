@@ -62,7 +62,7 @@ class MetapackageReadNameStore:
         for read_name_set in iterable_chunks(read_names, 900): # Must be at least < 1000 for sqlite versions prior to 3.32.0
             names = [r for r in read_name_set if r is not None]
             stmt = select(ReadNameTaxonomy).where(
-                ReadNameTaxonomy.read_name.in_(read_names))
+                ReadNameTaxonomy.read_name.in_(names))
             with self.engine.connect() as conn:
                 for res in conn.execute(stmt):
                     to_return[res.read_name] = [s.strip() for s in res.taxonomy.split(';')]
