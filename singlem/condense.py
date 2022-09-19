@@ -19,7 +19,7 @@ maxInt = sys.maxsize
 
 ARCHAEA_NAME = "Archaea"
 BACTERIA_NAME = "Bacteria"
-EUKARYOTA_NAME = "Eukaryotes"
+EUKARYOTA_NAME = "Eukaryota"
 VIRUSES_NAME = "Viruses"
 while True:
     # decrease the maxInt value by factor 10
