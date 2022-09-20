@@ -489,6 +489,9 @@ if __name__ == '__main__':
     regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
     regenerate_parser.add_argument('--window-position', help="change window position of output package [default: do not change]", type=int, default=False)
     regenerate_parser.add_argument('--sequence-prefix', help="add a prefix to sequence names", type=str, default="")
+    regenerate_parser.add_argument('--euk-sequences', help='candidate euk sequences')
+    regenerate_parser.add_argument('--euk-taxonomy', help='euk sequence taxonomy')
+    regenerate_parser.add_argument('--no-further-euks', help='Do not include any euk sequences beyond what is already in the current SingleM package', action='store_true')
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
 
@@ -496,8 +499,6 @@ if __name__ == '__main__':
     required_regenerate_arguments.add_argument('--output-singlem-package', metavar="PATH", help="output package", required=True)
     required_regenerate_arguments.add_argument('--input-sequences', required=True, help='all sequences for new package')
     required_regenerate_arguments.add_argument('--input-taxonomy', required=True, help='input sequence taxonomy')
-    required_regenerate_arguments.add_argument('--euk-sequences', required=True, help='candidate euk sequences')
-    required_regenerate_arguments.add_argument('--euk-taxonomy', required=True, help='euk sequence taxonomy')
 
     metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = new_subparser(subparsers, 'metapackage', metapackage_description)
@@ -828,9 +829,9 @@ if __name__ == '__main__':
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
             if not args.output_otu_table and not args.unaligned_sequences_dump_file:
-                raise Exception("--stream_inputs requires --output_otu_table or --unaligned_sequences_dump_file to be defined")
+                raise Exception("--stream-inputs requires --output_otu_table or --unaligned_sequences_dump_file to be defined")
             if args.taxonomy:
-                raise Exception("--stream_inputs does not currently support --taxonomy")
+                raise Exception("--stream-inputs does not currently support --taxonomy")
             require_archive_input = args.unaligned_sequences_dump_file is not None
             min_archive_otu_table_version = 2 if args.unaligned_sequences_dump_file else None
             otus = generate_streaming_otu_table_from_args(
@@ -1041,6 +1042,8 @@ if __name__ == '__main__':
 
     elif args.subparser_name == 'regenerate':
         from singlem.regenerator import Regenerator
+        if not args.no_further_euks and (not args.euk_sequences or not args.euk_taxonomy):
+            raise Exception("Either --no-further-euks or euk taxonomy and sequences must be specified")
         Regenerator().regenerate(
             input_singlem_package = args.input_singlem_package,
             output_singlem_package = args.output_singlem_package,
@@ -1050,7 +1053,8 @@ if __name__ == '__main__':
             euk_taxonomy = args.euk_taxonomy,
             window_position = args.window_position,
             sequence_prefix = args.sequence_prefix,
-            min_aligned_percent = args.min_aligned_percent)
+            min_aligned_percent = args.min_aligned_percent,
+            no_further_euks = args.no_further_euks)
 
     elif args.subparser_name == 'get_tree':
         from singlem.metapackage import Metapackage

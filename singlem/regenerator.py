@@ -4,6 +4,8 @@ import tempfile
 import extern
 import dendropy
 import pickle
+import shutil
+
 from graftm.graftm_package import GraftMPackage
 
 from .graftm_result import GraftMResult
@@ -26,6 +28,7 @@ class Regenerator:
         window_position = kwargs.pop('window_position')
         sequence_prefix = kwargs.pop('sequence_prefix')
         min_aligned_percent = kwargs.pop('min_aligned_percent')
+        no_further_euks = kwargs.pop('no_further_euks')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -53,44 +56,52 @@ class Regenerator:
         logging.debug("Using working directory %s" % working_directory)
 
 
-        # Run GraftM on the euk sequences with the original graftm package
-        euk_graftm_output = os.path.join(working_directory,
-                                         "%s-euk_graftm" % basename)
-        cmd = "graftM graft --graftm_package '%s' --search_and_align_only --forward '%s' --output %s --force" % (
-            original_pkg.graftm_package_path(),
-            euk_sequences,
-            euk_graftm_output)
-        extern.run(cmd)
-
-        # Extract hit sequences from that set
-        final_sequences_path = os.path.join(working_directory,
-                                            "%s_final_sequences.faa" % basename)
-        euk_result = GraftMResult(euk_graftm_output, False)
-        hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
-        if len(hit_paths) == 0:
-            euk_taxonomy = ""
-            logging.info("Found no eukaryotic sequences that match")
-        else:
-            euk_hits_path = next(iter(hit_paths.values())) #i.e. first
-
-            # Concatenate input (bacteria and archaea) and euk sequences
-            num_euk_hits = 0
-
-            with open(final_sequences_path, 'w') as final_seqs_fp:
-                with open(euk_hits_path) as euk_seqs_fp:
-                    for name, seq, _ in SeqReader().readfq(euk_seqs_fp):
-                        if name.find('_split_') == -1:
-                            num_euk_hits += 1
-                            final_seqs_fp.write(">%s\n%s\n" % (name, seq))
-            logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
-            
-        extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
 
         # Concatenate euk and input taxonomy
         final_taxonomy_path = os.path.join(working_directory,
                                             "%s_final_taxonomy.csv" % basename)
-        extern.run("cat %s %s > %s" % (
-            euk_taxonomy, input_taxonomy, final_taxonomy_path))
+        final_sequences_path = os.path.join(working_directory,
+                                            "%s_final_sequences.faa" % basename)
+
+        if no_further_euks:
+            logging.info("Skipping eukaryotic search. Copying input files directly")
+            shutil.copyfile(input_taxonomy, final_taxonomy_path)
+            shutil.copyfile(input_sequences, final_sequences_path)
+
+        else:
+            # Run GraftM on the euk sequences with the original graftm package
+            logging.info("Finding eukaryotic sequences via GraftM ..")
+            euk_graftm_output = os.path.join(working_directory,
+                                            "%s-euk_graftm" % basename)
+            cmd = "graftM graft --graftm_package '%s' --search_and_align_only --forward '%s' --output %s --force" % (
+                original_pkg.graftm_package_path(),
+                euk_sequences,
+                euk_graftm_output)
+            extern.run(cmd)
+
+            # Extract hit sequences from that set
+            euk_result = GraftMResult(euk_graftm_output, False)
+            hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
+            if len(hit_paths) == 0:
+                euk_taxonomy = ""
+                logging.info("Found no eukaryotic sequences that match")
+            else:
+                euk_hits_path = next(iter(hit_paths.values())) #i.e. first
+
+                # Concatenate input (bacteria and archaea) and euk sequences
+                num_euk_hits = 0
+
+                with open(final_sequences_path, 'w') as final_seqs_fp:
+                    with open(euk_hits_path) as euk_seqs_fp:
+                        for name, seq, _ in SeqReader().readfq(euk_seqs_fp):
+                            if name.find('_split_') == -1:
+                                num_euk_hits += 1
+                                final_seqs_fp.write(">%s\n%s\n" % (name, seq))
+                logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
+                
+            extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
+            extern.run("cat %s %s > %s" % (
+                euk_taxonomy, input_taxonomy, final_taxonomy_path))
         
         # Add package prefix to sequences and taxonomy
         if sequence_prefix != "":
