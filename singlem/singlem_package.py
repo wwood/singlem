@@ -124,7 +124,7 @@ class SingleMPackage:
 
     def __getitem__(self, key):
         '''Return the value of the given key from the contents file'''
-        return self.contents_hash[key]
+        return self._contents_hash[key]
 
     def contents_path(self):
         return os.path.join(self._base_directory, SingleMPackage._CONTENTS_FILE_NAME)
