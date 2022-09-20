@@ -155,7 +155,7 @@ def distance_comparison(singlem_package):
             if current.rank == -1: break
 
             comparison.append([
-                singlem_package,
+                singlem_package.graftm_package_basename(),
                 taxonomic_prefixes[current.rank],
                 current.name,
                 example0, example1,
