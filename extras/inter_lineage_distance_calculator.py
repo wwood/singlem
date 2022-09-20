@@ -20,24 +20,7 @@ import random
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 from singlem.metapackage import Metapackage
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', help='output debug information', action="store_true")
-    parser.add_argument('--quiet', action="store_true")
-    parser.add_argument('--metapackage', help='SingleM metapackage to use', required=True)
-
-    args = parser.parse_args()
-    if args.debug:
-        loglevel = logging.DEBUG
-    elif args.quiet:
-        loglevel = logging.ERROR
-    else:
-        loglevel = logging.INFO
-    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-
-    metapackage = Metapackage.acquire(args.metapackage)
-    singlem_package = metapackage.singlem_packages[0]
-
+def distance_comparison(singlem_package):
     # Read in taxonomy
     logging.info("Reading taxonomy..")
     gg = singlem_package.graftm_package().taxonomy_hash()
@@ -170,16 +153,42 @@ if __name__ == '__main__':
             example1 = second.example_sequence()
             dist = compare(example0, example1)
             if current.rank == -1: break
-            
-            print "\t".join([taxonomic_prefixes[current.rank],
-                             current.name,
-                             example0, example1,
-                             str(dist)
-                             ])
-            
+
+            comparison.append([
+                singlem_package,
+                taxonomic_prefixes[current.rank],
+                current.name,
+                example0, example1,
+                str(dist),
+                ])
+
         if current.rank < last_rank:
             for child in current.children.values():
                 q.put(child)
-            
-            
 
+    return comparison
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', help='output debug information', action="store_true")
+    parser.add_argument('--quiet', action="store_true")
+    parser.add_argument('--metapackage', help='SingleM metapackage to use', required=True)
+
+    args = parser.parse_args()
+    if args.debug:
+        loglevel = logging.DEBUG
+    elif args.quiet:
+        loglevel = logging.ERROR
+    else:
+        loglevel = logging.INFO
+    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+    metapackage = Metapackage.acquire(args.metapackage)
+
+    comparison = []
+    for singlem_package in metapackage.singlem_packages:
+        comparison.append(distance_comparison(singlem_package))
+
+    print("\t".join(["singlem_package", "rank", "taxon", "example0", "example1", "distance"]))
+    for c in comparison:
+        print("\t".join(c))
