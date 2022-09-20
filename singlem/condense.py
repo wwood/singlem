@@ -131,7 +131,7 @@ class Condenser:
 
         if apply_diamond_expectation_maximisation:
             logging.info("Converting DIAMOND IDs to taxons")
-            self._convert_diamond_best_hit_ids_to_taxonomies(singlem_package_objects, sample_otus)
+            self._convert_diamond_best_hit_ids_to_taxonomies(singlem_package_objects, sample_otus, markers)
             # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
             # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
             # import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
@@ -168,7 +168,7 @@ class Condenser:
         for level, rank in enumerate(ranks):
             logging.info("{}:\t{:.2f}%\t{} taxons".format(rank, level_coverage[level]/total_coverage*100, level_count[level]))
 
-    def _convert_diamond_best_hit_ids_to_taxonomies(self, singlem_package_objects, sample_otus):
+    def _convert_diamond_best_hit_ids_to_taxonomies(self, singlem_package_objects, sample_otus, markers):
         '''the best hit IDs are specified as ids, but we need taxon strings.
         However, we cannot read in the id_to_name from all markers at once, as
         this is too RAM intensive. We take advantage of the fact that the OTUs
@@ -184,7 +184,9 @@ class Condenser:
         current_marker = None
         current_taxon_hash = None
         num_otus_changed = 0
+        num_otus_with_off_target = 0
         for otu in sample_otus:
+            num_off_target = 0
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
                 if otu.marker != current_marker:
                     current_marker = otu.marker
@@ -197,7 +199,7 @@ class Condenser:
                     for taxon_id in taxon_id_list:
                         taxon_name = current_taxon_hash[taxon_id]
                         if not taxon_name[-2].startswith('g__'):
-                            if not taxon_name[0] == EUKARYOTA_NAME:
+                            if not taxon_name[0] == 'd__' + EUKARYOTA_NAME:
                                 raise Exception("Expected genus level taxon, but found {}, from ID".format(taxon_name, taxon_id))
                             else:
                                 # This can happen when taxonomy is overall
@@ -208,10 +210,17 @@ class Condenser:
                         # Record only to genus level
                         if taxon_name[0] != 'Root':
                             taxon_name = ['Root']+taxon_name
+                        if not self._is_targeted_by_marker(otu, taxon_name, markers):
+                            logging.debug("Ignoring off-target taxon {} as an equal-best hit".format(taxon_name))
+                            num_off_target += 1
+                            continue
                         possible_names.add(';'.join(taxon_name[:-1]))
                 otu.data[ArchiveOtuTable.EQUAL_BEST_HIT_TAXONOMIES_INDEX] = list(possible_names)
                 num_otus_changed += 1
+                if num_off_target > 0:
+                    num_otus_with_off_target += 1
         logging.info("Converted {} Diamond-assigned OTU taxon_ids to taxon strings".format(num_otus_changed))
+        logging.debug("Identified {} OTUs containing at least one off-target equal-best hit".format(num_otus_with_off_target))
 
     def _push_down_genus_to_species(self, condensed_otus, max_push_down_fraction):
         '''Pushes coverage down proportionally from genus to species level,
