@@ -187,7 +187,7 @@ if __name__ == '__main__':
 
     comparison = []
     for singlem_package in metapackage.singlem_packages:
-        comparison.append(distance_comparison(singlem_package))
+        comparison += distance_comparison(singlem_package)
 
     print("\t".join(["singlem_package", "rank", "taxon", "example0", "example1", "distance"]))
     for c in comparison:
