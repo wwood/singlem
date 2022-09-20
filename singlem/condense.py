@@ -220,7 +220,8 @@ class Condenser:
                 if num_off_target > 0:
                     num_otus_with_off_target += 1
         logging.info("Converted {} Diamond-assigned OTU taxon_ids to taxon strings".format(num_otus_changed))
-        logging.debug("Identified {} OTUs containing at least one off-target equal-best hit".format(num_otus_with_off_target))
+        if num_otus_with_off_target > 0:
+            logging.info("Identified {} OTUs containing at least one off-target equal-best hit".format(num_otus_with_off_target))
 
     def _push_down_genus_to_species(self, condensed_otus, max_push_down_fraction):
         '''Pushes coverage down proportionally from genus to species level,
