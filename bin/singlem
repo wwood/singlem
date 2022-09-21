@@ -969,6 +969,7 @@ if __name__ == '__main__':
     elif args.subparser_name == 'appraise':
         from singlem.otu_table_collection import OtuTableCollection
         from singlem.appraiser import Appraiser
+        from singlem.metapackage import Metapackage
 
         appraiser = Appraiser()
 
