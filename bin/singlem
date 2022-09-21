@@ -518,6 +518,7 @@ if __name__ == '__main__':
     appraise_otu_table_options.add_argument('--metagenome-otu-tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
     appraise_otu_table_options.add_argument('--genome-otu-tables', nargs='+', help="output of 'pipe' run on genomes")
     appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
+    appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables', required=True)
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
     appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -976,11 +977,20 @@ if __name__ == '__main__':
             with open(table) as f:
                 metagenomes.add_otu_table(f)
 
+        logging.info("Removing hits that are not assigned to their target domains")
+        pkgs = Metapackage.acquire(args.metapackage).singlem_packages
+        o2 = OtuTableCollection()
+        o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
+        metagenomes = o2
+
         if args.genome_otu_tables:
             genomes = OtuTableCollection()
             for table in args.genome_otu_tables:
                 with open(table) as f:
                     genomes.add_otu_table(f)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects.append(genomes.exclude_off_target_hits(pkgs))
+            genomes = o2
         else:
             genomes = None
         if args.assembly_otu_tables:
@@ -988,6 +998,9 @@ if __name__ == '__main__':
             for table in args.assembly_otu_tables:
                 with open(table) as f:
                     assemblies.add_otu_table(f)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects.append(assemblies.exclude_off_target_hits(pkgs))
+            assemblies = o2
         else:
             assemblies = None
 
