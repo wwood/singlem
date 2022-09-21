@@ -32,15 +32,16 @@ def distance_comparison(singlem_package):
     sequences = {seq.name: seq.seq for seq in SequenceIO().read_fasta_file(fasta_path)}
     logging.info("Read in %i sequences" % len(sequences))
 
-    # Remove eukaryotic sequences
-    euk_seq = set()
+    # Remove off-target sequences
+    target_domains = singlem_package.target_domains()
+    off_target_seq = set()
     for name, taxonomy in gg.items():
-        if taxonomy[0] == "d__Eukaryota":
-            euk_seq.add(name)
-    logging.warn("Found %i Eukaryotic sequences, deleting" % len(euk_seq))
-    for name in euk_seq:
+        if not taxonomy[0].strip("d__") in target_domains:
+            off_target_seq.add(name)
+    logging.warn("Found %i off-target sequences, deleting" % len(off_target_seq))
+    for name in off_target_seq:
         del gg[name]
-    logging.info("After deleting Eukaryotic taxonomies now have %i taxes" % len(gg))
+    logging.info("After deleting off-target taxonomies now have %i taxes" % len(gg))
 
     # Create recursive hash of taxonomy ending in sequences
     taxonomic_prefixes = 'd p c o f g s'.split(" ")
