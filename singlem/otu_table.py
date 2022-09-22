@@ -92,6 +92,12 @@ class OtuTable:
             if extra_field not in self.fields:
                 self.fields.append(extra_field)
 
+    def sort_by_marker(self):
+        '''Sort the OTU table by marker gene.
+        '''
+        marker_column = self.fields.index('gene')
+        self.data.sort(key=lambda x: x[marker_column])
+
     @staticmethod
     def read(input_otu_table_io):
         otus = OtuTable()
