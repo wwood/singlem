@@ -123,6 +123,7 @@ class Appraiser:
 
         metagenome_collection = OtuTableCollection()
         metagenome_collection.add_otu_table_object(metagenome_table)
+        metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
         queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, 'naive', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
