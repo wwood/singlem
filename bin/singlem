@@ -1012,7 +1012,8 @@ if __name__ == '__main__':
                                 metagenome_otu_table_collection=metagenomes,
                                 assembly_otu_table_collection=assemblies,
                                 output_found_in = args.output_found_in,
-                                sequence_identity=(args.sequence_identity if args.imperfect else None))
+                                sequence_identity=(args.sequence_identity if args.imperfect else None),
+                                packages=pkgs)
 
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')

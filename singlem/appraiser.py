@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import tempfile
+import numpy
 
 from .otu_table import OtuTable
 from .otu_table_collection import OtuTableCollection
@@ -28,6 +29,7 @@ class Appraiser:
         genome_otu_table_collection = kwargs.pop('genome_otu_table_collection')
         metagenome_otu_table_collection = kwargs.pop('metagenome_otu_table_collection')
         assembly_otu_table_collection = kwargs.pop('assembly_otu_table_collection', None)
+        packages = kwargs.pop('packages')
         sequence_identity = kwargs.pop('sequence_identity', None)
         output_found_in = kwargs.pop('output_found_in', False)
         if len(kwargs) > 0:
@@ -54,14 +56,16 @@ class Appraiser:
                 metagenome_otu_table_collection,
                 filtered_genome_otus,
                 sequence_identity,
-                output_found_in)
+                output_found_in,
+                packages)
             sample_to_building_block = sample_to_binned
         if assembly_otu_table_collection:
             sample_to_assembled = self._appraise_inexactly(
                 metagenome_otu_table_collection,
                 assembly_otu_table_collection,
                 sequence_identity,
-                output_found_in)
+                output_found_in,
+                packages)
             sample_to_building_block = sample_to_assembled
 
         app = Appraisal()
@@ -72,13 +76,13 @@ class Appraiser:
             seen_otu_sequences = set()
             if appraising_binning:
                 binning_building_block = sample_to_binned[sample]
-                res.num_binned = binning_building_block.num_found
+                res.num_binned = binning_building_block.est_num_found()
                 res.binned_otus = binning_building_block.found_otus
                 for otu in res.binned_otus:
                     seen_otu_sequences.add(otu.sequence)
             if appraising_assembly:
                 assembled_building_block = sample_to_assembled[sample]
-                res.num_assembled = assembled_building_block.num_found
+                res.num_assembled = assembled_building_block.est_num_found()
                 res.assembled_otus = assembled_building_block.found_otus
                 for otu in res.assembled_otus:
                     seen_otu_sequences.add(otu.sequence)
@@ -89,8 +93,10 @@ class Appraiser:
                         otu.add_found_data('')
                     not_seen_otus.append(otu)
             res.not_found_otus = not_seen_otus
+            not_found_block = AppraisalBuildingBlock(packages)
             for otu in not_seen_otus:
-                res.num_not_found += otu.count
+                not_found_block.add_otu(otu)
+            res.num_not_found = not_found_block.est_num_found()
             app.appraisal_results.append(res)
         return app
 
@@ -98,7 +104,8 @@ class Appraiser:
     def _appraise_inexactly(self, metagenome_otu_table_collection,
                             found_otu_collection,
                             sequence_identity,
-                            output_found_in):
+                            output_found_in,
+                            packages):
         '''Given a metagenome sample collection and OTUs 'found' either by binning or
         assembly, return a AppraisalBuildingBlock representing the OTUs that
         have been found, using inexact matching.
@@ -136,19 +143,18 @@ class Appraiser:
             if q.sample_name in sample_to_building_block:
                 appraisal = sample_to_building_block[q.sample_name]
             else:
-                appraisal = AppraisalBuildingBlock()
+                appraisal = AppraisalBuildingBlock(packages)
                 sample_to_building_block[q.sample_name] = appraisal
 
             if output_found_in:
                 q.add_found_data(hit.subject.sample_name)
 
             if q not in appraisal.found_otus:
-                appraisal.num_found += q.count
-                appraisal.found_otus.append(q)
+                appraisal.add_otu(q)
 
         for otu in metagenome_otu_table_collection:
             if otu.sample_name not in sample_to_building_block:
-                sample_to_building_block[otu.sample_name] = AppraisalBuildingBlock()
+                sample_to_building_block[otu.sample_name] = AppraisalBuildingBlock(packages)
 
         return sample_to_building_block
 
@@ -306,6 +312,35 @@ class Appraiser:
 
 class AppraisalBuildingBlock:
     '''Can represent binned OTUs or assembled OTUs'''
-    def __init__(self):
-        self.num_found = 0
+    DOMAINS = ['d__Archaea', 'd__Bacteria']
+
+    def __init__(self, packages):
+        self.num_found = {}
+        for package in packages:
+            domains = ['d__' + d for d in package.target_domains()]
+            self.num_found[package.graftm_package_basename()] = {domain: 0 for domain in domains if domain in self.DOMAINS}
+
         self.found_otus = []
+
+    def add_otu(self, otu):
+        if otu.marker in self.num_found:
+            try:
+                domain = otu.taxonomy.split("; ")[1]
+                self.num_found[otu.marker][domain] += otu.count
+            except (IndexError, KeyError):
+                # If the taxonomy is not defined, or the domain is not in target_domain
+                pass
+        else:
+            raise Exception("Unexpected marker found: %s" % otu.marker)
+        self.found_otus.append(otu)
+
+    def est_num_found(self):
+        out = {}
+        for domain in self.DOMAINS:
+            out[domain] = round(self._trimmean([n[domain] for n in self.num_found.values() if domain in n], 10))
+        return out
+
+    def _trimmean(self, arr, percent):
+        n = len(arr)
+        k = int(round(n*(float(percent)/100)/2))
+        return numpy.mean(arr[k+1:n-k])
