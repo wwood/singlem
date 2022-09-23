@@ -24,6 +24,7 @@ from .pipe_sequence_extractor import PipeSequenceExtractor
 from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
+from .otu_table_collection import StreamingOtuTableCollection
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -43,10 +44,21 @@ class SearchPipe:
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
         archive_otu_table = kwargs.pop('archive_otu_table', None)
+        output_taxonomic_profile = kwargs.pop('output_taxonomic_profile', None)
+        output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona', None)
         output_extras = kwargs.pop('output_extras')
+
+        outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
+        if outputting_taxonomic_profile:
+            original_tmpdir = tempfile.gettempdir()
+        if outputting_taxonomic_profile and 'metapackage_path' not in kwargs:
+            raise Exception("Must specify a metapackage to output a taxonomic profile")
 
         metapackage = self._parse_packages_or_metapackage(**kwargs)
         kwargs['metapackage_object'] = metapackage
+
+        if outputting_taxonomic_profile and metapackage.version < 3:
+            raise Exception("Taxonomic profile output is only available for metapackages version 3 or higher")
 
         otu_table_object = self.run_to_otu_table(**kwargs)
         if otu_table_object is not None:
@@ -56,6 +68,20 @@ class SearchPipe:
                 archive_otu_table,
                 output_extras,
                 metapackage)
+
+            if output_taxonomic_profile or output_taxonomic_profile_krona:
+                tempfile.tempdir = original_tmpdir
+                from .condense import Condenser
+                otu_table_collection = StreamingOtuTableCollection()
+                otu_table_collection.add_archive_otu_table_object(otu_table_object)
+                Condenser().condense(
+                    input_streaming_otu_table = otu_table_collection,
+                    output_otu_table = output_taxonomic_profile,
+                    krona = output_taxonomic_profile_krona,
+                    metapackage = metapackage)
+
+
+                
 
     def _parse_packages_or_metapackage(self, **kwargs):
         metapackage_path = kwargs.pop('metapackage_path', None)
