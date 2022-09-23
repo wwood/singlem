@@ -142,8 +142,9 @@ class Appraiser:
             if output_found_in:
                 q.add_found_data(hit.subject.sample_name)
 
-            appraisal.num_found += q.count
-            appraisal.found_otus.append(q)
+            if q not in appraisal.found_otus:
+                appraisal.num_found += q.count
+                appraisal.found_otus.append(q)
 
         for otu in metagenome_otu_table_collection:
             if otu.sample_name not in sample_to_building_block:
