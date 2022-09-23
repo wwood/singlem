@@ -126,7 +126,7 @@ class Appraiser:
         metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
-        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, 'naive', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
+        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, 'naive', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
 
         sample_to_building_block = {}
         for hit in queries:
