@@ -184,7 +184,7 @@ class Condenser:
                         taxon_name = sequence_id_to_taxon[seq_id]
                         if not taxon_name[-2].startswith('g__'):
                             if not taxon_name[0] == 'd__Eukaryota':
-                                raise Exception("Expected genus level taxon, but found {}, from ID".format(taxon_name, taxon_id))
+                                raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
                             else:
                                 # This can happen when taxonomy is overall
                                 # Archaea so not previously filtered out, but

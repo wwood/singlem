@@ -33,6 +33,7 @@ class Metapackage:
                     '3': [
                         VERSION_KEY,
                         PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
                         SQLITE_DB_PATH_KEY,
                         ],
                       }
@@ -88,6 +89,7 @@ class Metapackage:
 
         if v >= 3:
             mpkg._sqlite_db_path = os.path.join(metapackage_path, contents_hash[Metapackage.SQLITE_DB_PATH_KEY])
+            mpkg._nucleotide_sdb_path = os.path.join(metapackage_path, contents_hash[Metapackage.NUCLEOTIDE_SDB])
 
         return mpkg
 
@@ -283,3 +285,8 @@ class Metapackage:
     def get_taxonomy_of_reads(self, read_names):
         store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
         return store.get_taxonomy_of_reads(read_names)
+
+    def nucleotide_sdb(self):
+        # import here so that we avoid tensorflow dependency if not needed
+        from .sequence_database import SequenceDatabase
+        return SequenceDatabase.acquire(self._nucleotide_sdb_path)
