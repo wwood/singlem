@@ -21,6 +21,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 import singlem
 import singlem.pipe as pipe
 from singlem.pipe import SearchPipe
+from singlem.condense import Condenser
 
 DEFAULT_WINDOW_SIZE=60
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
@@ -57,7 +58,7 @@ class bcolors:
 class MyParser(argparse.ArgumentParser):
     FULL_HELP_FLAG = 'full-help'
 
-    PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.DIAMOND_ASSIGNMENT_METHOD
+    PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
 
     def format_help(self):
         prog = self.prog
@@ -261,6 +262,8 @@ if __name__ == '__main__':
         argument_group.add_argument('--output-extras', action='store_true',
                                          help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) [default: not set]',
                                          default=False)
+        argument_group.add_argument('--output-taxonomic-profile', metavar='FILE', help="output a single 'condensed' taxonomic profile based on the OTU table")
+        argument_group.add_argument('--output-taxonomic-profile-krona', metavar='FILE', help="output a single 'condensed' taxonomic profile in Krona HTML form to this file")
     common_pipe_arguments = pipe_parser.add_argument_group('Common options')
     sequence_input_group = common_pipe_arguments.add_mutually_exclusive_group(required=True)
     sequence_input_group.add_argument('--forward','--reads','--sequences',
@@ -548,7 +551,7 @@ if __name__ == '__main__':
 
     condense_description = 'Combine OTU tables across different markers into a single OTU table.'
     condense_parser = new_subparser(subparsers, 'condense', condense_description)
-    current_default = 10
+    current_default = Condenser.DEFAULT_TRIM_PERCENT
     condense_parser.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
 
     required_condense_arguments = condense_parser.add_argument_group("required arguments")
@@ -564,7 +567,9 @@ if __name__ == '__main__':
     required_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
     required_condense_arguments.add_argument('--output-otu-table', metavar='filename', help="output OTU table")
     required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
-    required_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION', help='Set taxons with less coverage to coverage=0.', default=0.05, type=float)
+    current_default = Condenser.DEFAULT_MIN_TAXON_COVERAGE
+    required_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION', 
+        help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     required_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
 
 
@@ -582,23 +587,10 @@ if __name__ == '__main__':
 
 
     def validate_pipe_args(args, subparser='pipe'):
-        if not args.otu_table and not args.archive_otu_table:
-            raise Exception("At least one of --otu-table or --archive-otu-table must be specified")
+        if not args.otu_table and not args.archive_otu_table and not args.output_taxonomic_profile and not args.output_taxonomic_profile_krona:
+            raise Exception("At least one of --output-taxonomic-profile, --output-taxonomic-profile-krona, --otu-table, or --archive-otu-table must be specified")
         if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
             raise Exception("If --output-jplace is specified, then --assignment-method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
-        if args.output_jplace and args.known_otu_tables:
-            raise Exception("Currently --output-jplace and --known-otu-tables are incompatible")
-        if args.output_jplace and args.no_assign_taxonomy:
-            raise Exception("Currently --output-jplace and --no-assign-taxonomy are incompatible")
-        if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
-            raise Exception(
-                "Currently --known-sequence-taxonomy requires --no-assign-taxonomy to be set also")
-        if args.reverse and args.output_jplace:
-            raise Exception("Currently --jplace-output cannot be used with --reverse")
-        if args.working_directory and args.working_directory_dev_shm:
-            raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
-        if args.sra_files and args.no_diamond_prefilter:
-            raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
         if args.metapackage and args.singlem_packages:
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
         if not args.assignment_singlem_db and args.assignment_method in (
@@ -606,7 +598,28 @@ if __name__ == '__main__':
             pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
             pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
             pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
-            raise Exception("If --assignment-method is set to %s, then --assignment-singlem-db must be specified" % args.assignment_method)
+            failed = True
+            if subparser=='pipe':
+                if args.no_assign_taxonomy:
+                    failed = False
+            if failed:
+                raise Exception("If --assignment-method is set to %s, then --assignment-singlem-db must be specified" % args.assignment_method)
+        if subparser == 'pipe':
+            if args.output_jplace and args.known_otu_tables:
+                raise Exception("Currently --output-jplace and --known-otu-tables are incompatible")
+            if args.output_jplace and args.no_assign_taxonomy:
+                raise Exception("Currently --output-jplace and --no-assign-taxonomy are incompatible")
+            if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
+                raise Exception(
+                    "Currently --known-sequence-taxonomy requires --no-assign-taxonomy to be set also")
+            if args.reverse and args.output_jplace:
+                raise Exception("Currently --jplace-output cannot be used with --reverse")
+            if args.working_directory and args.working_directory_dev_shm:
+                raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
+            if args.sra_files and args.no_diamond_prefilter:
+                raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
+
+
 
     def generate_streaming_otu_table_from_args(args, 
         input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
@@ -767,10 +780,13 @@ if __name__ == '__main__':
             diamond_prefilter_db = args.diamond_prefilter_db,
             diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
             assignment_singlem_db = args.assignment_singlem_db,
+            output_taxonomic_profile = args.output_taxonomic_profile,
+            output_taxonomic_profile_krona = args.output_taxonomic_profile_krona,
         )
 
     elif args.subparser_name=='renew':
         from singlem.renew import Renew
+        validate_pipe_args(args, subparser='renew')
         Renew().renew(
             input_archive_otu_table=args.input_archive_otu_table,
             otu_table = args.otu_table,
@@ -787,6 +803,8 @@ if __name__ == '__main__':
             restrict_read_length = args.restrict_read_length,
             filter_minimum_protein = args.filter_minimum_protein,
             assignment_singlem_db = args.assignment_singlem_db,
+            output_taxonomic_profile = args.output_taxonomic_profile,
+            output_taxonomic_profile_krona = args.output_taxonomic_profile_krona,
             )
 
     elif args.subparser_name == 'summarise':

@@ -231,11 +231,28 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --otu_table /dev/stdout --singlem-metapackage %s --assignment-method diamond" % (
+            cmd = "%s pipe --sequences %s --otu-table /dev/stdout --singlem-metapackage %s --assignment-method diamond" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.v3.gpkg.spkg.smpkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+
+    def test_fast_protein_package_prefilter_with_diamond_assignment_metapackage_condensed_outputs(self):
+        expected = \
+            "sample\tcoverage\ttaxonomy\n" + \
+            'SAMPLE_ID	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]\n'
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "%s pipe --sequences %s --metapackage %s --assignment-method diamond --output-taxonomic-profile /dev/stdout --output-taxonomic-profile-krona /tmp/blah.html" % (
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.v3.gpkg.spkg.smpkg'))
+            self.assertEqual(
+                expected, extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),'SAMPLE_ID'))
 
     def test_fast_protein_package_prefilter_with_diamond_assignment_2_samples(self):
         expected = [

@@ -6,6 +6,7 @@ from .metapackage import Metapackage
 from .archive_otu_table import ArchiveOtuTable
 from .pipe_sequence_extractor import ExtractedReads, ExtractedReadSet
 from .sequence_classes import Sequence, UnalignedAlignedNucleotideSequence
+from .otu_table_collection import StreamingOtuTableCollection
 
 class Renew:
     @staticmethod
@@ -24,6 +25,8 @@ class Renew:
         restrict_read_length = kwargs.pop('restrict_read_length')
         filter_minimum_protein = kwargs.pop('filter_minimum_protein')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+        output_taxonomic_profile = kwargs.pop('output_taxonomic_profile')
+        output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona')
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -145,12 +148,23 @@ class Renew:
             )
 
         # Write outputs
-        logging.info("Writing output files ..")
-        pipe.write_otu_tables(
-            otu_table_object,
-            output_otu_table,
-            output_archive_otu_table,
-            output_extras,
-            metapackage)
+        if output_otu_table or output_archive_otu_table:
+            logging.info("Writing output files ..")
+            pipe.write_otu_tables(
+                otu_table_object,
+                output_otu_table,
+                output_archive_otu_table,
+                output_extras,
+                metapackage)
+        
+        if output_taxonomic_profile or output_taxonomic_profile_krona:
+            from .condense import Condenser
+            otu_table_collection = StreamingOtuTableCollection()
+            otu_table_collection.add_archive_otu_table_object(otu_table_object)
+            Condenser().condense(
+                input_streaming_otu_table = otu_table_collection,
+                output_otu_table = output_taxonomic_profile,
+                krona = output_taxonomic_profile_krona,
+                metapackage = metapackage)
 
         logging.info("Renew is finished")

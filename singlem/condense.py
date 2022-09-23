@@ -1,4 +1,3 @@
-from curses import meta
 import logging
 import tempfile
 import csv
@@ -29,14 +28,21 @@ while True:
 class Condenser:
     """ Combines otu table output for each marker into a single otu table"""
 
+    DEFAULT_TRIM_PERCENT = 10
+    DEFAULT_MIN_TAXON_COVERAGE = 0.05
+
     def condense(self, **kwargs):
         output_otu_table = kwargs.pop('output_otu_table')
         krona_output_file = kwargs.pop('krona')
-        metapackage_path = kwargs.pop('metapackage_path')
-        
-        metapackage = Metapackage.acquire(metapackage_path)
-        if metapackage.version != 3:
-            raise Exception("Condense function now only works with version 3 metapackages.")
+        metapackage_path = kwargs.pop('metapackage_path', None)
+        metapackage = kwargs.pop('metapackage', None)
+
+        if metapackage_path:
+            metapackage = Metapackage.acquire(metapackage_path)
+            if metapackage.version != 3:
+                raise Exception("Condense function now only works with version 3 metapackages.")
+        elif not metapackage:
+            raise Exception("Either metapackage_path or metapackage must be provided to condense.")
 
         # Yield once per sample
         to_yield = self._condense_to_otu_table(metapackage, **kwargs)
@@ -59,10 +65,10 @@ class Condenser:
 
     def _condense_to_otu_table(self, metapackage, **kwargs):
         input_otu_table = kwargs.pop('input_streaming_otu_table')
-        trim_percent = kwargs.pop('trim_percent') / 100
-        min_taxon_coverage = kwargs.pop('min_taxon_coverage')
+        trim_percent = kwargs.pop('trim_percent', Condenser.DEFAULT_TRIM_PERCENT) / 100
+        min_taxon_coverage = kwargs.pop('min_taxon_coverage', Condenser.DEFAULT_MIN_TAXON_COVERAGE)
         # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
-        output_after_em_otu_table = kwargs.pop('output_after_em_otu_table')
+        output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
