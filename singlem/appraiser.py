@@ -32,6 +32,7 @@ class Appraiser:
         packages = kwargs.pop('packages')
         sequence_identity = kwargs.pop('sequence_identity', None)
         output_found_in = kwargs.pop('output_found_in', False)
+        window_size = kwargs.pop('window_size')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -57,7 +58,8 @@ class Appraiser:
                 filtered_genome_otus,
                 sequence_identity,
                 output_found_in,
-                packages)
+                packages,
+                window_size)
             sample_to_building_block = sample_to_binned
         if assembly_otu_table_collection:
             sample_to_assembled = self._appraise_inexactly(
@@ -65,7 +67,8 @@ class Appraiser:
                 assembly_otu_table_collection,
                 sequence_identity,
                 output_found_in,
-                packages)
+                packages,
+                window_size)
             sample_to_building_block = sample_to_assembled
 
         app = Appraisal()
@@ -105,14 +108,15 @@ class Appraiser:
                             found_otu_collection,
                             sequence_identity,
                             output_found_in,
-                            packages):
+                            packages,
+                            window_size):
         '''Given a metagenome sample collection and OTUs 'found' either by binning or
         assembly, return a AppraisalBuildingBlock representing the OTUs that
         have been found, using inexact matching.
 
         '''
         if sequence_identity:
-            max_divergence = 60 * (1 - sequence_identity)
+            max_divergence = window_size * (1 - sequence_identity)
         else:
             max_divergence = 0
 
