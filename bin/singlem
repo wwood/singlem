@@ -1013,7 +1013,8 @@ if __name__ == '__main__':
                                 assembly_otu_table_collection=assemblies,
                                 output_found_in = args.output_found_in,
                                 sequence_identity=(args.sequence_identity if args.imperfect else None),
-                                packages=pkgs)
+                                packages=pkgs,
+                                window_size=DEFAULT_WINDOW_SIZE)
 
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
