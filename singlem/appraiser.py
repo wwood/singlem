@@ -347,4 +347,4 @@ class AppraisalBuildingBlock:
     def _trimmean(self, arr, percent):
         n = len(arr)
         k = int(round(n*(float(percent)/100)/2))
-        return numpy.mean(arr[k+1:n-k])
+        return numpy.mean(sorted(arr)[k:n-k])
