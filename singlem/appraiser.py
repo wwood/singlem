@@ -10,6 +10,7 @@ from .sequence_searcher import SequenceSearcher
 from .appraisal_result import Appraisal, AppraisalResult
 from .querier import Querier
 from .sequence_database import SequenceDatabase
+from .condense import _tmean
 
 class Appraiser:
     def appraise(self, **kwargs):
@@ -341,10 +342,5 @@ class AppraisalBuildingBlock:
     def est_num_found(self):
         out = {}
         for domain in self.DOMAINS:
-            out[domain] = round(self._trimmean([n[domain] for n in self.num_found.values() if domain in n], 10))
+            out[domain] = round(_tmean([n[domain] for n in self.num_found.values() if domain in n], 0.1))
         return out
-
-    def _trimmean(self, arr, percent):
-        n = len(arr)
-        k = int(round(n*(float(percent)/100)/2))
-        return numpy.mean(sorted(arr)[k:n-k])
