@@ -307,13 +307,13 @@ class Tests(unittest.TestCase):
         self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
 
         to_print = StringIO()
-        appraiser.print_appraisal(app, True, to_print)
-        self.assertEqual("sample\tnum_binned\tnum_not_found\tpercent_binned\nminimal\t7\t0\t100.0\nanother\t0\t4\t0.0\ntotal\t7\t4\t63.6\naverage\t3.5\t2.0\t50.0\n", to_print.getvalue())
+        appraiser.print_appraisal(app, packages, True, to_print)
+        self.assertEqual("sample\tdomain\tnum_binned\tnum_not_found\tpercent_binned\nminimal\td__Archaea\t0\t0\t0.0\nminimal\td__Bacteria\t2\t0\t100.0\nanother\td__Archaea\t0\t0\t0.0\nanother\td__Bacteria\t0\t1\t0.0\ntotal\td__Archaea\t0\t0\t0.0\naverage\td__Archaea\t0.0\t0.0\tnan\ntotal\td__Bacteria\t2\t1\t66.7\naverage\td__Bacteria\t1.0\t0.5\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
         not_found_otu_table_io = StringIO()
-        appraiser.print_appraisal(app, True, to_print,
+        appraiser.print_appraisal(app, packages, True, to_print,
                                   binned_otu_table_io=found_otu_table_io,
                                   unaccounted_for_otu_table_io=not_found_otu_table_io)
         self.assertEqual("\n".join([
@@ -367,13 +367,13 @@ class Tests(unittest.TestCase):
         self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
 
         to_print = StringIO()
-        appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
-        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\t0\t7\t0\t0.0\t100.0\nanother\t0\t0\t4\t0.0\t0.0\ntotal\t0\t7\t4\t0.0\t63.6\naverage\t0.0\t3.5\t2.0\t0.0\t50.0\n", to_print.getvalue())
+        appraiser.print_appraisal(app, packages, True, to_print, doing_assembly=True)
+        self.assertEqual("sample\tdomain\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\td__Archaea\t0\t0\t0\t0.0\t0.0\nminimal\td__Bacteria\t0\t2\t0\t0.0\t100.0\nanother\td__Archaea\t0\t0\t0\t0.0\t0.0\nanother\td__Bacteria\t0\t0\t1\t0.0\t0.0\ntotal\td__Archaea\t0\t0\t0\t0.0\t0.0\naverage\td__Archaea\t0.0\t0.0\t0.0\tnan\tnan\ntotal\td__Bacteria\t0\t2\t1\t0.0\t66.7\naverage\td__Bacteria\t0.0\t1.0\t0.5\t0.0\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
         not_found_otu_table_io = StringIO()
-        appraiser.print_appraisal(app, True, to_print,
+        appraiser.print_appraisal(app, packages, True, to_print,
                                   doing_assembly=True,
                                   assembled_otu_table_io=found_otu_table_io,
                                   unaccounted_for_otu_table_io=not_found_otu_table_io)
@@ -392,7 +392,7 @@ class Tests(unittest.TestCase):
         assembled_otu_table_io = StringIO()
         unbinned_otu_table_io = StringIO()
         not_found_otu_table_io = StringIO()
-        appraiser.print_appraisal(app, True, to_print,
+        appraiser.print_appraisal(app, packages, True, to_print,
                                   doing_assembly=True,
                                   assembled_otu_table_io=assembled_otu_table_io,
                                   unbinned_otu_table_io=unbinned_otu_table_io,
@@ -453,15 +453,15 @@ class Tests(unittest.TestCase):
         self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
 
         to_print = StringIO()
-        appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
-        self.assertEqual("sample\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\t7\t7\t0\t100.0\t100.0\nanother\t0\t0\t4\t0.0\t0.0\ntotal\t7\t7\t4\t63.6\t63.6\naverage\t3.5\t3.5\t2.0\t50.0\t50.0\n", to_print.getvalue())
+        appraiser.print_appraisal(app, packages, True, to_print, doing_assembly=True)
+        self.assertEqual("sample\tdomain\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\td__Archaea\t0\t0\t0\t0.0\t0.0\nminimal\td__Bacteria\t2\t2\t0\t100.0\t100.0\nanother\td__Archaea\t0\t0\t0\t0.0\t0.0\nanother\td__Bacteria\t0\t0\t1\t0.0\t0.0\ntotal\td__Archaea\t0\t0\t0\t0.0\t0.0\naverage\td__Archaea\t0.0\t0.0\t0.0\tnan\tnan\ntotal\td__Bacteria\t2\t2\t1\t66.7\t66.7\naverage\td__Bacteria\t1.0\t1.0\t0.5\t50.0\t50.0\n", to_print.getvalue())
 
         # Check that unbinned is the same as assembled OTUs when no binning is done
         to_print = StringIO()
         assembled_otu_table_io = StringIO()
         unbinned_otu_table_io = StringIO()
         not_found_otu_table_io = StringIO()
-        appraiser.print_appraisal(app, True, to_print,
+        appraiser.print_appraisal(app, packages, True, to_print,
                                   doing_assembly=True,
                                   assembled_otu_table_io=assembled_otu_table_io,
                                   unbinned_otu_table_io=unbinned_otu_table_io,
@@ -514,7 +514,7 @@ class Tests(unittest.TestCase):
         to_print = StringIO()
         found_otu_table_io = StringIO()
         not_found_otu_table_io = StringIO()
-        appraiser.print_appraisal(app, True, to_print,
+        appraiser.print_appraisal(app, packages, True, to_print,
                                   binned_otu_table_io=found_otu_table_io,
                                   unaccounted_for_otu_table_io=not_found_otu_table_io,
                                   output_found_in=True)
@@ -748,7 +748,7 @@ class Tests(unittest.TestCase):
         self.assertEqual('CAAAAAAAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
                          a.not_found_otus[0].sequence)
 
-
+    @unittest.skip("SRA otu tables have SingleM packages not in four_package.smpkg")
     def test_appraise_plot_real_data(self):
         """Not a real test, just developing the code"""
         appraiser = Appraiser()
