@@ -84,7 +84,7 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
@@ -102,7 +102,7 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria_preload_db(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
@@ -123,7 +123,7 @@ class Tests(unittest.TestCase):
 
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
