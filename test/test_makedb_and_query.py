@@ -54,7 +54,7 @@ class Tests(unittest.TestCase):
 
     def test_makedb_and_dump(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods none" %(path_to_script,
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods none" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
@@ -123,7 +123,7 @@ class Tests(unittest.TestCase):
 
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
                                                             d,
                                                             path_to_data)
             extern.run(cmd)
