@@ -23,7 +23,7 @@ import singlem.pipe as pipe
 from singlem.pipe import SearchPipe
 
 DEFAULT_WINDOW_SIZE=60
-GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
+GENUS_LEVEL_AVERAGE_IDENTITY = 0.86
 
 def seqs(args):
     if args.alignment_type == 'aa':
