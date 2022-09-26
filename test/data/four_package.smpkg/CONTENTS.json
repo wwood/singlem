@@ -1,0 +1,1 @@
+{"singlem_metapackage_version": 3, "singlem_packages": ["4.11.ribosomal_protein_L10.spkg", "4.12.ribosomal_protein_L11_rplK.spkg", "4.14.ribosomal_protein_L16_L10E_rplP.spkg", "4.16.ribosomal_protein_S5.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3"}
