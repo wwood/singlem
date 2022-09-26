@@ -30,11 +30,13 @@ import tempfile
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
+DEFAULT_WINDOW_SIZE = 60
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.appraiser import Appraiser
 from singlem.otu_table_collection import OtuTableCollection
 from singlem.otu_table import OtuTable
+from singlem.metapackage import Metapackage
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
@@ -64,12 +66,15 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection)
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(1, len(a.binned_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
@@ -94,18 +99,21 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection)
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
         a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
 
     def test_clusterer_all_cluster_all_good(self):
         metagenome_otu_table = [self.headers,
@@ -123,14 +131,17 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 sequence_identity=0.5)
+                                 sequence_identity=0.5,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(11, a.num_binned)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(11/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
 
 
     def test_clusterer_all_cluster_some_good(self):
@@ -149,14 +160,17 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 sequence_identity=0.7)
+                                 sequence_identity=0.7,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
 
 
     def test_clusterer_all_cluster_two_samples(self):
@@ -175,23 +189,26 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 sequence_identity=0.7)
+                                 sequence_identity=0.7,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         res = sorted(app.appraisal_results)
         self.assertEqual(2, len(app.appraisal_results))
         a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
         self.assertEqual(1, len(a.binned_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
                          a.binned_otus[0].sequence)
         self.assertEqual(0, len(a.not_found_otus))
         a = res[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
                          a.not_found_otus[0].sequence)
@@ -204,7 +221,7 @@ class Tests(unittest.TestCase):
                     ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                     ['4.12.ribosomal_protein_L11_rplK','minimal','AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA','12','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
                     ['4.11.ribosomal_protein_L10','maximal',     'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
-                    ['4.11.ribosomal_protein_L10','maximal',     'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATG','1','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+                    ['4.11.ribosomal_protein_L10','maximal',     'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATG','5','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
                     ]
         metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
 
@@ -219,15 +236,18 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 sequence_identity=0.7)
+                                 sequence_identity=0.7,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(12, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(12/4)}, a.num_not_found)
         self.assertEqual(1, len(a.binned_otus))
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
@@ -241,8 +261,8 @@ class Tests(unittest.TestCase):
 
         a = res[0]
         self.assertEqual('maximal', a.metagenome_sample_name)
-        self.assertEqual(1, a.num_binned)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(5/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
         self.assertEqual(1, len(a.binned_otus))
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATG',
@@ -270,18 +290,21 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection)
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
         a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print)
@@ -324,21 +347,24 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         assembly_collection = OtuTableCollection()
         assembly_collection.add_otu_table(StringIO(assemblies))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 assembly_otu_table_collection=assembly_collection)
+                                 assembly_otu_table_collection=assembly_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(0, a.num_assembled)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
         a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_assembled)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
@@ -407,21 +433,24 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         assembly_collection = OtuTableCollection()
         assembly_collection.add_otu_table(StringIO(assemblies))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 assembly_otu_table_collection=assembly_collection)
+                                 assembly_otu_table_collection=assembly_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[1]
         self.assertEqual('minimal', a.metagenome_sample_name)
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(7, a.num_assembled)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
         a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(0, a.num_assembled)
-        self.assertEqual(4, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_not_found)
 
         to_print = StringIO()
         appraiser.print_appraisal(app, True, to_print, doing_assembly=True)
@@ -467,9 +496,12 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 output_found_in=True)
+                                 output_found_in=True,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[1]
@@ -533,12 +565,15 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection)
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(8, a.num_binned)
-        self.assertEqual(7, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(8/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_not_found)
 
 
     def test_contamination_near_enough(self):
@@ -578,30 +613,36 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection)
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[0]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(8, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(8/4)}, a.num_not_found)
         a = res[1]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_not_found)
 
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 sequence_identity=0.9)
+                                 sequence_identity=0.9,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         def compare_res(res): return res.metagenome_sample_name
         sorted_results = list(sorted(app.appraisal_results, key=compare_res))
         a = sorted_results[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(8, a.num_binned)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(8/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
         a = sorted_results[1]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_not_found)
 
     def test_for_concatenated_genomes(self):
         metagenome_otu_table = [
@@ -645,16 +686,19 @@ class Tests(unittest.TestCase):
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection)
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = sorted(app.appraisal_results)
         a = res[0]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(8, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(8/4)}, a.num_not_found)
         a = res[1]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_not_found)
 
     def test_assembly_input(self):
         metagenome_otu_table = [
@@ -681,14 +725,17 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         assembly_collection = OtuTableCollection()
         assembly_collection.add_otu_table(StringIO(assemblies))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 assembly_otu_table_collection=assembly_collection)
+                                 assembly_otu_table_collection=assembly_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(1, len(app.appraisal_results))
         a = app.appraisal_results[0]
-        self.assertEqual(7, a.num_binned)
-        self.assertEqual(11, a.num_assembled)
-        self.assertEqual(5, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(11/4)}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(5/4)}, a.num_not_found)
         self.assertEqual('minimal', a.metagenome_sample_name)
         self.assertEqual(1, len(a.binned_otus))
         self.assertEqual('GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
@@ -714,9 +761,12 @@ class Tests(unittest.TestCase):
         assembly_collection = OtuTableCollection()
         with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.assembly.otu_table.csv')) as f:
             assembly_collection.add_otu_table(f)
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
-                                 assembly_otu_table_collection=assembly_collection)
+                                 assembly_otu_table_collection=assembly_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
 
         with tempfile.NamedTemporaryFile(mode='w',suffix='.svg',prefix='single_test_appraisal.') as f:
             app.plot(
@@ -788,35 +838,41 @@ class Tests(unittest.TestCase):
         genome_collection.add_otu_table(StringIO(genomes))
         assembly_collection = OtuTableCollection()
         assembly_collection.add_otu_table(StringIO(assemblies))
-        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
-                                 metagenome_otu_table_collection=metagenome_collection,
-                                 assembly_otu_table_collection=assembly_collection)
-        self.assertEqual(2, len(app.appraisal_results))
-        res = self._sort_appraisal_results(app.appraisal_results)
-        a = res[0]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(0, a.num_assembled)
-        self.assertEqual(8+9, a.num_not_found)
-        a = res[1]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_assembled)
-        self.assertEqual(0, a.num_not_found)
-
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection,
-                                 sequence_identity=0.9)
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
+        self.assertEqual(2, len(app.appraisal_results))
+        res = self._sort_appraisal_results(app.appraisal_results)
+        a = res[0]
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round((8+9)/4)}, a.num_not_found)
+        a = res[1]
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
+
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 assembly_otu_table_collection=assembly_collection,
+                                 sequence_identity=0.9,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
         self.assertEqual(2, len(app.appraisal_results))
         res = self._sort_appraisal_results(app.appraisal_results)
         a = res[0]
         self.assertEqual('another', a.metagenome_sample_name)
-        self.assertEqual(8, a.num_binned)
-        self.assertEqual(8, a.num_assembled)
-        self.assertEqual(9, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(8/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(8/4)}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(9/4)}, a.num_not_found)
         a = res[1]
-        self.assertEqual(0, a.num_binned)
-        self.assertEqual(7, a.num_assembled)
-        self.assertEqual(0, a.num_not_found)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(7/4)}, a.num_assembled)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
 
 
 if __name__ == "__main__":
