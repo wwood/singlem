@@ -1044,6 +1044,7 @@ if __name__ == '__main__':
 
         appraiser.print_appraisal(
             app,
+            packages=pkgs,
             doing_binning = genomes is not None,
             doing_assembly = assemblies is not None,
             output_found_in = args.output_found_in,

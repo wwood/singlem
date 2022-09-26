@@ -166,6 +166,7 @@ class Appraiser:
 
 
     def print_appraisal(self, appraisal,
+                        packages,
                         doing_binning,
                         output_io=sys.stdout,
                         doing_assembly=False,
@@ -176,7 +177,7 @@ class Appraiser:
                         unaccounted_for_otu_table_io=None):
         '''print the Appraisal object overview to STDOUT'''
 
-        headers = ['sample']
+        headers = ['sample', 'domain']
         if doing_binning: headers.append('num_binned')
         if doing_assembly: headers.append('num_assembled')
         headers.append('num_not_found')
@@ -184,12 +185,16 @@ class Appraiser:
         if doing_assembly: headers.append('percent_assembled')
         output_io.write("\t".join(headers)+"\n")
 
-        binned = []
-        assembled = []
-        assembled_not_binned = []
-        not_founds = []
+        binned = {domain: [] for domain in AppraisalBuildingBlock.DOMAINS}
+        assembled = {domain: [] for domain in AppraisalBuildingBlock.DOMAINS}
+        assembled_not_binned = {domain: [] for domain in AppraisalBuildingBlock.DOMAINS}
+        not_founds = {domain: [] for domain in AppraisalBuildingBlock.DOMAINS}
 
-        def print_sample(num_binned, num_assembled, num_assembled_not_binned, num_not_found, sample,
+        def sum_dict(dict1, dict2):
+                for key, value in dict2.items():
+                    dict1[key].append(value)
+
+        def print_sample(domain, num_binned, num_assembled, num_assembled_not_binned, num_not_found, sample,
                          mypercent_binned=None, mypercent_assembled=None):
             if mypercent_binned is not None or mypercent_assembled is not None:
                 if doing_binning:
@@ -208,7 +213,7 @@ class Appraiser:
                         percent_binned = float(num_binned)/total * 100
                     if doing_assembly:
                         percent_assembled = float(num_assembled)/total * 100
-            to_write = [sample]
+            to_write = [sample, domain]
             if doing_binning: to_write.append(str(num_binned))
             if doing_assembly: to_write.append(str(num_assembled))
             to_write.append(str(num_not_found))
@@ -232,18 +237,24 @@ class Appraiser:
 
         for appraisal_result in appraisal.appraisal_results:
             if doing_assembly:
-                num_assembled_not_binned = appraisal_result.num_assembled_not_binned()
-            print_sample(appraisal_result.num_binned if doing_binning else None,
-                         appraisal_result.num_assembled if doing_assembly else None,
-                         num_assembled_not_binned if doing_assembly else None,
-                         appraisal_result.num_not_found,
-                         appraisal_result.metagenome_sample_name)
+                num_assembled_not_binned_block = AppraisalBuildingBlock(packages)
+                for otu in appraisal_result.assembled_not_binned_otus():
+                    num_assembled_not_binned_block.add_otu(otu)
+                num_assembled_not_binned = num_assembled_not_binned_block.est_num_found()
+
+            for domain in AppraisalBuildingBlock.DOMAINS:
+                print_sample(domain,
+                            appraisal_result.num_binned[domain] if doing_binning else None,
+                            appraisal_result.num_assembled[domain] if doing_assembly else None,
+                            num_assembled_not_binned[domain] if doing_assembly else None,
+                            appraisal_result.num_not_found[domain],
+                            appraisal_result.metagenome_sample_name)
             if doing_binning:
-                binned.append(appraisal_result.num_binned)
+                sum_dict(binned, appraisal_result.num_binned)
             if doing_assembly:
-                assembled.append(appraisal_result.num_assembled)
-                assembled_not_binned.append(num_assembled_not_binned)
-            not_founds.append(appraisal_result.num_not_found)
+                sum_dict(assembled, appraisal_result.num_assembled)
+                sum_dict(assembled_not_binned, num_assembled_not_binned)
+            sum_dict(not_founds, appraisal_result.num_not_found)
 
             if not output_found_in:
                 if binned_otu_table_io:
@@ -264,36 +275,41 @@ class Appraiser:
                 if unaccounted_for_otu_table_io:
                     unaccounted_for_table.add_with_extras(appraisal_result.not_found_otus, ['found_in'])
 
-        print_sample(sum(binned) if doing_binning else None,
-                     sum(assembled) if doing_assembly else None,
-                     sum(assembled_not_binned) if doing_assembly else None,
-                     sum(not_founds),
-                     'total')
+        for domain in AppraisalBuildingBlock.DOMAINS:
+            print_sample(domain, 
+                        sum(binned[domain]) if doing_binning else None,
+                        sum(assembled[domain]) if doing_assembly else None,
+                        sum(assembled_not_binned[domain]) if doing_assembly else None,
+                        sum(not_founds[domain]),
+                        'total')
 
-        binned_means = []
-        assembled_means = []
-        if doing_binning:
-            to_enumerate = binned
-        else:
-            to_enumerate = assembled
-        for i, _ in enumerate(to_enumerate):
-            num_binned = binned[i] if doing_binning else 0
-            num_assembled = assembled[i] if doing_assembly else 0
-            num_assembled_not_binned = assembled_not_binned[i] if doing_assembly else 0
-            num_not_found = not_founds[i]
-            total = num_assembled_not_binned+num_not_found
+            binned_means = []
+            assembled_means = []
             if doing_binning:
-                total += num_binned
-                binned_means.append(float(num_binned)/total)
-            if doing_assembly:
-                assembled_means.append(float(num_assembled)/total)
-        print_sample("%2.1f" % mean(binned) if doing_binning else None,
-                     "%2.1f" % mean(assembled) if doing_assembly else None,
-                     None,
-                     "%2.1f" % mean(not_founds),
-                     'average',
-                     mypercent_binned=mean(binned_means)*100 if doing_binning else None,
-                     mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
+                to_enumerate = binned[domain]
+            else:
+                to_enumerate = assembled[domain]
+            for i, _ in enumerate(to_enumerate):
+                num_binned = binned[domain][i] if doing_binning else 0
+                num_assembled = assembled[domain][i] if doing_assembly else 0
+                num_assembled_not_binned = assembled_not_binned[domain][i] if doing_assembly else 0
+                num_not_found = not_founds[domain][i]
+                total = num_assembled_not_binned+num_not_found
+                if doing_binning:
+                    total += num_binned
+                    if total == 0: continue
+                    binned_means.append(float(num_binned)/total)
+                if doing_assembly:
+                    if total == 0: continue
+                    assembled_means.append(float(num_assembled)/total)
+            print_sample(domain,
+                        "%2.1f" % mean(binned[domain]) if doing_binning else None,
+                        "%2.1f" % mean(assembled[domain]) if doing_assembly else None,
+                        None,
+                        "%2.1f" % mean(not_founds[domain]),
+                        'average',
+                        mypercent_binned=mean(binned_means)*100 if doing_binning else None,
+                        mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
 
         if not output_found_in:
             if binned_otu_table_io:
