@@ -1180,7 +1180,7 @@ if __name__ == '__main__':
                 if args.taxonomy: definition_type_count += 1
                 if args.sample_list: definition_type_count += 1
                 if definition_type_count > 1:
-                    raise Exception("Only one of --smaple-names, --sample-list and --taxonomy can be specified")
+                    raise Exception("Only one of --sample-names, --sample-list and --taxonomy can be specified")
                 sample_names = args.sample_names
                 if args.sample_list:
                     with open(args.sample_list) as f:
