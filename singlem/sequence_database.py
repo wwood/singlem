@@ -184,12 +184,12 @@ class SequenceDatabase:
         return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
 
     def _nucleotide_annoy_init(self):
-        example_seq = self.query_builder().table('nucleotides').limit(1).first()['sequence']
+        example_seq = self.sqlalchemy_connection.execute(select(NucleotideSequence).limit(1)).first()['sequence']
         ndim = len(example_seq)*5
         return AnnoyIndex(ndim, 'hamming')
 
     def _protein_annoy_init(self):
-        example_seq = self.query_builder().table('proteins').limit(1).first()['protein_sequence']
+        example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first()['protein_sequence']
         ndim = len(example_seq)*len(AA_ORDER)
         return AnnoyIndex(ndim, 'hamming')
 
