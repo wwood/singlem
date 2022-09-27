@@ -2,9 +2,6 @@ import tempfile
 import logging
 import subprocess
 import sys
-import os
-from orator import DatabaseManager, Model
-from orator.exceptions.query import QueryException
 from Bio import pairwise2
 import numpy as np
 import csv
