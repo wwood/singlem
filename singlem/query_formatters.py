@@ -7,12 +7,12 @@ class SparseResultFormatter:
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             output_io.write("\t".join([
                 'query_name','query_sequence',
-                'divergence','num_hits','sample',
+                'divergence','num_hits','coverage','sample',
                 'marker','hit_sequence','taxonomy'])+"\n")
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
             output_io.write("\t".join([
                 'query_name','query_sequence','query_protein_sequence',
-                'divergence','num_hits','sample',
+                'divergence','num_hits','coverage','sample',
                 'marker','hit_sequence','hit_protein_sequence','taxonomy'])+"\n")
         else:
             raise Exception("Unexpected sequence type: %s" % sequence_type)
@@ -31,6 +31,7 @@ class SparseResultFormatter:
                     res.query.sequence,
                     str(res.divergence),
                     str(res.subject.count),
+                    str(res.subject.coverage),
                     res.subject.sample_name,
                     res.subject.marker,
                     res.subject.sequence,
@@ -43,6 +44,7 @@ class SparseResultFormatter:
                     res.query_protein_sequence,
                     str(res.divergence),
                     str(res.subject.count),
+                    str(res.subject.coverage),
                     res.subject.sample_name,
                     res.subject.marker,
                     res.subject.sequence,
