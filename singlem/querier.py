@@ -227,7 +227,8 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                m = sdb.query_builder().table('markers').where('marker',last_marker).first()
+                query = select([Marker.id]).where(Marker.marker == last_marker)
+                m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
                 last_marker_id = m['id']
@@ -273,7 +274,8 @@ class Querier:
             if index is None:
                 raise Exception("The marker '{}' does not appear to be '{}' indexed in the singlem db".format(marker, index_format))
             logging.info("Querying index for {}".format(marker))
-            m = sdb.query_builder().table('markers').where('marker',marker).first()
+            query = select([Marker.id]).where(Marker.marker == marker)
+            m = sdb.sqlalchemy_connection.execute(query).first()
             if m is None:
                 raise Exception("Marker {} not in the SQL DB".format(marker))
             marker_id = m['id']
@@ -405,7 +407,8 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                m = sdb.query_builder().table('markers').where('marker',last_marker).first()
+                query = select([Marker.id]).where(Marker.marker == last_marker)
+                m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
                 last_marker_id = m['id']
