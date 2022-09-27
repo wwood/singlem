@@ -454,7 +454,7 @@ class Querier:
                 Otu.taxonomy_id]) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id) \
-                    .where(NucleotideSequence.id == Otu.sequence_id) \
+                    .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
                     .where(NucleotidesProteins.protein_id == ProteinSequence.id) \
                     .where(ProteinSequence.marker_wise_id == int(hit_index)) \
                     .where(Otu.marker_id == marker_id)
