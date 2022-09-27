@@ -537,8 +537,6 @@ class Querier:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        dbm = db.query_builder()
-
         max_set_size = 999 # Cannot query sqlite with > 999 '?' entries, so
                            # query in batches.
         if sample_names:
@@ -548,30 +546,30 @@ class Querier:
         otus = OtuTable()
         total_printed = 0
         first_chunk = True
+        db.engine.execution_options(stream_results=True) # So RAM usage is not crazy for large queries
         for chunk in SequenceDatabase._grouper(query_chunks, max_set_size):
             if sample_names:
-                row_chunks = dbm.table('otus').join('nucleotides','sequence_id','=','nucleotides.id').join('markers','marker_id','=','markers.id').where_in(
-                    'sample_name', [sample for sample in chunk if sample is not None]).chunk(1000)
+                query = select(Otu).filter(Otu.sample_name.in_([sample for sample in chunk if sample is not None]))
             elif taxonomy:
-                row_chunks = dbm.table('otus').join('nucleotides','sequence_id','=','nucleotides.id').join('markers','marker_id','=','markers.id').where(
-                    'taxonomy', 'like', "%%%s%%" % taxonomy).chunk(1000)
+                query = select(Otu) \
+                    .where(Taxonomy.taxonomy.like('%{}%'.format(taxonomy))) \
+                    .where(Otu.taxonomy_id == Taxonomy.id)
             else:
                 raise Exception("Programming error")
 
-            for row_chunk in row_chunks:
-                for entry in row_chunk:
-                    otu = OtuTableEntry()
-                    otu.marker = entry['marker']
-                    otu.sample_name = entry['sample_name']
-                    otu.sequence = entry['sequence']
-                    otu.count = entry['num_hits']
-                    otu.coverage = entry['coverage']
-                    otu.taxonomy = entry['taxonomy']
-                    otus.add([otu])
-                    total_printed += 1
-                otus.write_to(output_io, print_header=first_chunk)
-                otus = OtuTable()
-                first_chunk = False
+            for entry in db.sqlalchemy_connection.execute(query):
+                otu = OtuTableEntry()
+                otu.marker = db.get_marker_via_cache(entry['marker_id'])
+                otu.sample_name = entry['sample_name']
+                otu.sequence = entry['sequence']
+                otu.count = entry['num_hits']
+                otu.coverage = entry['coverage']
+                otu.taxonomy = db.get_taxonomy_via_cache(entry['taxonomy_id'])
+                otus.add([otu])
+                total_printed += 1
+            otus.write_to(output_io, print_header=first_chunk)
+            otus = OtuTable()
+            first_chunk = False
         logging.info("Printed %i OTU table entries" % total_printed)
 
 

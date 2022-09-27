@@ -29,6 +29,7 @@ import extern
 import sys
 import json
 import itertools
+import re
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -51,6 +52,11 @@ class Tests(unittest.TestCase):
 
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]), message)
+
+    def assertEqualOtuTableStr(self, expected_str, observed_str, message=None):
+        spaces_to_tab = re.compile('  +')
+        expected_array = [spaces_to_tab.sub('\t',line.strip()).split("\t") for line in expected_str.split("\n")]
+        self.assertEqualOtuTable(expected_array, observed_str, message=message)
 
     def test_makedb_and_dump(self):
         with tempfile.TemporaryDirectory() as d:
@@ -189,6 +195,33 @@ class Tests(unittest.TestCase):
             expected = 'query_name\tquery_sequence\tdivergence\tnum_hits\tcoverage\tsample\tmarker\thit_sequence\ttaxonomy\nminimal\tCGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\t15.1\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nmaximal\tCGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\t15.1\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n'.split('\n')
             observed = extern.run(cmd).split('\n')
             self.assertEqual(expected, observed)
+
+
+    def test_print_by_taxonomy(self):
+        cmd = '%s query --taxonomy o__Bacillales --db %s' % (
+            path_to_script,
+            os.path.join(path_to_data,'a.sdb'))
+        observed = extern.run(cmd)
+        self.assertEqualOtuTableStr(
+            """gene    sample  sequence        num_hits        coverage        taxonomy
+            ribosomal_protein_L11_rplK_gpkg  minimal  GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC    7       15.10   Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+            ribosomal_protein_S17_gpkg      minimal  GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT    9       19.50   Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+            """,
+            observed)
+
+    def test_print_by_sample_name(self):
+        cmd = '%s query --sample-names minimal --db %s' % (
+            path_to_script,
+            os.path.join(path_to_data,'a.sdb'))
+        observed = extern.run(cmd)
+        self.assertEqualOtuTableStr(
+            """gene    sample  sequence        num_hits        coverage        taxonomy
+            ribosomal_protein_S2_rpsB_gpkg  minimal  CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATC  6  12.40  Root; k__Bacteria; p__Firmicutes; c__Bacilli
+            ribosomal_protein_L11_rplK_gpkg  minimal  GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC    7       15.10   Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+            ribosomal_protein_S17_gpkg      minimal  GCTAAATTAGGAGACATTGTTAAAATTCAAGAAACTCGTCCTTTATCAGCAACAAAACGT    9       19.50   Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+            """,
+            observed)
+
 
 
 
