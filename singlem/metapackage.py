@@ -290,3 +290,6 @@ class Metapackage:
         # import here so that we avoid tensorflow dependency if not needed
         from .sequence_database import SequenceDatabase
         return SequenceDatabase.acquire(self._nucleotide_sdb_path)
+    
+    def nucleotide_sdb_path(self):
+        return self._nucleotide_sdb_path
