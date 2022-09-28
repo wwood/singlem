@@ -17,7 +17,7 @@ jobs:
         with:
           activate-environment: test
           environment-file: singlem.yml
-          python-version: 3.6
+          python-version: 3.9
           auto-activate-base: false
           mamba-version: "*"
           channels: conda-forge,defaults,bioconda
