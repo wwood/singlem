@@ -2,9 +2,8 @@ channels:
   - conda-forge
   - bioconda
   - defaults
-  - masonite
 dependencies:
-  - python>=3.6 # stuck at 3.6 for orator
+  - python>=3.6, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10
   - diamond>2.0.11
   - biopython
   - hmmer
@@ -17,16 +16,13 @@ dependencies:
   - sra-tools
   - ncbi-ngs-sdk
   - sqlite
-  - masonite-orm
   - numba
   - python-annoy
-  - orator
   - squarify
   - nose
   - mafft
   - seqmagick
   - vsearch
-  - smafa
   - expressbetadiversity
   - cd-hit
   - fasttree
@@ -36,6 +32,6 @@ dependencies:
   - pip
   - sqlalchemy
   - pip:
-    - scann
+    - scann 
     - nmslib
     - --no-binary nmslib

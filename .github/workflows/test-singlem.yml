@@ -20,7 +20,7 @@ jobs:
           python-version: 3.6
           auto-activate-base: false
           mamba-version: "*"
-          channels: conda-forge,defaults,bioconda,masonite
+          channels: conda-forge,defaults,bioconda
       - run: |
           conda info
           conda list
