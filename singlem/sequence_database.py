@@ -36,6 +36,8 @@ NMSLIB_INDEX_FORMAT = 'nmslib'
 SCANN_INDEX_FORMAT = 'scann'
 NAIVE_INDEX_FORMAT = 'scann-naive'
 
+NUCLEOTIDE_DATABASE_TYPE = 'nucleotide'
+PROTEIN_DATABASE_TYPE = 'protein'
 
 class SequenceDatabase:
     version = 5
@@ -325,10 +327,17 @@ class SequenceDatabase:
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
         num_annoy_protein_trees = 10,
-        sequence_database_methods = [ANNOY_INDEX_FORMAT,SCANN_INDEX_FORMAT]):
+        sequence_database_methods = [NAIVE_INDEX_FORMAT],
+        sequence_database_types = [NUCLEOTIDE_DATABASE_TYPE]):
 
         if num_threads is None:
             num_threads = DEFAULT_NUM_THREADS
+
+        if sequence_database_types is None:
+            sequence_database_types = []
+        for db_type in sequence_database_types:
+            if db_type not in [NUCLEOTIDE_DATABASE_TYPE, PROTEIN_DATABASE_TYPE]:
+                raise Exception("Unexpected sequence database type: {}".format(db_type))
 
         # ensure db does not already exist
         if os.path.exists(db_path):
@@ -411,7 +420,6 @@ class SequenceDatabase:
                         '.separator "\\t"\n'
                         ".import {} taxonomy".format(taxonomy_loading_path))
                 logging.info("Loaded {} taxonomy entries".format(len(taxonomy_name_to_id)))
-
 
 
                 #################################################################
@@ -600,15 +608,19 @@ class SequenceDatabase:
         if 'naive' in sequence_database_methods:
             sequence_database_methods.append(NAIVE_INDEX_FORMAT)
         if SCANN_INDEX_FORMAT in sequence_database_methods or NAIVE_INDEX_FORMAT in sequence_database_methods:
-            sdb.create_scann_indexes(NAIVE_INDEX_FORMAT in sequence_database_methods)
+            sdb.create_scann_indexes(sequence_database_types, NAIVE_INDEX_FORMAT in sequence_database_methods)
 
         if NMSLIB_INDEX_FORMAT in sequence_database_methods:
-            sdb.create_nmslib_nucleotide_indexes()
-            sdb.create_nmslib_protein_indexes()
+            if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
+                sdb.create_nmslib_nucleotide_indexes()
+            if PROTEIN_DATABASE_TYPE in sequence_database_types:
+                sdb.create_nmslib_protein_indexes()
 
         if ANNOY_INDEX_FORMAT in sequence_database_methods:
-            sdb.create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
-            sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
+            if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
+                sdb.create_annoy_nucleotide_indexes(ntrees=num_annoy_nucleotide_trees)
+            if PROTEIN_DATABASE_TYPE in sequence_database_types:
+                sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
         logging.info("Finished singlem DB creation")
 
@@ -721,19 +733,21 @@ class SequenceDatabase:
             # Delete immediately to save RAM (was using 200G+ before getting killed on big DB)
             del annoy_index
 
-    def create_scann_indexes(self, generate_brute_force_index):
+    def create_scann_indexes(self, sequence_database_types, generate_brute_force_index):
         logging.info("Creating scann sequence indices ..")
         import tensorflow as tf
-        nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
-        nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
-        os.makedirs(nucleotide_db_dir_ah)
-        if generate_brute_force_index:
-            os.makedirs(nucleotide_db_dir_brute_force)
-        protein_db_dir_ah = os.path.join(self.base_directory, 'protein_indices_scann')
-        protein_db_dir_brute_force = os.path.join(self.base_directory, 'protein_indices_scann_brute_force')
-        os.makedirs(protein_db_dir_ah)
-        if generate_brute_force_index:
-            os.makedirs(protein_db_dir_brute_force)
+        if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
+            nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
+            nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
+            os.makedirs(nucleotide_db_dir_ah)
+            if generate_brute_force_index:
+                os.makedirs(nucleotide_db_dir_brute_force)
+        if PROTEIN_DATABASE_TYPE in sequence_database_types:
+            protein_db_dir_ah = os.path.join(self.base_directory, 'protein_indices_scann')
+            protein_db_dir_brute_force = os.path.join(self.base_directory, 'protein_indices_scann_brute_force')
+            os.makedirs(protein_db_dir_ah)
+            if generate_brute_force_index:
+                os.makedirs(protein_db_dir_brute_force)
 
         def generate_indices_from_array(a, db_dir_ah, db_dir_brute_force, generate_brute_force_index):
             normalized_dataset = a / np.linalg.norm(a, axis=1)[:, np.newaxis]
@@ -770,35 +784,31 @@ class SequenceDatabase:
             marker_name = marker_row['marker']
             marker_id = marker_row['id']
             
-            logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
-            a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
-                self.query_builder().table('nucleotides').select('sequence').order_by('marker_wise_id').where('marker_id',marker_id).get()
-            ])
-            if a.shape[0] < 16:
-                logging.warn("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
-                a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
-            generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force, generate_brute_force_index)
-            logging.info("Finished writing nucleotide indices to disk")
+            if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
+                logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
+                a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
+                    self.query_builder().table('nucleotides').select('sequence').order_by('marker_wise_id').where('marker_id',marker_id).get()
+                ])
+                if a.shape[0] < 16:
+                    logging.warn("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
+                    a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
+                generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force, generate_brute_force_index)
+                logging.info("Finished writing nucleotide indices to disk")
             
-            logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
-            # def do(entry):
-            #     print(entry['protein_sequence'])
-            #     return(np.array([protein_to_binary_array(entry['protein_sequence'])]))
-            # a = np.concatenate([do(entry) for entry in \
-            a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
-                self.query_builder().table('proteins').select_raw('distinct(protein_sequence) as protein_sequence').order_by('proteins.marker_wise_id'). \
-                    join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
-                    join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                    where('nucleotides.marker_id',marker_id).get()
-            ])
-            if a.shape[0] < 16:
-                logging.warn("Adding dummy protein sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
-                a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
-            generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force, generate_brute_force_index)
-            del a
-            logging.info("Finished writing protein indices to disk")
-
-            # break #DEBUG
+            if PROTEIN_DATABASE_TYPE in sequence_database_types:
+                logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
+                a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
+                    self.query_builder().table('proteins').select_raw('distinct(protein_sequence) as protein_sequence').order_by('proteins.marker_wise_id'). \
+                        join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
+                        join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
+                        where('nucleotides.marker_id',marker_id).get()
+                ])
+                if a.shape[0] < 16:
+                    logging.warn("Adding dummy protein sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
+                    a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
+                generate_indices_from_array(a, protein_db_dir_ah, protein_db_dir_brute_force, generate_brute_force_index)
+                del a
+                logging.info("Finished writing protein indices to disk")
 
     
     @staticmethod
