@@ -6,6 +6,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import registry, declarative_base
 from sqlalchemy import Column, Integer, String, select
 
+from bird_tool_utils import iterable_chunks
+
 from .singlem_package import SingleMPackage
 
 mapper_registry = registry()
@@ -56,11 +58,14 @@ class MetapackageReadNameStore:
     def get_taxonomy_of_reads(self, read_names):
         '''Return dict of read name to taxonomy string'''
         to_return = {}
-        stmt = select(ReadNameTaxonomy).where(
-            ReadNameTaxonomy.read_name.in_(read_names))
-        with self.engine.connect() as conn:
-            for res in conn.execute(stmt):
-                to_return[res.read_name] = [s.strip() for s in res.taxonomy.split(';')]
+
+        for read_name_set in iterable_chunks(read_names, 900): # Must be at least < 1000 for sqlite versions prior to 3.32.0
+            names = [r for r in read_name_set if r is not None]
+            stmt = select(ReadNameTaxonomy).where(
+                ReadNameTaxonomy.read_name.in_(names))
+            with self.engine.connect() as conn:
+                for res in conn.execute(stmt):
+                    to_return[res.read_name] = [s.strip() for s in res.taxonomy.split(';')]
         if len(to_return) != len(read_names):
             raise Exception("Not all read names found in metapackage sqlite3 database")
         return to_return

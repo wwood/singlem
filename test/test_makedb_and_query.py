@@ -66,9 +66,10 @@ class Tests(unittest.TestCase):
 
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db_path %s/db --otu_table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(path_to_script,
-                                                            d,
-                                                            path_to_data)
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(
+                path_to_script,
+                d,
+                path_to_data)
             extern.run(cmd)
 
             for method in ['annoy','nmslib','scann','naive']:
