@@ -292,4 +292,8 @@ class Metapackage:
         return SequenceDatabase.acquire(self._nucleotide_sdb_path)
     
     def nucleotide_sdb_path(self):
-        return self._nucleotide_sdb_path
+        try:
+            return self._nucleotide_sdb_path
+        except AttributeError:
+            # Happens when version < 3 or metapackage created from spkgs directly
+            return None
