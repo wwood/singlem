@@ -12,13 +12,7 @@ import extern
 import numpy as np
 import scann
 
-from sqlalchemy import create_engine, select
-
-# Import masonite, pretty clunky
-sys.path = [os.path.dirname(os.path.realpath(__file__))] + sys.path
-import config.database
-from masoniteorm.connections import ConnectionResolver
-from masoniteorm.query import QueryBuilder
+from sqlalchemy import create_engine, select, distinct
 
 import nmslib
 import numba
@@ -192,40 +186,6 @@ class SequenceDatabase:
         example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first()['protein_sequence']
         ndim = len(example_seq)*len(AA_ORDER)
         return AnnoyIndex(ndim, 'hamming')
-
-    def query_builder(self, check=False):
-        return SequenceDatabase._query_builder(self.sqlite_file, check=check)
-
-    @staticmethod
-    def _query_builder(sqlite_db_path, check=False):
-        '''setup config and return a query builder. If check==True, then make sure there the connection is alive, raising an exception otherwise'''
-        if check:
-            logging.debug("Connecting to DB {}".format(sqlite_db_path))        
-            if not os.path.exists(sqlite_db_path):
-                raise Exception("SQLite3 database does not appear to exist in the SingleM database - perhaps it is the wrong version?")
-
-        DB = ConnectionResolver().set_connection_details({
-            'default': 'singlem',
-            'singlem': {
-                'driver': 'sqlite',
-                'database': sqlite_db_path,
-                'prefix': '',
-                'log_queries': False
-            }
-        })
-        config.database.DB = DB
-
-        qb = QueryBuilder(connection='singlem', connection_details=DB.get_connection_details())
-
-        if check:
-            try:
-                len(qb.table('otus').limit(1).get())
-                qb = QueryBuilder(connection='singlem', connection_details=DB.get_connection_details())
-            except Exception as e:
-                logging.error("Failure to extract any data from the otus table of the SQ Lite DB indicates this SingleM DB is either too old or is corrupt.")
-                raise(e)
-
-        return qb
 
     @staticmethod
     def acquire(path, min_version=None):
@@ -629,14 +589,17 @@ class SequenceDatabase:
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_nmslib')
         os.makedirs(nucleotide_db_dir)
         
-        for marker_row in self.query_builder().table('markers').get():
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             nucleotide_index = SequenceDatabase._nucleotide_nmslib_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.query_builder().table('nucleotides').select('sequence').select('marker_wise_id').where('marker_id', marker_row['id']).get():
+            for row in self.sqlalchemy_connection.execute(select(
+                NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
+                .where(NucleotideSequence.marker_id == marker_row['id'])):
+
                 nucleotide_index.addDataPoint(row['marker_wise_id'], nucleotides_to_binary(row['sequence']))
                 count += 1
 
@@ -653,18 +616,18 @@ class SequenceDatabase:
         logging.info("Creating nmslib protein sequence indices ..")
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_nmslib')
         os.makedirs(protein_db_dir)
-        for marker_row in self.query_builder().table('markers').get():
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             protein_index = SequenceDatabase._protein_nmslib_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.query_builder().table('proteins'). \
-                select_raw('distinct proteins.marker_wise_id as marker_wise_id, protein_sequence'). \
-                    join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
-                    join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                        where('nucleotides.marker_id', marker_row['id']).get():
+            for row in self.sqlalchemy_connection.execute(select(
+                distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
+                    .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
+                    .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
+                    .where(NucleotideSequence.marker_id == marker_row['id'])):
                 protein_index.addDataPoint(row['marker_wise_id'], protein_to_binary(row['protein_sequence']))
                 count += 1
 
@@ -682,14 +645,17 @@ class SequenceDatabase:
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_annoy')
         os.makedirs(nucleotide_db_dir)
 
-        for marker_row in self.query_builder().table('markers').get():
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._nucleotide_annoy_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.query_builder().table('nucleotides').select('sequence').select('marker_wise_id').where('marker_id', marker_row['id']).get():
+            for row in self.sqlalchemy_connection.execute(select(
+                NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
+                .where(NucleotideSequence.marker_id == marker_row['id'])):
+
                 annoy_index.add_item(row['marker_wise_id'], nucleotides_to_binary_array(row['sequence']))
                 count += 1
 
@@ -708,18 +674,19 @@ class SequenceDatabase:
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_annoy')
         os.makedirs(protein_db_dir)
 
-        for marker_row in self.query_builder().table('markers').get():
+        for marker_row in marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._protein_annoy_init()
 
             marker_name = marker_row['marker']
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.query_builder().table('proteins'). \
-                join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
-                join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                select_raw('distinct proteins.marker_wise_id as marker_wise_id, protein_sequence'). \
-                where('nucleotides.marker_id', marker_row['id']).get():
+            for row in self.sqlalchemy_connection.execute(select(
+                distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
+                    .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
+                    .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
+                    .where(NucleotideSequence.marker_id == marker_row['id'])):
+
                 annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
                 count += 1
 
@@ -780,14 +747,17 @@ class SequenceDatabase:
                     options=tf.saved_model.SaveOptions(namespace_whitelist=["Scann"]))
                 del searcher_naive
 
-        for marker_row in self.query_builder().table('markers').get():
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             marker_name = marker_row['marker']
             marker_id = marker_row['id']
             
             if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
                 a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
-                    self.query_builder().table('nucleotides').select('sequence').order_by('marker_wise_id').where('marker_id',marker_id).get()
+                    self.sqlalchemy_connection.execute(select(
+                        NucleotideSequence.sequence) \
+                        .where(NucleotideSequence.marker_id == marker_id) \
+                        .order_by(NucleotideSequence.marker_wise_id))
                 ])
                 if a.shape[0] < 16:
                     logging.warn("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
@@ -798,10 +768,12 @@ class SequenceDatabase:
             if PROTEIN_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
                 a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
-                    self.query_builder().table('proteins').select_raw('distinct(protein_sequence) as protein_sequence').order_by('proteins.marker_wise_id'). \
-                        join('nucleotides_proteins','proteins.id','=','nucleotides_proteins.protein_id'). \
-                        join('nucleotides','nucleotides_proteins.nucleotide_id','=','nucleotides.id'). \
-                        where('nucleotides.marker_id',marker_id).get()
+                    self.sqlalchemy_connection.execute(select(
+                        ProteinSequence.protein_sequence) \
+                            .order_by(ProteinSequence.marker_wise_id) \
+                            .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
+                            .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
+                            .where(NucleotideSequence.marker_id == marker_id))
                 ])
                 if a.shape[0] < 16:
                     logging.warn("Adding dummy protein sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
