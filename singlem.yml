@@ -36,4 +36,3 @@ dependencies:
   - gxx_linux-64 # https://stackoverflow.com/questions/60503514/how-can-i-make-conda-find-cc1plus
   - pip:
     - scann
-    - --no-binary ":all:" nmslib # now optional

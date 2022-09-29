@@ -16,7 +16,6 @@ from sqlalchemy import create_engine, select, distinct
 import numba
 from numba.core import types
 import Bio.Data.CodonTable
-from annoy import AnnoyIndex
 
 from .otu_table import OtuTable
 from .singlem_database_models import *
@@ -181,11 +180,13 @@ class SequenceDatabase:
     def _nucleotide_annoy_init(self):
         example_seq = self.sqlalchemy_connection.execute(select(NucleotideSequence).limit(1)).first()['sequence']
         ndim = len(example_seq)*5
+        from annoy import AnnoyIndex
         return AnnoyIndex(ndim, 'hamming')
 
     def _protein_annoy_init(self):
         example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first()['protein_sequence']
         ndim = len(example_seq)*len(AA_ORDER)
+        from annoy import AnnoyIndex
         return AnnoyIndex(ndim, 'hamming')
 
     @staticmethod
