@@ -10,11 +10,9 @@ import sys
 import csv
 import extern
 import numpy as np
-import scann
 
 from sqlalchemy import create_engine, select, distinct
 
-import nmslib
 import numba
 from numba.core import types
 import Bio.Data.CodonTable
@@ -154,6 +152,7 @@ class SequenceDatabase:
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
 
+            import scann # only load when needed to speed start-up
             if marker_name in markers_to_paths:
                 index_path = markers_to_paths[marker_name]
                 logging.debug("Loading index for {} from {}".format(marker_name, index_path))
@@ -171,10 +170,12 @@ class SequenceDatabase:
 
     @staticmethod
     def _nucleotide_nmslib_init():
+        import nmslib  # optional dependency
         return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
 
     @staticmethod
     def _protein_nmslib_init():
+        import nmslib  # optional dependency
         return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
 
     def _nucleotide_annoy_init(self):
@@ -703,6 +704,7 @@ class SequenceDatabase:
     def create_scann_indexes(self, sequence_database_types, generate_brute_force_index):
         logging.info("Creating scann sequence indices ..")
         import tensorflow as tf
+        import scann # only load when needed to speed start-up
         if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
             nucleotide_db_dir_ah = os.path.join(self.base_directory, 'nucleotide_indices_scann')
             nucleotide_db_dir_brute_force = os.path.join(self.base_directory, 'nucleotide_indices_scann_brute_force')
