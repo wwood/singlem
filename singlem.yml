@@ -31,7 +31,9 @@ dependencies:
   - bird_tool_utils_python
   - pip
   - sqlalchemy
+  # Following are to get the (optional) pip dependencies installed
+  - gcc>=12 # https://stackoverflow.com/questions/72540359/glibcxx-3-4-30-not-found-for-librosa-in-conda-virtual-environment-after-tryin
+  - gxx_linux-64 # https://stackoverflow.com/questions/60503514/how-can-i-make-conda-find-cc1plus
   - pip:
-    - scann 
-    - nmslib
-    - --no-binary nmslib
+    - scann
+    - --no-binary ":all:" nmslib # now optional

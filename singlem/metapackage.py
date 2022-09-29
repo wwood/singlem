@@ -289,11 +289,14 @@ class Metapackage:
     def nucleotide_sdb(self):
         # import here so that we avoid tensorflow dependency if not needed
         from .sequence_database import SequenceDatabase
-        return SequenceDatabase.acquire(self._nucleotide_sdb_path)
+        db_path = self.nucleotide_sdb_path()
+        if not db_path: return None6
+        return SequenceDatabase.acquire(db_path)
     
     def nucleotide_sdb_path(self):
         try:
-            return self._nucleotide_sdb_path
+            path = self._nucleotide_sdb_path
         except AttributeError:
             # Happens when version < 3 or metapackage created from spkgs directly
             return None
+        return path
