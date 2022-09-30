@@ -3,7 +3,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python>=3.7, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10. Older python versions may also work, not tested.
+  - python>=3.7, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10. Older python versions than 3.7 may also work, not tested.
   - diamond>2.0.11
   - biopython
   - hmmer
@@ -31,8 +31,6 @@ dependencies:
   - bird_tool_utils_python
   - pip
   - sqlalchemy
-  # Following are to get the (optional) pip dependencies installed
-  - gcc>=12 # https://stackoverflow.com/questions/72540359/glibcxx-3-4-30-not-found-for-librosa-in-conda-virtual-environment-after-tryin
-  - gxx_linux-64 # https://stackoverflow.com/questions/60503514/how-can-i-make-conda-find-cc1plus
   - pip:
+    - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
     - scann
