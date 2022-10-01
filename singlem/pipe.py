@@ -162,7 +162,7 @@ class SearchPipe:
         if metapackage_object:
             hmms = metapackage_object
             if assignment_singlem_db is None:
-                assignment_singlem_db = metapackage_object.nucleotide_sdb()
+                assignment_singlem_db = metapackage_object.nucleotide_sdb_path()
         else:
             raise Exception("This bit needs fixing")
             # hmms = self._parse_packages_or_metapackage(singlem_package_paths, metapackage_path)
