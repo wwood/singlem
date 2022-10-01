@@ -47,6 +47,10 @@ class Tests(unittest.TestCase):
             path_to_data)
         print("diamond db path ls: ")
         print(extern.run('ls -l %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
+        print("diamond db path file: ")
+        print(extern.run('file %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
+        print("diamond db path cat: ")
+        print(extern.run('cat %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd 2>1&' % path_to_data))
         output = extern.run(cmd)
         expected = [
             self.headers,
