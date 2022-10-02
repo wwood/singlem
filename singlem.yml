@@ -31,6 +31,7 @@ dependencies:
   - bird_tool_utils_python
   - pip
   - sqlalchemy
+  - tqdm # For zenodo backpack
   - pip:
     - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
     - scann
