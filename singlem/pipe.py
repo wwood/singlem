@@ -93,7 +93,7 @@ class SearchPipe:
             return Metapackage.acquire(metapackage_path)
         elif not singlem_package_paths or singlem_package_paths == []:
             # Return the default set
-            return Metapackage()
+            return Metapackage.acquire_default()
         else:
             return Metapackage(singlem_package_paths)
 

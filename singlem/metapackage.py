@@ -49,10 +49,9 @@ class Metapackage:
         if package_paths:
             self.singlem_packages = [SingleMPackage.acquire(path) for path in package_paths]
             logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
-        else:
-            raise Exception("No packages provided to create a new metapackage")
-        for pkg in self.singlem_packages:
-            self._hmms_and_positions[pkg.base_directory()] = pkg
+            for pkg in self.singlem_packages:
+                self._hmms_and_positions[pkg.base_directory()] = pkg
+        # Otherwise return an empty metapackage
 
     @staticmethod
     def acquire_default():
@@ -61,7 +60,7 @@ class Metapackage:
         if not DATA_ENVIRONMENT_VARIABLE in os.environ:
             raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
         backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
-        return Metapackage.acquire(backpack.payload_directory_string(enter_single_payload_directory=True))
+        return Metapackage.acquire(backpack.payload_directory_string())
 
 
     @staticmethod
@@ -93,51 +92,18 @@ class Metapackage:
 
         return mpkg
 
-    # @staticmethod
-    # def acquire_from_common_arguments(**kwargs):
-    #     '''
-    #     Acquire a metapackage from a set of common command line arguments and
-    #     environment variables.
-    #     '''
-    #     metapackage_path = kwargs.pop('metapackage_path', None)
-    #     singlem_package_paths = kwargs.pop('singlem_packages', None)
-
-    #     if metapackage_path and singlem_package_paths and singlem_package_paths != []:
-    #         raise Exception("Cannot specify both a metapackage and singlem_packages")
-    #     elif metapackage_path:
-    #         return Metapackage.acquire(metapackage_path)
-    #     elif not singlem_package_paths or singlem_package_paths == []:
-    #         # Return the default set
-    #         return Metapackage()
-    #     else:
-    #         return Metapackage(singlem_package_paths)
-
-    @staticmethod
-    def _grok_data_path(**kwargs):
-        output_directory = kwargs.pop('output_directory', None)
-
-        dir_from_env = os.environ.get(DATA_ENVIRONMENT_VARIABLE)
-
-        if dir_from_env and output_directory:
-            raise Exception("Cannot specify both an output directory and have a specified {}".format(DATA_ENVIRONMENT_VARIABLE))
-        elif dir_from_env:
-            output_directory = dir_from_env
-        elif not output_directory:
-            raise Exception("Either an output directory must be specified on the command line, or an environment variable must be set: {}".format(DATA_ENVIRONMENT_VARIABLE))
-        
-        return output_directory
-
     @staticmethod
     def download(**kwargs):
         '''Download a metapackage from Zenodo'''
-        output_directory = Metapackage._grok_data_path(kwargs)
-        kwargs.pop('output_directory', None)
+        output_directory = kwargs.pop('output_directory', None)
+        if not output_directory:
+            raise Exception("Must specify an output directory to download a new default metapackage to")
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
         logging.info("Downloading data with ZenodoBackpack ..")
-        zenodo_backpack.ZenodoBackpackDownloader().download_and_extract(
+        backpack = zenodo_backpack.ZenodoBackpackDownloader().download_and_extract(
             output_directory,
             DATA_DOI,
             progress_bar=True)
@@ -145,20 +111,25 @@ class Metapackage:
 
         logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
         logging.info("For instance, the following can be included in your .bashrc (requires logout and login after inclusion):")
-        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
+        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, os.path.abspath(backpack.payload_directory_string())))
 
     @staticmethod
     def verify(**kwargs):
         '''Verify that the ZenodoBackpack is valid'''
-        output_path = Metapackage._grok_data_path(**kwargs)
-        kwargs.pop('output_directory', None)
+        od = kwargs.pop('output_directory', None) # not used
+        if od is not None:
+            raise Exception("Verification of downloaded data does not require an output directory to be specified. Use the environment variable {} to specify the location of the downloaded data".format(DATA_ENVIRONMENT_VARIABLE))
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Acquiring SingleM packages from environment variable")
+        if not DATA_ENVIRONMENT_VARIABLE in os.environ:
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+        backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
         
         logging.info("Verifying data with ZenodoBackpack ..")
-        zb = zenodo_backpack.acquire(output_path)
-        zenodo_backpack.ZenodoBackpackDownloader().verify(zb, passed_version=DATA_DEFAULT_VERSION)
+        zenodo_backpack.ZenodoBackpackDownloader().verify(backpack, passed_version=DATA_DEFAULT_VERSION)
         logging.info("Finished verifying data")
 
 

@@ -588,8 +588,8 @@ if __name__ == '__main__':
     data_description = 'Download backend metapackage data'
     data_parser = new_subparser(subparsers, 'data', data_description)
     # TODO: Could make pipe invocation faster by moving DATA_ENVIRONMENT to a separate file
-    data_parser.add_argument('--output-directory', '--output_directory', help="Output directory [required unless {} is specified]".format(DATA_ENVIRONMENT_VARIABLE))
-    data_parser.add_argument('--verify-only', '--verify_only', help="Check that the data is up to date and each file has the correct checksum", action='store_true', default=False)
+    data_parser.add_argument('--output-directory', help="Output directory [required unless {} is specified]".format(DATA_ENVIRONMENT_VARIABLE))
+    data_parser.add_argument('--verify-only', help="Check that the data is up to date and each file has the correct checksum", action='store_true', default=False)
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.output_taxonomic_profile and not args.output_taxonomic_profile_krona:
@@ -598,17 +598,6 @@ if __name__ == '__main__':
             raise Exception("If --output-jplace is specified, then --assignment-method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
         if args.metapackage and args.singlem_packages:
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
-        if not args.assignment_singlem_db and not args.metapackage and args.assignment_method in (
-            pipe.ANNOY_ASSIGNMENT_METHOD,
-            pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
-            pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-            pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
-            failed = True
-            if subparser=='pipe':
-                if args.no_assign_taxonomy:
-                    failed = False
-            if failed:
-                raise Exception("If --assignment-method is set to %s, then --assignment-singlem-db  or --metapackage must be specified" % args.assignment_method)
         if subparser == 'pipe':
             if args.output_jplace and args.known_otu_tables:
                 raise Exception("Currently --output-jplace and --known-otu-tables are incompatible")
