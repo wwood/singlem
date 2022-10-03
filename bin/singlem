@@ -448,7 +448,6 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--strain-overview-table', help="Name of output strains table to generate")
     summarise_output_args.add_argument('--unifrac-by-otu', help="Output UniFrac format file where entries are OTU sequences")
     summarise_output_args.add_argument('--unifrac-by-taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
-    summarise_output_args.add_argument('--biom-prefix', '--biom_prefix', help="Output BIOM format files, one for each marker gene detected")
     summarise_output_args.add_argument('--clustered-output-otu-table', help="Output an OTU table with extra information about the clusters")
     summarise_output_args.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
     summarise_output_args.add_argument('--singlem-packages', nargs='+', help="Packages used in the creation of the OTU tables")
@@ -816,7 +815,6 @@ if __name__ == '__main__':
         if args.krona: num_output_types += 1
         if args.unifrac_by_otu: num_output_types += 1
         if args.unifrac_by_taxonomy: num_output_types += 1
-        if args.biom_prefix: num_output_types += 1
         if args.output_otu_table: num_output_types += 1
         if args.output_translated_otu_table: num_output_types += 1
         if args.clustered_output_otu_table: num_output_types += 1
@@ -925,10 +923,6 @@ if __name__ == '__main__':
             Summariser.write_unifrac_by_taxonomy_format_file(
                 table_collection = otus,
                 unifrac_output_prefix = args.unifrac_by_taxonomy)
-        elif args.biom_prefix:
-            Summariser.write_biom_otu_tables(
-                table_collection = otus,
-                biom_output_prefix = args.biom_prefix)
         elif args.output_otu_table:
             Summariser.write_otu_table(
                 table_collection = otus,
