@@ -3,7 +3,6 @@ import tempfile
 import extern
 from collections import OrderedDict
 import logging
-import biom
 import pandas
 import Bio
 import re
@@ -329,40 +328,6 @@ class Summariser:
         logging.info("Printed {} collapsed OTUs from {} original OTUs".format(
             collapsed_count, original_count
         ))
-
-
-    @staticmethod
-    def write_biom_otu_tables(**kwargs):
-        biom_output_prefix = kwargs.pop('biom_output_prefix')
-        table_collection = kwargs.pop('table_collection')
-        if len(kwargs) > 0:
-            raise Exception("Unexpected arguments detected: %s" % kwargs)
-
-        df = pandas.DataFrame()
-        for otu in table_collection:
-            df = df.append(pandas.DataFrame({
-                'sample_name':[otu.sample_name],
-                'marker':[otu.marker],
-                'sequence':[otu.sequence],
-                'count':[otu.count],
-                'taxonomy':[otu.taxonomy]}))
-        for marker in df['marker'].unique():
-            biom_output = "%s.%s.biom" % (biom_output_prefix, marker)
-            logging.info("Writing BIOM table %s .." % biom_output)
-            df2 = pandas.pivot_table(
-                df[df.marker==marker],
-                index=['sequence','taxonomy'],
-                columns=['sample_name'],
-                values='count',
-                aggfunc=sum,
-                fill_value=0)
-            bt = biom.table.Table(
-                df2.values,
-                ['%s; %s' % (ind[1],ind[0]) for ind in df2.index],
-                df2.columns,
-                [{'taxonomy': ind[1].split('; ')} for ind in df2.index])
-            with biom.util.biom_open(biom_output, 'w') as f:
-                bt.to_hdf5(f, "%s - %s" % (biom_output_prefix, marker))
 
     @staticmethod
     # args.collapse_paired_with_unpaired:
