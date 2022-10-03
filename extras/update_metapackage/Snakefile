@@ -390,6 +390,27 @@ rule create_SingleM_metapackage:
         "--threads {threads} "
         "&> {log}"
 
+#######################################
+### Mean genome size table creation ###
+#######################################
+rule calculate_mean_genome_size:
+    input:
+        output_dir + "/shadow_GTDB/genomes.tsv"
+    output:
+        output_dir + "/gtdb_mean_genome_sizes.tsv"
+    params:
+        gtdb_bac_metadata = config["gtdb_bac_metadata"],
+        gtdb_arc_metadata = config["gtdb_arc_metadata"],
+    threads: 8
+    log:
+        logs_dir + "calculate_mean_genome_size.log"
+    conda:
+        "envs/calculate_mean_genome_size.yml"
+    shell:
+        """
+        Rscript scripts/genome_size_from_gtdb.R {params.gtdb_bac_metadata} {params.gtdb_arc_metadata} {output_dir}
+        """
+
 ###########################
 ### Metapackage testing ###
 ###########################
