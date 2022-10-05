@@ -24,6 +24,16 @@ class OtuTableEntry:
         '''
         return (self.taxonomy_array()[:len(target_taxonomy)] == target_taxonomy)
 
+    def add_found_data(self, found_in):
+        if 'found_in' not in self.fields:
+            self.fields.append('found_in')
+            self.data.append(found_in)
+        else:
+            try:
+                self.data[self.fields.index('found_in')] = self.data[self.fields.index('found_in')] + ',' + found_in
+            except IndexError:
+                self.data.append(found_in)
+
     def __str__(self):
         return "\t".join([self.marker, self.sample_name, self.sequence,
                           str(self.count), str(self.coverage), self.taxonomy])
