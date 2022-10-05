@@ -82,6 +82,8 @@ if __name__ == '__main__':
 
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
+        argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
+        argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -110,28 +112,26 @@ if __name__ == '__main__':
             default=current_default)
 
         argument_group.add_argument('--output-extras', action='store_true',
-            help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) [default: not set]',
+            help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) in the output OTU table [default: not set]',
             default=False)
-        argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-        argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
     common_pipe_arguments = pipe_parser.add_argument_group('Common options')
     sequence_input_group = common_pipe_arguments.add_mutually_exclusive_group(required=True)
     sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
                                 nargs='+',
-                                metavar='sequence_file(s)',
-                                help='nucleotide read sequence(s) (forward or unpaired) to be searched')
+                                metavar='sequence_file',
+                                help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
+    common_pipe_arguments.add_argument('-2', '--reverse',
+                                nargs='+',
+                                metavar='sequence_file',
+                                help='reverse reads to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
     sequence_input_group.add_argument('--genome-fasta-files',
                                 nargs='+',
-                                metavar='sequence_file(s)',
+                                metavar='sequence_file',
                                 help='nucleotide genome sequence(s) to be searched')
     sequence_input_group.add_argument('--sra-files',
                                 nargs='+',
-                                metavar='sra_file(s)',
-                                help='.sra format files to be searched')
-    common_pipe_arguments.add_argument('-2', '--reverse',
-                                nargs='+',
-                                metavar='sequence_file(s)',
-                                help='reverse reads to be searched')
+                                metavar='sra_file',
+                                help='"sra" format files (usually from NCBI SRA) to be searched')
     add_common_pipe_arguments(common_pipe_arguments)
 
     def add_less_common_pipe_arguments(argument_group):
