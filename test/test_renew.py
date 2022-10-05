@@ -45,10 +45,10 @@ class Tests(unittest.TestCase):
             path_to_script,
             path_to_data,
             path_to_data)
-        print("diamond db path ls: ")
-        print(extern.run('ls -l %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
-        print("diamond db path file: ")
-        print(extern.run('file %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
+        # print("diamond db path ls: ")
+        # print(extern.run('ls -l %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
+        # print("diamond db path file: ")
+        # print(extern.run('file %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
         output = extern.run(cmd)
         expected = [
             self.headers,
@@ -57,7 +57,7 @@ class Tests(unittest.TestCase):
         self.assertEqualOtuTable(expected, output)
 
     def test_output_profile_diamond(self):
-        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --output-taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --output-taxonomic-profile-krona /tmp/a.kron.ahtml --assignment-method diamond".format(
+        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --taxonomic-profile-krona /tmp/a.kron.ahtml --assignment-method diamond".format(
             path_to_script,
             path_to_data,
             path_to_data)
@@ -69,7 +69,7 @@ class Tests(unittest.TestCase):
 
 
     def test_output_profile_naive_then_diamond(self):
-        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --output-taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --output-taxonomic-profile-krona /tmp/a.kron.ahtml".format(
+        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --taxonomic-profile-krona /tmp/a.kron.ahtml".format(
             path_to_script,
             path_to_data,
             path_to_data)
