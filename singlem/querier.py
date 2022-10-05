@@ -511,7 +511,7 @@ class Querier:
                     Otu.sample_name,
                     Otu.num_hits,
                     Otu.coverage,
-                    Otu.taxonomy,
+                    Otu.taxonomy_id,
                     NucleotideSequence.sequence,
                     Marker.marker,
                     ]).select_from(Otu).join(NucleotideSequence).join(Marker).filter(NucleotideSequence.sequence.in_([seq for seq in chunk if seq is not None]))
@@ -523,7 +523,7 @@ class Querier:
                         otu.sequence = entry.sequence
                         otu.count = entry.num_hits
                         otu.coverage = entry.coverage
-                        otu.taxonomy = entry.taxonomy
+                        otu.taxonomy = entry.taxonomy_id
                         yield QueryResult(queries_list[qid], otu, 0)
 
     def print_samples(self, **kwargs):
