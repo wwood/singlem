@@ -88,7 +88,11 @@ class Metapackage:
 
         if v >= 3:
             mpkg._sqlite_db_path = os.path.join(metapackage_path, contents_hash[Metapackage.SQLITE_DB_PATH_KEY])
-            mpkg._nucleotide_sdb_path = os.path.join(metapackage_path, contents_hash[Metapackage.NUCLEOTIDE_SDB])
+            if contents_hash[Metapackage.NUCLEOTIDE_SDB] is not None:
+                mpkg._nucleotide_sdb_path = os.path.join(metapackage_path, contents_hash[Metapackage.NUCLEOTIDE_SDB])
+            else:
+                # singlem metapackage was invoked with --no-nucleotide-sdb
+                mpkg._nucleotide_sdb_path = None
 
         return mpkg
 
