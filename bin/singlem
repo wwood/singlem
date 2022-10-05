@@ -76,9 +76,14 @@ if __name__ == '__main__':
     )
 
 
+    data_description = 'Download reference metapackage data'
+    data_parser = bird_argparser.new_subparser('data', data_description, parser_group='Tools')
+    # TODO: Could make pipe invocation faster by moving DATA_ENVIRONMENT to a separate file
+    data_parser.add_argument('--output-directory', help="Output directory [required unless {} is specified]".format(DATA_ENVIRONMENT_VARIABLE))
+    data_parser.add_argument('--verify-only', help="Check that the data is up to date and each file has the correct checksum", action='store_true', default=False)
 
-    pipe_description = 'Generate a taxonomic profile or OTU table from raw sequences.'
-    pipe_parser = bird_argparser.new_subparser('pipe', pipe_description)
+    pipe_description = 'Generate a taxonomic profile or OTU table from raw sequences'
+    pipe_parser = bird_argparser.new_subparser('pipe', pipe_description, parser_group='Tools')
 
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
@@ -195,6 +200,25 @@ if __name__ == '__main__':
     less_common_pipe_arguments.add_argument('--sleep-after-mkfifo', type=int,
                                 help='Sleep for this many seconds after running os.mkfifo [default: None]')
 
+    appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
+    appraise_parser = bird_argparser.new_subparser('appraise', appraise_description, parser_group='Tools')
+    appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
+    appraise_otu_table_options.add_argument('--metagenome-otu-tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    appraise_otu_table_options.add_argument('--genome-otu-tables', nargs='+', help="output of 'pipe' run on genomes")
+    appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
+    appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
+    appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
+    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
+    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also specified)', default=None)
+    appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
+    appraise_plot_group.add_argument('--plot-basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
+    appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
+    appraise_otu_table_group.add_argument('--output-binned-otu-table', help="output OTU table of binned populations", default=None)
+    appraise_otu_table_group.add_argument('--output-unbinned-otu-table', help="output OTU table of assembled but not binned populations", default=None)
+    appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
+    appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
+
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
 
@@ -207,7 +231,7 @@ if __name__ == '__main__':
         default=DEFAULT_WINDOW_SIZE, type=int)
 
     makedb_description = 'Create a searchable database from an OTU table'
-    makedb_parser = bird_argparser.new_subparser('makedb', makedb_description)
+    makedb_parser = bird_argparser.new_subparser('makedb', makedb_description, parser_group='Tools')
 
     required_makedb_arguments = makedb_parser.add_argument_group('required arguments')
 
@@ -237,7 +261,7 @@ if __name__ == '__main__':
     makedb_other_args.add_argument('--tmpdir', help='[for internal usage] use this directory internally for working')
 
     query_description = 'Find closely related sequences in a database.'
-    query_parser = bird_argparser.new_subparser('query', query_description)
+    query_parser = bird_argparser.new_subparser('query', query_description, parser_group='Tools')
     query_db_args = query_parser.add_argument_group('DB/Subject arguments (one is required)')
     query_db_args.add_argument('--db', help="Output from 'makedb' mode")
     query_db_args.add_argument('--subject-otu-tables', nargs='+', metavar='file',
@@ -271,7 +295,7 @@ if __name__ == '__main__':
     current_default = None
 
     summarise_description = 'Summarise and transform OTU tables.'
-    summarise_parser = bird_argparser.new_subparser('summarise', summarise_description)
+    summarise_parser = bird_argparser.new_subparser('summarise', summarise_description, parser_group='Tools')
     summarise_io_args = summarise_parser.add_argument_group('input')
     summarise_io_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
     summarise_io_args.add_argument('--input-otu-tables-list', help="Summarise the OTU table files newline separated in this file")
@@ -306,7 +330,7 @@ if __name__ == '__main__':
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads, but ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
-    renew_parser = bird_argparser.new_subparser('renew', renew_description)
+    renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
     renew_input_args = renew_parser.add_argument_group('input')
     renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
@@ -366,25 +390,6 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
 
-    appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
-    appraise_parser = bird_argparser.new_subparser('appraise', appraise_description)
-    appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
-    appraise_otu_table_options.add_argument('--metagenome-otu-tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
-    appraise_otu_table_options.add_argument('--genome-otu-tables', nargs='+', help="output of 'pipe' run on genomes")
-    appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
-    appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
-    appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
-    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
-    appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
-    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also specified)', default=None)
-    appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
-    appraise_plot_group.add_argument('--plot-basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
-    appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
-    appraise_otu_table_group.add_argument('--output-binned-otu-table', help="output OTU table of binned populations", default=None)
-    appraise_otu_table_group.add_argument('--output-unbinned-otu-table', help="output OTU table of assembled but not binned populations", default=None)
-    appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
-    appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
-
     chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
     chance_parser = bird_argparser.new_subparser('chance', chance_description)
     chance_parser.add_argument('--otu-tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
@@ -432,12 +437,6 @@ if __name__ == '__main__':
     taxonomy_assignment_db_parser = bird_argparser.new_subparser('taxonomy_db', taxonomy_assignment_db_description)
     taxonomy_assignment_db_parser.add_argument('--input-db', required=True, help="input (normal) SingleM database")
     taxonomy_assignment_db_parser.add_argument('--output-db', required=True, help="output (taxonomy assignment) SingleM database")
-
-    data_description = 'Download backend metapackage data'
-    data_parser = bird_argparser.new_subparser('data', data_description)
-    # TODO: Could make pipe invocation faster by moving DATA_ENVIRONMENT to a separate file
-    data_parser.add_argument('--output-directory', help="Output directory [required unless {} is specified]".format(DATA_ENVIRONMENT_VARIABLE))
-    data_parser.add_argument('--verify-only', help="Check that the data is up to date and each file has the correct checksum", action='store_true', default=False)
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
