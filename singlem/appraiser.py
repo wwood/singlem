@@ -161,6 +161,7 @@ class Appraiser:
             if otu.sample_name not in sample_to_building_block:
                 sample_to_building_block[otu.sample_name] = AppraisalBuildingBlock(packages)
 
+        tmp.cleanup()
         return sample_to_building_block
 
 

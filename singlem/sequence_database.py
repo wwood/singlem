@@ -763,7 +763,7 @@ class SequenceDatabase:
                         .order_by(NucleotideSequence.marker_wise_id))
                 ])
                 if a.shape[0] < 16:
-                    logging.warn("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
+                    logging.warning("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
                     a = np.concatenate([a, np.ones((16-a.shape[0], a.shape[1]))])
                 generate_indices_from_array(a, nucleotide_db_dir_ah, nucleotide_db_dir_brute_force, generate_brute_force_index)
                 logging.info("Finished writing nucleotide indices to disk")
