@@ -309,9 +309,9 @@ if __name__ == '__main__':
     renew_parser = bird_argparser.new_subparser('renew', renew_description)
     renew_input_args = renew_parser.add_argument_group('input')
     renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
-    renew_common = renew_input_args.add_argument_group("Common arguments in shared with 'pipe'")
+    renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
-    renew_less_common = renew_input_args.add_argument_group("Less common arguments shared with 'pipe'")
+    renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
     add_less_common_pipe_arguments(renew_less_common)
 
     create_description = 'Create a SingleM package.'
