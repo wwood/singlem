@@ -61,7 +61,7 @@ class Tests(unittest.TestCase):
 
     def test_metapackage_read_name_store(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.v3.gpkg.spkg.smpkg/small.otu_table.v5.sdb --metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.gpkg.spkg.smpkg/22seqs.sdb --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             extern.run(cmd)
