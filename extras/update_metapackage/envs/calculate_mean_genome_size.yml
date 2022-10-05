@@ -1,0 +1,9 @@
+name: calculate_mean_genome_size
+channels:
+  - conda-forge
+  - base
+  - bioconda
+  - R
+dependencies:
+  - r-base=4.1.3
+  - r-tidyverse=1.3.2
