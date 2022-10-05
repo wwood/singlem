@@ -405,26 +405,29 @@ if __name__ == '__main__':
 
     condense_description = 'Combine OTU tables across different markers into a single OTU table.'
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
-    current_default = Condenser.DEFAULT_TRIM_PERCENT
-    condense_parser.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
 
-    required_condense_arguments = condense_parser.add_argument_group("required arguments")
+    input_condense_arguments = condense_parser.add_argument_group("Input arguments (1+ required)")
 
-    required_condense_arguments.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Condense these table(s).")
-    required_condense_arguments.add_argument('--input-otu-tables-list', help="Condense the OTU table files newline separated in this file")
-    required_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
-    required_condense_arguments.add_argument('--input-archive-otu-table-list',
+    input_condense_arguments.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Condense these table(s).")
+    input_condense_arguments.add_argument('--input-otu-tables-list', help="Condense the OTU table files newline separated in this file")
+    input_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
+    input_condense_arguments.add_argument('--input-archive-otu-table-list',
         help="Condense from the archive tables newline separated in this file")
-    required_condense_arguments.add_argument('--input-gzip-archive-otu-table-list',
+    input_condense_arguments.add_argument('--input-gzip-archive-otu-table-list',
         help="Condense from the gzip'd archive tables newline separated in this file")
 
-    required_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-    required_condense_arguments.add_argument('--output-otu-table', metavar='filename', help="output OTU table")
-    required_condense_arguments.add_argument('--krona', metavar='filename', help='name of krona file to generate.')
+    output_condense_arguments = condense_parser.add_argument_group("Output arguments (1+ required)")
+    output_condense_arguments.add_argument('-p', '--taxonomic-profile', metavar='filename', help="output OTU table")
+    output_condense_arguments.add_argument('--taxonomic-profile-krona', metavar='filename', help='name of krona file to generate.')
+    output_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
+    
+    optional_condense_arguments = condense_parser.add_argument_group("Other options")
+    optional_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
     current_default = Condenser.DEFAULT_MIN_TAXON_COVERAGE
-    required_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION', 
+    optional_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION', 
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
-    required_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
+    current_default = Condenser.DEFAULT_TRIM_PERCENT
+    optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = bird_argparser.new_subparser('trim_package_hmms', trim_package_hmms_description)
@@ -938,8 +941,8 @@ if __name__ == '__main__':
             input_streaming_otu_table = otus,
             metapackage_path = args.metapackage,
             trim_percent = args.trim_percent,
-            output_otu_table = args.output_otu_table,
-            krona = args.krona,
+            output_otu_table = args.taxonomic_profile,
+            krona = args.taxonomic_profile_krona,
             min_taxon_coverage = args.min_taxon_coverage,
             output_after_em_otu_table = args.output_after_em_otu_table)
 
