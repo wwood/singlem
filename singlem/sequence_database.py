@@ -676,7 +676,7 @@ class SequenceDatabase:
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_annoy')
         os.makedirs(protein_db_dir)
 
-        for marker_row in marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._protein_annoy_init()
 
             marker_name = marker_row['marker']

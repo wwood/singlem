@@ -606,11 +606,16 @@ class Condenser:
                 del next_species_to_coverage[failed_s]
 
             # Has any species changed in abundance by a large enough amount? If not, we're done
-            need_another_iteration = False
-            for tax, next_coverage in next_species_to_coverage.items():
-                if abs(next_coverage - species_to_coverage[tax]) > 0.001:
-                    need_another_iteration = True
-                    break
+            if len(failed_species) > 0:
+                # Always iterate again if we removed any species, because
+                # otherwise their coverage contributions will be lost.
+                need_another_iteration = True
+            else:
+                need_another_iteration = False
+                for tax, next_coverage in next_species_to_coverage.items():
+                    if abs(next_coverage - species_to_coverage[tax]) > 0.001:
+                        need_another_iteration = True
+                        break
 
             species_to_coverage = next_species_to_coverage
             if not need_another_iteration:
