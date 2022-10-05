@@ -13,66 +13,38 @@ import logging
 import sys
 import os
 import itertools
-from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_io import SequenceIO
-import string
-import extern
-import tempfile
 import queue
 import random
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
+from singlem.metapackage import Metapackage
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--debug', help='output debug information', action="store_true")
-    parser.add_argument('--quiet', action="store_true")
-    parser.add_argument('--greengenes_taxonomy', help='tab then semi-colon separated "GreenGenes"-skyle format definition of taxonomies', required=True)
-    parser.add_argument('--sequences', help='FASTA file of sequences to be compared', required=True)
-
-    args = parser.parse_args()
-    if args.debug:
-        loglevel = logging.DEBUG
-    elif args.quiet:
-        loglevel = logging.ERROR
-    else:
-        loglevel = logging.INFO
-    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-    
-    
+def distance_comparison(singlem_package):
     # Read in taxonomy
     logging.info("Reading taxonomy..")
-    gg = GreenGenesTaxonomy.read(open(args.greengenes_taxonomy)).taxonomy
+    gg = singlem_package.graftm_package().taxonomy_hash()
     logging.info("Read in %i taxonomies" % len(gg))
     
     # Read in sequence
     logging.info("Reading sequences..")
-    duplicates = set()
-    sequences = {}
-    for name, seq, _  in SequenceIO()._readfq(open(args.sequences)):
-        if name in sequences:
-            logging.error("Duplicate sequence name %s" % name)
-            duplicates.add(name)
-        else:
-            sequences[name] = seq
-    logging.warn("Found %i duplicated IDs" % len(duplicates))
-    for dup in duplicates:
-        del sequences[dup]
+    fasta_path = singlem_package.graftm_package().alignment_fasta_path()
+    sequences = {seq.name: seq.seq for seq in SequenceIO().read_fasta_file(fasta_path)}
     logging.info("Read in %i sequences" % len(sequences))
-    
-    # Ensure that each sequence in the taxonomy has an associated sequence,
-    # otherwise delete it
-    tax_no_seq = set()
+
+    # Remove off-target sequences
+    target_domains = singlem_package.target_domains()
+    off_target_seq = set()
     for name, taxonomy in gg.items():
-        if name not in sequences:
-            tax_no_seq.add(name)
-    logging.warn("Found %i taxonomies that had no sequences, deleting" % len(tax_no_seq))
-    for name in tax_no_seq:
+        if not taxonomy[0].strip("d__") in target_domains:
+            off_target_seq.add(name)
+    logging.warn("Found %i off-target sequences, deleting" % len(off_target_seq))
+    for name in off_target_seq:
         del gg[name]
-    logging.info("After deleting no-seq taxonomies now have %i taxes" % len(gg))
-    
+    logging.info("After deleting off-target taxonomies now have %i taxes" % len(gg))
+
     # Create recursive hash of taxonomy ending in sequences
-    taxonomic_prefixes = string.split('k p c o f g s')
+    taxonomic_prefixes = 'd p c o f g s'.split(" ")
     class LineageOrLeaf:
         def __init__(self, parent, name, rank):
             self.parent = parent
@@ -81,25 +53,24 @@ if __name__ == '__main__':
             self.rank = rank
             self.known_to_have_sequence = False
             self.is_leaf = False
-            
+
         def example_sequence(self):
             # pick an example sequence
             current = self
             while not current.is_leaf:
-                current = random.choice(current.children.values())
-            return random.choice(current.children.values())
-        
+                current = random.choice([v for v in current.children.values()])
+            return random.choice([v for v in current.children.values()])
+
         def __repr__(self):
             rep = "LineageOrLeage %s with %i children" % (self.name, len(self.children))
             if len(self.children) > 0:
-                rep += " e.g. %s" % (self.children.keys()[0])
+                rep += " e.g. %s" % ([k for k in self.children.keys()][0])
             if self.parent is not None:
                 rep += " parent %s" % self.parent.name
             return rep
                                                                   
             
     root = LineageOrLeaf(None, 'root', -1)
-    #TODO: this doesn't require a consistent (monophyletic) taxonomy I don't think, it probly should.
     for name, splits in gg.items():
         last = root
         count = 0
@@ -156,23 +127,6 @@ if __name__ == '__main__':
     
     
     # Iterate over the taxonomy, calculating distances, calculating a distance between a random choice from each pair of lineages, reporting as we go.
-    # This is DEAD code because vsearch was insufficiently sensitive.
-    def vsearch_id(seq0, seq1):
-        with tempfile.NamedTemporaryFile(dir='/dev/shm') as f:
-            f.write(">first\n")
-            f.write(seq0)
-            f.write("\n")
-            f.flush()
-            with tempfile.NamedTemporaryFile(dir='/dev/shm') as g:
-                g.write(">second\n")
-                g.write(seq1)
-                g.write("\n")
-                g.flush()
-                
-                import IPython; IPython.embed()
-                result = extern.run("vsearch --usearch_global %s --db %s --userfields id0 --userout /dev/stdout" % (f.name, g.name))
-                print result
-                
     def compare(seq0, seq1):
         matches = 0
         mismatches = 0
@@ -200,16 +154,35 @@ if __name__ == '__main__':
             example1 = second.example_sequence()
             dist = compare(example0, example1)
             if current.rank == -1: break
-            
-            print "\t".join([taxonomic_prefixes[current.rank],
-                             current.name,
-                             example0, example1,
-                             str(dist)
-                             ])
-            
+
+            print("\t".join([
+                singlem_package.graftm_package_basename(),
+                taxonomic_prefixes[current.rank],
+                current.name,
+                str(dist),
+                ]))
+
         if current.rank < last_rank:
             for child in current.children.values():
                 q.put(child)
-            
-            
 
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--debug', help='output debug information', action="store_true")
+    parser.add_argument('--quiet', action="store_true")
+    parser.add_argument('--metapackage', help='SingleM metapackage to use', required=True)
+
+    args = parser.parse_args()
+    if args.debug:
+        loglevel = logging.DEBUG
+    elif args.quiet:
+        loglevel = logging.ERROR
+    else:
+        loglevel = logging.INFO
+    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+    metapackage = Metapackage.acquire(args.metapackage)
+
+    print("\t".join(["singlem_package", "rank", "taxon", "distance"]))
+    for singlem_package in metapackage.singlem_packages:
+        distance_comparison(singlem_package)
