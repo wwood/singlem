@@ -29,7 +29,7 @@ from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
 
 DEFAULT_WINDOW_SIZE=60
-GENUS_LEVEL_AVERAGE_IDENTITY = 0.89
+GENUS_LEVEL_AVERAGE_IDENTITY = 0.86
 
 def seqs(args):
     if args.alignment_type == 'aa':
@@ -203,14 +203,18 @@ if __name__ == '__main__':
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = bird_argparser.new_subparser('appraise', appraise_description, parser_group='Tools')
     appraise_otu_table_options = appraise_parser.add_argument_group('Input OTU table options')
-    appraise_otu_table_options.add_argument('--metagenome-otu-tables', nargs='+', help="output of 'pipe' run on metagenomes", required=True)
+    appraise_otu_table_options.add_argument('--metagenome-otu-tables', nargs='+', help="output of 'pipe' run on metagenomes")
+    appraise_otu_table_options.add_argument('--metagenome-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on metagenomes")
     appraise_otu_table_options.add_argument('--genome-otu-tables', nargs='+', help="output of 'pipe' run on genomes")
+    appraise_otu_table_options.add_argument('--genome-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on genomes")
     appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
+    appraise_otu_table_options.add_argument('--assembly-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on assembled sequence")
+    appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables', required=True)
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
-    appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome", default=False)
-    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified", default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
+    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~genus level divergence i.e. %s]" % GENUS_LEVEL_AVERAGE_IDENTITY, default=GENUS_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
-    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot_marker is also specified)', default=None)
+    appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot-marker is also specified)', default=None)
     appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
     appraise_plot_group.add_argument('--plot-basename', help="Plot visualisation of appraisal results from all markers to this basename (one SVG per marker)", default=None)
     appraise_otu_table_group = appraise_parser.add_argument_group('Output summary OTU tables')
@@ -218,6 +222,7 @@ if __name__ == '__main__':
     appraise_otu_table_group.add_argument('--output-unbinned-otu-table', help="output OTU table of assembled but not binned populations", default=None)
     appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
     appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
+    appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
 
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -792,26 +797,57 @@ if __name__ == '__main__':
     elif args.subparser_name == 'appraise':
         from singlem.otu_table_collection import OtuTableCollection
         from singlem.appraiser import Appraiser
+        from singlem.metapackage import Metapackage
+
+        if not args.metagenome_otu_tables and not args.metagenome_archive_otu_tables:
+            raise Exception("Appraise requires metagenome OTU tables or archive tables")
 
         appraiser = Appraiser()
 
         metagenomes = OtuTableCollection()
-        for table in args.metagenome_otu_tables:
-            with open(table) as f:
-                metagenomes.add_otu_table(f)
-
-        if args.genome_otu_tables:
-            genomes = OtuTableCollection()
-            for table in args.genome_otu_tables:
+        if args.metagenome_otu_tables:
+            for table in args.metagenome_otu_tables:
                 with open(table) as f:
-                    genomes.add_otu_table(f)
+                    metagenomes.add_otu_table(f)
+        if args.metagenome_archive_otu_tables:
+            for table in args.input_archive_otu_tables:
+                with open(table) as f:
+                    metagenomes.add_archive_otu_table(f)
+
+        logging.info("Removing hits that are not assigned to their target domains")
+        pkgs = Metapackage.acquire(args.metapackage).singlem_packages
+        o2 = OtuTableCollection()
+        o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
+        metagenomes = o2
+
+        if args.genome_otu_tables or args.genome_archive_otu_tables:
+            genomes = OtuTableCollection()
+            if args.genome_otu_tables:
+                for table in args.genome_otu_tables:
+                    with open(table) as f:
+                        genomes.add_otu_table(f)
+            if args.genome_archive_otu_tables:
+                for table in args.genome_archive_otu_tables:
+                    with open(table) as f:
+                        genomes.add_archive_otu_table(f)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects.append(genomes.exclude_off_target_hits(pkgs))
+            genomes = o2
         else:
             genomes = None
-        if args.assembly_otu_tables:
+        if args.assembly_otu_tables or args.assembly_archive_otu_tables:
             assemblies = OtuTableCollection()
-            for table in args.assembly_otu_tables:
-                with open(table) as f:
-                    assemblies.add_otu_table(f)
+            if args.assembly_otu_tables:
+                for table in args.assembly_otu_tables:
+                    with open(table) as f:
+                        assemblies.add_otu_table(f)
+            if args.assembly_archive_otu_tables:
+                for table in args.assembly_archive_otu_tables:
+                    with open(table) as f:
+                        assemblies.add_archive_otu_table(f)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects.append(assemblies.exclude_off_target_hits(pkgs))
+            assemblies = o2
         else:
             assemblies = None
 
@@ -821,7 +857,10 @@ if __name__ == '__main__':
         app = appraiser.appraise(genome_otu_table_collection=genomes,
                                 metagenome_otu_table_collection=metagenomes,
                                 assembly_otu_table_collection=assemblies,
-                                sequence_identity=(args.sequence_identity if args.imperfect else None))
+                                output_found_in = args.output_found_in,
+                                sequence_identity=(args.sequence_identity if args.imperfect else None),
+                                packages=pkgs,
+                                window_size=DEFAULT_WINDOW_SIZE)
 
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
@@ -851,8 +890,10 @@ if __name__ == '__main__':
 
         appraiser.print_appraisal(
             app,
+            packages=pkgs,
             doing_binning = genomes is not None,
             doing_assembly = assemblies is not None,
+            output_found_in = args.output_found_in,
             binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
             unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
             assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,

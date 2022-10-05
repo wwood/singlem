@@ -58,6 +58,13 @@ class OtuTableCollection:
                 return table.fields
         raise Exception("Attempt to get fields from empty TableCollection")
 
+    def sort_otu_tables_by_marker(self):
+        '''Sort each OTU table by marker gene.
+        '''
+        for table_types in (self.otu_table_objects, self.archive_table_objects):
+            for table in table_types:
+                table.sort_by_marker()
+
     def __iter__(self):
         '''Iterate over all the OTUs from all the tables
 
