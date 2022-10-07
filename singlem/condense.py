@@ -117,10 +117,11 @@ class Condenser:
         # logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
         logging.info("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.info("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains)
-        logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+        # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if apply_diamond_expectation_maximisation:
             logging.info("Converting DIAMOND IDs to taxons")
@@ -129,7 +130,7 @@ class Condenser:
             # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
             # import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
             sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains)
-            # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+            logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if output_after_em_otu_table:
             sample_otus.alignment_hmm_sha256s = 'na'
@@ -404,9 +405,10 @@ class Condenser:
             # The DIAMOND assignments are already truncated to genus level.
             # But the query-based ones go to species level.
             best_hit_taxonomies = otu.equal_best_hit_taxonomies()
-            if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
+            method = otu.taxonomy_assignment_method()
+            if method == DIAMOND_ASSIGNMENT_METHOD:
                 best_hit_genera = best_hit_taxonomies
-            elif otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
+            elif method in (QUERY_BASED_ASSIGNMENT_METHOD, QUERY_BASED_ASSIGNMENT_METHOD+'_abandoned'):
                 best_hit_genera = set(
                     [';'.join([s.strip() for s in taxon.split(';')[:-1]]) for taxon in best_hit_taxonomies])
             else:
@@ -504,26 +506,18 @@ class Condenser:
             return sample_otus
 
         species_to_coverage, best_hit_taxonomy_sets = core_return
-        logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+        logging.debug("Total species_to_coverage coverage: {}".format(sum([cov for cov in species_to_coverage.values()])))
         
         logging.info("Gathering equivalence classes")
         eq_classes = self._gather_equivalence_classes_from_list_of_taxon_lists(best_hit_taxonomy_sets)
         
-        logging.info("Demultiplexing OTU table")
         logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        logging.info("Demultiplexing OTU table")
         
-        # In [6]: sample_otus.alignment_hmm_sha256s = 'na'
-
-        # In [7]: sample_otus.singlem_package_sha256s = 'na'
-
-        # In [8]: with open('/tmp/before','w') as f: sample_otus.write_to(f)
         demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, QUERY_BASED_ASSIGNMENT_METHOD)
         logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
-        # demux_otus.alignment_hmm_sha256s = 'na'
-        # demux_otus.singlem_package_sha256s = 'na'
-        # with open('/tmp/after','w') as f: demux_otus.write_to(f)
 
         logging.info("Finished expectation maximization")
         return demux_otus
@@ -691,20 +685,29 @@ class Condenser:
                             lca_to_coverage[lca] += cov
                 logging.debug("LCA to coverage: {}".format(lca_to_coverage))
                 total_coverage = sum(lca_to_coverage.values())
-                
-                for lca, coverage in lca_to_coverage.items():
-                    # This used to be a helpful sanity check, but it can
-                    # legitimately happen for diamond-assigned OTUs since the
-                    # median taxonomy can be longer than the final (and this is
-                    # a strlen check not an array length check atm)
-                    # if len(lca) < len(otu.taxonomy):
-                    #     logging.error("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
-                    new_otu = ArchiveOtuTableEntry()
-                    new_otu.data = otu.data.copy()
-                    new_otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = lca
-                    new_otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] = coverage / total_coverage * otu.coverage
-                    logging.debug("Adding OTU taxonomy {} with coverage {}".format(lca, new_otu.coverage))
-                    new_otu_table.add([new_otu])
+
+                # If there is no LCA, then the speces were removed by the
+                # species-wise EM. We do not want to lose the coverage of these
+                # so just set them to a genus level hit and keep the coverage.
+                if len(lca_to_coverage) == 0:
+                    if len(otu.taxonomy_array()) > 7:
+                        otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = '; '.join(otu.taxonomy_array()[:7])
+                    otu.data[ArchiveOtuTable.TAXONOMY_ASSIGNMENT_METHOD_INDEX] += '_abandoned'
+                    new_otu_table.add([otu])
+                else:
+                    for lca, coverage in lca_to_coverage.items():
+                        # This used to be a helpful sanity check, but it can
+                        # legitimately happen for diamond-assigned OTUs since the
+                        # median taxonomy can be longer than the final (and this is
+                        # a strlen check not an array length check atm)
+                        # if len(lca) < len(otu.taxonomy):
+                        #     logging.error("Somehow EM has made taxonomy less specific than the original: {}".format(otu.taxonomy))
+                        new_otu = ArchiveOtuTableEntry()
+                        new_otu.data = otu.data.copy()
+                        new_otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = lca
+                        new_otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] = coverage / total_coverage * otu.coverage
+                        logging.debug("Adding OTU taxonomy {} with coverage {}".format(lca, new_otu.coverage))
+                        new_otu_table.add([new_otu])
         return new_otu_table
         
     def _gather_equivalence_classes_from_list_of_taxon_lists(self, species_sets):
