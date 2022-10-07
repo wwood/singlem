@@ -776,7 +776,8 @@ class SequenceDatabase:
                             .order_by(ProteinSequence.marker_wise_id) \
                             .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
                             .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                            .where(NucleotideSequence.marker_id == marker_id))
+                            .where(NucleotideSequence.marker_id == marker_id)
+                            .distinct())
                 ])
                 if a.shape[0] < 16:
                     logging.warn("Adding dummy protein sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")

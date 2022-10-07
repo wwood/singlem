@@ -98,7 +98,7 @@ class Querier:
                 Taxonomy.taxonomy]) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id) \
-                    .where(NucleotideSequence.id == Otu.sequence_id) \
+                    .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
                     .where(NucleotidesProteins.protein_id == ProteinSequence.id)
             result = conn.execute(query)
             d1 = pd.DataFrame(result.fetchall(), 
