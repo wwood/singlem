@@ -36,6 +36,8 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
+TEST_NMSLIB = False
+
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
     query_result_headers = ['query_name','query_sequence','divergence','num_hits','coverage','sample','marker','hit_sequence','taxonomy']
@@ -72,13 +74,17 @@ class Tests(unittest.TestCase):
 
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive" %(
+            methods = ['annoy','scann','naive']
+            if TEST_NMSLIB:
+                methods.append('nmslib')
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s" %(
                 path_to_script,
                 d,
-                path_to_data)
+                path_to_data,
+                ' '.join(methods))
             extern.run(cmd)
 
-            for method in ['annoy','nmslib','scann','naive']:
+            for method in methods:
                 cmd = "%s query --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s --max-nearest-neighbours 2" % (
                     path_to_script,
                     path_to_data,
@@ -90,12 +96,16 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive --sequence-database-types nucleotide protein" %(path_to_script,
+            methods = ['annoy','scann','naive']
+            if TEST_NMSLIB:
+                methods.append('nmslib')
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
-                                                            path_to_data)
+                                                            path_to_data,
+                                                            ' '.join(methods))
             extern.run(cmd)
 
-            for method in ['annoy','nmslib','scann','naive']:
+            for method in methods:
                 cmd = "%s query --sequence-type protein --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s --max-nearest-neighbours 2" % (
                     path_to_script,
                     path_to_data,
@@ -108,9 +118,13 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria_preload_db(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive --sequence-database-types nucleotide protein" %(path_to_script,
+            methods = ['annoy','scann','naive']
+            if TEST_NMSLIB:
+                methods.append('nmslib')
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
-                                                            path_to_data)
+                                                            path_to_data,
+                                                            ' '.join(methods))
             extern.run(cmd)
 
             for method in ['scann','naive']: # not implemented for 'annoy','nmslib',
@@ -128,14 +142,17 @@ class Tests(unittest.TestCase):
 
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
-            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods annoy scann nmslib naive --sequence-database-types nucleotide protein" %(path_to_script,
+            methods = ['annoy','scann','naive']
+            if TEST_NMSLIB:
+                methods.append('nmslib')
+            cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
-                                                            path_to_data)
+                                                            path_to_data,
+                                                            ' '.join(methods))
             extern.run(cmd)
 
             for (seq_type,unlimited_count,limited_count) in [('nucleotide',64,61),('protein',72,39)]:
-                for method in ['annoy','nmslib','naive','scann']:
-
+                for method in methods:
                     cmd = "%s query --sequence-type %s --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s" % (
                         path_to_script,
                         seq_type,
