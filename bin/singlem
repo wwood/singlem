@@ -441,11 +441,6 @@ if __name__ == '__main__':
     required_trim_package_hmmsarguments.add_argument('--input-singlem-package', required=True, help="Input package to trim HMMs from")
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
 
-    taxonomy_assignment_db_description = 'Create a taxonomy assignment database (expert mode)'
-    taxonomy_assignment_db_parser = bird_argparser.new_subparser('taxonomy_db', taxonomy_assignment_db_description)
-    taxonomy_assignment_db_parser.add_argument('--input-db', required=True, help="input (normal) SingleM database")
-    taxonomy_assignment_db_parser.add_argument('--output-db', required=True, help="output (taxonomy assignment) SingleM database")
-
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
             raise Exception("At least one of --output-taxonomic-profile, --output-taxonomic-profile-krona, --otu-table, or --archive-otu-table must be specified")
@@ -1092,10 +1087,6 @@ if __name__ == '__main__':
         else:
             raise Exception("Either --db or --subject-otu-tables must be specified.")
 
-    elif args.subparser_name=='taxonomy_db':
-        from singlem.taxonomy_db import TaxonomyDB
-        TaxonomyDB.create_from_otu_table(
-            args.input_db, args.output_db)
     elif args.subparser_name=='data':
         from singlem.metapackage import Metapackage
         if args.verify_only:
