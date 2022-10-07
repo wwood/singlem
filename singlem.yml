@@ -22,7 +22,6 @@ dependencies:
   - nose
   - mafft
   - seqmagick
-  - vsearch
   - expressbetadiversity
   - cd-hit
   - fasttree

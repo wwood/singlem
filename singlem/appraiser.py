@@ -6,7 +6,6 @@ import numpy
 
 from .otu_table import OtuTable
 from .otu_table_collection import OtuTableCollection
-from .sequence_searcher import SequenceSearcher
 from .appraisal_result import Appraisal, AppraisalResult
 from .querier import Querier
 from .sequence_database import SequenceDatabase
