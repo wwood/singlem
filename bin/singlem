@@ -976,7 +976,7 @@ if __name__ == '__main__':
         from singlem.condense import Condenser
 
         otus = generate_streaming_otu_table_from_args(args, input_prefix=True, archive_only=True, min_archive_otu_table_version=4)
-        if not args.output_otu_table and not args.krona:
+        if not args.taxonomic_profile and not args.taxonomic_profile_krona:
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
             input_streaming_otu_table = otus,
