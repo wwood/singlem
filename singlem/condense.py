@@ -58,7 +58,7 @@ class Condenser:
             CondensedCommunityProfileKronaWriter.write_krona(to_yield, krona_output_file)
         
         if output_otu_table is not None:
-            logging.info("Writing OTU table to {}".format(output_otu_table))
+            logging.info("Writing taxonomic profile to {}".format(output_otu_table))
             with open(output_otu_table,'w') as final_otu:
                 final_otu.write("\t".join(["sample", "coverage", "taxonomy"])+"\n")
                 for condensed_table in to_yield:

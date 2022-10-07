@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 
 ###############################################################################
 #
@@ -31,12 +31,6 @@ import argparse
 import logging
 import sys
 import os
-import pandas as pd
-from io import StringIO
-import re
-import tempfile
-
-import extern
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 from singlem.condense import CondensedCommunityProfile

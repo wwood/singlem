@@ -30,6 +30,7 @@ dependencies:
   - jinja2
   - pip
   - sqlalchemy
+  - pandas
   - pip:
     - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
     - scann
