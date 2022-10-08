@@ -740,41 +740,49 @@ if __name__ == '__main__':
                 table_collection = otus,
                 unifrac_output_prefix = args.unifrac_by_taxonomy)
         elif args.output_otu_table:
-            Summariser.write_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.output_otu_table,'w'),
-                output_extras = args.output_extras)
+            with open(args.output_otu_table, 'w') as f:
+                Summariser.write_otu_table(
+                    table_collection = otus,
+                    output_table_io = f,
+                    output_extras = args.output_extras)
         elif args.wide_format_otu_table:
-            Summariser.write_wide_format_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.wide_format_otu_table,'w'))
+            with open(args.wide_format_otu_table, 'w') as f:
+                Summariser.write_wide_format_otu_table(
+                    table_collection = otus,
+                    output_table_io = f)
         elif args.strain_overview_table:
-            StrainSummariser().summarise_strains(
-                table_collection = otus,
-                output_table_io = open(args.strain_overview_table,'w'))
+            with open(args.strain_overview_table, 'w') as f:
+                StrainSummariser().summarise_strains(
+                    table_collection = otus,
+                    output_table_io = f)
         elif args.clustered_output_otu_table:
             if not args.cluster:
                 raise Exception("If --clustered-output-otu-table is set, then clustering (--cluster) must be applied")
-            Summariser.write_clustered_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.clustered_output_otu_table,'w'))
+            with open(args.clustered_output_otu_table, 'w') as f:
+                Summariser.write_clustered_otu_table(
+                    table_collection = otus,
+                    output_table_io = f)
         elif args.rarefied_output_otu_table:
-            Summariser.write_rarefied_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.rarefied_output_otu_table,'w'),
-                number_to_choose = args.number_to_choose)
+            with open(args.rarefied_output_otu_table, 'w') as f:
+                Summariser.write_rarefied_otu_table(
+                    table_collection = otus,
+                    output_table_io = open(args.rarefied_output_otu_table,'w'),
+                    number_to_choose = args.number_to_choose)
         elif args.output_translated_otu_table:
-            Summariser.write_translated_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.output_translated_otu_table,'w'))
+            with open(args.output_translated_otu_table, 'w') as f:
+                Summariser.write_translated_otu_table(
+                    table_collection = otus,
+                    output_table_io = f)
         elif args.collapse_paired_with_unpaired_archive_otu_table:
-            Summariser.write_collapsed_paired_with_unpaired_otu_table(
-                archive_otu_tables = args.input_archive_otu_tables,
-                output_table_io = open(args.collapse_paired_with_unpaired_archive_otu_table,'w'))
+            with open(args.collapse_paired_with_unpaired_archive_otu_table,'w') as output_io:
+                Summariser.write_collapsed_paired_with_unpaired_otu_table(
+                    archive_otu_tables = args.input_archive_otu_tables,
+                    output_table_io = output_io)
         elif args.unaligned_sequences_dump_file:
-            Summariser.dump_raw_sequences_from_archive_otu_table(
-                table_collection = otus,
-                output_table_io = open(args.unaligned_sequences_dump_file,'w'))
+            with open(args.unaligned_sequences_dump_file, 'w') as f:
+                Summariser.dump_raw_sequences_from_archive_otu_table(
+                    table_collection = otus,
+                    output_table_io = f)
 
         else: raise Exception("Programming error")
         logging.info("Finished")
