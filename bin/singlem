@@ -728,7 +728,7 @@ if __name__ == '__main__':
             otus = o2
 
         if args.krona:
-            Summariser.summarise(
+            Summariser.write_otu_table_krona(
                 table_collection = otus,
                 krona_output = args.krona)
         elif args.unifrac_by_otu:

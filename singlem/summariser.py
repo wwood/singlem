@@ -16,7 +16,7 @@ from .archive_otu_table import ArchiveOtuTable
 
 class Summariser:
     @staticmethod
-    def summarise(**kwargs):
+    def write_otu_table_krona(**kwargs):
         '''Summarise an OTU table'''
         krona_output_file = kwargs.pop('krona_output')
         table_collection = kwargs.pop('table_collection')
