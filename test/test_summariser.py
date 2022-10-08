@@ -115,7 +115,7 @@ S1.5.ribosomal_protein_L11_rplK\tsmall\tCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAG
         table_collection = OtuTableCollection()
         table_collection.add_archive_otu_table(StringIO(archive))
         with tempfile.TemporaryDirectory() as tmp:
-            Summariser.summarise(krona_output=os.path.join(tmp, 'KronaOK.html'),
+            Summariser.write_otu_table_krona(krona_output=os.path.join(tmp, 'KronaOK.html'),
                                  table_collection=table_collection)
             self.assertTrue(os.path.exists(os.path.join(tmp,'KronaOK.html')))
 
