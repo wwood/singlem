@@ -370,7 +370,7 @@ class Summariser:
                     raise Exception("Singlem package SHA256 mismatch between archives")
                 df2 = pandas.DataFrame(ar.data)
                 df2.columns = fields
-                df = df.append(df2)
+                df = pd.concat([df, df2], ignore_index=True)
         
         # Join the data together, making changes:
         # 1) For each, remove the _1 suffix from the sample name
