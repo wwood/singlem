@@ -106,51 +106,6 @@ class Querier:
                 'sample_name', 'num_hits', 'coverage', 'taxonomy'))
         return d1
 
-    def query_subject_otu_table(self, **kwargs):
-        subject_otus = kwargs.pop('subject_otu_collection')
-        query_sequence = kwargs.pop('query_sequence')
-        max_divergence = kwargs.pop('max_divergence')
-        query_otu_table = kwargs.pop('query_otu_table')
-        query_fasta = kwargs.pop('query_fasta')
-        output_style = kwargs.pop('output_style')
-
-        if len(kwargs) > 0:
-            raise Exception("Unexpected arguments detected: %s" % kwargs)
-
-        if (query_otu_table and query_sequence) or \
-            (query_otu_table and query_fasta) or \
-            (query_sequence and query_fasta):
-            raise Exception("Only one of --query_fasta, --query_otu_table and --query_sequence is allowable")
-
-        queries = self.prepare_query_sequences(
-            query_sequence, query_otu_table, query_fasta)
-        logging.info("Read in %i queries" % len(queries))
-
-        query_results = []
-        for query in queries:
-            for otu in subject_otus:
-                logging.debug("Comparing query {}/{} with subject {}/{}".format(
-                    query.name,
-                    query.sequence,
-                    otu.sample_name,
-                    otu.sequence))
-                # TODO: Optimise these alignment scoring parameters for a codon-wise alignment?
-                alignments = pairwise2.align.globalxs(
-                    query.sequence.upper(),
-                    otu.sequence.upper(),
-                    0, 0) # Use 0 not -1 because the gap is counted on top of the mismatch
-                best_alignment = max(alignments, key=lambda p: p[2])
-                divergence = max(len(query.sequence), len(otu.sequence)) - int(best_alignment[2])
-                logging.debug("Found divergence of best alignment {}".format(divergence))
-                if divergence <= max_divergence:
-                    query_results.append(QueryResult(query, otu, divergence))
-
-        if output_style == 'sparse':
-            SparseResultFormatter().write(query_results, sys.stdout)
-        elif output_style == None:
-            return query_results
-        else:
-            raise Exception("Programming error")
 
 
 
@@ -523,7 +478,7 @@ class Querier:
                         otu.sequence = entry.sequence
                         otu.count = entry.num_hits
                         otu.coverage = entry.coverage
-                        otu.taxonomy = entry.taxonomy_id
+                        otu.taxonomy = db.get_taxonomy_via_cache(entry.taxonomy_id)
                         yield QueryResult(queries_list[qid], otu, 0)
 
     def print_samples(self, **kwargs):

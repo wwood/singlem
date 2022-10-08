@@ -250,7 +250,7 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--db', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
-    current_default = ['annoy','scann']
+    current_default = ['naive']
     makedb_other_args.add_argument('--sequence-database-methods',
         nargs='+',
         choices = ['annoy','scann','nmslib','naive','none'],
@@ -267,10 +267,8 @@ if __name__ == '__main__':
 
     query_description = 'Find closely related sequences in a database.'
     query_parser = bird_argparser.new_subparser('query', query_description, parser_group='Tools')
-    query_db_args = query_parser.add_argument_group('DB/Subject arguments (one is required)')
-    query_db_args.add_argument('--db', help="Output from 'makedb' mode")
-    query_db_args.add_argument('--subject-otu-tables', nargs='+', metavar='file',
-                               help='Pairwise align queries to this otu table (works with inserts, but is slow)')
+    query_db_args = query_parser.add_argument_group('Required arguments')
+    query_db_args.add_argument('--db', help="Output from 'makedb' mode", required=True)
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
     query_otu_args.add_argument('--query-otu-table', '--query-otu-tables', nargs='+', metavar='file', help="Query the database with all sequences in this OTU table")
     query_otu_args.add_argument('--query-otu-tables-list', help="Query the database with all sequences in OTU table files newline separated in this file")
@@ -278,7 +276,7 @@ if __name__ == '__main__':
     query_otu_args.add_argument('--query-archive-otu-table-list', help="Query the database with all sequences in archive tables newline separated in this file")
     query_otu_args.add_argument('--query-gzip-archive-otu-table-list', help="Query the database with all sequences in gzip'd archive tables newline separated in this file")
     current_default = 20
-    query_otu_args.add_argument('--max-nearest-neighbours', help="How many nearest neighbours to report. Each neighbour is a distinct sequence from the DB/subject. [default: {}]".format(current_default), type=int, default=current_default)
+    query_otu_args.add_argument('--max-nearest-neighbours', help="How many nearest neighbours to report. Each neighbour is a distinct sequence from the DB. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
     current_default = 'naive'
     query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
@@ -290,7 +288,7 @@ if __name__ == '__main__':
     # query_otu_args.add_argument('--stream-output','--stream_output', help='Stream output. Results may not be sorted by divergence [default: do not]', action='store_true')
     current_default = 1
     query_otu_args.add_argument('--threads', help='Use this many threads where possible [default %i]' % current_default, default=current_default)
-    query_otu_args.add_argument('--limit-per-sequence',type=int, help='How many entries (samples/genomes from DB/subject with identical sequences) to report for each distinct, matched sequence (arbitrarily chosen) [default: No limit]')
+    query_otu_args.add_argument('--limit-per-sequence',type=int, help='How many entries (samples/genomes from DB with identical sequences) to report for each distinct, matched sequence (arbitrarily chosen) [default: No limit]')
     query_otu_args.add_argument('--preload-db', action='store_true', help='Cache all DB data in python-land instead of querying for it by SQL each time. This is faster particularly for querying many sequences, but uses more memory and has a larger start-up time for each marker gene.')
     query_other_args = query_parser.add_argument_group('Other database extraction methods')
     query_other_args.add_argument('--sample-names', metavar='name', help='Print all OTUs from these samples', nargs='+')
@@ -1036,64 +1034,42 @@ if __name__ == '__main__':
         from singlem.sequence_database import SequenceDatabase
         from singlem.otu_table_collection import StreamingOtuTableCollection
         querier = Querier()
-        if args.db and args.subject_otu_tables:
-            raise Exception("Cannot specify both --db and --subject_otu_tables")
 
-        if args.db:
-            if args.dump:
-                logging.debug("Dumping SingleM database {}".format(args.db))
-                SequenceDatabase.dump(args.db)
-            elif args.sample_names or args.taxonomy or args.sample_list:
-                definition_type_count = 0
-                if args.sample_names: definition_type_count += 1
-                if args.taxonomy: definition_type_count += 1
-                if args.sample_list: definition_type_count += 1
-                if definition_type_count > 1:
-                    raise Exception("Only one of --sample-names, --sample-list and --taxonomy can be specified")
-                sample_names = args.sample_names
-                if args.sample_list:
-                    with open(args.sample_list) as f:
-                        sample_names = list([line.strip() for line in f])
-                        logging.info("Read in {} sample names from {}".format(len(sample_names), args.sample_list))
-                querier.print_samples(
-                    db=args.db,
-                    sample_names = sample_names,
-                    taxonomy = args.taxonomy,
-                    output_io=sys.stdout)
-            else:
-                if args.db:
-                    querier.query(
-                        db = args.db,
-                        max_divergence = args.max_divergence,
-                        output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
-                        query_otu_table = generate_streaming_otu_table_from_args(args, query_prefix=True),
-                        num_threads = args.threads,
-                        search_method = args.search_method,
-                        sequence_type = args.sequence_type,
-                        # stream_output = args.stream_output,
-                        max_nearest_neighbours = args.max_nearest_neighbours,
-                        max_search_nearest_neighbours = args.max_search_nearest_neighbours,
-                        preload_db = args.preload_db,
-                        limit_per_sequence = args.limit_per_sequence)
-        elif args.subject_otu_tables:
-            if args.taxonomy:
-                raise Exception("--taxonomy only works with --db")
-            if args.sample_names:
-                raise Exception("--sample_names only works with --db")
-            if args.dump:
-                raise Exception("--dump only works with --db")
-            otus = OtuTableCollection()
-            for o in args.subject_otu_tables:
-                otus.add_otu_table(open(o))
-            querier.query_subject_otu_table(
-                query_sequence = args.query_sequence,
-                max_divergence = args.max_divergence,
-                query_otu_table = generate_streaming_otu_table_from_args(args, query_prefix=True),
-                query_fasta = args.query_fasta,
-                subject_otu_collection = otus,
-                output_style = 'sparse')# There is only sparse type atm.
+        if args.dump:
+            logging.debug("Dumping SingleM database {}".format(args.db))
+            SequenceDatabase.dump(args.db)
+        elif args.sample_names or args.taxonomy or args.sample_list:
+            definition_type_count = 0
+            if args.sample_names: definition_type_count += 1
+            if args.taxonomy: definition_type_count += 1
+            if args.sample_list: definition_type_count += 1
+            if definition_type_count > 1:
+                raise Exception("Only one of --sample-names, --sample-list and --taxonomy can be specified")
+            sample_names = args.sample_names
+            if args.sample_list:
+                with open(args.sample_list) as f:
+                    sample_names = list([line.strip() for line in f])
+                    logging.info("Read in {} sample names from {}".format(len(sample_names), args.sample_list))
+            querier.print_samples(
+                db=args.db,
+                sample_names = sample_names,
+                taxonomy = args.taxonomy,
+                output_io=sys.stdout)
         else:
-            raise Exception("Either --db or --subject-otu-tables must be specified.")
+            if args.db:
+                querier.query(
+                    db = args.db,
+                    max_divergence = args.max_divergence,
+                    output_style = 'sparse',#args.otu_table_type, # There is only sparse type atm.
+                    query_otu_table = generate_streaming_otu_table_from_args(args, query_prefix=True),
+                    num_threads = args.threads,
+                    search_method = args.search_method,
+                    sequence_type = args.sequence_type,
+                    # stream_output = args.stream_output,
+                    max_nearest_neighbours = args.max_nearest_neighbours,
+                    max_search_nearest_neighbours = args.max_search_nearest_neighbours,
+                    preload_db = args.preload_db,
+                    limit_per_sequence = args.limit_per_sequence)
 
     elif args.subparser_name=='data':
         from singlem.metapackage import Metapackage
