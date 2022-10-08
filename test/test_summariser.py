@@ -273,7 +273,6 @@ minimal2	0.2
             path_to_data,
             path_to_data)
         res = extern.run(cmd)
-        import IPython; IPython.embed()
         ar = ArchiveOtuTable.read(StringIO(res))
         self.assertEqual(len(ar.data), 565)
         
