@@ -53,7 +53,7 @@ class Tests(unittest.TestCase):
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))
 
     def test_archive_to_otu_table_conversion(self):
-        cmd = "{} summarise --input_gzip_archive_otu_table_list <(ls {}/small.otu_table.json.gz) --output-otu-table /dev/stdout".format(
+        cmd = "{} summarise --input-gzip-archive-otu-table-list <(ls {}/small.otu_table.json.gz) --output-otu-table /dev/stdout".format(
             path_to_script,
             path_to_data)
         obs = extern.run(cmd)
@@ -119,21 +119,6 @@ S1.5.ribosomal_protein_L11_rplK\tsmall\tCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAG
                                  table_collection=table_collection)
             self.assertTrue(os.path.exists(os.path.join(tmp,'KronaOK.html')))
 
-    def test_biom_hello_world(self):
-        insert_otu_table = [self.headers,
-                            ['4.12.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
-                            ['4.12.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG','2','2.94','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
-        with tempfile.TemporaryDirectory() as tmp:
-            with tempfile.NamedTemporaryFile(suffix='.otu_table.csv',mode='w') as n:
-                n.write("\n".join(["\t".join(x) for x in insert_otu_table]+['']))
-                n.flush()
-                extern.run("%s summarise --biom_prefix '%s' --input_otu_tables '%s'" % (
-                    path_to_script, os.path.join(tmp,"mybiom"), n.name))
-                self.assertEqual(['mybiom.4.12.ribosomal_protein_L11_rplK.biom'], os.listdir(tmp))
-                self.assertEqual(
-                    '# Constructed from biom file\n#OTU ID\tinsert\ttaxonomy\nRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG\t1.0\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG\t2.0\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
-                    extern.run("biom convert -i '%s' -o /dev/stdout --to-tsv --header-key taxonomy" % os.path.join(tmp,'mybiom.4.12.ribosomal_protein_L11_rplK.biom')))
-
     def test_wide_format(self):
         e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
             ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
@@ -167,8 +152,8 @@ S1.5.ribosomal_protein_L11_rplK\tsmall\tCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAG
                 otus2.flush()
 
                 with tempfile.TemporaryDirectory() as d:
-                    #singlem summarise --input_otu_table /tmp/tmpGTvm6f /tmp/tmpTvoNvC --unifrac out_unifracer
-                    cmd = "{} summarise --input_otu_tables {} {} --unifrac_by_otu {}".format(
+                    #singlem summarise --input-otu-table /tmp/tmpGTvm6f /tmp/tmpTvoNvC --unifrac out_unifracer
+                    cmd = "{} summarise --input-otu-tables {} {} --unifrac-by-otu {}".format(
                         path_to_script,
                         otus1.name,
                         otus2.name,
@@ -198,7 +183,7 @@ minimal2	0.2
                 with tempfile.TemporaryDirectory() as d:
                     ## Then for the phylogeny version:
                     #singlem summarise --taxonomy_as_identifier --unifrac
-                    cmd = "{} summarise --input_otu_tables {} {} --unifrac_by_taxonomy {}".format(
+                    cmd = "{} summarise --input-otu-tables {} {} --unifrac-by-taxonomy {}".format(
                         path_to_script,
                         otus1.name,
                         otus2.name,
@@ -231,7 +216,7 @@ minimal2	0.2
             self.assertTrue(os.path.exists(line.split('\t')[1]))
 
     def test_get_tree_specific(self):
-        cmd = "{} get_tree --singlem_package {}".format(
+        cmd = "{} get_tree --singlem-package {}".format(
             path_to_script,
             os.path.join(path_to_data,'4.12.22seqs.spkg'))
         observed = extern.run(cmd)
@@ -251,7 +236,7 @@ minimal2	0.2
             "\t".join(self.headers),
             '4.11.22seqs	small	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes',
             '']
-        cmd = "{} summarise --singlem_packages {} --exclude_off_target_hits --input_archive_otu_table {} --output_otu_table /dev/stdout".format(
+        cmd = "{} summarise --singlem-packages {} --exclude-off-target-hits --input-archive-otu-table {} --output-otu-table /dev/stdout".format(
             path_to_script,
             os.path.join(path_to_data,'4.11.22seqs.v3.gpkg.spkg'),
             os.path.join(path_to_data,'small.otu_table.4.11.22seqs.json'))
@@ -262,7 +247,7 @@ minimal2	0.2
         expected = [
             "\t".join(self.headers),
             '']
-        cmd = "{} summarise --singlem_packages {} --exclude_off_target_hits --input_archive_otu_table {} --output_otu_table /dev/stdout".format(
+        cmd = "{} summarise --singlem-packages {} --exclude-off-target-hits --input-archive-otu-table {} --output-otu-table /dev/stdout".format(
             path_to_script,
             os.path.join(path_to_data,'4.11.22seqs.v3_archaea_targetted.gpkg.spkg'),
             os.path.join(path_to_data,'small.otu_table.4.11.22seqs.json'))
@@ -276,23 +261,24 @@ minimal2	0.2
             '4.11.ribosomal_protein_L10	small	KRSQLREAGVEYKVYKNTMV	5	10.4	Root; d__Bacteria',
             '4.12.ribosomal_protein_L11_rplK	small	PAGKANPAPPVGPALGQAGV	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales',
             '']
-        cmd = "{} summarise --input_otu_table {} --output_translated_otu_table /dev/stdout".format(
+        cmd = "{} summarise --input-otu-table {} --output-translated-otu-table /dev/stdout".format(
             path_to_script,
             os.path.join(path_to_data,'small_will_collapse.otu_table.csv'))
         observed = extern.run(cmd)
         self.assertEqualOtuTable(list([line.split("\t") for line in expected]), observed)
 
     def test_collapse_paired_with_unpaired(self):
-        cmd = '{} summarise --input-archive-otu-table {}/summarise/ERR1883421_paired.annotated.singlem.renew.renew_v4.json {}/summarise/ERR1883421_unpaired.annotated.singlem.renew.renew_v4.json --collapse_paired_with_unpaired /dev/stdout'.format(
+        cmd = '{} summarise --input-archive-otu-table {}/summarise/ERR1883421_paired.annotated.singlem.renew.renew_v4.json {}/summarise/ERR1883421_unpaired.annotated.singlem.renew.renew_v4.json --collapse-paired-with-unpaired /dev/stdout'.format(
             path_to_script,
             path_to_data,
             path_to_data)
         res = extern.run(cmd)
+        import IPython; IPython.embed()
         ar = ArchiveOtuTable.read(StringIO(res))
         self.assertEqual(len(ar.data), 565)
         
     def test_dump_raw_sequences(self):
-        cmd = '{} summarise --input-archive-otu-table {}/small.otu_table.4.11.22seqs.json --unaligned_sequences_dump_file /dev/stdout'.format(
+        cmd = '{} summarise --input-archive-otu-table {}/small.otu_table.4.11.22seqs.json --unaligned-sequences-dump-file /dev/stdout'.format(
             path_to_script,
             path_to_data)
         res = extern.run(cmd)
