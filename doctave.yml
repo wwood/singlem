@@ -1,0 +1,18 @@
+---
+title: "SingleM"
+base_path: /SingleM
+# logo: joel_logo.png
+colors:
+  main: "#888888"
+navigation:
+  - path: docs/installation.md
+  - path: docs/usage
+    children: # Manually specify so in same order as default help msg
+    - path: docs/usage/data.md
+    - path: docs/usage/pipe.md
+    - path: docs/usage/appraise.md
+    - path: docs/usage/makedb.md
+    - path: docs/usage/query.md
+    - path: docs/usage/summarise.md
+    - path: docs/usage/renew.md
+    - path: docs/usage/condense.md
