@@ -1,6 +1,6 @@
 # Installing SingleM
 
-There are two stages to installation - installing the software and 
+There are several ways to install SingleM. 
 
 <!-- ### Installation via conda
 SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
