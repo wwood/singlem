@@ -130,7 +130,10 @@ class QueryTaxonomicAssignmentResult:
         if lca == []:
             return 'Root'
         else:
-            return 'Root; '+lca
+            if lca.startswith('Root'):
+                return lca
+            else:
+                return 'Root; '+lca
 
     def get_best_hits(self, singlem_package, sample_name):
         """ Return dict of read name to LCA of taxonomic hits (or list of 2 dicts for paired reads) """
