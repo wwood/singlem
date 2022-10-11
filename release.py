@@ -3,6 +3,7 @@
 import extern
 import logging
 import argparse
+import os
 
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -21,7 +22,12 @@ if __name__ == '__main__':
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     for subcommand in ['data','pipe','appraise','makedb','query','condense','summarise','renew',]:
-        extern.run("bin/singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g' |cat <(sed s/SUBCOMMAND/{}/ prelude) - >docs/usage/{}.md".format(subcommand,subcommand,subcommand))
+        subcommand_prelude = 'docs/usage/{}_prelude.md'.format(subcommand)
+        if os.path.exists(subcommand_prelude):
+            extra = subcommand_prelude
+        else:
+            extra = ''
+        extern.run("bin/singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g' |cat {} <(sed s/SUBCOMMAND/{}/ prelude) - >docs/usage/{}.md".format(subcommand,subcommand_prelude,subcommand,subcommand))
 
     extern.run("doctave build")
 
