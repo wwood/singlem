@@ -122,10 +122,6 @@ class Regenerator:
         extern.run(cmd)
         output_gpkg = GraftMPackage.acquire(final_gpkg)
 
-        # Run makeidx to increase performance
-        cmd = "diamond makeidx -d %s" % output_gpkg.diamond_database_path()
-        extern.run(cmd)
-
         # Trim unaligned sequences according to alignment window +/- 30 aa
         logging.info("Trimming unaligned sequences according to alignment window")
         unaligned_basename = os.path.basename(output_gpkg.unaligned_sequence_database_path())
@@ -163,9 +159,18 @@ class Regenerator:
             
             trimmed_output.append(Sequence(aligned_sequence.name, final_sequence.upper()))
         
-        with open(os.path.join(final_gpkg, unaligned_basename), "w") as out:
+        unaligned_graftm_file = os.path.join(final_gpkg, unaligned_basename)
+        with open(unaligned_graftm_file, "w") as out:
             for entry in trimmed_output:
                 out.write(entry.fasta())
+
+        # Recreate diamond DB based on the trimmed sequences and add makeidx
+        logging.info("Recreating diamond database")
+        cmd = "diamond makedb --in %s --db %s" % (unaligned_graftm_file, output_gpkg.diamond_database_path())
+        extern.run(cmd)
+        logging.info("Adding makeidx to diamond database")
+        cmd = "diamond makeidx -d %s" % output_gpkg.diamond_database_path()
+        extern.run(cmd)
         
         # Create taxonomy hash
         logging.debug("Creating taxonomy hash pickle")
