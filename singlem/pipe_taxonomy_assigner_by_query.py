@@ -161,17 +161,29 @@ class QueryTaxonomicAssignmentResult:
         spkg_key = singlem_package.base_directory()
         if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
             return {}
-        # Add Root to be consistent with the lca
+        # The metapackage may or may not have Root in the taxonomy, so add
+        # it only if required.
         if self._analysing_pairs:
-            return [{
-                name: ['Root; '+tax for tax in taxonomies]
-                for (name, taxonomies) in name_to_taxonomies.items()
-            } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
+            equal_best_hits = []
+            for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]:
+                hit_dict = {}
+                for (name, taxonomies) in name_to_taxonomies.items():
+                    hit_dict[name] = []
+                    for tax in taxonomies:
+                        if 'Root' not in tax:
+                            tax = 'Root; '+tax
+                        hit_dict[name].append(tax)
+                equal_best_hits.append(hit_dict)
+            return equal_best_hits
         else:
-            return {
-                name: ['Root; '+tax for tax in taxonomies]
-                for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items()
-            }
+            equal_best_hits = {}
+            for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items():
+                equal_best_hits[name] = []
+                for tax in taxonomies:
+                    if 'Root' not in tax:
+                        tax = 'Root; '+tax
+                    equal_best_hits[name].append(tax)
+            return equal_best_hits
 
     def is_assigned_taxonomy(self, singlem_package, sample_name, sequence_name, pair_index):
         spkg_key = singlem_package.base_directory()
