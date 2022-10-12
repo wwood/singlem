@@ -20,7 +20,7 @@ If the sequence data to be analyzed is in the current working directory, SingleM
 ```
 docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 14
 ```
-The default SingleM reference data is included in the docker image, so [singlem data](usage/data) is not necessary for this installation method.
+The default SingleM reference data is included in the docker image, so [singlem data](/usage/data) is not necessary for this installation method.
 
 <!-- ### Installation via PyPI
 To install the Python libraries required:
@@ -40,11 +40,11 @@ SingleM also has several non-Python dependencies, which are documented in the `s
 * sqlite
 * cd-hit -->
 
-## Installation via Github with conda environment dependencies
+## Installation via Github, with conda environment dependencies
 SingleM can be installed from source together with its conda dependencies as follows.
 
 ```
-git clone https://github.com/wwood/singlem
+git clone https://github.com/wwood/singlem # Or download some specific release
 cd singlem
 conda env create -n singlem -f singlem.yml
 conda activate singlem
@@ -53,4 +53,4 @@ export PATH=$PWD:$PATH
 singlem -h
 ```
 
-After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](usage/data).
+After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](/usage/data).

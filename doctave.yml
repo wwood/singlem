@@ -1,11 +1,11 @@
 ---
 title: "SingleM"
 base_path: /SingleM
-# logo: joel_logo.png
+logo: sandpiper.png
 colors:
   main: "#888888"
 navigation:
-  - path: docs/installation.md
+  - path: docs/Installation.md
   - path: docs/usage
     children: # Manually specify so in same order as default help msg
     - path: docs/usage/data.md

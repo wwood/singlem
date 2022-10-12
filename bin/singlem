@@ -297,7 +297,7 @@ if __name__ == '__main__':
     query_other_args.add_argument('--dump', action='store_true', help='Print all OTUs in the DB')
     current_default = None
 
-    summarise_description = 'Summarise and transform OTU tables.'
+    summarise_description = 'Summarise and transform taxonomic profiles and OTU tables.'
     summarise_parser = bird_argparser.new_subparser('summarise', summarise_description, parser_group='Tools')
     summarise_io_args = summarise_parser.add_argument_group('input')
     summarise_io_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
@@ -406,7 +406,7 @@ if __name__ == '__main__':
     required_chainsaw_arguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
 
-    condense_description = 'Combine OTU tables across different markers into a single OTU table.'
+    condense_description = 'Combine OTU tables across different markers into a single taxonomic profile.'
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
 
     input_condense_arguments = condense_parser.add_argument_group("Input arguments (1+ required)")
