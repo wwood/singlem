@@ -130,6 +130,8 @@ class QueryTaxonomicAssignmentResult:
         if lca == []:
             return 'Root'
         else:
+            # The metapackage may or may not have Root in the taxonomy, so add
+            # it only if required.
             if lca.startswith('Root'):
                 return lca
             else:
