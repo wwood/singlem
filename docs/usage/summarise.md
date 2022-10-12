@@ -1,72 +1,90 @@
 ---
-title: "singlem summarise"
-author: "Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology"
-date: "`r Sys.Date()` (`r system('bin/singlem --version',intern=T)`)"
+title: summarise
 ---
-NAME
-====
+# singlem summarise
+The SingleM `summarise` subcommand transforms OTU tables and taxonomic profiles into a variety of different formats. The `summarise` subcommand is useful for visualising the results of a SingleM analysis, and for performing downstream analyses.
 
-singlem summarise
+# Summarising OTU tables by rarefying, clustering, etc.
+Once an OTU table has been generated with the `pipe` command, it can be further processed in various ways using `summarise`:
 
-SYNOPSIS
-========
+Create a [Krona](https://sourceforge.net/p/krona/) plot of the community. The following command generates a Krona file `my_krona.html` which can be viewed in a web browser:
+```
+singlem summarise --input-otu-tables otu_table.csv --krona my_krona.html
+```
 
-**singlem** summarise [-h] [\--input-otu-tables INPUT_OTU_TABLES
-[INPUT_OTU_TABLES \...]] [\--input-otu-tables-list
-INPUT_OTU_TABLES_LIST] [\--input-archive-otu-tables
-INPUT_ARCHIVE_OTU_TABLES [INPUT_ARCHIVE_OTU_TABLES \...]]
-[\--input-gzip-archive-otu-table-list
-INPUT_GZIP_ARCHIVE_OTU_TABLE_LIST] [\--input-archive-otu-table-list
-INPUT_ARCHIVE_OTU_TABLE_LIST] [\--stream-inputs] [\--cluster]
-[\--cluster-id CLUSTER_ID] [\--taxonomy TAXONOMY]
-[\--rarefied-output-otu-table RAREFIED_OUTPUT_OTU_TABLE]
-[\--number-to-choose NUMBER_TO_CHOOSE] [\--collapse-coupled]
-[\--collapse-paired-with-unpaired-archive-otu-table
-COLLAPSE_PAIRED_WITH_UNPAIRED_ARCHIVE_OTU_TABLE] [\--output-otu-table
-OUTPUT_OTU_TABLE] [\--output-translated-otu-table
-OUTPUT_TRANSLATED_OTU_TABLE] [\--output-extras] [\--krona KRONA]
-[\--wide-format-otu-table WIDE_FORMAT_OTU_TABLE]
-[\--strain-overview-table STRAIN_OVERVIEW_TABLE] [\--unifrac-by-otu
-UNIFRAC_BY_OTU] [\--unifrac-by-taxonomy UNIFRAC_BY_TAXONOMY]
-[\--clustered-output-otu-table CLUSTERED_OUTPUT_OTU_TABLE]
-[\--exclude-off-target-hits] [\--singlem-packages SINGLEM_PACKAGES
-[SINGLEM_PACKAGES \...]] [\--metapackage METAPACKAGE]
-[\--unaligned-sequences-dump-file UNALIGNED_SEQUENCES_DUMP_FILE]
-[\--debug] [\--version] [\--quiet] [\--full-help]
-[\--full-help-roff]
+Several OTU tables can be combined into one. Note that this is not necessary if the combined output is to be input again into summarise (or many other commands) - it is possible to just specify multiple input tables with `--input-otu-tables`. To combine:
+```
+singlem summarise --input-otu-tables otu_table1.csv otu_table2.csv --output-otu-table combined.otu_table.csv
+```
 
-DESCRIPTION
-===========
+Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:
+```
+singlem summarise --input-otu-tables otu_table.csv --cluster --clustered-output-otu-table clustered.otu_table.csv
+```
 
-Summarise and transform OTU tables.
+Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:
+```
+singlem summarise --input-otu-tables otu_table.csv other_samples.otu_table.csv --rarefied-output-otu-table rarefied.otu_table.csv --number-to-choose 100
+```
+
+# Calculating beta diversity between samples
+Ecological [beta-diversity](https://en.wikipedia.org/wiki/Beta_diversity) metrics, which measure differences between two microbial communities, can be calculated from SingleM profiles using OTU-based or phylogenetic tree-based approaches.
+
+## OTU-based beta diversity measures
+As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using `singlem summarise`. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.
+```
+singlem summarise --input-otu-table otu_table.csv --unifrac-by-otu otu_table.unifrac
+```
+The above commands generates 14 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
+
+To calculate beta diversity that does not account for the phylogenetic relationships between the OTU sequences, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
+```
+convertToEBD.py otu_table.unifrac.4.12.ribosomal_protein_L11_rplK.unifrac otu_table.ebd
+ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
+```
+## Phylogenetic tree-based beta diversity measures
+Phylogenetic tree-based methods of calculating beta diversity can also be calculated, but `pipe` must be used to generate a new OTU table using the `diamond_example` taxonomy assignment method so that each OTU is assigned to a single leaf in the tree:
+```
+singlem pipe --sequences my_sequences.fastq.gz --otu-table otu_table.diamond_example.csv --threads 24 --assignment-method diamond_example
+```
+Then, use the `--unifrac-by-taxonomy` flag to create a unifrac format file indexed by taxonomy identifier:
+```
+singlem summarise --otu-tables otu_table.diamond_example.csv --unifrac-by-taxonomy otu_table.diamond_example.csv
+convertToEBD.py otu_table.diamond_example.unifrac otu_table.diamond_example.ebd
+```
+Then, finally run `ExpressBetaDiversity` using the `-t` flag.
+```
+ExpressBetaDiversity -s otu_table.diamond_example.ebd -c Bray-Curtis -t <path_to_tree_in_singlem_package>
+```
+where `<path_to_tree_in_singlem_package>` is the newick format file in the SingleM package used to find the OTU sequences. This path can be found using `singlem get_tree`.
 
 INPUT
 =====
 
 **\--input-otu-tables**, **\--input-otu-table** *INPUT_OTU_TABLES* [*INPUT_OTU_TABLES* \...]
 
-:   Summarise these tables
+  Summarise these tables
 
 **\--input-otu-tables-list** *INPUT_OTU_TABLES_LIST*
 
-:   Summarise the OTU table files newline separated in this file
+  Summarise the OTU table files newline separated in this file
 
 **\--input-archive-otu-tables**, **\--input-archive-otu-table** *INPUT_ARCHIVE_OTU_TABLES* [*INPUT_ARCHIVE_OTU_TABLES* \...]
 
-:   Summarise these tables
+  Summarise these tables
 
 **\--input-gzip-archive-otu-table-list** *INPUT_GZIP_ARCHIVE_OTU_TABLE_LIST*
 
-:   Summarise the list of newline-separated gzip-compressed archive OTU
+  Summarise the list of newline-separated gzip-compressed archive OTU
     tables specified in this file
 
 **\--input-archive-otu-table-list** *INPUT_ARCHIVE_OTU_TABLE_LIST*
 
-:   Summarise the archive tables newline separated in this file
+  Summarise the archive tables newline separated in this file
 
 **\--stream-inputs**
 
-:   Stream input OTU tables, saving RAM. Only works with
+  Stream input OTU tables, saving RAM. Only works with
     \--output-otu-table and transformation options do not work [expert
     option].
 
@@ -75,32 +93,32 @@ TRANSFORMATION
 
 **\--cluster**
 
-:   Apply sequence clustering to the OTU table
+  Apply sequence clustering to the OTU table
 
 **\--cluster-id** *CLUSTER_ID*
 
-:   Sequence clustering identity cutoff if \--cluster is used
+  Sequence clustering identity cutoff if \--cluster is used
 
 **\--taxonomy** *TAXONOMY*
 
-:   Restrict analysis to OTUs that have this taxonomy (exact taxonomy or
+  Restrict analysis to OTUs that have this taxonomy (exact taxonomy or
     more fully resolved)
 
 **\--rarefied-output-otu-table** *RAREFIED_OUTPUT_OTU_TABLE*
 
-:   Output rarefied output OTU table, where each gene and sample
+  Output rarefied output OTU table, where each gene and sample
     combination is rarefied
 
 **\--number-to-choose** *NUMBER_TO_CHOOSE*
 
-:   Rarefy using this many sequences. Sample/gene combinations with an
+  Rarefy using this many sequences. Sample/gene combinations with an
     insufficient number of sequences are ignored with a warning
     [default: maximal number such that all samples have sufficient
     counts]
 
 **\--collapse-coupled**
 
-:   Merge forward and reverse read OTU tables into a unified table.
+  Merge forward and reverse read OTU tables into a unified table.
     Sample names of coupled reads must end in \'1\' and \'2\'
     respectively. Read names are ignored, so that if the forward and
     reverse from a pair contain the same OTU sequence, they will each
@@ -108,7 +126,7 @@ TRANSFORMATION
 
 **\--collapse-paired-with-unpaired-archive-otu-table** *COLLAPSE_PAIRED_WITH_UNPAIRED_ARCHIVE_OTU_TABLE*
 
-:   For archive OTU tables that have both paired and unpaired
+  For archive OTU tables that have both paired and unpaired
     components, merge these into a single output archive OTU table
 
 OUTPUT
@@ -116,59 +134,59 @@ OUTPUT
 
 **\--output-otu-table** *OUTPUT_OTU_TABLE*
 
-:   Output combined OTU table to this file
+  Output combined OTU table to this file
 
 **\--output-translated-otu-table** *OUTPUT_TRANSLATED_OTU_TABLE*
 
-:   Output combined OTU table to this file, with seqeunces translated
+  Output combined OTU table to this file, with seqeunces translated
     into amino acids
 
 **\--output-extras**
 
-:   Output extra information in the standard output OTU table
+  Output extra information in the standard output OTU table
 
 **\--krona** *KRONA*
 
-:   Name of krona file to generate
+  Name of krona file to generate
 
 **\--wide-format-otu-table** *WIDE_FORMAT_OTU_TABLE*
 
-:   Name of output species by site CSV file
+  Name of output species by site CSV file
 
 **\--strain-overview-table** *STRAIN_OVERVIEW_TABLE*
 
-:   Name of output strains table to generate
+  Name of output strains table to generate
 
 **\--unifrac-by-otu** *UNIFRAC_BY_OTU*
 
-:   Output UniFrac format file where entries are OTU sequences
+  Output UniFrac format file where entries are OTU sequences
 
 **\--unifrac-by-taxonomy** *UNIFRAC_BY_TAXONOMY*
 
-:   Output UniFrac format file where entries are taxonomies (generally
+  Output UniFrac format file where entries are taxonomies (generally
     used for phylogeny-driven beta diversity when pipe was run with
     \'\--assignment_method diamond_example\')
 
 **\--clustered-output-otu-table** *CLUSTERED_OUTPUT_OTU_TABLE*
 
-:   Output an OTU table with extra information about the clusters
+  Output an OTU table with extra information about the clusters
 
 **\--exclude-off-target-hits**
 
-:   Exclude hits that are not in the target domain of each SingleM
+  Exclude hits that are not in the target domain of each SingleM
     package
 
 **\--singlem-packages** *SINGLEM_PACKAGES* [*SINGLEM_PACKAGES* \...]
 
-:   Packages used in the creation of the OTU tables
+  Packages used in the creation of the OTU tables
 
 **\--metapackage** *METAPACKAGE*
 
-:   Metapackage used in the creation of the OTU tables
+  Metapackage used in the creation of the OTU tables
 
 **\--unaligned-sequences-dump-file** *UNALIGNED_SEQUENCES_DUMP_FILE*
 
-:   Output unaligned sequences from in put archive OTU table to this
+  Output unaligned sequences from in put archive OTU table to this
     file. After each read name \'\~N\' is added which corresponds to the
     order of the read in the archive OTU table, so that no two sequences
     have the same read name. N\>1 can happen e.g. when the input file
@@ -181,23 +199,23 @@ OTHER GENERAL OPTIONS
 
 **\--debug**
 
-:   output debug information
+  output debug information
 
 **\--version**
 
-:   output version information and quit
+  output version information and quit
 
 **\--quiet**
 
-:   only output errors
+  only output errors
 
 **\--full-help**
 
-:   print longer help message
+  print longer help message
 
 **\--full-help-roff**
 
-:   print longer help message in ROFF (manpage) format
+  print longer help message in ROFF (manpage) format
 
 AUTHORS
 =======

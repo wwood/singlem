@@ -5,6 +5,10 @@ import logging
 import argparse
 import os
 
+def remove_before(marker, string_to_process):
+    splitter = '\n' + marker + '\n'
+    return splitter+string_to_process.split(splitter)[1]
+
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
     # parent_parser.add_argument('--debug', help='output debug information', action="store_true")
@@ -22,12 +26,38 @@ if __name__ == '__main__':
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     for subcommand in ['data','pipe','appraise','makedb','query','condense','summarise','renew',]:
+        cmd_stub = "bin/singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
+        man_usage = extern.run(cmd_stub)
+
         subcommand_prelude = 'docs/usage/{}_prelude.md'.format(subcommand)
         if os.path.exists(subcommand_prelude):
-            extra = subcommand_prelude
+            # Remove everything before the options section
+            splitters = {
+                'pipe': 'COMMON OPTIONS',
+                'data': 'OPTIONS',
+                'summarise': 'INPUT',
+            }
+            man_usage = remove_before(splitters[subcommand], man_usage)
+
+            with open('docs/usage/{}.md'.format(subcommand),'w') as f:
+                f.write('---\n')
+                f.write('title: {}\n'.format(subcommand))
+                f.write('---\n')
+                f.write('# singlem {}\n'.format(subcommand))
+
+                with open(subcommand_prelude) as f2:
+                    f.write(f2.read())
+
+                f.write(man_usage)
         else:
-            extra = ''
-        extern.run("bin/singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g' |cat {} <(sed s/SUBCOMMAND/{}/ prelude) - >docs/usage/{}.md".format(subcommand,subcommand_prelude,subcommand,subcommand))
+            man_usage = remove_before('DESCRIPTION', man_usage)
+            with open('docs/usage/{}.md'.format(subcommand),'w') as f:
+                f.write('---\n')
+                f.write('title: {}\n'.format(subcommand))
+                f.write('---\n')
+                f.write('# singlem {}\n'.format(subcommand))
+
+                f.write(man_usage)
 
     extern.run("doctave build")
 

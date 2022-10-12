@@ -1,30 +1,7 @@
 ---
-title: "singlem renew"
-author: "Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology"
-date: "`r Sys.Date()` (`r system('bin/singlem --version',intern=T)`)"
+title: renew
 ---
-NAME
-====
-
-singlem renew
-
-SYNOPSIS
-========
-
-**singlem** renew [-h] \--input-archive-otu-table
-INPUT_ARCHIVE_OTU_TABLE [-p FILE] [\--taxonomic-profile-krona FILE]
-[\--otu-table filename] [\--threads num_threads]
-[\--assignment-method
-{naive_then_diamond,annoy_then_diamond,scann_then_diamond,diamond,diamond_example,annoy,pplacer}]
-[\--output-extras] [\--archive-otu-table filename]
-[\--output-jplace filename] [\--metapackage METAPACKAGE]
-[\--singlem-packages SINGLEM_PACKAGES [SINGLEM_PACKAGES \...]]
-[\--assignment-singlem-db ASSIGNMENT_SINGLEM_DB]
-[\--diamond-taxonomy-assignment-performance-parameters
-DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS] [\--evalue
-EVALUE] [\--min-orf-length length] [\--restrict-read-length length]
-[\--filter-minimum-protein length] [\--debug] [\--version]
-[\--quiet] [\--full-help] [\--full-help-roff]
+# singlem renew
 
 DESCRIPTION
 ===========
@@ -36,32 +13,32 @@ INPUT
 
 **\--input-archive-otu-table** *INPUT_ARCHIVE_OTU_TABLE*
 
-:   Renew this table
+  Renew this table
 
 COMMON ARGUMENTS IN SHARED WITH \'PIPE\'
 ========================================
 
 **-p**, **\--taxonomic-profile** FILE
 
-:   output a \'condensed\' taxonomic profile for each sample based on
+  output a \'condensed\' taxonomic profile for each sample based on
     the OTU table
 
 **\--taxonomic-profile-krona** FILE
 
-:   output a \'condensed\' taxonomic profile for each sample based on
+  output a \'condensed\' taxonomic profile for each sample based on
     the OTU table
 
 **\--otu-table** filename
 
-:   output OTU table
+  output OTU table
 
 **\--threads** num_threads
 
-:   number of CPUS to use [default: 1]
+  number of CPUS to use [default: 1]
 
 **\--assignment-method** {naive_then_diamond,annoy_then_diamond,scann_then_diamond,diamond,diamond_example,annoy,pplacer}
 
-:   Method of assigning taxonomy to OTUs and taxonomic profiles
+  Method of assigning taxonomy to OTUs and taxonomic profiles
     [default: naive_then_diamond]
 
 | Method             | Description                                                                                                                                                                                                  |
@@ -76,7 +53,7 @@ COMMON ARGUMENTS IN SHARED WITH \'PIPE\'
 
 **\--output-extras**
 
-:   give extra output for each sequence identified (e.g. the read(s)
+  give extra output for each sequence identified (e.g. the read(s)
     each OTU was generated from) in the output OTU table [default: not
     set]
 
@@ -85,52 +62,52 @@ LESS COMMON ARGUMENTS SHARED WITH \'PIPE\'
 
 **\--archive-otu-table** filename
 
-:   output OTU table in archive format for making DBs etc. [default:
+  output OTU table in archive format for making DBs etc. [default:
     unused]
 
 **\--output-jplace** filename
 
-:   Output a jplace format file for each singlem package to a file
+  Output a jplace format file for each singlem package to a file
     starting with this string, each with one entry per OTU. Requires
     \'pplacer\' as the \--assignment_method [default: unused]
 
 **\--metapackage** *METAPACKAGE*
 
-:   Set of SingleM packages to use [default: use the default set]
+  Set of SingleM packages to use [default: use the default set]
 
 **\--singlem-packages** *SINGLEM_PACKAGES* [*SINGLEM_PACKAGES* \...]
 
-:   SingleM packages to use [default: use the set from the default
+  SingleM packages to use [default: use the set from the default
     metapackage]
 
 **\--assignment-singlem-db** *ASSIGNMENT_SINGLEM_DB*
 
-:   Use this SingleM DB when assigning taxonomy [default: not set, use
+  Use this SingleM DB when assigning taxonomy [default: not set, use
     the default]
 
 **\--diamond-taxonomy-assignment-performance-parameters** *DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS*
 
-:   Performance-type arguments to use when calling \'diamond blastx\'
+  Performance-type arguments to use when calling \'diamond blastx\'
     during the taxonomy assignment step. [default: \'\--block-size 0.5
     \--target-indexed -c1\']
 
 **\--evalue** *EVALUE*
 
-:   GraftM e-value cutoff [default: the GraftM default]
+  GraftM e-value cutoff [default: the GraftM default]
 
 **\--min-orf-length** length
 
-:   When predicting ORFs require this many base pairs uninterrupted by a
+  When predicting ORFs require this many base pairs uninterrupted by a
     stop codon [default: 72 for reads, 300 for genomes]
 
 **\--restrict-read-length** length
 
-:   Only use this many base pairs at the start of each sequence searched
+  Only use this many base pairs at the start of each sequence searched
     [default: no restriction]
 
 **\--filter-minimum-protein** length
 
-:   Ignore reads aligning in less than this many positions to each
+  Ignore reads aligning in less than this many positions to each
     protein HMM [default: 24]
 
 OTHER GENERAL OPTIONS
@@ -138,23 +115,23 @@ OTHER GENERAL OPTIONS
 
 **\--debug**
 
-:   output debug information
+  output debug information
 
 **\--version**
 
-:   output version information and quit
+  output version information and quit
 
 **\--quiet**
 
-:   only output errors
+  only output errors
 
 **\--full-help**
 
-:   print longer help message
+  print longer help message
 
 **\--full-help-roff**
 
-:   print longer help message in ROFF (manpage) format
+  print longer help message in ROFF (manpage) format
 
 AUTHORS
 =======
