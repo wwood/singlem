@@ -161,15 +161,16 @@ class QueryTaxonomicAssignmentResult:
         spkg_key = singlem_package.base_directory()
         if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
             return {}
-        # Add Root to be consistent with the lca
+        # The metapackage may or may not have Root in the taxonomy, so add
+        # it only if required.
         if self._analysing_pairs:
             return [{
-                name: ['Root; '+tax for tax in taxonomies]
+                name: [tax if tax.startswith('Root') else 'Root; '+tax for tax in taxonomies]
                 for (name, taxonomies) in name_to_taxonomies.items()
             } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
         else:
             return {
-                name: ['Root; '+tax for tax in taxonomies]
+                name: [tax if tax.startswith('Root') else 'Root; '+tax for tax in taxonomies]
                 for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items()
             }
 
