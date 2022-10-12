@@ -170,7 +170,7 @@ class QueryTaxonomicAssignmentResult:
                 for (name, taxonomies) in name_to_taxonomies.items():
                     hit_dict[name] = []
                     for tax in taxonomies:
-                        if 'Root' not in tax:
+                        if not tax.startswith('Root'):
                             tax = 'Root; '+tax
                         hit_dict[name].append(tax)
                 equal_best_hits.append(hit_dict)
@@ -180,7 +180,7 @@ class QueryTaxonomicAssignmentResult:
             for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items():
                 equal_best_hits[name] = []
                 for tax in taxonomies:
-                    if 'Root' not in tax:
+                    if not tax.startswith('Root'):
                         tax = 'Root; '+tax
                     equal_best_hits[name].append(tax)
             return equal_best_hits
