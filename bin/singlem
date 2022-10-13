@@ -638,12 +638,10 @@ if __name__ == '__main__':
         if args.unaligned_sequences_dump_file: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
-        if not args.input_otu_tables and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
+        if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
             raise Exception("Summary requires input OTU tables or archive tables")
         if args.exclude_off_target_hits:
-            if not args.singlem_packages and not args.metapackage:
-                raise Exception("--exclude_off_target_hits currently requires --metapackage or --singlem-packages to be defined")
-            elif args.singlem_packages and args.metapackage:
+            if args.singlem_packages and args.metapackage:
                 raise Exception("Only one of --metapackage or --singlem-packages can be defined")
         if args.collapse_paired_with_unpaired_archive_otu_table:
             if args.input_otu_tables:
