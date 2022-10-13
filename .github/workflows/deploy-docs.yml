@@ -1,0 +1,26 @@
+name: Build manual pages and deploy documentation
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+      - breaking_changes
+    paths:
+      - 'docs/**'
+      - 'doctave.yml'
+      - '.github/workflows/deploy-docs.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: 'Build doctave site'
+        run: doctave build --release
+      - name: 'GitHub Pages'
+        uses: crazy-max/ghaction-github-pages@v3.0.0
+        with:
+          build_dir: site/
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

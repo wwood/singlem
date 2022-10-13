@@ -36,6 +36,8 @@ if __name__ == '__main__':
                 'pipe': 'COMMON OPTIONS',
                 'data': 'OPTIONS',
                 'summarise': 'INPUT',
+                'makedb': 'REQUIRED ARGUMENTS',
+                'appraise': 'INPUT OTU TABLE OPTIONS',
             }
             man_usage = remove_before(splitters[subcommand], man_usage)
 
