@@ -22,7 +22,7 @@ singlem summarise --input-otu-tables otu_table.csv --cluster \
 
 Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:
 ```
-singlem summarise --input-otu-tables otu_table.csv 
+singlem summarise --input-otu-tables otu_table.csv \
     other_samples.otu_table.csv --rarefied-output-otu-table \
     rarefied.otu_table.csv --number-to-choose 100
 ```
@@ -33,13 +33,13 @@ Ecological [beta-diversity](https://en.wikipedia.org/wiki/Beta_diversity) metric
 As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend [express beta diversity](https://github.com/dparks1134/ExpressBetaDiversity) (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using `singlem summarise`. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.
 ```
 singlem summarise --input-otu-table otu_table.csv --unifrac-by-otu \
-    otu_table.unifrac
+    otu_table-
 ```
-The above commands generates 14 different unifrac format files, one for each marker gene used in SingleM. At this point, you need to choose one table to proceed with. Hopefully, the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent.
+The above commands generates a different unifrac format file for each marker. At this point, you need to choose one table to proceed with. It would probably be best to choose a marker that targets both Bacteria and Archaea e.g. `S3.5.ribosomal_protein_S2_rpsB`. Beyond choosing a marker that targets both domains, hopefully the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent. 
 
 To calculate beta diversity that does not account for the phylogenetic relationships between the OTU sequences, use the EBD script `convertToEBD.py` to convert the unifrac format into ebd format, and calculate the diversity metric:
 ```
-convertToEBD.py otu_table.unifrac.4.12.ribosomal_protein_L11_rplK.unifrac \
+convertToEBD.py otu_table-S3.5.ribosomal_protein_S2_rpsB.unifrac \
     otu_table.ebd
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
