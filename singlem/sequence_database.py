@@ -156,6 +156,7 @@ class SequenceDatabase:
                 index_path = markers_to_paths[marker_name]
                 logging.debug("Loading index for {} from {}".format(marker_name, index_path))
                 if index_format == SCANN_INDEX_FORMAT:
+                    # Can fail when there are too few sequences?
                     index = scann.scann_ops_pybind.load_searcher(index_path)
                 else:
                     reloaded = tf.compat.v2.saved_model.load(export_dir=index_path)
