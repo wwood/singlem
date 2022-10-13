@@ -1,11 +1,7 @@
-<!-- [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/installer/conda.svg)](https://conda.anaconda.org/bioconda) -->
-
-<!-- <img src="joel_logo.png" alt="SingleM logo" width="600"/> -->
-
 # SingleM
 Welcome.
 
-SingleM is a tool for profiling shotgun metagenomes. It has a particular strength in detecting microbial lineages which are not in reference databases. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery and computing ecological diversity metrics.
+SingleM is a tool for profiling shotgun metagenomes. It has a particular strength in detecting microbial lineages which are not in reference databases. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, computing ecological diversity metrics, and lineage-targeted MAG recovery.
 
 SingleM has been applied to public metagenomes. The resulting data are available at a companion website [sandpiper](https://sandpiper.qut.edu.au).
 
@@ -65,4 +61,4 @@ Where `L` is the length of a read and `k` is the length of the OTU sequence incl
 
 
 ## License
-SingleM is a product of the [Woodcroft lab](https://research.qut.edu.au/cmr/team/ben-woodcroft/) at the [Centre for Microbiome Research](https://research.qut.edu.au/cmr), School of Biomedical Sciences, QUT, with contributions several including [Samuel Aroney](https://github.com/AroneyS) and [Rossen Zhao](https://github.com/rzhao-2). It is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
+SingleM is developed by the [Woodcroft lab](https://research.qut.edu.au/cmr/team/ben-woodcroft/) at the [Centre for Microbiome Research](https://research.qut.edu.au/cmr), School of Biomedical Sciences, QUT, with contributions several including [Samuel Aroney](https://github.com/AroneyS) and [Rossen Zhao](https://github.com/rzhao-2) and many others. It is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
