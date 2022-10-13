@@ -385,7 +385,7 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--singlem-packages', nargs='+', help="Input packages")
     metapackage_parser.add_argument('--nucleotide-sdb', help="Nucleotide SingleM database for initial assignment pass")
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
-    metapackage_parser.add_argument('--metapackage', help='Path to write generated metapackage to', required=True)
+    metapackage_parser.add_argument('--metapackage', help='Path to write generated metapackage to')
     metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
     metapackage_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -955,8 +955,14 @@ if __name__ == '__main__':
     elif args.subparser_name == 'metapackage':
         from singlem.metapackage import Metapackage
         if args.describe:
-            Metapackage.acquire(args.metapackage).describe()
+            if args.metapackage:
+                mpkg = Metapackage.acquire(args.metapackage)
+            else:
+                mpkg = Metapackage.acquire_default()    
+            mpkg.describe()
         else:
+            if not args.metapackage:
+                raise Exception("Must specify --metapackage as a path of the metapackage to create")
             if not args.singlem_packages:
                 raise Exception("Must specify at least one singlem package to create a metapackage")
             if not args.nucleotide_sdb and not args.no_nucleotide_sdb:
