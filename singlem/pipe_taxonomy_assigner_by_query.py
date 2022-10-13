@@ -127,7 +127,7 @@ class QueryTaxonomicAssignmentResult:
 
     def _lca_taxonomy(self, taxonomy_strings):
         lca = TaxonomyUtils.lca_taxonomy_of_strings(taxonomy_strings)
-        if lca == []:
+        if lca == '':
             return 'Root'
         else:
             # The metapackage may or may not have Root in the taxonomy, so add

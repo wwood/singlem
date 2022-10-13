@@ -22,7 +22,7 @@ class TaxonomyUtils:
 
     @staticmethod
     def lca_taxonomy_of_strings(taxonomy_strings):
-        hit_taxonomies = list([list([ta.strip() for ta in t.split(';')]) for t in taxonomy_strings])
+        hit_taxonomies = list([list([ta.strip() for ta in t.split(';') if ta.strip() != '']) for t in taxonomy_strings])
         return TaxonomyUtils.lca_taxonomy_of_taxon_lists(hit_taxonomies)
 
     @staticmethod
