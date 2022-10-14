@@ -10,8 +10,8 @@ RUN --mount=type=cache,target=/opt/conda/pkgs micromamba install -c conda-forge 
 
 ######### UPDATE ME !!!!!!!!!! #########
 # NOTE: The following 2 hashes should be changed in sync.
-RUN rm -rf singlem && git clone https://github.com/wwood/singlem && cd singlem && git checkout 4bedf061
-RUN echo '__version__ = "1.0.0beta1.4bedf061"' >singlem/singlem/version.py
+RUN rm -rf singlem && git clone https://github.com/wwood/singlem && cd singlem && git checkout v1.0.0beta1
+RUN echo '__version__ = "1.0.0beta1"' >singlem/singlem/version.py
 
 # Remove bundled singlem packages
 RUN rm -rfv singlem/singlem/data singlem/.git singlem/test singlem/appraise_plot.png
