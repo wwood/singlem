@@ -1,5 +1,5 @@
 ---
-title: renew
+title: SingleM renew
 ---
 # singlem renew
 

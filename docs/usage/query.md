@@ -1,5 +1,5 @@
 ---
-title: query
+title: SingleM query
 ---
 # singlem query
 

@@ -43,7 +43,7 @@ if __name__ == '__main__':
 
             with open('docs/usage/{}.md'.format(subcommand),'w') as f:
                 f.write('---\n')
-                f.write('title: {}\n'.format(subcommand))
+                f.write('title: SingleM {}\n'.format(subcommand))
                 f.write('---\n')
                 f.write('# singlem {}\n'.format(subcommand))
 
@@ -55,7 +55,7 @@ if __name__ == '__main__':
             man_usage = remove_before('DESCRIPTION', man_usage)
             with open('docs/usage/{}.md'.format(subcommand),'w') as f:
                 f.write('---\n')
-                f.write('title: {}\n'.format(subcommand))
+                f.write('title: SingleM {}\n'.format(subcommand))
                 f.write('---\n')
                 f.write('# singlem {}\n'.format(subcommand))
 

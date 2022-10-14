@@ -1,5 +1,5 @@
 ---
-title: condense
+title: SingleM condense
 ---
 # singlem condense
 
