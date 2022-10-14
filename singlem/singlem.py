@@ -7,8 +7,6 @@ import pkg_resources
 import extern
 import tempfile
 
-from .singlem_package import SingleMPackage
-
 
 class OrfMUtils:
     def un_orfm_name(self, name):
@@ -33,61 +31,13 @@ class TaxonomyFile:
             if key not in self.sequence_to_taxonomy:
                 self.sequence_to_taxonomy[key] = value
 
-                
-class HmmDatabase:
-    def __init__(self, package_paths=None):
-        # Array of gpkg names to SingleMPackage objects
-        self._hmms_and_positions = {}
 
-        if package_paths:
-            self.singlem_packages = [SingleMPackage.acquire(path) for path in package_paths]
-            logging.info("Loaded %i SingleM packages" % len(self.singlem_packages))
-        else:
-            # Prefer production DB directory
-            pkg_resources_db_directory = 'data'
-
-            pkg_paths = pkg_resources.resource_listdir('singlem',pkg_resources_db_directory)
-            basedir = pkg_resources.resource_filename('singlem',pkg_resources_db_directory)
-            logging.debug("Searching for SingleM packages via pkg_resources in %s .." % basedir)
-            pkg_paths = [os.path.join(basedir,d) for d in pkg_paths if d[-5:]=='.spkg']
-            if len(pkg_paths) == 0:
-                raise Exception("Unable to find any SingleM packages using pkg_resources")
-
-            logging.debug("Found %i SingleM packages: %s" % (len(pkg_paths),
-                                                        ', '.join(pkg_paths)))
-            self.singlem_packages = [SingleMPackage.acquire(path) for path in pkg_paths]
-
-        for pkg in self.singlem_packages:
-            self._hmms_and_positions[pkg.base_directory()] = pkg
-
-    def get_dmnd(self):
-        ''' Create temporary DIAMOND file for search method '''
-        fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]
-        temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='singlem-diamond-prefilter', 
-                                                suffix='.dmnd', delete=False).name
-        cmd = 'cat %s | '\
-            'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
-        
-        extern.run(cmd)
-        
-        return temp_dmnd
-    
-    def protein_packages(self):
-        return [pkg for pkg in self._hmms_and_positions.values() if pkg.is_protein_package()]
-
-    def nucleotide_packages(self):
-        return [pkg for pkg in self._hmms_and_positions.values() if not pkg.is_protein_package()]
-
-    def protein_search_hmm_paths(self):
-        'return an array of absolute paths to the protein hmms in this database'
-        return list(itertools.chain(
-            *[pkg.graftm_package().search_hmm_paths() for pkg in self.protein_packages()]))
-
-    def nucleotide_search_hmm_paths(self):
-        'return an array of absolute paths to the protein hmms in this database'
-        return list(itertools.chain(
-            *[pkg.graftm_package().search_hmm_paths() for pkg in self.nucleotide_packages()]))
-
-    def __iter__(self):
-        for hp in self._hmms_and_positions.values():
-            yield hp
+class FastaNameToSampleName:
+    @staticmethod
+    def fasta_to_name(query_sequences_file):
+        sample_name = os.path.basename(query_sequences_file)
+        for extension in ('.fna.gz','.fq.gz','.fastq.gz','.fasta.gz','.fna','.fq','.fastq','.fasta'):
+            if sample_name.endswith(extension):
+                sample_name = sample_name[0:(len(sample_name)-len(extension))]
+                break
+        return sample_name

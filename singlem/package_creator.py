@@ -4,17 +4,20 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
-from .singlem_package import SingleMPackageVersion2
+from .singlem_package import SingleMPackageVersion4
 import shutil
 import os
-import tempdir
+import pickle
 
 class PackageCreator:
     def create(self, **kwargs):
         input_graftm_package_path = kwargs.pop('input_graftm_package')
+        input_taxonomy = kwargs.pop('input_taxonomy')
         output_singlem_package_path = kwargs.pop('output_singlem_package')
         hmm_position = kwargs.pop('hmm_position')
         window_size = kwargs.pop('window_size')
+        target_domains = kwargs.pop('target_domains')
+        gene_description = kwargs.pop("gene_description")
         force = kwargs.pop('force')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -26,7 +29,7 @@ class PackageCreator:
         # not in the tree so that hits can be mapped onto the tree and used for
         # alpha and beta diversity metrics.
         gpkg = GraftMPackage.acquire(input_graftm_package_path)
-        is_protein_package = SingleMPackageVersion2.graftm_package_is_protein(gpkg)
+        is_protein_package = SingleMPackageVersion4.graftm_package_is_protein(gpkg)
         logging.info("Detected package type as %s" %
                      ('protein' if is_protein_package else 'nucleotide'))
         if is_protein_package:
@@ -82,6 +85,20 @@ class PackageCreator:
             logging.info("Creating DIAMOND database")
             extern.run(cmd)
 
+        # Create taxonomy hash
+        logging.debug("Creating taxonomy hash pickle")
+        taxonomy_hash_tf = tempfile.NamedTemporaryFile(prefix='taxonomy_', suffix='.pickle')
+        taxonomy_hash_path = taxonomy_hash_tf.name
+        tax_hash = {}
+        with open(input_taxonomy) as tax:
+            for line in tax:
+                    split_line = line.strip().split('\t')
+                    tax_hash[split_line[0]] = [taxa.strip() for taxa in split_line[1].split(';')]
+
+        pickle.dump(tax_hash, taxonomy_hash_tf)
+        taxonomy_hash_tf.close()
+
+
         # Compile the final graftm/singlem package
         if len(gpkg.search_hmm_paths()) == 1 and \
            gpkg.search_hmm_paths()[0] == gpkg.alignment_hmm_path():
@@ -89,7 +106,7 @@ class PackageCreator:
         else:
             search_hmms = gpkg.search_hmm_paths()
 
-        with tempdir.TempDir() as tmpdir:
+        with tempfile.TemporaryDirectory() as tmpdir:
             gpkg_name = os.path.join(
                 tmpdir,
                 os.path.basename(
@@ -104,9 +121,11 @@ class PackageCreator:
                                           gpkg.use_hmm_trusted_cutoff(),
                                           search_hmms)
             logging.debug("Finished creating GraftM package for conversion to SingleM package")
-
-            SingleMPackageVersion2.compile(output_singlem_package_path,
-                                           gpkg_name, hmm_position, window_size)
+            
+            SingleMPackageVersion4.compile(output_singlem_package_path,
+                                            gpkg_name, hmm_position, window_size, 
+                                            target_domains, gene_description,
+                                            taxonomy_hash_path)
 
             shutil.rmtree(gpkg_name)
             if is_protein_package:

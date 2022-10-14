@@ -1,0 +1,40 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.6, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10
+  - diamond>2.0.11
+  - biopython
+  - hmmer
+  - orfm
+  - mfqe
+  - extern
+  - graftm>=0.14.0
+  - krona
+  - pplacer
+  - sra-tools
+  - ncbi-ngs-sdk
+  - sqlite
+  - numba
+  - python-annoy
+  - squarify
+  - nose
+  - mafft
+  - seqmagick
+  - vsearch
+  - expressbetadiversity
+  - cd-hit
+  - fasttree
+  - fastalite
+  - jinja2
+  - bird_tool_utils_python
+  - pip
+  - sqlalchemy
+  - datatable
+  - coverm
+  - jupyterlab
+  - pip:
+    - scann
+    - nmslib
+    - --no-binary nmslib

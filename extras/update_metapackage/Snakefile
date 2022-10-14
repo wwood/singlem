@@ -1,0 +1,470 @@
+#############
+### Setup ###
+#############
+"""
+Steps:
+Create and activate base environment (update_metapackage.yml)
+Update config.yaml
+Run `snakemake --cores 64 --use-conda --scheduler greedy`
+"""
+
+import pandas as pd
+import os
+
+configfile: "config.yaml"
+
+hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=False)
+singlem_bin = "../../bin/singlem"
+output_dir = config["output_dir"]
+logs_dir = output_dir + "/logs"
+genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
+genomes = ["/".join(g.split("/")[-2:]) for g in genome_paths]
+
+if not "max_threads" in config: config["max_threads"] = 8
+
+wildcard_constraints:
+    genome = "(archaea|bacteria)/\w+.\d+_protein.faa"
+
+rule all:
+    input:
+        output_dir + "/metapackage/" + config["new_metapackage"],
+        output_dir + "/sra/done"
+
+rule shadow:
+    input:
+        output_dir + "/shadow_GTDB/genomes/done",
+        output_dir + "/shadow_GTDB/prodigal/done"
+
+###########################
+### Shadow GTDB genomes ###
+###########################
+rule produce_shadow_list:
+    output:
+        genomes = output_dir + "/shadow_GTDB/genomes.tsv",
+    params:
+        gtdb_sp_clusters = config["gtdb_sp_clusters"],
+        gtdb_bac_metadata = config["gtdb_bac_metadata"],
+        gtdb_arc_metadata = config["gtdb_arc_metadata"],
+    log:
+        logs_dir + "/shadow_GTDB/genomes.log"
+    script:
+        "scripts/produce_shadow_list.py"
+
+rule download_shadows:
+    input:
+        output_dir + "/shadow_GTDB/genomes.tsv"
+    output:
+        directory(output_dir + "/shadow_GTDB/downloads")
+    threads: 32
+    params:
+        logs = logs_dir + "/shadow_GTDB/downloads"
+    conda:
+        "envs/ncbi_genome_download.yml"
+    shell:
+        "mkdir -p {params.logs} "
+        "&& cat {input} "
+        "| parallel -j {threads} --col-sep '\t' "
+        "genome_updater.sh "
+        "-d '\"refseq,genbank\"' "
+        "-f '\"genomic.fna.gz\"' "
+        "-M 'gtdb' "
+        "-F \"1:{{2}}\" "
+        "-m "
+        "-o {output}/{{1}} "
+        "-b shadow "
+        "'&>' {params.logs}/{{1}}.log"
+
+rule link_shadows:
+    input:
+        output_dir + "/shadow_GTDB/downloads"
+    output:
+        dir = directory(output_dir + "/shadow_GTDB/genomes"),
+        touch = output_dir + "/shadow_GTDB/genomes/done"
+    threads: 32
+    shell:
+        "find {input} -name '*.fna.gz' "
+        "| parallel -j {threads} "
+        "gunzip {{}} "
+        "'&&' ln -s {{.}} {output.dir}/{{= 's=.*/==;s/(GC[AF]_[^_]*).*/$1.fna/' =}} "
+        "&& touch {output.touch}"
+
+rule prodigal_shadows:
+    input:
+        dir = output_dir + "/shadow_GTDB/genomes",
+        touch = output_dir + "/shadow_GTDB/genomes/done"
+    output:
+        dir = directory(output_dir + "/shadow_GTDB/prodigal"),
+        touch = output_dir + "/shadow_GTDB/prodigal/done"
+    threads: 32
+    params:
+        logs = logs_dir + "/shadow_GTDB/prodigal"
+    conda:
+        "envs/prodigal.yml"
+    shell:
+        "mkdir -p {params.logs} "
+        "&& find {input.dir} -name '*.fna' "
+        "| parallel -j {threads} "
+        "prodigal -i {{}} -d {output.dir}/{{/.}}_protein.fna "
+        "'&>' {params.logs}/{{/.}}.log "
+        "&& touch {output.touch}"
+
+rule prodigal_rename:
+    input:
+        dir = output_dir + "/shadow_GTDB/prodigal",
+        touch = output_dir + "/shadow_GTDB/prodigal/done"
+    output:
+        touch = output_dir + "/shadow_GTDB/prodigal/rename_done"
+    threads: 32
+    shell:
+        "find {input.dir} -name '*.fna' "
+        "| parallel -j {threads} "
+        "mv {{}} {{= 's/GCA_/GB_GCA_/;s/GCF_/RS_GCF_/' =}}"
+        "&& touch {output.touch}"
+
+####################
+### HMM searches ###
+####################
+rule pfam_search:
+    input:
+        config["gtdb_protein_faa_reps"] + "/{genome}"
+    output:
+        output_dir + "/hmmsearch/pfam/{genome}.tsv"
+    params:
+        pfams = config["pfams"],
+    threads: 1
+    log:
+        logs_dir + "/hmmsearch/pfam/{genome}.log"
+    conda:
+        "envs/hmm_tools.yml"
+    shell:
+        "pfam_search.pl "
+        "-outfile {output} "
+        "-cpu {threads} "
+        "-fasta {input} "
+        "-dir {params.pfams} "
+        "&> {log}"
+
+rule tigrfam_search:
+    input:
+        config["gtdb_protein_faa_reps"] + "/{genome}"
+    output:
+        output_dir + "/hmmsearch/tigrfam/{genome}.tsv"
+    params:
+        tigrfams = config["tigrfams"],
+    threads: 1
+    log:
+        logs_dir + "/hmmsearch/tigrfam/{genome}.log"
+    conda:
+        "envs/hmm_tools.yml"
+    shell:
+        "hmmsearch "
+        "-o /dev/null "
+        "--tblout {output} "
+        "--noali "
+        "--notextw "
+        "--cut_nc "
+        "--cpu {threads} "
+        "{params.tigrfams} "
+        "{input} "
+        "&> {log}"
+
+rule get_matches_no_dup:
+    input:
+        pfam_search = output_dir + "/hmmsearch/pfam/{genome}.tsv",
+        tigrfam_search = output_dir + "/hmmsearch/tigrfam/{genome}.tsv"
+    output:
+        output_dir + "/hmmsearch/matches/{genome}.fam"
+    params:
+        hmms_and_names = "hmms_and_names"
+    log:
+        logs_dir + "/hmmsearch/matches/{genome}_matching.log"
+    conda:
+        "envs/get_matches_no_dup.yml"
+    shell:
+        "python scripts/get_matches_no_dup.py "
+        "--pfam-search {input.pfam_search} "
+        "--tigrfam-search {input.tigrfam_search} "
+        "--hmm-list {params.hmms_and_names} "
+        "--output {output} "
+        "&> {log}"
+
+rule get_matching_seq_list:
+    input:
+        matches = output_dir + "/hmmsearch/matches/{genome}.fam"
+    output:
+        temp(output_dir + "/hmmsearch/matches/{genome}.tmp")
+    shell:
+        "cut -f1 {input} > {output}"
+
+rule mfqe:
+    input:
+        fasta = config["gtdb_protein_faa_reps"] + "/{genome}",
+        seqnames = output_dir + "/hmmsearch/matches/{genome}.tmp"
+    output:
+        output_dir + "/hmmsearch/matches/{genome}"
+    log:
+        logs_dir + "/hmmsearch/matches/{genome}_mfqe.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "mfqe "
+        "--input-fasta {input.fasta} "
+        "--sequence-name-lists {input.seqnames} "
+        "--output-fasta-files {output} "
+        "--output-uncompressed "
+        "&> {log}"
+
+########################
+### Package creation ###
+########################
+rule transpose_hmms_with_sequences:
+    input:
+        fasta = output_dir + "/hmmsearch/matches/{genome}",
+        matches = output_dir + "/hmmsearch/matches/{genome}.fam",
+    output:
+        touch = output_dir + "/hmmseq_touches/{genome}.done",
+    params:
+        script = "scripts/transpose_hmms_with_sequences.py",
+        dir = directory(output_dir + "/hmmseq/"), # output is file for each spkg
+        gtdb_bac_tax = config["gtdb_bac_tax"],
+        gtdb_arc_tax = config["gtdb_arc_tax"],
+        hmms_and_names = "hmms_and_names"
+    log:
+        logs_dir + "/hmmsearch/matches/{genome}_transpose.log"
+    conda:
+        "envs/transpose_hmms_with_sequences.yml"
+    shell:
+        "mkdir -p {params.dir} "
+        "&& python {params.script} "
+        "--input-fasta {input.fasta} "
+        "--bacterial-taxonomy {params.gtdb_bac_tax} "
+        "--archaeal-taxonomy {params.gtdb_arc_tax} "
+        "--hmm-seq {input.matches} "
+        "--hmm-spkg {params.hmms_and_names} "
+        "--output {params.dir} "
+        "&> {log} "
+        "&& touch {output.touch}"
+
+rule check_transposes:
+    input:
+        expand(output_dir + "/hmmseq_touches/{genome}.done", genome=genomes),
+    output:
+        output_dir + "/hmmseq/done"
+    shell:
+        "touch {output}"
+
+rule create_SingleM_packages:
+    input:
+        output_dir + "/hmmseq/done"
+    output:
+        directory(output_dir + "/packages/{spkg}.spkg")
+    params:
+        singlem = singlem_bin,
+        hmms_and_names = "hmms_and_names",
+        uniprot_seq = config["uniprot_seq"],
+        uniprot_tax = config["uniprot_tax"],
+        spkg = config["metapackage"] + "/{spkg}.gpkg.spkg",
+        spkg_seq = output_dir + "/hmmseq/{spkg}.faa",
+        spkg_tax = output_dir + "/hmmseq/{spkg}_taxonomy.tsv",
+        spkg_name = lambda wildcards: hmms_and_names.loc[wildcards.spkg, "name_without_number"]
+    log:
+        logs_dir + "/packages/{spkg}.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} regenerate "
+        "--input_singlem_package {params.spkg} "
+        "--input_sequences {params.spkg_seq} "
+        "--input_taxonomy {params.spkg_tax} "
+        "--euk_sequences {params.uniprot_seq} "
+        "--euk_taxonomy {params.uniprot_tax} "
+        "--output_singlem_package {output} "
+        "--sequence_prefix {params.spkg_name}~ "
+        "&> {log}"
+
+############################
+### Metapackage creation ###
+############################
+rule create_draft_SingleM_metapackage:
+    input:
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index)
+    output:
+        directory(output_dir + "/draft_metapackage.smpkg")
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/draft_metapackage.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} metapackage "
+        "--singlem-packages {input.packages} "
+        "--no-nucleotide-sdb "
+        "--output-metapackage {output} "
+        "--threads {threads} "
+        "&> {log}"
+
+rule SingleM_transcripts:
+    input:
+        dir = config["gtdb_protein_fna_reps"],
+        shadow_dir = output_dir + "/shadow_GTDB/prodigal",
+        shadow_touch = output_dir + "/shadow_GTDB/prodigal/rename_done",
+        metapackage = output_dir + "/draft_metapackage.smpkg"
+    output:
+        dir = directory(output_dir + "/transcripts"),
+        touch = output_dir + "/transcripts/done"
+    threads: 64
+    params:
+        singlem = singlem_bin,
+        logs = logs_dir + "/transcripts"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "mkdir -p {params.logs} "
+        "&& cat <( find {input.dir} -name '*.fna' ) <( find {input.shadow_dir} -name '*.fna' ) "
+        "| parallel -j {threads} "
+        "{params.singlem} pipe "
+        "--forward {{}} "
+        "--singlem-metapackage {input.metapackage} "
+        "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
+        "--no-assign-taxonomy "
+        "'&>' {params.logs}/{{/.}}.log "
+        "&& touch {output.touch}"
+
+rule assign_taxonomy:
+    input:
+        dir = output_dir + "/transcripts",
+        touch = output_dir + "/transcripts/done"
+    output:
+        output_dir + "/taxonomy/transcripts.otu_table.tsv"
+    params:
+        bac_metadata = config["gtdb_bac_metadata"],
+        arc_metadata = config["gtdb_arc_metadata"]
+    conda:
+        "../../singlem.yml"
+    shell:
+        "../assign_gtdb_taxonomy_to_gtdb_genomes.py "
+        "--otu-table-list <( find {input.dir} -name '*.otu_table.tsv' ) "
+        "--gtdb-bac {params.bac_metadata} "
+        "--gtdb-arc {params.arc_metadata} "
+        "> {output}"
+
+rule make_sdb:
+    input:
+        output_dir + "/taxonomy/transcripts.otu_table.tsv"
+    output:
+        directory(output_dir + "/taxonomy/transcripts.sdb")
+    threads: 32
+    params:
+        singlem = singlem_bin
+    log:
+        logs_dir + "/taxonomy/makedb.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} makedb "
+        "--otu-table {input} "
+        "--db {output} "
+        "--threads {threads} "
+        "&> {log}"
+
+rule create_SingleM_metapackage:
+    input:
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index),
+        sdb = output_dir + "/taxonomy/transcripts.sdb"
+    output:
+        directory(output_dir + "/metapackage/" + config["new_metapackage"])
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/metapackage.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} metapackage "
+        "--singlem-packages {input.packages} "
+        "--nucleotide-sdb {input.sdb} "
+        "--output-metapackage {output} "
+        "--threads {threads} "
+        "&> {log}"
+
+#######################################
+### Mean genome size table creation ###
+#######################################
+rule calculate_mean_genome_size:
+    input:
+        output_dir + "/shadow_GTDB/genomes.tsv"
+    output:
+        output_dir + "/gtdb_mean_genome_sizes.tsv"
+    params:
+        gtdb_bac_metadata = config["gtdb_bac_metadata"],
+        gtdb_arc_metadata = config["gtdb_arc_metadata"],
+    threads: 8
+    log:
+        logs_dir + "calculate_mean_genome_size.log"
+    conda:
+        "envs/calculate_mean_genome_size.yml"
+    shell:
+        """
+        Rscript scripts/genome_size_from_gtdb.R {params.gtdb_bac_metadata} {params.gtdb_arc_metadata} {output_dir}
+        """
+
+###########################
+### Metapackage testing ###
+###########################
+rule test_metapackage:
+    input:
+        metapackge = output_dir + "/metapackage/" + config["new_metapackage"],
+        sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
+        sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
+    output:
+        table = output_dir + "/sra/{sra}_new.otu_table.tsv"
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/sra/{sra}_new_test.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} pipe "
+        "--forward {input.sra_1} "
+        "--reverse {input.sra_2} "
+        "--metapackage {input.metapackge} "
+        "--otu-table {output.table} "
+        "--threads {threads} "
+        "&> {log}"
+
+rule test_old_metapackage:
+    input:
+        metapackge = config["metapackage"],
+        sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
+        sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
+    output:
+        table = output_dir + "/sra/{sra}_old.otu_table.tsv"
+    params:
+        singlem = singlem_bin
+    threads: 8
+    log:
+        logs_dir + "/sra/{sra}_old_test.log"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{params.singlem} pipe "
+        "--forward {input.sra_1} "
+        "--reverse {input.sra_2} "
+        "--metapackage {input.metapackge} "
+        "--otu-table {output.table} "
+        "--threads {threads} "
+        "&> {log}"
+
+rule check_tests:
+    input:
+        expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
+        expand(output_dir + "/sra/{sra}_old.otu_table.tsv", sra=config["sra_seqs_1"]),
+    output:
+        output_dir + "/sra/done"
+    shell:
+        "touch {output}"

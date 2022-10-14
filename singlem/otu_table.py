@@ -11,6 +11,11 @@ class OtuTable:
         self.fields = self.DEFAULT_OUTPUT_FIELDS
         self.data = []
 
+    @classmethod
+    def _clear_cache(cls):
+        # For testing only, to clear the class-variable cache
+        cls.DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
+
     @staticmethod
     def each(otu_table_io):
         '''yield an OtuTableEntry object for each entry in the OTU table.
@@ -25,7 +30,10 @@ class OtuTable:
                 if len(d) != len(fields):
                     raise Exception("Malformed OTU table detected, number of fields unexpected, on this line: %s" % str(d))
                 e = OtuTableEntry()
-                d[3] = int(d[3])
+                try:
+                    d[3] = int(d[3])
+                except ValueError:
+                    raise Exception("Malformed OTU table detected, num_hits column is not an integer, on line %i: %s" % (i+1, str(d)))
                 d[4] = float(d[4])
                 e.marker = d[0]
                 e.sample_name = d[1]
@@ -62,6 +70,34 @@ class OtuTable:
                 e.coverage,
                 e.taxonomy])
 
+    def add_with_extras(self, otu_table_entries, extra_entries):
+        '''Add OtuTableEntry objects to this OTU table. Default data
+        and extra entries are saved'''
+        for e in otu_table_entries:
+            e_list = [
+                e.marker,
+                e.sample_name,
+                e.sequence,
+                e.count,
+                e.coverage,
+                e.taxonomy]
+            for extra_field in extra_entries:
+                try:
+                    e_list.append(e.data[e.fields.index(extra_field)])
+                except IndexError:
+                    e_list.append('')
+            self.data.append(e_list)
+
+        for extra_field in extra_entries:
+            if extra_field not in self.fields:
+                self.fields.append(extra_field)
+
+    def sort_by_marker(self):
+        '''Sort the OTU table by marker gene.
+        '''
+        marker_column = self.fields.index('gene')
+        self.data.sort(key=lambda x: x[marker_column])
+
     @staticmethod
     def read(input_otu_table_io):
         otus = OtuTable()
@@ -69,7 +105,7 @@ class OtuTable:
             otus.data.append(otu.data)
         return otus
 
-    def write_to(self, output_io, fields_to_print=DEFAULT_OUTPUT_FIELDS):
+    def write_to(self, output_io, fields_to_print=DEFAULT_OUTPUT_FIELDS, print_header=True):
         '''Output as a CSV file to the (open) I/O object
 
         Parameters
@@ -80,7 +116,8 @@ class OtuTable:
             a list of names of fields to be printed
         '''
         field_indices_to_print = [self.fields.index(f) for f in fields_to_print]
-        output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
+        if print_header:
+            output_io.write("\t".join([self.fields[i] for i in field_indices_to_print])+"\n")
 
         for d in self.data:
             output_io.write("\t".join([self._to_printable(d[i]) for i in field_indices_to_print])+"\n")
@@ -131,3 +168,11 @@ class OtuTable:
         archive.fields = self.fields
         archive.data = self.data
         return archive
+
+    def rename_samples(self, renaming_dict):
+        '''Rename samples according to the hash, mutating the state of the data in this object
+        '''
+        sample_column = self.fields.index('sample')
+        for d in self.data:
+            if d[sample_column] in renaming_dict:
+                d[sample_column] = renaming_dict[d[sample_column]]

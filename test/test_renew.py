@@ -41,17 +41,44 @@ class Tests(unittest.TestCase):
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
 
     def test_hello_word_cmdline(self):
-        cmd = "{} renew --input_archive_otu_table {}/small.otu_table.json --singlem_package {}/4.12.22seqs.spkg --sequences {}/1_pipe/small.fa --assignment_method diamond --otu_table /dev/stdout".format(
+        cmd = "{} renew --input-archive-otu-table {}/small_changed.otu_table.json --singlem-package {}/4.12.22seqs.spkg --assignment-method diamond --otu-table /dev/stdout".format(
             path_to_script,
             path_to_data,
-            path_to_data,
             path_to_data)
+        # print("diamond db path ls: ")
+        # print(extern.run('ls -l %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
+        # print("diamond db path file: ")
+        # print(extern.run('file %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
         output = extern.run(cmd)
         expected = [
             self.headers,
             ["4.12.22seqs","small","CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG","4","9.76","Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Gracilibacillus; s__Gracilibacillus_lacisalsi"]
         ]
         self.assertEqualOtuTable(expected, output)
+
+    def test_output_profile_diamond(self):
+        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --taxonomic-profile-krona /tmp/a.kron.ahtml --assignment-method diamond".format(
+            path_to_script,
+            path_to_data,
+            path_to_data)
+        output = extern.run(cmd)
+        expected = \
+            "sample\tcoverage\ttaxonomy\n" + \
+            'inseqs	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]\n'
+        self.assertEqual(expected, output)
+
+
+    def test_output_profile_naive_then_diamond(self):
+        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --taxonomic-profile-krona /tmp/a.kron.ahtml".format(
+            path_to_script,
+            path_to_data,
+            path_to_data)
+        output = extern.run(cmd)
+        expected = \
+            "sample\tcoverage\ttaxonomy\n" + \
+            'inseqs	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]\n'
+        self.assertEqual(expected, output)
+
 
     def assertEqualOtuTable(self, expected_array, observed_string):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])

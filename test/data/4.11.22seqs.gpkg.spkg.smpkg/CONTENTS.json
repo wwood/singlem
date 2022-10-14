@@ -1,0 +1,1 @@
+{"singlem_metapackage_version": 3, "singlem_packages": ["4.11.22seqs.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "22seqs.sdb", "sqlite_db_path_key": "read_taxonomies.sqlite3"}
