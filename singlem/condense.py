@@ -29,7 +29,7 @@ class Condenser:
     """ Combines otu table output for each marker into a single otu table"""
 
     DEFAULT_TRIM_PERCENT = 10
-    DEFAULT_MIN_TAXON_COVERAGE = 0.05
+    DEFAULT_MIN_TAXON_COVERAGE = 0.35
 
     def condense(self, **kwargs):
         output_otu_table = kwargs.pop('output_otu_table')
