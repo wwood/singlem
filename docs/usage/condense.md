@@ -59,7 +59,7 @@ OTHER OPTIONS
 
 **\--min-taxon-coverage** FRACTION
 
-  Set taxons with less coverage to coverage=0. [default: 0.05]
+  Set taxons with less coverage to coverage=0. [default: 0.35]
 
 **\--trim-percent** *TRIM_PERCENT*
 
