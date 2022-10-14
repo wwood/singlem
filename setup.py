@@ -49,18 +49,14 @@ setup(
     keywords="metagenomics bioinformatics",
     # Exclude test (and test data) since they takes up too much space.
     packages=find_packages(exclude=['contrib','docs','test', '*.test', '*.test.*']),
-    install_requires=('graftm >= 0.12.2',
+    install_requires=('graftm >= 0.14.0',
                       'extern >= 0.0.4',
                       'biopython >= 1.64',
-                      'dendropy >=0.4.0',
                       'pandas >= 0.19.2',
-                      'biom-format >= 2.1.6',
-                      'orator >= 0.9.7',
                       'squarify >= 0.3.0',
                       'matplotlib >= 2.0.2'
     ),
     setup_requires=['nose >= 1.0'],
     test_suite='nose.collector',
-    scripts=['bin/singlem'],
-    package_data = {'singlem.data': spkg_data_files}
+    scripts=['bin/singlem']
 )
