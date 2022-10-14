@@ -21,12 +21,13 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
+import pickle
 import unittest
 import os.path
 import sys
 from io import StringIO
-import tempdir
 import json
+from bird_tool_utils import in_tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -38,34 +39,56 @@ class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_create_protein_pkg(self):
-        with tempdir.in_tempdir():
+        with in_tempdir():
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '4.11.22seqs.gpkg.spkg', '4.11.22seqs'),
+                input_taxonomy = os.path.join(
+                    path_to_data, '4.11.22seqs.gpkg.spkg', 'input_taxonomy.tsv'),
                 output_singlem_package = 'protein.spkg',
                 hmm_position = 76,
                 window_size = 63,
+                target_domains = ["Bacteria"],
+                gene_description = "",
                 force = False)
             self.assertTrue(os.path.isdir('protein.spkg'))
             with open('protein.spkg/CONTENTS.json') as f:
                 j = json.load(f)
             self.assertEqual(76, j['singlem_hmm_position'])
             self.assertEqual(63, j['singlem_window_size'])
+            self.assertTrue(j['taxonomy_hash'].startswith("taxonomy"))
+
+            with open(os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg', "taxonomy_hash.pickle"), 'rb') as file:
+                expected_hash = pickle.load(file)
+            with open(os.path.join("protein.spkg", j['taxonomy_hash']), 'rb') as file:
+                observed_hash = pickle.load(file)
+            self.assertDictEqual(expected_hash, observed_hash)
 
     def test_create_nuc_pkg(self):
-        with tempdir.in_tempdir():
+        with in_tempdir():
             PackageCreator().create(
                 input_graftm_package = os.path.join(
                     path_to_data, '61_otus.v3.gpkg.spkg', '61_otus.v3'),
+                input_taxonomy = os.path.join(
+                    path_to_data, '61_otus.v3.gpkg.spkg', 'input_taxonomy.tsv'),
                 output_singlem_package = 'nuc.spkg',
                 hmm_position = 888,
                 window_size = 57,
+                target_domains = ["Bacteria"],
+                gene_description = "",
                 force = False)
             self.assertTrue(os.path.isdir('nuc.spkg'))
             with open('nuc.spkg/CONTENTS.json') as f:
                 j = json.load(f)
             self.assertEqual(888, j['singlem_hmm_position'])
             self.assertEqual(57, j['singlem_window_size'])
+            self.assertTrue(j['taxonomy_hash'].startswith("taxonomy"))
+
+            with open(os.path.join(path_to_data, '61_otus.v3.gpkg.spkg', "taxonomy_hash.pickle"), 'rb') as file:
+                expected_hash = pickle.load(file)
+            with open(os.path.join("nuc.spkg", j['taxonomy_hash']), 'rb') as file:
+                observed_hash = pickle.load(file)
+            self.assertDictEqual(expected_hash, observed_hash)
 
 
 

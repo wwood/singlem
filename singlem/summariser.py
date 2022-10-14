@@ -3,16 +3,20 @@ import tempfile
 import extern
 from collections import OrderedDict
 import logging
-import biom
 import pandas
+import Bio
+import re
+import pandas as pd
+import json
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
+from .archive_otu_table import ArchiveOtuTable
 
 class Summariser:
     @staticmethod
-    def summarise(**kwargs):
+    def write_otu_table_krona(**kwargs):
         '''Summarise an OTU table'''
         krona_output_file = kwargs.pop('krona_output')
         table_collection = kwargs.pop('table_collection')
@@ -265,34 +269,184 @@ class Summariser:
                                output_table_io)
 
     @staticmethod
-    def write_biom_otu_tables(**kwargs):
-        biom_output_prefix = kwargs.pop('biom_output_prefix')
+    def write_translated_otu_table(**kwargs):
+        output_table_io = kwargs.pop('output_table_io')
         table_collection = kwargs.pop('table_collection')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        df = pandas.DataFrame()
+        printed_header = False
+        def print_chunk(printed_header, seq_to_otus, output_table_io):
+            if not printed_header:
+                eg_otu = list(seq_to_otus.values())[0][0]
+                output_table_io.write('\t'.join(
+                    eg_otu.fields
+                )+'\n')
+            for (translated, to_collapse) in seq_to_otus.items():
+                total_num_hits = 0
+                total_coverage = 0
+                max_hits = 0
+                max_hits_taxonomy = 'programming error'
+                for otu in to_collapse:
+                    total_num_hits += otu.count
+                    total_coverage += otu.coverage
+                    if otu.count > max_hits:
+                        max_hits_taxonomy = otu.taxonomy
+                output_table_io.write('\t'.join([
+                    otu.marker,
+                    otu.sample_name,
+                    translated,
+                    str(total_num_hits),
+                    str(total_coverage),
+                    max_hits_taxonomy
+                ])+'\n')
+
+        original_count = 0
+        collapsed_count = 0
+        seq_to_otus = {}
+        last_sample_and_marker = None
         for otu in table_collection:
-            df = df.append(pandas.DataFrame({
-                'sample_name':[otu.sample_name],
-                'marker':[otu.marker],
-                'sequence':[otu.sequence],
-                'count':[otu.count],
-                'taxonomy':[otu.taxonomy]}))
-        for marker in df['marker'].unique():
-            biom_output = "%s.%s.biom" % (biom_output_prefix, marker)
-            logging.info("Writing BIOM table %s .." % biom_output)
-            df2 = pandas.pivot_table(
-                df[df.marker==marker],
-                index=['sequence','taxonomy'],
-                columns=['sample_name'],
-                values='count',
-                aggfunc=sum,
-                fill_value=0)
-            bt = biom.table.Table(
-                df2.values,
-                ['%s; %s' % (ind[1],ind[0]) for ind in df2.index],
-                df2.columns,
-                [{'taxonomy': ind[1].split('; ')} for ind in df2.index])
-            with biom.util.biom_open(biom_output, 'w') as f:
-                bt.to_hdf5(f, "%s - %s" % (biom_output_prefix, marker))
+            original_count += 1
+
+            if last_sample_and_marker is None:
+                last_sample_and_marker = [otu.sample_name, otu.marker]
+            elif last_sample_and_marker != [otu.sample_name, otu.marker]:
+                collapsed_count += len(seq_to_otus)
+                print_chunk(printed_header, seq_to_otus, output_table_io)
+                if not printed_header:
+                    printed_header = True
+                seq_to_otus = {}
+
+            seq = str(Bio.SeqRecord.SeqRecord(Bio.Seq.Seq(otu.sequence)).translate().seq)
+            if seq in seq_to_otus:
+                seq_to_otus[seq].append(otu)
+            else:
+                seq_to_otus[seq] = [otu]
+
+        collapsed_count += len(seq_to_otus)
+        print_chunk(printed_header, seq_to_otus, output_table_io)
+        logging.info("Printed {} collapsed OTUs from {} original OTUs".format(
+            collapsed_count, original_count
+        ))
+
+    @staticmethod
+    # args.collapse_paired_with_unpaired:
+    # Summariser.write_collapsed_paired_with_unpaired_otu_table(
+    #     archive_otu_tables = args.input_archive_otu_tables,
+    #     output_table_io = open(args.collapse_paired_with_unpaired,'w'))
+    def write_collapsed_paired_with_unpaired_otu_table(**kwargs):
+        archive_otu_tables = kwargs.pop('archive_otu_tables')
+        output_table_io = kwargs.pop('output_table_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        # Read all OTU tables
+        df = None
+        for a in archive_otu_tables:
+            with open(a) as f:
+                logging.debug("Reading archive table {} into RAM ..".format(a))
+                ar = ArchiveOtuTable.read(f)
+            if df is None:
+                # json.dump({"version": self.version,
+                #     "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
+                #     "singlem_package_sha256s": [s.singlem_package_sha256() for s in self.singlem_packages],
+                #     'fields': self.fields,
+                #     "otus": self.data},
+                #         output_io)
+                version = ar.version
+                fields = ar.fields
+                alignment_hmm_sha256s = ar.alignment_hmm_sha256s
+                singlem_package_sha256s = ar.singlem_package_sha256s
+                df = pandas.DataFrame(ar.data)
+                df.columns = fields
+            else:
+                if version != ar.version:
+                    raise Exception("Version mismatch between archives")
+                elif fields != ar.fields:
+                    raise Exception("Fields mismatch between archives")
+                elif alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
+                    raise Exception("Alignment HMM SHA256 mismatch between archives")
+                elif singlem_package_sha256s != ar.singlem_package_sha256s:
+                    raise Exception("Singlem package SHA256 mismatch between archives")
+                df2 = pandas.DataFrame(ar.data)
+                df2.columns = fields
+                df = pd.concat([df, df2], ignore_index=True)
+        
+        # Join the data together, making changes:
+        # 1) For each, remove the _1 suffix from the sample name
+        # 2) When there is an OTU present in both the paired and unpaired
+        #    sample, merge them, keeping the taxonomy of one that has the most
+        #    num_hits.
+
+        # Remove suffixes
+        def remove_suffix(s):
+            if s.endswith('_1'):
+                return s[:-2]
+            else:
+                return s
+        df['sample'] = df['sample'].apply(remove_suffix)
+
+        # Ensure that there is now only exactly 1 sample name
+        if len(df['sample'].unique()) != 1:
+            raise Exception("Multiple sample names found: {}".format(', '.join(df['sample'].unique())))
+        if len(df['taxonomy_by_known?'].unique()) != 1:
+            raise Exception("Multiple taxonomy_by_known found: {}".format(', '.join(df['taxonomy_by_known'].unique())))
+
+        # Join 
+        # grouped = df.groupby(['sequence'], as_index=False).count()
+        # ATAGTTGAAGACGATGGACTTTACATTAATGCTCTCTATGGATTTCCAGGACCATACTCT
+        # dft = df[df['sequence']=='ATAGTTGAAGACGATGGACTTTACATTAATGCTCTCTATGGATTTCCAGGACCATACTCT']
+
+        def combine_rows(grouped1):
+            grouped = grouped1.reset_index()
+            max_row = grouped['num_hits'].idxmax()
+            return pd.DataFrame({
+                'gene':[grouped.iloc[0]['gene']],
+                'sample':[grouped.iloc[0]['sample']],
+                'sequence':[grouped.iloc[0]['sequence']],
+                'num_hits':[sum(grouped['num_hits']),],
+                'coverage':[sum(grouped['coverage']),],
+                'taxonomy':[grouped.iloc[max_row]['taxonomy']],
+                'read_names':[list(itertools.chain(*grouped['read_names']))],
+                'nucleotides_aligned':[list(itertools.chain(*grouped['nucleotides_aligned']))],
+                'taxonomy_by_known?':[grouped.iloc[0]['taxonomy_by_known?']],
+                'read_unaligned_sequences':[list(itertools.chain(*grouped['read_unaligned_sequences']))],
+                # This is slightly dodgy because within an OTU there might be different answers for the DIAMOND 
+                'equal_best_hit_taxonomies':[grouped.iloc[0]['equal_best_hit_taxonomies']],
+                'taxonomy_assignment_method':[grouped.iloc[0]['taxonomy_assignment_method']],
+            })
+        transformed = df.groupby(['sequence','gene'], as_index=False).apply(combine_rows)[ArchiveOtuTable.FIELDS]
+
+        logging.debug("Writing output table ..")
+        ar.data = transformed.values.tolist()
+        ar.write_to(output_table_io)
+        # json.dump({"version": ar.version,
+        #     "alignment_hmm_sha256s": ar.alignment_hmm_sha256s,
+        #     "singlem_package_sha256s": ar.singlem_package_sha256s,
+        #     'fields': ar.fields,
+        #     "otus": transformed.to_json(orient='values')},
+        #     output_table_io)
+        logging.info("Finished writing collapsed output table")
+
+    @staticmethod
+    def dump_raw_sequences_from_archive_otu_table(**kwargs):
+        input_otus = kwargs.pop('table_collection')
+        output_table_io = kwargs.pop('output_table_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        num_samples = 0
+        num_otus = 0
+        num_reads = 0
+        seq_name_counters = {}
+        for sample, otus in input_otus.each_sample_otus(generate_archive_otu_table=True):
+            num_samples += 1
+            for otu in otus:
+                num_otus += 1
+                for read_name, read_seq in zip(otu.read_names(), otu.read_unaligned_sequences()):
+                    num_reads += 1
+                    if read_name not in seq_name_counters:
+                        seq_name_counters[read_name] = 0
+                    output_table_io.write(">{}~{}\n{}\n".format(read_name, seq_name_counters[read_name], read_seq))
+                    seq_name_counters[read_name] += 1
+        logging.info("Wrote {} reads from {} OTUs in {} samples".format(num_reads, num_otus, num_samples))

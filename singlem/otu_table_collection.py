@@ -1,10 +1,12 @@
 import logging
 import re
 from collections import OrderedDict
+import gzip
+import json
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table import OtuTable
-from .taxonomy import Taxonomy
+from .taxonomy import TaxonomyUtils
 from .otu_table_entry import OtuTableEntry
 
 class OtuTableCollection:
@@ -31,6 +33,9 @@ class OtuTableCollection:
 
     def add_archive_otu_table(self, input_archive_table_io):
         self.archive_table_objects.append(ArchiveOtuTable.read(input_archive_table_io))
+    
+    def add_otu_table_object(self, input_otu_table_object):
+        self.otu_table_objects.append(input_otu_table_object)
 
     def add_otu_table_collection(self, otu_table_collection):
         '''Append an OtuTableCollection to this collection.
@@ -44,7 +49,7 @@ class OtuTableCollection:
         '''Set the target_taxonomy instance variable by a string, which
         gets parsed into the requisite array form and stored in the instance
         variable'''
-        self.target_taxonomy = Taxonomy.split_taxonomy(taxonomy_string)
+        self.target_taxonomy = TaxonomyUtils.split_taxonomy(taxonomy_string)
 
     def example_field_names(self):
         '''Return the field names of the first OTU table'''
@@ -52,6 +57,13 @@ class OtuTableCollection:
             for table in table_types:
                 return table.fields
         raise Exception("Attempt to get fields from empty TableCollection")
+
+    def sort_otu_tables_by_marker(self):
+        '''Sort each OTU table by marker gene.
+        '''
+        for table_types in (self.otu_table_objects, self.archive_table_objects):
+            for table in table_types:
+                table.sort_by_marker()
 
     def __iter__(self):
         '''Iterate over all the OTUs from all the tables
@@ -135,6 +147,36 @@ class OtuTableCollection:
                     otu_table.add([o])
         return otu_table
 
+    def exclude_off_target_hits(self, singlem_packages):
+        '''Return an OTU table that only contains hits from the target domain.
+        
+        Parameters
+        ----------
+        singlem_packages: SingleMPackage objects (version 3+)
+        '''
+        to_return = OtuTable()
+        package_to_targets = {}
+        for pkg in singlem_packages:
+            package_to_targets[pkg.graftm_package_basename()] = pkg.target_domains()
+        for otu in self:
+            if otu.marker not in package_to_targets:
+                raise Exception("No SingleM package named '{}' was provided".format(otu.marker))
+            if otu.taxonomy == '':
+                logging.warn("Row {} contained no taxonomy, excluding it".format(otu))
+                continue
+            if not otu.taxonomy.startswith('Root'):
+                raise Exception("Unexpected taxonomy string encountered: '{}'".format(otu.taxonomy))
+            tax = otu.taxonomy.split('; ')
+            targets = package_to_targets[otu.marker]
+            if tax == ['Root']:
+                continue
+            elif not tax[1].startswith('d__'):
+                raise Exception("Unexpected taxonomy string encountered: {}".format(tax))
+            elif tax[1].replace('d__','') in targets:
+                to_return.add([otu])
+            else:
+                logging.debug("Excluding OTU {} as not being in the target taxonomy".format(otu))
+        return to_return
 
 class StreamingOtuTableCollection:
     def __init__(self):
@@ -142,14 +184,17 @@ class StreamingOtuTableCollection:
         self._archive_table_io_objects = []
         self._otu_table_file_paths = []
         self._archive_table_file_paths = []
+        self._gzip_archive_table_file_paths = []
+        self._archive_table_objects = []
+        self.min_archive_otu_table_version = None
 
     def add_otu_table(self, input_otu_table_io):
         '''Add a regular style OTU table to the collection.
 
         Parameters
         ----------
-        input_otu_table_ios: list of IO
-            entries are open streams of OTU table data
+        input_otu_table_io: IO
+            stream of OTU table data
 
         Returns
         -------
@@ -166,19 +211,58 @@ class StreamingOtuTableCollection:
     def add_archive_otu_table_file(self, file_path):
         self._archive_table_file_paths.append(file_path)
 
+    def add_gzip_archive_otu_table_file(self, file_path):
+        self._gzip_archive_table_file_paths.append(file_path)
+
+    def add_archive_otu_table_object(self, archive_table):
+        '''Not technically streaming, but easier to put this here for pipe
+        instead of implementing each_sample_otus() for non-streaming OTU
+        tables.'''
+        self._archive_table_objects.append(archive_table)
+
     def __iter__(self):
         '''Iterate over all the OTUs from all the tables. This can only be done once
         since the data is streamed in.
         '''
         for io in self._archive_table_io_objects:
-            for otu in ArchiveOtuTable.read(io):
+            for otu in ArchiveOtuTable.read(io, min_version=self.min_archive_otu_table_version):
                 yield otu
         for io in self._otu_table_io_objects:
             for otu in OtuTable.each(io):
                 yield otu
         for file_path in self._archive_table_file_paths:
-            for otu in ArchiveOtuTable.read(open(file_path)):
-                yield otu
+            with open(file_path) as f:
+                for otu in ArchiveOtuTable.read(f, min_version=self.min_archive_otu_table_version):
+                    yield otu
         for file_path in self._otu_table_file_paths:
-            for otu in OtuTable.each(open(file_path)):
+            with open(file_path) as f:
+                for otu in OtuTable.each(f):
+                    yield otu
+        for file_path in self._gzip_archive_table_file_paths:
+            with gzip.open(file_path) as f:
+                try:
+                    for otu in ArchiveOtuTable.read(f, min_version=self.min_archive_otu_table_version):
+                        yield otu
+                except json.decoder.JSONDecodeError:
+                    logging.error(f"JSON parsing error in {file_path}, skipping this one")
+        for archive_table in self._archive_table_objects:
+            for otu in archive_table:
                 yield otu
+
+    def each_sample_otus(self, generate_archive_otu_table=False):
+        '''Yield over a set of OTU tables, where each set contains all the OTUs
+        from a single sample. The sample name and an OtuTable is yielded each
+        time. Assumes that the input OTUs are ordered by sample name. This can
+        only be done once since the data is streamed in.'''
+
+        current_sample = None
+        for otu in self:
+            if otu.sample_name != current_sample:
+                if current_sample is not None:
+                    yield current_sample, current_otus
+                current_sample = otu.sample_name
+                current_otus = ArchiveOtuTable() if generate_archive_otu_table else OtuTable()
+            current_otus.fields = otu.fields
+            current_otus.data.append(otu.data)
+        if current_sample is not None:
+            yield current_sample, current_otus

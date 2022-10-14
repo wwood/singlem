@@ -1,1 +1,6 @@
 guix*
+real_data
+db
+__pycache__/
+.snakemake/
+singlem.egg-info

@@ -42,7 +42,7 @@ class MetagenomeOtuFinder:
                 raise Exception(
                     "For protein alignments the window length must be divisible "
                     "by 3 i.e. correspond to whole codons")
-            stretch_length = stretch_length / 3
+            stretch_length = int(stretch_length / 3)
         if stretch_length < 1:
             raise Exception("stretch_length must be positive")
 
@@ -62,10 +62,18 @@ class MetagenomeOtuFinder:
             if s.seq[chosen_positions[0]] != '-' and s.seq[chosen_positions[-1]] != '-':
                 if is_protein_alignment:
                     name = s.un_orfm_name()
+                    if name == 'dummy':
+                        # On rare occasions, the dummy sequence is aligned to
+                        # the HMM in the right place, ignore it.
+                        continue
                     nuc = nucleotide_sequences[name]
                     aligned_nucleotides = s.orfm_nucleotides(nuc)
                 else:
                     name = s.name
+                    if name == 'dummy':
+                        # On rare occasions, the dummy sequence is aligned to
+                        # the HMM in the right place, ignore it.
+                        continue
                     nuc = nucleotide_sequences[name]
                     aligned_nucleotides = nuc.replace('-','')
                 align, aligned_length = self._nucleotide_alignment(
@@ -82,6 +90,8 @@ class MetagenomeOtuFinder:
         for pro in protein_alignment:
             for i, aa in enumerate(pro.seq):
                 if lower_case_chars.match(aa):
+                    if i >= len(lower_cases):
+                        raise Exception("Unexpectedly found sequence with long length in alignment: {} / {}", pro.name, pro.seq)
                     lower_cases[i] = True
         return [i for i, is_lower in enumerate(lower_cases) if is_lower]
 
