@@ -1,5 +1,5 @@
 ---
-title: summarise
+title: SingleM summarise
 ---
 # singlem summarise
 The SingleM `summarise` subcommand transforms OTU tables and taxonomic profiles into a variety of different formats. The `summarise` subcommand is useful for visualising the results of a SingleM analysis, and for performing downstream analyses.

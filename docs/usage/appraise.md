@@ -1,5 +1,5 @@
 ---
-title: appraise
+title: SingleM appraise
 ---
 # singlem appraise
 SingleM can be used to determine how much of a community is represented in an assembly or represented
@@ -19,8 +19,10 @@ To assess how well a set of sequences represent a metagenome, first run `pipe`
 on both the genomes and the raw reads, and then use `appraise`:
 ```
 singlem pipe --sequences raw.fq.gz --otu-table metagenome.otu_table.csv
-singlem pipe --sequences my-genomes/*.fasta --otu_table genomes.otu_table.csv
-singlem appraise --metagenome-otu-tables metagenome.otu_table.csv --genome-otu-tables genomes.otu_table.csv
+singlem pipe --genome-fasta-files my-genomes/*.fasta --otu_table \
+    genomes.otu_table.csv
+singlem appraise --metagenome-otu-tables metagenome.otu_table.csv \
+    --genome-otu-tables genomes.otu_table.csv
 ```
 One may also accommodate some sequence differences, with `--imperfect`, or
 output OTU tables of those sequences that match and those that do not (see

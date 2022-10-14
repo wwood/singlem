@@ -1,5 +1,5 @@
 ---
-title: data
+title: SingleM data
 ---
 # singlem data
 

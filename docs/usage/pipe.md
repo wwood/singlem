@@ -1,5 +1,5 @@
 ---
-title: pipe
+title: SingleM pipe
 ---
 # singlem pipe
 

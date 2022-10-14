@@ -1,5 +1,5 @@
 ---
-title: makedb
+title: SingleM makedb
 ---
 # singlem makedb
 
