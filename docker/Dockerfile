@@ -1,22 +1,24 @@
-FROM continuumio/miniconda3:4.12.0
+FROM mambaorg/micromamba:0.27.0
 
 # This dockerfile uses cached mounts, so to build use e.g.
 # $ DOCKER_BUILDKIT=1 docker build .
 
 WORKDIR /tmp
 
-# We cannot use micromamba because man-db doesn't appear to be available in any conda repo
-ADD singlem.yml /singlem.yml
-RUN --mount=type=cache,target=/opt/conda/pkgs conda install -c conda-forge mamba
-RUN --mount=type=cache,target=/opt/conda/pkgs mamba env update -p /opt/conda git -f /singlem.yml
-RUN --mount=type=cache,target=/opt/conda/pkgs mamba clean --all --yes
-# Install man-db
+# Install man-db. We cannot use conda because man-db doesn't appear to be
+# available in any conda repo
+USER root
 RUN apt update && apt install -y man-db
+USER $MAMBA_USER
+
+ADD singlem.yml /singlem.yml
+RUN --mount=type=cache,target=/opt/conda/pkgs micromamba install -c conda-forge -c bioconda -c defaults -n base git -f /singlem.yml
+RUN --mount=type=cache,target=/opt/conda/pkgs micromamba clean --all --yes
+# This is needed to activate the environment in the dockerfile
+ARG MAMBA_DOCKERFILE_ACTIVATE=1
 
 ######### UPDATE ME !!!!!!!!!! #########
-# NOTE: The following 2 hashes should be changed in sync.
-RUN rm -rf singlem && git clone https://github.com/wwood/singlem && cd singlem && git checkout v1.0.0beta1
-# RUN echo '__version__ = "1.0.0beta1"' >singlem/singlem/version.py
+RUN git clone https://github.com/wwood/singlem && cd singlem && git checkout v1.0.0beta1
 
 # Remove bundled singlem packages
 RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png
@@ -25,7 +27,6 @@ RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png
 RUN mkdir -p singlem/db && cd singlem/db && /tmp/singlem/bin/singlem data --output-directory .
 
 ######### UPDATE ME !!!!!!!!!! #########
-# RUN ls /tmp/singlem/db/S3.0.5.metapackage20220806.smpkg.zb && fail
 ENV SINGLEM_METAPACKAGE_PATH=/tmp/singlem/db/S3.0.5.metapackage20220806.smpkg.zb
 
 # Run some tests
@@ -34,6 +35,6 @@ RUN /tmp/singlem/bin/singlem pipe --full-help
 # RUN cd singlem && python test/test_makedb_and_query.py
 
 WORKDIR /data
-ENTRYPOINT ["/tmp/singlem/bin/singlem"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","/tmp/singlem/bin/singlem"]
 
 # CMD /bin/bash
