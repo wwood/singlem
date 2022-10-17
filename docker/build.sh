@@ -1,9 +1,11 @@
 
 #!/bin/bash -eo pipefail
 
-export SINGLEM_VERSION=wwood/singlem:1.0.0beta1
+export SINGLEM_VERSION=`../bin/singlem --version`
+export SINGLEM_DOCKER_VERSION=wwood/singlem:$SINGLEM_VERSION
 
 cp ../singlem.yml . && \
-DOCKER_BUILDKIT=1 docker build -t $SINGLEM_VERSION . && \
-docker run -v `pwd`:`pwd` $SINGLEM_VERSION pipe --sequences `pwd`/test.fna --otu-table /dev/stdout && \
-echo "Remember to change version numbers and metapackage path in Dockerfile .. then 'docker push $SINGLEM_VERSION'"
+sed 's/SINGLEM_VERSION/'$SINGLEM_VERSION'/g' Dockerfile.in > Dockerfile && \
+DOCKER_BUILDKIT=1 docker build -t $SINGLEM_DOCKER_VERSION . && \
+docker run -v `pwd`:`pwd` $SINGLEM_DOCKER_VERSION pipe --sequences `pwd`/test.fna --otu-table /dev/stdout && \
+echo "Remember to change version numbers and metapackage path in Dockerfile .. then 'docker push $SINGLEM_DOCKER_VERSION'"
