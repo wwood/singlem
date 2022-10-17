@@ -24,5 +24,6 @@ if __name__ == "__main__":
     extern.run('if [[ $(git diff --shortstat 2> /dev/null | tail -n1) != "" ]]; then exit 1; fi')
 
     extern.run('git tag v{}'.format(version))
-    print("Now run 'git push && git push --tags' and GitHub actions will build and upload to PyPI")
+    print("Now run 'git push && git push --tags' and GitHub actions will build and upload to PyPI".format(version))
+    print('You have to run ./build.sh from the docker directory to build the docker image, once the tag is on GitHub')
 
