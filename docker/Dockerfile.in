@@ -27,6 +27,8 @@ RUN mkdir -p singlem/db && cd singlem/db && /tmp/singlem/bin/singlem data --outp
 
 ######### UPDATE ME !!!!!!!!!! #########
 ENV SINGLEM_METAPACKAGE_PATH=/tmp/singlem/db/S3.0.5.metapackage20220806.smpkg.zb
+# Checks whether the metapackage is up to date
+RUN /tmp/singlem/bin/singlem data --verify
 
 # Run some tests
 RUN /tmp/singlem/bin/singlem --version
