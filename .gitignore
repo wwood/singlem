@@ -5,4 +5,5 @@ __pycache__/
 .snakemake/
 singlem.egg-info
 docker/singlem.yml
+docker/Dockerfile
 site
