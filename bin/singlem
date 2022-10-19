@@ -713,13 +713,16 @@ if __name__ == '__main__':
             o2 = OtuTableCollection()
             if args.metapackage:
                 pkgs = Metapackage.acquire(args.metapackage).singlem_packages
-            else:
+            elif args.singlem_packages:
                 pkgs = []
                 for p in args.singlem_packages:
                     pkg = SingleMPackage.acquire(p)
                     if pkg.version < 3:
                         raise Exception("Version 3 SingleM packages are required for --exclude_off_target_hits")
                     pkgs.append(pkg)
+            else:
+                mpkg = Metapackage.acquire_default()
+                pkgs = mpkg.singlem_packages
             o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs))
             otus = o2
 
