@@ -352,6 +352,9 @@ class Condenser:
         table.data = [otu.data for otu in sample_otus if \
             self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers) and \
             otu.taxonomy_assignment_method() is not None]
+        num_no_assignment_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in table if otu.taxonomy_assignment_method() is None])
+        num_assigned_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in table if otu.taxonomy_assignment_method() is not None])
+        logging.info("After removing off-target OTUs, found {:.2f} assigned and {:.2f} unassigned OTU coverage units".format(num_assigned_otus, num_no_assignment_otus))
         return table
 
     def _is_targeted_by_marker(self, otu, tax_split, markers):
