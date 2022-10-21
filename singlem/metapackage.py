@@ -115,7 +115,7 @@ class Metapackage:
 
         logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
         logging.info("For instance, the following can be included in your .bashrc (requires logout and login after inclusion):")
-        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, os.path.abspath(backpack.payload_directory_string())))
+        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, os.path.abspath(backpack.base_directory)))
 
     @staticmethod
     def verify(**kwargs):
