@@ -35,7 +35,7 @@ import os
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 from singlem.condense import CondensedCommunityProfile
 
-def write_biobox(input_condensed_table_path, output_biobox_path, template_biobox_path):
+def write_biobox(input_condensed_table_path, output_biobox_path, template_biobox_path, no_fill):
     # # Taxonomic Profiling Output
     # @SampleID:SAMPLEID
     # @Version:0.9.1
@@ -82,7 +82,10 @@ def write_biobox(input_condensed_table_path, output_biobox_path, template_biobox
                     level = wordnode.calculate_level()-1
                     if level == -1: continue
                     if level > 0: break # Only need total coverage in entire sample
-                    total_coverages[level] += wordnode.get_full_coverage()
+                    if no_fill:
+                        total_coverages[level] += wordnode.coverage
+                    else:
+                        total_coverages[level] += wordnode.get_full_coverage()
 
                 total_coverage = total_coverages[0]
                 # Pass 2 - calculate percents
@@ -91,7 +94,10 @@ def write_biobox(input_condensed_table_path, output_biobox_path, template_biobox
                     # logging.debug("calculating for taxonomy: {}".format(wordnode.get_taxonomy()))
                     level = wordnode.calculate_level()-1
                     if level == -1: continue
-                    cov = wordnode.get_full_coverage()
+                    if no_fill:
+                        cov = wordnode.coverage
+                    else:
+                        cov = wordnode.get_full_coverage()
                     percent = cov/total_coverages[0]
                     taxonomy = wordnode.get_taxonomy()[1:]
                     taxpathsn = '|'.join(taxonomy)
@@ -120,6 +126,7 @@ if __name__ == '__main__':
     parent_parser.add_argument('--input-condensed-table', help='input condensed table', required=True)
     parent_parser.add_argument('--output-biobox', help='output biobox', required=True)
     parent_parser.add_argument('--template-biobox', help='template biobox')
+    parent_parser.add_argument('--no-fill', help='Use .coverage not get_full_coverage()', action="store_true")
 
     args = parent_parser.parse_args()
 
@@ -132,4 +139,4 @@ if __name__ == '__main__':
         loglevel = logging.INFO
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    write_biobox(args.input_condensed_table, args.output_biobox, args.template_biobox)
+    write_biobox(args.input_condensed_table, args.output_biobox, args.template_biobox, args.no_fill)
