@@ -3,7 +3,7 @@ Welcome.
 
 SingleM is a tool for profiling shotgun metagenomes. It has a particular strength in detecting microbial lineages which are not in reference databases. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, computing ecological diversity metrics, and lineage-targeted MAG recovery.
 
-SingleM has been applied to public metagenomes. The resulting data are available at a companion website [sandpiper](https://sandpiper.qut.edu.au).
+SingleM has been applied to >200,000 public metagenomes. The resulting data are available at a companion website [sandpiper](https://sandpiper.qut.edu.au).
 
 There are several tools, after [installation](/Installation):
 
