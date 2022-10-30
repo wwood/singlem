@@ -31,7 +31,7 @@ dependencies:
   - sqlalchemy
   - pandas
   - bird_tool_utils_python>=0.4.1
+  - zenodo_backpack
   - pip:
     - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
     - scann
-    - zenodo_backpack # Not on conda as of writing.
