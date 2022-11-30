@@ -201,8 +201,8 @@ LESS COMMON OPTIONS
 
 **\--diamond-prefilter-db** *DIAMOND_PREFILTER_DB*
 
-  Use this DB when running DIAMOND prefilter [default: not set,
-    generate one from the SingleM packages]
+  Use this DB when running DIAMOND prefilter [default: use the one in
+    the metapackage, or generate one from the SingleM packages]
 
 **\--assignment-threads** *ASSIGNMENT_THREADS*
 
