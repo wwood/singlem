@@ -146,11 +146,18 @@ class QueryTaxonomicAssignmentResult:
             else:
                 return {}
         if self._analysing_pairs:
-            return [{
-                name: self._lca_taxonomy(taxonomies)
-                for (name, taxonomies) in name_to_taxonomies.items()
-            } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
+            if sample_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key]:
+                return [{
+                    name: self._lca_taxonomy(taxonomies)
+                    for (name, taxonomies) in name_to_taxonomies.items()
+                } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
+            else:
+                return [{}, {}]
         else:
+            # In case where there are multiple samples, sample might not be in
+            # each hash, so avoid a KeyError here.
+            if sample_name not in self._spkg_to_sample_to_name_to_taxonomies[spkg_key]:
+                return {}
             return {
                 name: self._lca_taxonomy(taxonomies)
                 for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items()
@@ -160,15 +167,28 @@ class QueryTaxonomicAssignmentResult:
         """ Return dict of read name to list of all equal-best taxonomic hits (or list of 2 dicts for paired reads) """
         spkg_key = singlem_package.base_directory()
         if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
+            if self._analysing_pairs:
+                return [{}, {}]
+            else:
+                return {}
+        if spkg_key not in self._spkg_to_sample_to_name_to_taxonomies:
             return {}
         # The metapackage may or may not have Root in the taxonomy, so add
         # it only if required.
         if self._analysing_pairs:
-            return [{
-                name: [tax if tax.startswith('Root') else 'Root; '+tax for tax in taxonomies]
-                for (name, taxonomies) in name_to_taxonomies.items()
-            } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
+            import IPython; IPython.embed()
+            if sample_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key]:
+                return [{
+                    name: [tax if tax.startswith('Root') else 'Root; '+tax for tax in taxonomies]
+                    for (name, taxonomies) in name_to_taxonomies.items()
+                } for name_to_taxonomies in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]]
+            else:
+                return [{}, {}]
         else:
+            # In case where there are multiple samples, sample might not be in
+            # each hash, so avoid a KeyError here.
+            if sample_name not in self._spkg_to_sample_to_name_to_taxonomies[spkg_key]:
+                return {}
             return {
                 name: [tax if tax.startswith('Root') else 'Root; '+tax for tax in taxonomies]
                 for (name, taxonomies) in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name].items()
@@ -180,8 +200,15 @@ class QueryTaxonomicAssignmentResult:
             # When no hits are found at all from that pkg
             return False
         if pair_index is None:
-            # single-ended case
-            return sequence_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]
+            # single-ended case.
+            # Check sample_name is present because in the case
+            # of multiple samples where one has no hits to a particular spkg, it
+            # otherwise KeyErrors.
+            return sample_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key] and \
+                sequence_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name]
         else:
             # paired-ended case
-            return sequence_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name][pair_index]
+            return \
+                sample_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key] and \
+                pair_index in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] and \
+                sequence_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name][pair_index]
