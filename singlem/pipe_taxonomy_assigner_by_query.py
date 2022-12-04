@@ -209,5 +209,4 @@ class QueryTaxonomicAssignmentResult:
             # paired-ended case
             return \
                 sample_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key] and \
-                pair_index in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name] and \
                 sequence_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key][sample_name][pair_index]
