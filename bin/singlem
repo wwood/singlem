@@ -530,6 +530,7 @@ if __name__ == '__main__':
 
     if args.debug:
         loglevel = logging.DEBUG
+        logging.getLogger('numba').setLevel(logging.INFO)
     elif args.quiet:
         logging.getLogger('nmslib').setLevel(logging.ERROR)
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
