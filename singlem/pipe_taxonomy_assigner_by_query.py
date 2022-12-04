@@ -176,7 +176,6 @@ class QueryTaxonomicAssignmentResult:
         # The metapackage may or may not have Root in the taxonomy, so add
         # it only if required.
         if self._analysing_pairs:
-            import IPython; IPython.embed()
             if sample_name in self._spkg_to_sample_to_name_to_taxonomies[spkg_key]:
                 return [{
                     name: [tax if tax.startswith('Root') else 'Root; '+tax for tax in taxonomies]
