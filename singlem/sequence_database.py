@@ -25,7 +25,7 @@ DEFAULT_NUM_THREADS = 1
 ANNOY_INDEX_FORMAT = 'annoy'
 NMSLIB_INDEX_FORMAT = 'nmslib'
 SCANN_INDEX_FORMAT = 'scann'
-NAIVE_INDEX_FORMAT = 'scann-naive'
+SCANN_NAIVE_INDEX_FORMAT = 'scann-naive'
 
 NUCLEOTIDE_DATABASE_TYPE = 'nucleotide'
 PROTEIN_DATABASE_TYPE = 'protein'
@@ -90,7 +90,7 @@ class SequenceDatabase:
                 self._marker_to_scann_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format == NAIVE_INDEX_FORMAT:
+        elif index_format == SCANN_NAIVE_INDEX_FORMAT:
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_scann_naive_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
@@ -136,7 +136,7 @@ class SequenceDatabase:
                     return index
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format in [SCANN_INDEX_FORMAT, NAIVE_INDEX_FORMAT]:
+        elif index_format in [SCANN_INDEX_FORMAT, SCANN_NAIVE_INDEX_FORMAT]:
             import tensorflow as tf
             if sequence_type == 'nucleotide':
                 if index_format == SCANN_INDEX_FORMAT:
@@ -260,7 +260,7 @@ class SequenceDatabase:
         logging.debug("Found scann_brute_force_nucleotide_index_files: %s" % ", ".join(scann_naive_nucleotide_index_files))
         for g in scann_naive_nucleotide_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, NAIVE_INDEX_FORMAT,'nucleotide')
+            db.add_sequence_db(marker, g, SCANN_NAIVE_INDEX_FORMAT,'nucleotide')
         
         scann_protein_index_files = glob.glob("%s/protein_indices_scann/*" % path)
         logging.debug("Found scann_protein_index_files: %s" % ", ".join(scann_protein_index_files))
@@ -272,7 +272,7 @@ class SequenceDatabase:
         logging.debug("Found scann_brute_force_protein_index_files: %s" % ", ".join(scann_naive_protein_index_files))
         for g in scann_naive_protein_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, NAIVE_INDEX_FORMAT,'protein')
+            db.add_sequence_db(marker, g, SCANN_NAIVE_INDEX_FORMAT,'protein')
 
         return db
 
@@ -290,7 +290,7 @@ class SequenceDatabase:
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
         num_annoy_protein_trees = 10,
-        sequence_database_methods = [NAIVE_INDEX_FORMAT],
+        sequence_database_methods = [SCANN_NAIVE_INDEX_FORMAT],
         sequence_database_types = [NUCLEOTIDE_DATABASE_TYPE]):
 
         if num_threads is None:
@@ -568,10 +568,10 @@ class SequenceDatabase:
 
         # Create sequence indices
         sdb = SequenceDatabase.acquire(db_path)
-        if 'naive' in sequence_database_methods:
-            sequence_database_methods.append(NAIVE_INDEX_FORMAT)
-        if SCANN_INDEX_FORMAT in sequence_database_methods or NAIVE_INDEX_FORMAT in sequence_database_methods:
-            sdb.create_scann_indexes(sequence_database_types, NAIVE_INDEX_FORMAT in sequence_database_methods)
+        if 'scann-naive' in sequence_database_methods:
+            sequence_database_methods.append(SCANN_NAIVE_INDEX_FORMAT)
+        if SCANN_INDEX_FORMAT in sequence_database_methods or SCANN_NAIVE_INDEX_FORMAT in sequence_database_methods:
+            sdb.create_scann_indexes(sequence_database_types, SCANN_NAIVE_INDEX_FORMAT in sequence_database_methods)
 
         if NMSLIB_INDEX_FORMAT in sequence_database_methods:
             if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
