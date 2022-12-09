@@ -30,97 +30,6 @@ rule all:
         output_dir + "/metapackage/" + config["new_metapackage"],
         output_dir + "/sra/done"
 
-rule shadow:
-    input:
-        output_dir + "/shadow_GTDB/genomes/done",
-        output_dir + "/shadow_GTDB/prodigal/done"
-
-###########################
-### Shadow GTDB genomes ###
-###########################
-rule produce_shadow_list:
-    output:
-        genomes = output_dir + "/shadow_GTDB/genomes.tsv",
-    params:
-        gtdb_sp_clusters = config["gtdb_sp_clusters"],
-        gtdb_bac_metadata = config["gtdb_bac_metadata"],
-        gtdb_arc_metadata = config["gtdb_arc_metadata"],
-    log:
-        logs_dir + "/shadow_GTDB/genomes.log"
-    script:
-        "scripts/produce_shadow_list.py"
-
-rule download_shadows:
-    input:
-        output_dir + "/shadow_GTDB/genomes.tsv"
-    output:
-        directory(output_dir + "/shadow_GTDB/downloads")
-    threads: 32
-    params:
-        logs = logs_dir + "/shadow_GTDB/downloads"
-    conda:
-        "envs/ncbi_genome_download.yml"
-    shell:
-        "mkdir -p {params.logs} "
-        "&& cat {input} "
-        "| parallel -j {threads} --col-sep '\t' "
-        "genome_updater.sh "
-        "-d '\"refseq,genbank\"' "
-        "-f '\"genomic.fna.gz\"' "
-        "-M 'gtdb' "
-        "-F \"1:{{2}}\" "
-        "-m "
-        "-o {output}/{{1}} "
-        "-b shadow "
-        "'&>' {params.logs}/{{1}}.log"
-
-rule link_shadows:
-    input:
-        output_dir + "/shadow_GTDB/downloads"
-    output:
-        dir = directory(output_dir + "/shadow_GTDB/genomes"),
-        touch = output_dir + "/shadow_GTDB/genomes/done"
-    threads: 32
-    shell:
-        "find {input} -name '*.fna.gz' "
-        "| parallel -j {threads} "
-        "gunzip {{}} "
-        "'&&' ln -s {{.}} {output.dir}/{{= 's=.*/==;s/(GC[AF]_[^_]*).*/$1.fna/' =}} "
-        "&& touch {output.touch}"
-
-rule prodigal_shadows:
-    input:
-        dir = output_dir + "/shadow_GTDB/genomes",
-        touch = output_dir + "/shadow_GTDB/genomes/done"
-    output:
-        dir = directory(output_dir + "/shadow_GTDB/prodigal"),
-        touch = output_dir + "/shadow_GTDB/prodigal/done"
-    threads: 32
-    params:
-        logs = logs_dir + "/shadow_GTDB/prodigal"
-    conda:
-        "envs/prodigal.yml"
-    shell:
-        "mkdir -p {params.logs} "
-        "&& find {input.dir} -name '*.fna' "
-        "| parallel -j {threads} "
-        "prodigal -i {{}} -d {output.dir}/{{/.}}_protein.fna "
-        "'&>' {params.logs}/{{/.}}.log "
-        "&& touch {output.touch}"
-
-rule prodigal_rename:
-    input:
-        dir = output_dir + "/shadow_GTDB/prodigal",
-        touch = output_dir + "/shadow_GTDB/prodigal/done"
-    output:
-        touch = output_dir + "/shadow_GTDB/prodigal/rename_done"
-    threads: 32
-    shell:
-        "find {input.dir} -name '*.fna' "
-        "| parallel -j {threads} "
-        "mv {{}} {{= 's/GCA_/GB_GCA_/;s/GCF_/RS_GCF_/' =}}"
-        "&& touch {output.touch}"
-
 ####################
 ### HMM searches ###
 ####################
@@ -308,8 +217,6 @@ rule create_draft_SingleM_metapackage:
 rule SingleM_transcripts:
     input:
         dir = config["gtdb_protein_fna_reps"],
-        shadow_dir = output_dir + "/shadow_GTDB/prodigal",
-        shadow_touch = output_dir + "/shadow_GTDB/prodigal/rename_done",
         metapackage = output_dir + "/draft_metapackage.smpkg"
     output:
         dir = directory(output_dir + "/transcripts"),
@@ -322,7 +229,7 @@ rule SingleM_transcripts:
         "../../singlem.yml"
     shell:
         "mkdir -p {params.logs} "
-        "&& cat <( find {input.dir} -name '*.fna' ) <( find {input.shadow_dir} -name '*.fna' ) "
+        "&& cat <( find {input.dir} -name '*.fna' ) "
         "| parallel -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
