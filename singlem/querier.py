@@ -387,8 +387,9 @@ class Querier:
                         splits = line.strip().split("\t")
                         if len(splits) != 4:
                             raise Exception("Unexpected output from smafa: {}".format(line))
-                        query_index_str, hit_index, div, _ = splits
+                        query_index_str, hit_index, div_str, _ = splits
                         query_index = int(query_index_str)
+                        div = int(div_str)
 
                         if max_divergence is None or div <= max_divergence:
                             if False: #preload_db:
