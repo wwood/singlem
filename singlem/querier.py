@@ -160,6 +160,9 @@ class Querier:
         elif search_method == 'scann':
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
+        elif search_method == 'smafa-naive':
+            return self.query_by_sequence_similarity_with_smafa_naive(
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -294,23 +297,6 @@ class Querier:
                         else:
                             div = round((1.0-float(dist))*len(query_protein_sequences[0])) # Not sure why this is necessary, why doesn't it return a real distance?
 
-                        ## DEBUG if statement
-                        # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                        #     if current_preloaded_db is not None:
-                        #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence
-                        #     else:
-                        #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence))[0].nucleotide_sequence
-                        #     if div != self.divergence(q.sequence, subject_seq):
-                        #         import IPython; IPython.embed()
-                        # else:
-                        #     if current_preloaded_db is not None:
-                        #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence
-                        #         # print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
-                        #     else:
-                        #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence))[0].subject_protein_sequence
-                        #     if div != self.divergence(query_protein_sequence, subject_seq):
-                        #         import IPython; IPython.embed()
-
                         if max_divergence is None or div <= max_divergence:
                             if preload_db:
                                 hit_index = int(hit_index) # Needed only for tiny databases?
@@ -341,6 +327,102 @@ class Querier:
                             num_reported += 1
                             if num_reported >= max_nearest_neighbours:
                                 break
+
+    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, max_search_nearest_neighbours=None, limit_per_sequence=None):
+        logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
+
+        if max_nearest_neighbours != 1:
+            raise Exception("SMAFA NAIVE only supports max_nearest_neighbours=1 right now")
+        if preload_db:
+            raise Exception("SMAFA NAIVE does not support preloading the DB right now")
+
+        if max_search_nearest_neighbours is None:
+            max_search_nearest_neighbours = max_nearest_neighbours
+
+        current_preloaded_db = None
+
+        for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
+            index = sdb.get_sequence_index(marker, sequence_database.SMAFA_NAIVE_INDEX_FORMAT, sequence_type)
+            if index is None:
+                raise Exception("The marker '{}' does not appear to be 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
+            logging.info("Querying index for {}".format(marker))
+            query = select([Marker.id]).where(Marker.marker == marker)
+            m = sdb.sqlalchemy_connection.execute(query).first()
+            if m is None:
+                raise Exception("Marker {} not in the SQL DB".format(marker))
+            marker_id = m['id']
+            
+            # Actually do searches, in batches
+            for chunked_queries1 in iterable_chunks(marker_queries, 1000):
+                chunked_queries = list([a for a in chunked_queries1 if a is not None]) # Remove trailing Nones from the iterable
+
+                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    query_array = np.array([
+                        np.array(sequence_database.nucleotides_to_binary_array(q.sequence)) for q in chunked_queries])
+                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    raise NotImplementedError("SMAFA NAIVE does not support protein sequences yet")
+                    # query_protein_sequences = np.array([
+                    #     sequence_database.nucleotides_to_protein(q.sequence) for q in chunked_queries])
+                    # query_array = np.array([
+                    #     np.array(sequence_database.protein_to_binary_array(seq)) for seq in query_protein_sequences])
+                else:
+                    raise Exception("Unexpected sequence_type")
+
+                # Setup a pipe so that the query fasta isn't in a file and can be piped through
+                with subprocess.Popen(
+                    ['bash','-c','smafa query --database \'{}\' --query /dev/stdin'.format(index)], stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    bufsize=1,
+                    universal_newlines=True) as p:
+
+                    for i, q in enumerate(chunked_queries):
+                        num_reported = 0
+                        print(">{}\n{}".format(i, q.sequence), file=p.stdin)
+                    p.stdin.close()
+
+                    # Read the output
+                    previous_query_index = None
+                    previous_query_index_num_reported = 0
+                    for line in p.stdout:
+                        splits = line.strip().split("\t")
+                        if len(splits) != 4:
+                            raise Exception("Unexpected output from smafa: {}".format(line))
+                        query_index_str, hit_index, div, _ = splits
+                        query_index = int(query_index_str)
+
+                        if max_divergence is None or div <= max_divergence:
+                            if False: #preload_db:
+                                for entry_i in current_preloaded_db_indices.iat[hit_index]:
+                                    otu = OtuTableEntry()
+                                    otu.marker = marker
+                                    otu.sample_name = current_preloaded_db_sample_name[entry_i]
+                                    otu.count = current_preloaded_db_count[entry_i]
+                                    otu.sequence = current_preloaded_db_sequence[entry_i]
+                                    otu.coverage = current_preloaded_db_coverage[entry_i]
+                                    otu.taxonomy = current_preloaded_db_taxonomy[entry_i]
+                                    if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                                        yield QueryResult(q, otu, div)
+                                    else:
+                                        yield QueryResult(
+                                            q, otu, div, 
+                                            query_protein_sequence=query_protein_sequences[i],
+                                            subject_protein_sequence=current_preloaded_db_protein_sequence[entry_i])
+                            else:
+                                for qres in self.query_result_from_db(sdb, chunked_queries[query_index], sequence_type, hit_index, marker, marker_id, div, 
+                                        query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                                        limit_per_sequence=limit_per_sequence):
+
+                                        yield qres
+
+                            if query_index == previous_query_index:
+                                previous_query_index_num_reported += 1
+                            else:
+                                previous_query_index_num_reported = 0
+                                previous_query_index = query_index
+                            if previous_query_index_num_reported > max_nearest_neighbours:
+                                break
+
+
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
