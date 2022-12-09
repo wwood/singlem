@@ -92,10 +92,11 @@ if __name__ == '__main__':
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
-        current_default = pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
+        current_default = pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
         argument_group.add_argument(
             '--assignment-method', '--assignment_method',
             choices=(
+                    pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
@@ -106,6 +107,7 @@ if __name__ == '__main__':
             help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) + 
                 table_roff([
                     ["Method", "Description"],
+                    [pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
                     [pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
                     [pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
                     [pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using SCANN rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],

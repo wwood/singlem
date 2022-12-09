@@ -5,6 +5,7 @@ ANNOY_ASSIGNMENT_METHOD = 'annoy'
 ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD = 'annoy_then_diamond'
 SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD = 'scann_then_diamond'
 SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD = 'scann_naive_then_diamond'
+SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD = 'smafa_naive_then_diamond'
 NO_ASSIGNMENT_METHOD = 'no_assign_taxonomy'
 
 QUERY_BASED_ASSIGNMENT_METHOD = 'singlem_query_based'
