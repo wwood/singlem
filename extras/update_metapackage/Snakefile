@@ -172,7 +172,7 @@ rule create_SingleM_packages:
         hmms_and_names = "hmms_and_names",
         uniprot_seq = config["uniprot_seq"],
         uniprot_tax = config["uniprot_tax"],
-        spkg = config["metapackage"] + "/{spkg}.gpkg.spkg",
+        spkg = config["metapackage"] + "/{spkg}.spkg",
         spkg_seq = output_dir + "/hmmseq/{spkg}.faa",
         spkg_tax = output_dir + "/hmmseq/{spkg}_taxonomy.tsv",
         spkg_name = lambda wildcards: hmms_and_names.loc[wildcards.spkg, "name_without_number"]
@@ -182,13 +182,13 @@ rule create_SingleM_packages:
         "../../singlem.yml"
     shell:
         "{params.singlem} regenerate "
-        "--input_singlem_package {params.spkg} "
-        "--input_sequences {params.spkg_seq} "
-        "--input_taxonomy {params.spkg_tax} "
-        "--euk_sequences {params.uniprot_seq} "
-        "--euk_taxonomy {params.uniprot_tax} "
-        "--output_singlem_package {output} "
-        "--sequence_prefix {params.spkg_name}~ "
+        "--input-singlem-package {params.spkg} "
+        "--input-sequences {params.spkg_seq} "
+        "--input-taxonomy {params.spkg_tax} "
+        "--euk-sequences {params.uniprot_seq} "
+        "--euk-taxonomy {params.uniprot_tax} "
+        "--output-singlem-package {output} "
+        "--sequence-prefix {params.spkg_name}~ "
         "&> {log}"
 
 ############################
@@ -362,6 +362,7 @@ rule test_old_metapackage:
         "{params.singlem} pipe "
         "--forward {input.sra_1} "
         "--reverse {input.sra_2} "
+        "--assignment-method scann_naive_then_diamond "
         "--metapackage {input.metapackge} "
         "--otu-table {output.table} "
         "--threads {threads} "

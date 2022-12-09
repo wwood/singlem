@@ -1,5 +1,5 @@
-output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackagemsingle/20221209/output_dir
-metapackage: /work/microbiome/msingle/mess/116_smafa_naive_metapackagemsingle/20221209/S3.1.0.metapackage_20221209.smpkg
+output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir
+metapackage: /home/woodcrob/git/singlem/db/S3.0.5.metapackage20220806.smpkg.zb/payload_directory
 new_metapackage: S3.1.0.metapackage_20221209.smpkg
 gtdb_protein_faa_reps: /scratch/microbiome/aroneys/projects/12-SingleM-gtdb-r207/data/processed/protein_faa_reps
 gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release207/bac120_taxonomy_r207.tsv
