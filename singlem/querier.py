@@ -144,7 +144,7 @@ class Querier:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
             return self.query_by_sqlite(queries, sdb)
-        elif search_method == 'naive' or search_method == 'scann-naive':
+        elif search_method == 'scann-naive':
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         elif search_method == 'annoy':
