@@ -71,7 +71,7 @@ class Tests(unittest.TestCase):
 
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','scann-naive']
+            methods = ['smafa-naive','annoy','scann','scann-naive']
             if TEST_NMSLIB:
                 methods.append('nmslib')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s" %(

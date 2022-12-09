@@ -26,6 +26,7 @@ ANNOY_INDEX_FORMAT = 'annoy'
 NMSLIB_INDEX_FORMAT = 'nmslib'
 SCANN_INDEX_FORMAT = 'scann'
 SCANN_NAIVE_INDEX_FORMAT = 'scann-naive'
+SMAFA_NAIVE_INDEX_FORMAT = 'smafa-naive'
 
 NUCLEOTIDE_DATABASE_TYPE = 'nucleotide'
 PROTEIN_DATABASE_TYPE = 'protein'
@@ -41,6 +42,7 @@ class SequenceDatabase:
     _marker_to_scann_protein_index_file = {}
     _marker_to_scann_naive_nucleotide_index_file = {}
     _marker_to_scann_naive_protein_index_file = {}
+    _marker_to_smafa_naive_nucleotide_index_file = {}
 
     _CONTENTS_FILE_NAME = 'CONTENTS.json'
 
@@ -95,6 +97,15 @@ class SequenceDatabase:
                 self._marker_to_scann_naive_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_scann_naive_protein_index_file[marker_name] = db_path
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
+        elif index_format == SMAFA_NAIVE_INDEX_FORMAT:
+            
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                self._marker_to_smafa_naive_nucleotide_index_file[marker_name] = db_path
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                raise NotImplementedError()
+                # self._marker_to_smafa_naive_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         else:
@@ -162,6 +173,15 @@ class SequenceDatabase:
                     reloaded = tf.compat.v2.saved_model.load(export_dir=index_path)
                     index = scann.scann_ops.searcher_from_module(reloaded)
                 return index
+        elif index_format == SMAFA_NAIVE_INDEX_FORMAT:
+            if sequence_type == 'nucleotide':
+                if marker_name in self._marker_to_smafa_naive_nucleotide_index_file:
+                    index_path = self._marker_to_smafa_naive_nucleotide_index_file[marker_name]
+                    return index_path
+            elif sequence_type == 'protein':
+                raise NotImplementedError("SMAFA naive protein index not implemented")
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
         else:
             raise Exception("Unknown index type {}".format(index_format))
         
@@ -273,6 +293,13 @@ class SequenceDatabase:
         for g in scann_naive_protein_index_files:
             marker = os.path.basename(g)
             db.add_sequence_db(marker, g, SCANN_NAIVE_INDEX_FORMAT,'protein')
+
+        smafa_naive_nucleotide_index_files = glob.glob("%s/nucleotide_indices_smafa_naive/*" % path)
+        logging.debug("Found smafa-naive: %s" % ", ".join(smafa_naive_nucleotide_index_files))
+        for g in smafa_naive_nucleotide_index_files:
+            marker = os.path.basename(g.replace('.smafa_naive_index',''))
+            logging.debug("Found marker: %s" % marker)
+            db.add_sequence_db(marker, g, SMAFA_NAIVE_INDEX_FORMAT,'nucleotide')
 
         return db
 
@@ -585,7 +612,37 @@ class SequenceDatabase:
             if PROTEIN_DATABASE_TYPE in sequence_database_types:
                 sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
+        if SMAFA_NAIVE_INDEX_FORMAT in sequence_database_methods:
+            if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
+                sdb.create_smafa_naive_nucleotide_indexes()
+
         logging.info("Finished singlem DB creation")
+
+    def create_smafa_naive_nucleotide_indexes(self):
+        logging.info("Creating smafa-naive nucleotide sequence indices ..")
+        nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_smafa_naive')
+        os.makedirs(nucleotide_db_dir)
+        
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+            marker_name = marker_row['marker']
+            logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
+            count = 0
+
+            with tempfile.NamedTemporaryFile(prefix='singlem-smafa-create-', suffix='.fasta') as fasta_file:
+                for row in self.sqlalchemy_connection.execute(select(
+                    NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
+                    .where(NucleotideSequence.marker_id == marker_row['id'])
+                    .order_by(NucleotideSequence.marker_wise_id)):
+
+                    fasta_file.write(str.encode(">{}\n{}\n".format(row['marker_wise_id'], row['sequence'])))
+                    count += 1
+                fasta_file.flush()
+
+                extern.run('smafa makedb --database {} --input {}'.format(
+                    os.path.join(nucleotide_db_dir, "%s.smafa_naive_index" % marker_name),
+                    fasta_file.name))
+            logging.info("Finished writing index containing {} sequences to disk".format(count))
+
 
     def create_nmslib_nucleotide_indexes(self):
         logging.info("Creating nmslib nucleotide sequence indices ..")

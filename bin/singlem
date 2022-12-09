@@ -250,10 +250,10 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--db', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
-    current_default = ['scann-naive']
+    current_default = ['smafa-naive']
     makedb_other_args.add_argument('--sequence-database-methods',
         nargs='+',
-        choices = ['annoy','scann','nmslib','scann-naive','none'],
+        choices = ['smafa-naive','annoy','scann','nmslib','scann-naive','none'],
         default = current_default,
         help='Index sequences using these methods. Note that specifying "scann-naive" means "scann" databases will also be built [default {}]'.format(current_default))
     current_default = ['nucleotide']
@@ -278,8 +278,8 @@ if __name__ == '__main__':
     current_default = 20
     query_otu_args.add_argument('--max-nearest-neighbours', help="How many nearest neighbours to report. Each neighbour is a distinct sequence from the DB. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
-    current_default = 'scann-naive'
-    query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','scann','scann-naive'])
+    current_default = 'smafa-naive'
+    query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['smafa-naive','nmslib','annoy','scann','scann-naive'])
     current_default = 'nucleotide'
     query_otu_args.add_argument('--sequence-type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
         choices=['nucleotide','protein'])
