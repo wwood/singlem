@@ -123,7 +123,7 @@ class Appraiser:
         tmp = tempfile.TemporaryDirectory()
         sdb_path = os.path.join(tmp.name, "tmp.sdb")
         sequence_database = SequenceDatabase()
-        sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = ['naive'])
+        sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SequenceDatabase.SMAFA_NAIVE_INDEX_FORMAT])
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         found_genes = [table.marker for table in found_otu_collection]
@@ -137,7 +137,7 @@ class Appraiser:
         metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
-        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, 'naive', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
+        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SequenceDatabase.SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
 
         sample_to_building_block = {}
         for hit in queries:
