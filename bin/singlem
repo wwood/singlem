@@ -211,7 +211,7 @@ if __name__ == '__main__':
     appraise_otu_table_options.add_argument('--genome-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on genomes")
     appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_otu_table_options.add_argument('--assembly-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on assembled sequence")
-    appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables', required=True)
+    appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
     appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~genus level divergence i.e. %s]" % GENUS_LEVEL_AVERAGE_IDENTITY, default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -820,7 +820,12 @@ if __name__ == '__main__':
                     metagenomes.add_archive_otu_table(f)
 
         logging.info("Removing hits that are not assigned to their target domains")
-        pkgs = Metapackage.acquire(args.metapackage).singlem_packages
+        if args.metapackage:
+            pkgs = Metapackage.acquire(args.metapackage).singlem_packages
+        else:
+            mpkg = Metapackage.acquire_default()
+            pkgs = mpkg.singlem_packages
+
         o2 = OtuTableCollection()
         o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
         metagenomes = o2
