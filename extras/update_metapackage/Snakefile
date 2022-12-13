@@ -45,13 +45,8 @@ rule pfam_search:
         logs_dir + "/hmmsearch/pfam/{genome}.log"
     conda:
         "envs/hmm_tools.yml"
-    shell:
-        "pfam_search.pl "
-        "-outfile {output} "
-        "-cpu {threads} "
-        "-fasta {input} "
-        "-dir {params.pfams} "
-        "&> {log}"
+    script:
+        "scripts/pfam_search.py"
 
 rule tigrfam_search:
     input:
@@ -142,7 +137,7 @@ rule transpose_hmms_with_sequences:
         logs_dir + "/hmmsearch/matches/{genome}_transpose.log"
     conda:
         "envs/transpose_hmms_with_sequences.yml"
-    shell:
+    shell: 
         "mkdir -p {params.dir} "
         "&& python {params.script} "
         "--input-fasta {input.fasta} "
@@ -210,7 +205,7 @@ rule create_draft_SingleM_metapackage:
         "{params.singlem} metapackage "
         "--singlem-packages {input.packages} "
         "--no-nucleotide-sdb "
-        "--output-metapackage {output} "
+        "--metapackage {output} "
         "--threads {threads} "
         "&> {log}"
 
@@ -233,7 +228,7 @@ rule SingleM_transcripts:
         "| parallel -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
-        "--singlem-metapackage {input.metapackage} "
+        "--metapackage {input.metapackage} "
         "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
         "--no-assign-taxonomy "
         "'&>' {params.logs}/{{/.}}.log "
@@ -293,7 +288,7 @@ rule create_SingleM_metapackage:
         "{params.singlem} metapackage "
         "--singlem-packages {input.packages} "
         "--nucleotide-sdb {input.sdb} "
-        "--output-metapackage {output} "
+        "--metapackage {output} "
         "--threads {threads} "
         "&> {log}"
 

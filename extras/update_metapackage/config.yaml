@@ -1,7 +1,10 @@
-output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir
+output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir_real
+# output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir
 metapackage: /home/woodcrob/git/singlem/db/S3.0.5.metapackage20220806.smpkg.zb/payload_directory
 new_metapackage: S3.1.0.metapackage_20221209.smpkg
-gtdb_protein_faa_reps: /scratch/microbiome/aroneys/projects/12-SingleM-gtdb-r207/data/processed/protein_faa_reps
+# untarred ~/m/db/gtdb/gtdb_release207/genomic_files_reps/gtdb_proteins_aa_reps_r207.tar.gz
+gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_faa_reps
+# gtdb_protein_faa_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_faa_reps2
 gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release207/bac120_taxonomy_r207.tsv
 gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release207/ar53_taxonomy_r207.tsv
 pfams: /work/microbiome/msingle/sam/HMMs/Pfam
@@ -20,3 +23,4 @@ gtdb_sp_clusters: /work/microbiome/db/gtdb/gtdb_release207/auxillary_files/sp_cl
 gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release207/bac120_metadata_r207.tsv
 gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release207/ar53_metadata_r207.tsv
 gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_fna_reps/
+# gtdb_protein_fna_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_fna_reps2
