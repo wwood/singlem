@@ -339,6 +339,8 @@ if __name__ == '__main__':
     read_fraction_io_args = read_fraction_parser.add_argument_group('input')
     read_fraction_io_args.add_argument('-p', '--input-profile', help="Input taxonomic profile file", required=True)
     read_fraction_io_args.add_argument('--input-metagenome-sizes', help="TSV file with 'sample' and 'num_bases' as a header, where sample matches the input profile name, and num_reads is the total number (forward+reverse) of bases in the metagenome that was analysed with 'pipe'.", required=True)
+    # accept_missing_samples
+    read_fraction_io_args.add_argument('--accept-missing-samples', action='store_true', help="If a sample is missing from the input-metagenome-sizes file, skip analysis of it without croaking.")
     read_fraction_database_args = read_fraction_parser.add_argument_group('database')
     read_fraction_database_args.add_argument('--taxonomic-genome-lengths-file', help="TSV file with 'rank' and 'genome_size' as headers", required=True)
 
@@ -1108,7 +1110,8 @@ if __name__ == '__main__':
         ReadFractionEstimator().calculate_and_report_read_fraction(
             input_profile = args.input_profile,
             metagenome_sizes = args.input_metagenome_sizes,
-            taxonomic_genome_lengths_file = args.taxonomic_genome_lengths_file)
+            taxonomic_genome_lengths_file = args.taxonomic_genome_lengths_file,
+            accept_missing_samples = args.accept_missing_samples)
 
     else:
         raise Exception("Programming error")
