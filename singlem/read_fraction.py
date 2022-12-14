@@ -11,6 +11,7 @@ class ReadFractionEstimator:
         input_profile = kwargs.pop('input_profile')
         metagenome_sizes = kwargs.pop('metagenome_sizes')
         taxonomic_genome_lengths_file = kwargs.pop('taxonomic_genome_lengths_file')
+        accept_missing_samples = kwargs.pop('accept_missing_samples')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -44,7 +45,11 @@ class ReadFractionEstimator:
             for profile in CondensedCommunityProfile.each_sample_wise(f):
                 sample = profile.sample
                 if sample not in metagenome_sizes:
-                    raise Exception("Sample '%s' in profile not found in metagenome sizes file." % sample)
+                    if accept_missing_samples:
+                        logging.warning("Sample '%s' in profile not found in metagenome sizes file. Skipping." % sample)
+                        continue
+                    else:
+                        raise Exception("Sample '%s' in profile not found in metagenome sizes file." % sample)
                 metagenome_size = metagenome_sizes[sample]
 
                 # Calculate the read fraction. This is the coverage of each taxon multiplied by its average genome size.
