@@ -296,8 +296,6 @@ rule create_SingleM_metapackage:
 ### Mean genome size table creation ###
 #######################################
 rule calculate_mean_genome_size:
-    input:
-        output_dir + "/shadow_GTDB/genomes.tsv"
     output:
         output_dir + "/gtdb_mean_genome_sizes.tsv"
     params:
@@ -305,7 +303,7 @@ rule calculate_mean_genome_size:
         gtdb_arc_metadata = config["gtdb_arc_metadata"],
     threads: 8
     log:
-        logs_dir + "calculate_mean_genome_size.log"
+        logs_dir + "/calculate_mean_genome_size.log"
     conda:
         "envs/calculate_mean_genome_size.yml"
     shell:
