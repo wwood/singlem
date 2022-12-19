@@ -988,6 +988,8 @@ if __name__ == '__main__':
                 raise Exception("Must specify at least one singlem package to create a metapackage")
             if not args.nucleotide_sdb and not args.no_nucleotide_sdb:
                 raise Exception("Must specify --nucleotide-sdb or --no-nucleotide-sdb")
+            if not args.taxon_genome_lengths and not args.no_taxon_genome_lengths:
+                raise Exception("Must specify --taxon-genome-lengths or --no-taxon-genome-lengths")
             Metapackage.generate(
                 singlem_packages = args.singlem_packages,
                 nucleotide_sdb = args.nucleotide_sdb,

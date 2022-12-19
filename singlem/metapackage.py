@@ -26,8 +26,9 @@ class Metapackage:
     SINGLEM_PACKAGES = 'singlem_packages'
     NUCLEOTIDE_SDB = 'nucleotide_sdb'
     SQLITE_DB_PATH_KEY = 'sqlite_db_path_key'
+    TAXON_GENOME_LENGTHS_KEY = 'taxon_genome_lengths'
 
-    _CURRENT_FORMAT_VERSION = 3
+    _CURRENT_FORMAT_VERSION = 4
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -38,6 +39,13 @@ class Metapackage:
                         PREFILTER_DB_PATH_KEY,
                         NUCLEOTIDE_SDB,
                         SQLITE_DB_PATH_KEY,
+                        ],
+                    '4': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_CSV,
                         ],
                       }
 
@@ -145,6 +153,7 @@ class Metapackage:
         output_path = kwargs.pop('output_path')
         threads = kwargs.pop('threads')
         prefilter_diamond_db = kwargs.pop('prefilter_diamond_db')
+        taxon_genome_lengths_csv = kwargs.pop('taxon_genome_lengths')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -177,6 +186,17 @@ class Metapackage:
         else:
             logging.info("Skipping SingleM db")
             nucleotide_sdb_name = None
+
+        # Copy taxon genome lengths csv into output directory
+        if taxon_genome_lengths_csv:
+            taxon_genome_lengths_csv_abspath = os.path.abspath(taxon_genome_lengths_csv)
+            taxon_genome_lengths_csv_name = os.path.basename(taxon_genome_lengths_csv_abspath)
+            taxon_genome_lengths_csv_path = os.path.join(output_path, taxon_genome_lengths_csv_name)
+            logging.info("Copying taxon genome lengths csv {} to {} ..".format(taxon_genome_lengths_csv, taxon_genome_lengths_csv_path))
+            shutil.copy(taxon_genome_lengths_csv, taxon_genome_lengths_csv_path)
+        else:
+            logging.info("Skipping taxon genome lengths csv")
+            taxon_genome_lengths_csv_name = None
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -218,11 +238,12 @@ class Metapackage:
         MetapackageReadNameStore.generate(
             singlem_packages, sqlitedb_path)
 
-        contents_hash = {Metapackage.VERSION_KEY: 3,
+        contents_hash = {Metapackage.VERSION_KEY: 4,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
                         Metapackage.SQLITE_DB_PATH_KEY: os.path.basename(sqlitedb_path),
+                        Metapackage.TAXON_GENOME_LENGTHS_KEY: taxon_genome_lengths_csv_name,
                         }
 
         # save contents file
