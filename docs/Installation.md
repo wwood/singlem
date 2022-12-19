@@ -12,7 +12,7 @@ After this, you'll also need to procure the reference data (the "metapackage"). 
 -->
 
 ## Installation via DockerHub
-A docker image generated from the conda package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from https://hub.docker.com/r/wwood/singlem/tags:
+A docker image generated from the conda package is available on DockerHub. After installing Docker, run the following, replacing `[RELEASE_TAG]` with a tag from [https://hub.docker.com/r/wwood/singlem/tags](https://hub.docker.com/r/wwood/singlem/tags):
 ```
 docker pull wwood/singlem:[RELEASE_TAG]
 ```
