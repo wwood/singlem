@@ -205,6 +205,7 @@ rule create_draft_SingleM_metapackage:
         "{params.singlem} metapackage "
         "--singlem-packages {input.packages} "
         "--no-nucleotide-sdb "
+        "--no-taxon-genome-lengths "
         "--metapackage {output} "
         "--threads {threads} "
         "&> {log}"
@@ -274,7 +275,8 @@ rule make_sdb:
 rule create_SingleM_metapackage:
     input:
         packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index),
-        sdb = output_dir + "/taxonomy/transcripts.sdb"
+        sdb = output_dir + "/taxonomy/transcripts.sdb",
+        genome_sizes = output_dir + "/gtdb_mean_genome_sizes.tsv"
     output:
         directory(output_dir + "/metapackage/" + config["new_metapackage"])
     params:
@@ -288,6 +290,7 @@ rule create_SingleM_metapackage:
         "{params.singlem} metapackage "
         "--singlem-packages {input.packages} "
         "--nucleotide-sdb {input.sdb} "
+        "--taxon-genome-lengths {input.genome_sizes} "
         "--metapackage {output} "
         "--threads {threads} "
         "&> {log}"
@@ -320,7 +323,8 @@ rule test_metapackage:
         sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
         sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
     output:
-        table = output_dir + "/sra/{sra}_new.otu_table.tsv"
+        table = output_dir + "/sra/{sra}_new.otu_table.tsv",
+        profile = output_dir + "/sra/{sra}_new.otu_table.condensed.tsv"
     params:
         singlem = singlem_bin
     threads: 8
@@ -334,6 +338,7 @@ rule test_metapackage:
         "--reverse {input.sra_2} "
         "--metapackage {input.metapackge} "
         "--otu-table {output.table} "
+        "-p {output.profile} "
         "--threads {threads} "
         "&> {log}"
 
@@ -343,7 +348,8 @@ rule test_old_metapackage:
         sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
         sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
     output:
-        table = output_dir + "/sra/{sra}_old.otu_table.tsv"
+        table = output_dir + "/sra/{sra}_old.otu_table.tsv",
+        profile = output_dir + "/sra/{sra}_old.otu_table.condensed.tsv"
     params:
         singlem = singlem_bin
     threads: 8
@@ -358,6 +364,7 @@ rule test_old_metapackage:
         "--assignment-method scann_naive_then_diamond "
         "--metapackage {input.metapackge} "
         "--otu-table {output.table} "
+        "-p {output.profile} "
         "--threads {threads} "
         "&> {log}"
 

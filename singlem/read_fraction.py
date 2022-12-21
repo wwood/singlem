@@ -2,6 +2,7 @@ import pandas as pd
 import logging
 
 from .condense import CondensedCommunityProfile
+from .metapackage import Metapackage
 
 class ReadFractionEstimator:
     def calculate_and_report_read_fraction(self, **kwargs):
@@ -11,12 +12,24 @@ class ReadFractionEstimator:
         input_profile = kwargs.pop('input_profile')
         metagenome_sizes = kwargs.pop('metagenome_sizes')
         taxonomic_genome_lengths_file = kwargs.pop('taxonomic_genome_lengths_file')
+        metapackage = kwargs.pop('metapackage')
         accept_missing_samples = kwargs.pop('accept_missing_samples')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
+        # Grab the genome length data
+        if taxonomic_genome_lengths_file:
+            taxonomic_genome_lengths_df = pd.read_csv(taxonomic_genome_lengths_file, sep='\t')
+        else:
+            if metapackage:
+                mpkg = Metapackage.acquire(metapackage)
+            else:
+                mpkg = Metapackage.acquire_default()
+            if mpkg.version < 4:
+                raise Exception("Taxonomic genome lengths files are only included in v4+ metapackages.")
+            taxonomic_genome_lengths_df = mpkg.taxon_genome_lengths()
+
         # Read in the taxonomic genome lengths
-        taxonomic_genome_lengths_df = pd.read_csv(taxonomic_genome_lengths_file, sep='\t')
         if 'rank' not in taxonomic_genome_lengths_df.columns:
             raise Exception("Taxonomic genome lengths file must have a 'rank' column.")
         if 'genome_size' not in taxonomic_genome_lengths_df.columns:
