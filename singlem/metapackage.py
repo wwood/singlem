@@ -5,6 +5,7 @@ import shutil
 import extern
 import tempfile
 import json
+import pandas as pd
 
 import zenodo_backpack
 
@@ -45,7 +46,7 @@ class Metapackage:
                         PREFILTER_DB_PATH_KEY,
                         NUCLEOTIDE_SDB,
                         SQLITE_DB_PATH_KEY,
-                        TAXON_GENOME_LENGTHS_CSV,
+                        TAXON_GENOME_LENGTHS_KEY,
                         ],
                       }
 
@@ -82,7 +83,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v not in (1,2,3):
+        if v not in (1,2,3,4):
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -101,6 +102,13 @@ class Metapackage:
             else:
                 # singlem metapackage was invoked with --no-nucleotide-sdb
                 mpkg._nucleotide_sdb_path = None
+        if v >= 4:
+            if contents_hash[Metapackage.TAXON_GENOME_LENGTHS_KEY] is not None:
+                mpkg._taxon_genome_lengths_path = os.path.join(metapackage_path, contents_hash[Metapackage.TAXON_GENOME_LENGTHS_KEY])
+            else:
+                # singlem metapackage was invoked with --no-taxon-genome-lengths
+                mpkg._taxon_genome_lengths_path = None
+
 
         return mpkg
 
@@ -365,3 +373,11 @@ class Metapackage:
             # Happens when version < 3 or metapackage created from spkgs directly
             return None
         return path
+
+    def taxon_genome_lengths(self):
+        try:
+            tsv = self._taxon_genome_lengths_path
+        except AttributeError:
+            # Happens when version < 3 or metapackage created from spkgs directly
+            return None
+        return pd.read_csv(tsv, sep='\t')
