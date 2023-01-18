@@ -8,6 +8,7 @@ import csv
 import pandas as pd
 import itertools
 import math
+import extern
 from bird_tool_utils import iterable_chunks
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -365,73 +366,65 @@ class Querier:
                 else:
                     raise Exception("Unexpected sequence_type")
 
-                # Setup a pipe so that the query fasta isn't in a file and can be piped through
-                with tempfile.NamedTemporaryFile(prefix='singlem-smafa-naive-stderr-') as f:
-                    smafa_args = ""
-                    if max_divergence is not None:
-                        smafa_args += " --max-divergence {}".format(max_divergence)
-                    if max_nearest_neighbours is not None:
-                        smafa_args += " --max-num-hits {}".format(max_nearest_neighbours)
-                    with subprocess.Popen(
-                        ['bash','-c','smafa query --database \'{}\' --query /dev/stdin {} 2> {}'.format(
-                            index, smafa_args, f.name)],
-                        stdin=subprocess.PIPE,
-                        stdout=subprocess.PIPE,
-                        bufsize=-1,
-                        universal_newlines=True) as p:
+                # Previous version of this code piped the fasta file via STDIN,
+                # but this ran into deadlock problems e.g. singlem query
+                # --query-archive-otu-tables <(zcat
+                # from_s3/us-west-2/sra_20211215_7_sample50000/singlem-err1193301-m82rp-ERR1193301/ERR1193301.annotated.singlem.json.gz)
+                # --db
+                # ~/m/msingle/sam/otu_tables/S3.0.5.metapackage20220806/NCBI_r215.sdb
+                #
+                # So instead just write the output to a temporary file, using
+                # extern rather than Popen.
+                smafa_args = ""
+                if max_divergence is not None:
+                    smafa_args += " --max-divergence {}".format(max_divergence)
+                if max_nearest_neighbours is not None:
+                    smafa_args += " --max-num-hits {}".format(max_nearest_neighbours)
+                smafa_cmd = 'smafa query --database \'{}\' --query /dev/stdin {}'.format(
+                    index, smafa_args)
+                smafa_stdout = extern.run(smafa_cmd, stdin='\n'.join([">{}\n{}".format(i, q.sequence) for i, q in enumerate(chunked_queries)]))
 
-                        for i, q in enumerate(chunked_queries):
-                            num_reported = 0
-                            print(">{}\n{}".format(i, q.sequence), file=p.stdin)
-                        p.stdin.close()
+                # Read the output
+                previous_query_index = None
+                previous_query_index_num_reported = 0
+                for line in smafa_stdout.splitlines():
+                    splits = line.strip().split("\t")
+                    if len(splits) != 4:
+                        raise Exception("Unexpected output from smafa: {}".format(line))
+                    query_index_str, hit_index, div_str, _ = splits
+                    query_index = int(query_index_str)
+                    div = int(div_str)
 
-                        # Read the output
-                        previous_query_index = None
+                    if False: #preload_db:
+                        for entry_i in current_preloaded_db_indices.iat[hit_index]:
+                            otu = OtuTableEntry()
+                            otu.marker = marker
+                            otu.sample_name = current_preloaded_db_sample_name[entry_i]
+                            otu.count = current_preloaded_db_count[entry_i]
+                            otu.sequence = current_preloaded_db_sequence[entry_i]
+                            otu.coverage = current_preloaded_db_coverage[entry_i]
+                            otu.taxonomy = current_preloaded_db_taxonomy[entry_i]
+                            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                                yield QueryResult(q, otu, div)
+                            else:
+                                yield QueryResult(
+                                    q, otu, div, 
+                                    query_protein_sequence=query_protein_sequences[i],
+                                    subject_protein_sequence=current_preloaded_db_protein_sequence[entry_i])
+                    else:
+                        for qres in self.query_result_from_db(sdb, chunked_queries[query_index], sequence_type, hit_index, marker, marker_id, div, 
+                            query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                            limit_per_sequence=limit_per_sequence):
+
+                            yield qres
+
+                    if query_index == previous_query_index:
+                        previous_query_index_num_reported += 1
+                    else:
                         previous_query_index_num_reported = 0
-                        for line in p.stdout:
-                            splits = line.strip().split("\t")
-                            if len(splits) != 4:
-                                raise Exception("Unexpected output from smafa: {}".format(line))
-                            query_index_str, hit_index, div_str, _ = splits
-                            query_index = int(query_index_str)
-                            div = int(div_str)
-
-                            if False: #preload_db:
-                                for entry_i in current_preloaded_db_indices.iat[hit_index]:
-                                    otu = OtuTableEntry()
-                                    otu.marker = marker
-                                    otu.sample_name = current_preloaded_db_sample_name[entry_i]
-                                    otu.count = current_preloaded_db_count[entry_i]
-                                    otu.sequence = current_preloaded_db_sequence[entry_i]
-                                    otu.coverage = current_preloaded_db_coverage[entry_i]
-                                    otu.taxonomy = current_preloaded_db_taxonomy[entry_i]
-                                    if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                                        yield QueryResult(q, otu, div)
-                                    else:
-                                        yield QueryResult(
-                                            q, otu, div, 
-                                            query_protein_sequence=query_protein_sequences[i],
-                                            subject_protein_sequence=current_preloaded_db_protein_sequence[entry_i])
-                            else:
-                                for qres in self.query_result_from_db(sdb, chunked_queries[query_index], sequence_type, hit_index, marker, marker_id, div, 
-                                    query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
-                                    limit_per_sequence=limit_per_sequence):
-
-                                    yield qres
-
-                            if query_index == previous_query_index:
-                                previous_query_index_num_reported += 1
-                            else:
-                                previous_query_index_num_reported = 0
-                                previous_query_index = query_index
-                            if previous_query_index_num_reported > max_nearest_neighbours:
-                                break
-                        
-                        # Check for errors
-                        p.wait()
-                        if p.returncode != 0:
-                            with open(f.name, 'r') as f:
-                                raise Exception("Error running smafa query: {}".format(f.read()))
+                        previous_query_index = query_index
+                    if previous_query_index_num_reported > max_nearest_neighbours:
+                        break
 
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
