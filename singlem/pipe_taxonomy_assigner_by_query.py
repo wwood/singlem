@@ -11,8 +11,10 @@ class PipeTaxonomyAssignerByQuery:
         spkg_to_queries = {}
         if extracted_reads.analysing_pairs:
             aligned_seqs_to_package_and_sample_name = [{},{}]
+            window_to_read_names = [{},{}]
         else:
             aligned_seqs_to_package_and_sample_name = [{}]
+            window_to_read_names = [{}]
         for (spkg, extracted_readsets) in extracted_reads.each_package_wise():
             spkg_key = spkg.base_directory()
             if spkg_key not in spkg_to_queries:
@@ -24,28 +26,39 @@ class PipeTaxonomyAssignerByQuery:
                 if extracted_reads.analysing_pairs:
                     for (pair_index, readset) in enumerate(maybe_paired_readset):
                         for read in readset.unknown_sequences:
-                            spkg_to_queries[spkg_key][pair_index].append(QueryInputSequence(
-                                read.name, read.aligned_sequence, spkg.graftm_package_basename()))
-                            # TODO: don't store many copies of the sample name
-                            # TODO: Does this fail when there are 2 reads with the same name from different samples?
-                            # Always take the sample name as the first of the pair's sample name
-                            aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence] = \
-                                (spkg, maybe_paired_readset[0].sample_name)
+                            # Only query each aligned sequence once, not once for
+                            # each read, as they should all give the same answer
+                            if read.aligned_sequence not in window_to_read_names[pair_index]:
+                                window_to_read_names[pair_index][read.aligned_sequence] = []
+                                spkg_to_queries[spkg_key][pair_index].append(QueryInputSequence(
+                                    read.name, read.aligned_sequence, spkg.graftm_package_basename()))
+                                # TODO: don't store many copies of the sample name
+                                # TODO: Does this fail when there are 2 reads with the same name from different samples?
+                                # Always take the sample name as the first of the pair's sample name
+                                aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence] = \
+                                    (spkg, maybe_paired_readset[0].sample_name)
+
+                            window_to_read_names[pair_index][read.aligned_sequence].append(read.name)
                 else:
                     for read in maybe_paired_readset.unknown_sequences:
-                        spkg_to_queries[spkg_key].append(QueryInputSequence(read.name, read.aligned_sequence, spkg.graftm_package_basename()))
-                        # TODO: don't store many copies of the sample name
-                        # TODO: Does this fail when there are 2 reads with the same name from different samples?
-                        aligned_seqs_to_package_and_sample_name[0][read.aligned_sequence] = (spkg, maybe_paired_readset.sample_name)
+                        # Only query each aligned sequence once, not once for
+                        # each read, as they should all give the same answer
+                        if read.aligned_sequence not in window_to_read_names[0]:
+                            window_to_read_names[0][read.aligned_sequence] = []
+                            spkg_to_queries[spkg_key].append(QueryInputSequence(read.name, read.aligned_sequence, spkg.graftm_package_basename()))
+                            # TODO: don't store many copies of the sample name
+                            # TODO: Does this fail when there are 2 reads with the same name from different samples?
+                            aligned_seqs_to_package_and_sample_name[0][read.aligned_sequence] = (spkg, maybe_paired_readset.sample_name)
+                        window_to_read_names[0][read.aligned_sequence].append(read.name)
 
-        return spkg_to_queries, aligned_seqs_to_package_and_sample_name
+        return window_to_read_names, spkg_to_queries, aligned_seqs_to_package_and_sample_name
 
     def assign_taxonomy(self, extracted_reads, assignment_singlem_db, method):
         # query_by_sequence_similarity_with_annoy
         # def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         
         logging.debug("Preparing query sequences...")
-        spkg_queries, aligned_seqs_to_package_and_sample_name = self._prepare_query_sequences(extracted_reads)
+        window_to_read_names, spkg_queries, aligned_seqs_to_package_and_sample_name = self._prepare_query_sequences(extracted_reads)
 
         sdb = SequenceDatabase.acquire(assignment_singlem_db)
 
@@ -57,8 +70,7 @@ class PipeTaxonomyAssignerByQuery:
         else:
             final_result = [{}]
 
-        # TODO: test different values of max_search_nearest_neighbours
-        def process_hits_batch(spkg_key, current_hits, pair_index):
+        def process_hits_batch(window_to_read_names, spkg_key, current_hits, pair_index):
             # Get LCA of taxonomy of best hits
             hit_taxonomies = list([h.subject.taxonomy for h in current_hits])
             # We want the final result to be a hash of spkg to sample name to hash of sequence name to taxonomies list
@@ -68,7 +80,8 @@ class PipeTaxonomyAssignerByQuery:
                     final_result[pair_index][spkg_key] = {}
                 if sample_name not in final_result[pair_index][spkg_key]:
                     final_result[pair_index][spkg_key][sample_name] = {}
-                final_result[pair_index][spkg_key][sample_name][hit.query.name] = hit_taxonomies
+                for read_name in window_to_read_names[pair_index][hit.query.sequence]:
+                    final_result[pair_index][spkg_key][sample_name][read_name] = hit_taxonomies
 
         def query_single_set(queries, pair_index):
             last_query = None
@@ -81,14 +94,14 @@ class PipeTaxonomyAssignerByQuery:
                     if last_query != hit.query.name:
                         if last_query is not None:
                             # Process last hits batch
-                            process_hits_batch(spkg_key, last_hits, pair_index)
+                            process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
                         last_query = hit.query.name
                         last_hits = [hit]
                     else:
                         last_hits.append(hit)
                 # Process the last hit
                 if last_query is not None:
-                    process_hits_batch(spkg_key, last_hits, pair_index)
+                    process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
 
         for (spkg_key, queries) in spkg_queries.items():
             if analysing_pairs:
