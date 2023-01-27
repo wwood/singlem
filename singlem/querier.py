@@ -355,14 +355,9 @@ class Querier:
                 chunked_queries = list([a for a in chunked_queries1 if a is not None]) # Remove trailing Nones from the iterable
 
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    query_array = np.array([
-                        np.array(sequence_database.nucleotides_to_binary_array(q.sequence)) for q in chunked_queries])
+                    pass
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                     raise NotImplementedError("SMAFA NAIVE does not support protein sequences yet")
-                    # query_protein_sequences = np.array([
-                    #     sequence_database.nucleotides_to_protein(q.sequence) for q in chunked_queries])
-                    # query_array = np.array([
-                    #     np.array(sequence_database.protein_to_binary_array(seq)) for seq in query_protein_sequences])
                 else:
                     raise Exception("Unexpected sequence_type")
 
@@ -395,6 +390,14 @@ class Querier:
                     query_index = int(query_index_str)
                     div = int(div_str)
 
+                    if query_index == previous_query_index:
+                        if previous_query_index_num_reported > max_nearest_neighbours:
+                            continue
+                        previous_query_index_num_reported += 1
+                    else:
+                        previous_query_index_num_reported = 0
+                        previous_query_index = query_index
+
                     if False: #preload_db:
                         for entry_i in current_preloaded_db_indices.iat[hit_index]:
                             otu = OtuTableEntry()
@@ -417,14 +420,6 @@ class Querier:
                             limit_per_sequence=limit_per_sequence):
 
                             yield qres
-
-                    if query_index == previous_query_index:
-                        previous_query_index_num_reported += 1
-                    else:
-                        previous_query_index_num_reported = 0
-                        previous_query_index = query_index
-                    if previous_query_index_num_reported > max_nearest_neighbours:
-                        break
 
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
