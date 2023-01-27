@@ -1202,6 +1202,7 @@ class SearchPipe:
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 0)],
                             [u for u in readset[1].unknown_sequences if not \
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1)]]
+
                         if len(still_unknown_sequences[0] + still_unknown_sequences[1]) > 0:
                             logging.info("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({}% and {}%) for sample {}, package {}".format(
                                 len(still_unknown_sequences[0]), len(still_unknown_sequences[1]),
