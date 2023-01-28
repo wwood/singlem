@@ -1035,6 +1035,19 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         self.assertEqual(json.loads('{"version": 4, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies", "taxonomy_assignment_method"], "otus": [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based"]]}'),
             json.loads(extern.run(cmd)))
 
+    def test_smafa_naive_then_diamond_single(self):
+        expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
+        '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
+        cmd = '{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond'.format(
+            path_to_script,
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs.fna'),
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
+            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
+        )
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
+
     @unittest.skip('scann not currently working on small DBs')
     def test_scann_then_diamond_assignment_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
