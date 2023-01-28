@@ -1,3 +1,5 @@
+gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_fna_reps/
+# gtdb_protein_fna_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_fna_reps2 # test
 output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir_real
 # output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir # test
 metapackage: /home/woodcrob/git/singlem/db/S3.0.5.metapackage20220806.smpkg.zb/payload_directory
@@ -22,5 +24,3 @@ sra_seqs_2:
 gtdb_sp_clusters: /work/microbiome/db/gtdb/gtdb_release207/auxillary_files/sp_clusters_r207.tsv
 gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release207/bac120_metadata_r207.tsv
 gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release207/ar53_metadata_r207.tsv
-gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_fna_reps/
-# gtdb_protein_fna_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_fna_reps2 # test
