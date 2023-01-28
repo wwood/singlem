@@ -379,6 +379,11 @@ class Querier:
                     index, smafa_args)
                 smafa_stdout = extern.run(smafa_cmd, stdin='\n'.join([">{}\n{}".format(i, q.sequence) for i, q in enumerate(chunked_queries)]))
 
+                if not preload_db:
+                    batch_for_db_queries = []
+                    batch_for_db_hit_indices = []
+                    batch_for_db_divs = []
+
                 # Read the output
                 previous_query_index = None
                 previous_query_index_num_reported = 0
@@ -415,11 +420,18 @@ class Querier:
                                     query_protein_sequence=query_protein_sequences[i],
                                     subject_protein_sequence=current_preloaded_db_protein_sequence[entry_i])
                     else:
-                        for qres in self.query_result_from_db(sdb, chunked_queries[query_index], sequence_type, hit_index, marker, marker_id, div, 
-                            query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
-                            limit_per_sequence=limit_per_sequence):
+                        # Query in batch as this should be faster than doing individually
+                        batch_for_db_queries.append(chunked_queries[query_index])
+                        batch_for_db_hit_indices.append(hit_index)
+                        batch_for_db_divs.append(div)
 
-                            yield qres
+                if not preload_db:
+                    for qres in self.query_result_batch_from_db(sdb, batch_for_db_queries, sequence_type, batch_for_db_hit_indices, 
+                        marker, marker_id, batch_for_db_divs, 
+                        query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                        limit_per_sequence=limit_per_sequence):
+
+                        yield qres
 
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
@@ -512,6 +524,42 @@ class Querier:
                     otu.coverage = entry['coverage']
                     otu.taxonomy = sdb.get_taxonomy_via_cache(entry['taxonomy_id'])
                     yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
+        else:
+            raise Exception("unknown sequence_type")
+
+    def query_result_batch_from_db(self, sdb, queries, sequence_type, hit_indexes, marker, marker_id, 
+        divergences, query_protein_sequence=None, limit_per_sequence=None):
+        '''
+        Like query_result_from_db except arrays of queries, hit_indexes, and
+        divergences are passed in, so that only one SQL query is needed.
+        '''
+
+        if limit_per_sequence is not None:
+            raise Exception("limit_per_sequence not supported for batch queries (yet)")
+        
+        if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+            query2 = select(
+                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id, Otu.marker_wise_sequence_id
+            ).filter(Otu.marker_wise_sequence_id.in_(set([int(h) for h in hit_indexes]))
+            ).where(Otu.marker_id == int(marker_id))
+
+            hits = {}
+            for row in sdb.sqlalchemy_connection.execute(query2):
+                otu = OtuTableEntry()
+                otu.marker = marker
+                otu.sample_name = row.sample_name
+                otu.count = row.num_hits
+                otu.sequence = row.sequence
+                otu.coverage = row.coverage
+                otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
+                hits[row.marker_wise_sequence_id] = otu
+
+            for query, hit_index, div in zip(queries, hit_indexes, divergences):
+                yield QueryResult(query, hits[int(hit_index)], div)
+
+        elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+            raise Exception("batch queries not supported for protein sequences (yet)")
+
         else:
             raise Exception("unknown sequence_type")
 
