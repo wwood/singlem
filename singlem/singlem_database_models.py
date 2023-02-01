@@ -4,7 +4,7 @@ models.py
 """
 import logging
 
-from sqlalchemy import Column, Integer, String, ForeignKey, Float, select
+from sqlalchemy import Column, Integer, String, ForeignKey, Float, select, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 
@@ -42,7 +42,7 @@ class Taxonomy(Base):
         """ Cache all taxonomy entries in a list, where the ID is the ID
         from the table and the entry is the taxonomy string """
 
-        taxonomy_entries = [None]*(connection.execute('select count(id) from taxonomy').scalar()+1)
+        taxonomy_entries = [None]*(connection.execute(func.count(Taxonomy.id)).scalar()+1) # +1 because we start at 1 in the database, but not python
         for row in connection.execute(select(Taxonomy.id, Taxonomy.taxonomy)).fetchall():
             taxonomy_entries.insert(row.id, row.taxonomy)
         logging.debug("Cached {} taxonomy entries".format(len(taxonomy_entries)))
@@ -76,7 +76,7 @@ class Marker(Base):
         """ Cache all taxonomy entries in a list, where the ID is the ID
         from the table and the entry is the taxonomy string """
 
-        marker_entries = [None]*(connection.execute('select count(id) from markers').scalar()+1)
+        marker_entries = [None]*(connection.execute(func.count(Marker.id)).scalar()+1) # +1 because we start at 1 in the database, but not python
         for row in connection.execute(select(Marker.id, Marker.marker)).fetchall():
             marker_entries.insert(row.id, row.marker)
         logging.debug("Cached {} marker entries".format(len(marker_entries)))

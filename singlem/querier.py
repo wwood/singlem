@@ -2,7 +2,6 @@ import tempfile
 import logging
 import subprocess
 import sys
-from Bio import pairwise2
 import numpy as np
 import csv
 import pandas as pd
@@ -69,13 +68,13 @@ class Querier:
             marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
             logging.info("Caching nucleotide data for marker {}..".format(marker_name))
 
-            query = select([
+            query = select(
                 Otu.marker_wise_sequence_id,
                 Otu.sequence,
                 Otu.sample_name,
                 Otu.num_hits,
                 Otu.coverage,
-                Taxonomy.taxonomy]) \
+                Taxonomy.taxonomy) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id)
             result = conn.execute(query)
@@ -89,14 +88,14 @@ class Querier:
             marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
             logging.info("Caching protein data for marker {}..".format(marker_name))
 
-            query = select([
+            query = select(
                 ProteinSequence.marker_wise_id,
                 Otu.sequence,
                 ProteinSequence.protein_sequence,
                 Otu.sample_name,
                 Otu.num_hits,
                 Otu.coverage,
-                Taxonomy.taxonomy]) \
+                Taxonomy.taxonomy) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id) \
                     .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
@@ -183,11 +182,11 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                query = select([Marker.id]).where(Marker.marker == last_marker)
+                query = select(Marker.id).where(Marker.marker == last_marker)
                 m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
-                last_marker_id = m['id']
+                last_marker_id = m.id
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_protein_sequence = None
@@ -230,11 +229,11 @@ class Querier:
             if index is None:
                 raise Exception("The marker '{}' does not appear to be '{}' indexed in the singlem db".format(marker, index_format))
             logging.info("Querying index for {}".format(marker))
-            query = select([Marker.id]).where(Marker.marker == marker)
+            query = select(Marker.id).where(Marker.marker == marker)
             m = sdb.sqlalchemy_connection.execute(query).first()
             if m is None:
                 raise Exception("Marker {} not in the SQL DB".format(marker))
-            marker_id = m['id']
+            marker_id = m.id
 
             # Preload DB if needed
             if preload_db:
@@ -332,8 +331,6 @@ class Querier:
     def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None):
         logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
 
-        if max_nearest_neighbours != 1:
-            raise Exception("SMAFA NAIVE only supports max_nearest_neighbours=1 right now")
         if preload_db:
             raise Exception("SMAFA NAIVE does not support preloading the DB right now")
 
@@ -344,11 +341,11 @@ class Querier:
             if index is None:
                 raise Exception("The marker '{}' does not appear to be 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
             logging.info("Querying index for {}".format(marker))
-            query = select([Marker.id]).where(Marker.marker == marker)
+            query = select(Marker.id).where(Marker.marker == marker)
             m = sdb.sqlalchemy_connection.execute(query).first()
             if m is None:
                 raise Exception("Marker {} not in the SQL DB".format(marker))
-            marker_id = m['id']
+            marker_id = m.id
             
             # Actually do searches, in batches
             for chunked_queries1 in iterable_chunks(marker_queries, 1000):
@@ -451,11 +448,11 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                query = select([Marker.id]).where(Marker.marker == last_marker)
+                query = select(Marker.id).where(Marker.marker == last_marker)
                 m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
-                last_marker_id = m['id']
+                last_marker_id = m.id
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_protein_sequence = None
@@ -492,13 +489,13 @@ class Querier:
                 yield QueryResult(query, otu, div)
 
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-            query2 = select([
+            query2 = select(
                 Otu.sequence,
                 ProteinSequence.protein_sequence,
                 Otu.sample_name,
                 Otu.num_hits,
                 Otu.coverage,
-                Otu.taxonomy_id]) \
+                Otu.taxonomy_id) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id) \
                     .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
@@ -518,12 +515,12 @@ class Querier:
                 for entry in results:
                     otu = OtuTableEntry()
                     otu.marker = marker
-                    otu.sample_name = entry['sample_name']
-                    otu.sequence = entry['sequence']
-                    otu.count = entry['num_hits']
-                    otu.coverage = entry['coverage']
-                    otu.taxonomy = sdb.get_taxonomy_via_cache(entry['taxonomy_id'])
-                    yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
+                    otu.sample_name = entry.sample_name
+                    otu.sequence = entry.sequence
+                    otu.count = entry.num_hits
+                    otu.coverage = entry.coverage
+                    otu.taxonomy = sdb.get_taxonomy_via_cache(entry.taxonomy_id)
+                    yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry.protein_sequence)
         else:
             raise Exception("unknown sequence_type")
 
@@ -552,10 +549,14 @@ class Querier:
                 otu.sequence = row.sequence
                 otu.coverage = row.coverage
                 otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
-                hits[row.marker_wise_sequence_id] = otu
+                if row.marker_wise_sequence_id not in hits:
+                    hits[row.marker_wise_sequence_id] = [otu]
+                else:
+                    hits[row.marker_wise_sequence_id].append(otu)
 
             for query, hit_index, div in zip(queries, hit_indexes, divergences):
-                yield QueryResult(query, hits[int(hit_index)], div)
+                for hit_otu in hits[int(hit_index)]:
+                    yield QueryResult(query, hit_otu, div)
 
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
             raise Exception("batch queries not supported for protein sequences (yet)")
@@ -590,14 +591,14 @@ class Querier:
 
         for chunk in iterable_chunks(seqs, max_set_size):
             with db.engine.connect() as connection:
-                stmt = select([
+                stmt = select(
                     Otu.sample_name,
                     Otu.num_hits,
                     Otu.coverage,
                     Otu.taxonomy_id,
                     NucleotideSequence.sequence,
                     Marker.marker,
-                    ]).select_from(Otu).join(NucleotideSequence).join(Marker).filter(NucleotideSequence.sequence.in_([seq for seq in chunk if seq is not None]))
+                    ).select_from(Otu).join(NucleotideSequence).join(Marker).filter(NucleotideSequence.sequence.in_([seq for seq in chunk if seq is not None]))
                 for entry in connection.execute(stmt):
                     for qid in sequence_to_query_id[entry.sequence]:
                         otu = OtuTableEntry()
@@ -639,12 +640,12 @@ class Querier:
 
             for entry in db.sqlalchemy_connection.execute(query):
                 otu = OtuTableEntry()
-                otu.marker = db.get_marker_via_cache(entry['marker_id'])
-                otu.sample_name = entry['sample_name']
-                otu.sequence = entry['sequence']
-                otu.count = entry['num_hits']
-                otu.coverage = entry['coverage']
-                otu.taxonomy = db.get_taxonomy_via_cache(entry['taxonomy_id'])
+                otu.marker = db.get_marker_via_cache(entry.marker_id)
+                otu.sample_name = entry.sample_name
+                otu.sequence = entry.sequence
+                otu.count = entry.num_hits
+                otu.coverage = entry.coverage
+                otu.taxonomy = db.get_taxonomy_via_cache(entry.taxonomy_id)
                 otus.add([otu])
                 total_printed += 1
             otus.write_to(output_io, print_header=first_chunk)

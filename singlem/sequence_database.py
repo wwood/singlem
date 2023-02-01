@@ -13,8 +13,6 @@ import numpy as np
 
 from sqlalchemy import create_engine, select, distinct
 
-import numba
-from numba.core import types
 import Bio.Data.CodonTable
 
 from .otu_table import OtuTable
@@ -199,13 +197,13 @@ class SequenceDatabase:
         return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
 
     def _nucleotide_annoy_init(self):
-        example_seq = self.sqlalchemy_connection.execute(select(NucleotideSequence).limit(1)).first()['sequence']
+        example_seq = self.sqlalchemy_connection.execute(select(NucleotideSequence).limit(1)).first().sequence
         ndim = len(example_seq)*5
         from annoy import AnnoyIndex
         return AnnoyIndex(ndim, 'hamming')
 
     def _protein_annoy_init(self):
-        example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first()['protein_sequence']
+        example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first().protein_sequence
         ndim = len(example_seq)*len(AA_ORDER)
         from annoy import AnnoyIndex
         return AnnoyIndex(ndim, 'hamming')
@@ -624,17 +622,17 @@ class SequenceDatabase:
         os.makedirs(nucleotide_db_dir)
         
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
             with tempfile.NamedTemporaryFile(prefix='singlem-smafa-create-', suffix='.fasta') as fasta_file:
                 for row in self.sqlalchemy_connection.execute(select(
                     NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                    .where(NucleotideSequence.marker_id == marker_row['id'])
+                    .where(NucleotideSequence.marker_id == marker_row.id)
                     .order_by(NucleotideSequence.marker_wise_id)):
 
-                    fasta_file.write(str.encode(">{}\n{}\n".format(row['marker_wise_id'], row['sequence'])))
+                    fasta_file.write(str.encode(">{}\n{}\n".format(row.marker_wise_id, row.sequence)))
                     count += 1
                 fasta_file.flush()
 
@@ -652,15 +650,15 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             nucleotide_index = SequenceDatabase._nucleotide_nmslib_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
             for row in self.sqlalchemy_connection.execute(select(
                 NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                .where(NucleotideSequence.marker_id == marker_row['id'])):
+                .where(NucleotideSequence.marker_id == marker_row.id)):
 
-                nucleotide_index.addDataPoint(row['marker_wise_id'], nucleotides_to_binary(row['sequence']))
+                nucleotide_index.addDataPoint(row.marker_wise_id, nucleotides_to_binary(row.sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -679,7 +677,7 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             protein_index = SequenceDatabase._protein_nmslib_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
@@ -687,8 +685,8 @@ class SequenceDatabase:
                 distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
                     .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
                     .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                    .where(NucleotideSequence.marker_id == marker_row['id'])):
-                protein_index.addDataPoint(row['marker_wise_id'], protein_to_binary(row['protein_sequence']))
+                    .where(NucleotideSequence.marker_id == marker_row.id)):
+                protein_index.addDataPoint(row.marker_wise_id, protein_to_binary(row.protein_sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -708,15 +706,15 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._nucleotide_annoy_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
             for row in self.sqlalchemy_connection.execute(select(
                 NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                .where(NucleotideSequence.marker_id == marker_row['id'])):
+                .where(NucleotideSequence.marker_id == marker_row.id)):
 
-                annoy_index.add_item(row['marker_wise_id'], nucleotides_to_binary_array(row['sequence']))
+                annoy_index.add_item(row.marker_wise_id, nucleotides_to_binary_array(row.sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -737,7 +735,7 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._protein_annoy_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
@@ -745,9 +743,9 @@ class SequenceDatabase:
                 distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
                     .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
                     .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                    .where(NucleotideSequence.marker_id == marker_row['id'])):
+                    .where(NucleotideSequence.marker_id == marker_row.id)):
 
-                annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
+                annoy_index.add_item(row.marker_wise_id, protein_to_binary_array(row.protein_sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -809,12 +807,12 @@ class SequenceDatabase:
                 del searcher_naive
 
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
-            marker_name = marker_row['marker']
-            marker_id = marker_row['id']
+            marker_name = marker_row.marker
+            marker_id = marker_row.id
             
             if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
-                a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
+                a = np.concatenate([np.array([nucleotides_to_binary_array(entry.sequence)]) for entry in \
                     self.sqlalchemy_connection.execute(select(
                         NucleotideSequence.sequence) \
                         .where(NucleotideSequence.marker_id == marker_id) \
@@ -828,7 +826,7 @@ class SequenceDatabase:
             
             if PROTEIN_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
-                a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
+                a = np.concatenate([np.array([protein_to_binary_array(entry.protein_sequence)]) for entry in \
                     self.sqlalchemy_connection.execute(select(
                         ProteinSequence.protein_sequence) \
                             .order_by(ProteinSequence.marker_wise_id) \
@@ -878,7 +876,6 @@ class SequenceDatabase:
                         taxonomy_entries[row.taxonomy_id]
                     ]))
 
-@numba.njit()
 def _base_to_binary(x):
     if x == 'A':
         return '1 0 0 0 0'
@@ -891,11 +888,9 @@ def _base_to_binary(x):
     else:
         return '0 0 0 0 1'
     
-@numba.njit()
 def nucleotides_to_binary(seq):
     return ' '.join([_base_to_binary(b) for b in seq])
     
-@numba.njit()
 def _base_to_binary_array(x):
     if x == 'A':
         return [1,0,0,0,0]
@@ -908,7 +903,6 @@ def _base_to_binary_array(x):
     else:
         return [0,0,0,0,1]
     
-# @numba.njit()
 def nucleotides_to_binary_array(seq):
     return list(itertools.chain(*[_base_to_binary_array(b) for b in seq]))
 
@@ -948,7 +942,6 @@ def _aa_to_binary_array(x):
 def protein_to_binary_array(seq):
     return list(itertools.chain(*[_aa_to_binary_array(b) for b in seq]))
 
-# @numba.njit() # would like to do this, but better to move to lists not dict for codon table
 def nucleotides_to_protein(seq):
     aas = []
     codon_table=Bio.Data.CodonTable.standard_dna_table.forward_table
