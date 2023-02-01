@@ -443,16 +443,15 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
 '''
         expected = [
             self.headers,
-            ['S1.5.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_000949295.1']]
+            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_000949295.1']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
         with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
             t.flush()
-            cmd = "%s pipe --quiet --sequences %s --otu-table /dev/stdout --threads 4 --assignment_method diamond_example --singlem-packages %s/--hmmsearch-package-assignment" % (
+            cmd = "%s pipe --quiet --sequences %s --otu-table /dev/stdout --threads 4 --assignment_method diamond_example --singlem-packages %s/S1.7.ribosomal_protein_L16_L10E_rplP.gpkg.spkg" % (
                 path_to_script,
                 t.name,
                 path_to_data)
-            import IPython; IPython.embed()
             self.assertEqual(exp,
                              sorted(extern.run(cmd).
                                     replace(
