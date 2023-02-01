@@ -34,6 +34,20 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
 TEST_NMSLIB = False
+try:
+    import nmslib
+    TEST_NMSLIB = True
+except ImportError:
+    print("WARNING: nmslib not found, skipping relevant tests", file=sys.stderr)
+    pass
+
+TEST_SCANN = False
+try:
+    import scann
+    TEST_SCANN = True
+except ImportError:
+    print("WARNING: scann not found, skipping relevant tests", file=sys.stderr)
+    pass
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
@@ -71,9 +85,12 @@ class Tests(unittest.TestCase):
 
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['smafa-naive','annoy','scann','scann-naive']
+            methods = ['smafa-naive','annoy']
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s" %(
                 path_to_script,
                 d,
@@ -93,9 +110,12 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','scann-naive']
+            methods = ['annoy'] # 'smafa-naive' is not supported for protein search (yet)
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
@@ -115,9 +135,12 @@ class Tests(unittest.TestCase):
 
     def test_protein_search_methanobacteria_preload_db(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','scann-naive']
+            methods = ['annoy']
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
@@ -139,9 +162,12 @@ class Tests(unittest.TestCase):
 
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','scann-naive']
+            methods = ['annoy']
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
