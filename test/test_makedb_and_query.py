@@ -158,8 +158,6 @@ class Tests(unittest.TestCase):
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	1.1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
 
 
-
-
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
             methods = ['annoy']
@@ -228,6 +226,27 @@ class Tests(unittest.TestCase):
             f.flush()
 
             cmd = "%s query --preload-db --query-otu-table %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
+
+            expected = 'query_name\tquery_sequence\tdivergence\tnum_hits\tcoverage\tsample\tmarker\thit_sequence\ttaxonomy\nminimal\tCGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\t15.1\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nmaximal\tCGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\t15.1\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n'.split('\n')
+            observed = extern.run(cmd).split('\n')
+            self.assertEqual(expected, observed)
+
+    @unittest.skipIf(not TEST_SCANN, "scann not installed")
+    def test_query_with_otu_table_two_samples_preload_db_scann(self):
+        with tempfile.NamedTemporaryFile(mode='w') as f:
+            query = [self.headers,
+                     # second sequence with an extra A at the end
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+                     ] # converted A to T in the middle
+            query = "\n".join(["\t".join(x) for x in query])
+            f.write(query)
+            f.flush()
+
+            cmd = "%s query --preload-db --query-otu-table %s --search-method scann --db %s" % (
                 path_to_script,
                 f.name,
                 os.path.join(path_to_data,'a.sdb'))
