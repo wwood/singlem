@@ -546,9 +546,6 @@ class Querier:
         Like query_result_from_db except arrays of queries, hit_indexes, and
         divergences are passed in, so that only one SQL query is needed.
         '''
-
-        if limit_per_sequence is not None:
-            raise Exception("limit_per_sequence not supported for batch queries (yet)")
         
         if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             query2 = select(
@@ -571,7 +568,9 @@ class Querier:
                     hits[row.marker_wise_sequence_id].append(otu)
 
             for query, hit_index, div in zip(queries, hit_indexes, divergences):
-                for hit_otu in hits[int(hit_index)]:
+                for i, hit_otu in enumerate(hits[int(hit_index)]):
+                    if limit_per_sequence is not None and i >= limit_per_sequence:
+                        break
                     yield QueryResult(query, hit_otu, div)
 
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
