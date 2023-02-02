@@ -32,4 +32,5 @@ jobs:
             python test/test_condense.py && \
             python test/test_summariser.py && \
             python test/test_read_fraction.py && \
-            python test/test_pipe.py
+            python test/test_pipe.py && \
+            python test/test_appraise.py

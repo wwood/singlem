@@ -118,8 +118,11 @@ class Appraiser:
         '''
         if sequence_identity:
             max_divergence = window_size * (1 - sequence_identity)
+            # max divergence must be a whole number, and we round down
+            max_divergence = int(max_divergence)
         else:
             max_divergence = 0
+        logging.debug("Using max divergence of %i for appraising" % max_divergence)
 
         tmp = tempfile.TemporaryDirectory()
         sdb_path = os.path.join(tmp.name, "tmp.sdb")
