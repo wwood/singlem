@@ -37,6 +37,15 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.
 from singlem.pipe import SearchPipe
 from singlem.sequence_classes import SeqReader
 
+TEST_ANNOY = False
+try:
+    import annoy
+    TEST_ANNOY = True
+    print("annoy found, running relevant tests", file=sys.stderr)
+except ImportError:
+    print("WARNING: annoy not found, skipping relevant tests", file=sys.stderr)
+    pass
+
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
     headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
@@ -1000,6 +1009,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
                     list([line.split("\t") for line in expected]),
                     extern.run('bash {}'.format(script.name)))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
@@ -1013,6 +1023,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_paired(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
@@ -1027,6 +1038,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_output_extras_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy	read_names	nucleotides_aligned	taxonomy_by_known?	read_unaligned_sequences	equal_best_hit_taxonomies	taxonomy_assignment_method',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179 Root; part_of_sdb; novel_domain	singlem_query_based']
@@ -1040,6 +1052,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_output_archive_single(self):
         cmd = '{} pipe --sequences {} --archive-otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method annoy'.format(
             path_to_script,
