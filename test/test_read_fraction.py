@@ -38,7 +38,7 @@ class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_marine0(self):
-        cmd = "{} read_fraction -p {}/read_fraction/marine0.profile  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxonomic-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
+        cmd = "{} read_fraction -p {}/read_fraction/marine0.profile  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
             path_to_script,
             path_to_data,
             path_to_data,

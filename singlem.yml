@@ -31,7 +31,8 @@ dependencies:
   - pandas
   - bird_tool_utils_python>=0.4.1
   - zenodo_backpack
-  # - smafa>=0.6.0 # Not yet on conda
+  # - smafa>=0.6.0 # not yet on conda
+  # - nmslib # optional
   # - pip:
   #   - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
-  #   - scann
+  #   - scann # optional

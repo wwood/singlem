@@ -69,7 +69,7 @@ class Tests(unittest.TestCase):
 
 
     def test_output_profile_naive_then_diamond(self):
-        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --taxonomic-profile-krona /tmp/a.kron.ahtml --assignment-method scann_naive_then_diamond".format(
+        cmd = "{} renew --input-archive-otu-table {}/inseqs.fast_protein.json --taxonomic-profile /dev/stdout --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --taxonomic-profile-krona /tmp/a.kron.ahtml --assignment-method smafa_naive_then_diamond".format(
             path_to_script,
             path_to_data,
             path_to_data)
