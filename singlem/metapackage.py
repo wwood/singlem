@@ -80,6 +80,18 @@ class Metapackage:
 
             contents_hash = json.load(f)
 
+        if not Metapackage.VERSION_KEY in contents_hash:
+            # If the user specifies a .zb directory, acquire the
+            # payload_directory
+            zb_version_key = 'zenodo_backpack_version'
+            if zb_version_key in contents_hash:
+                logging.info("Acquiring SingleM metapackage from Zenodo backpack directory specifid ..")
+                backpack = zenodo_backpack.acquire(
+                    path = metapackage_path)
+                return Metapackage.acquire(backpack.payload_directory_string())
+            else:
+                raise Exception("SingleM metapackage directory does not contain a {} key, and it also does not appear to be a ZenodoBackpack directory".format(Metapackage.VERSION_KEY))
+
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
