@@ -18,8 +18,8 @@ jobs:
           activate-environment: test
           environment-file: singlem.yml
           python-version: 3.9
-          auto-activate-base: false
-          mamba-version: "*"
+          # auto-activate-base: false
+          # mamba-version: "*" # Appears to be broken as of writing.
           channels: conda-forge,defaults,bioconda
       - run: |
           conda info
