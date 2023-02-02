@@ -400,6 +400,8 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                proc.stderr.close()
+
                 logging.info("Loading taxonomy table ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
@@ -462,6 +464,7 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                proc.stderr.close()
 
                 #################################################################
                 logging.info("Importing OTU table into SQLite ..")
@@ -537,6 +540,7 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                proc.stderr.close()
 
                 logging.info("Creating protein sequence data for import ..")
                 # Write a file with unique protein IDs, and the join table between nuc and prot
