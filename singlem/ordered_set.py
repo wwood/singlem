@@ -1,8 +1,6 @@
-# This entire file was taken from http://code.activestate.com/recipes/576694/
+# This entire file was modified from http://code.activestate.com/recipes/576694/
 
-import collections
-
-class OrderedSet(collections.MutableSet):
+class OrderedSet():
 
     def __init__(self, iterable=None):
         self.end = end = []
