@@ -10,7 +10,7 @@ import tempfile
 
 class OrfMUtils:
     def un_orfm_name(self, name):
-        return re.sub('_\d+_\d+_\d+$', '', name)
+        return re.sub(r'_\d+_\d+_\d+$', '', name)
 
 
 class TaxonomyFile:

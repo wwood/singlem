@@ -1647,7 +1647,7 @@ class SingleMPipeTaxonomicAssignmentResult:
         return os.path.join(self._graftm_output_directory,
                             '%s/%s' % (
                                 singlem_package.graftm_package_basename(),
-                                re.sub('\.fasta$','',tmpbase)))
+                                re.sub(r'\.fasta$','',tmpbase)))
 
     def _base_dir1(self, sample_name, singlem_package, tmpbase):
         return os.path.join(

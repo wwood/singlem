@@ -7,7 +7,7 @@ from .pipe_sequence_extractor import ExtractedReads, ExtractedReadSet
 
 class KingfisherSra:
     def _split_regex(self):
-        return re.compile('^(.*)\.([012])$')
+        return re.compile(r'^(.*)\.([012])$')
 
     def split_fasta(self, fasta_path, output_directory):
         '''fasta_path points to a fasta sequence that contains unordered
