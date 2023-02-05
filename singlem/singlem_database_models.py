@@ -6,7 +6,7 @@ import logging
 
 from sqlalchemy import Column, Integer, String, ForeignKey, Float, select, func
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 
 # declarative base class
 Base = declarative_base()
