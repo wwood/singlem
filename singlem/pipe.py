@@ -634,7 +634,8 @@ class SearchPipe:
                         DIAMOND_ASSIGNMENT_METHOD,
                         ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                        NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                        SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,):
                             best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
                             taxonomies = {}
                             equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
@@ -717,7 +718,8 @@ class SearchPipe:
                         ANNOY_ASSIGNMENT_METHOD,
                         ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                        NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
+                        SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
                     assignment_methods))
 
@@ -1150,19 +1152,22 @@ class SearchPipe:
             ANNOY_ASSIGNMENT_METHOD,
             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
             SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-            NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
 
             logging.info("Assigning taxonomy by singlem query ..")
             # Import here so the query imports (which include TensorFlow, which
             # is slow to load) don't slow down other assignment / no assignment
             from .pipe_taxonomy_assigner_by_query import PipeTaxonomyAssignerByQuery
-            from .sequence_database import ANNOY_INDEX_FORMAT, SCANN_INDEX_FORMAT, NAIVE_INDEX_FORMAT
+            from .sequence_database import ANNOY_INDEX_FORMAT, SCANN_INDEX_FORMAT, SCANN_NAIVE_INDEX_FORMAT, SMAFA_NAIVE_INDEX_FORMAT
             if assignment_method in (ANNOY_ASSIGNMENT_METHOD, ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD):
                 method = ANNOY_INDEX_FORMAT
             elif assignment_method == SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD:
                 method = SCANN_INDEX_FORMAT
-            elif assignment_method == NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD:
-                method = NAIVE_INDEX_FORMAT
+            elif assignment_method == SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD:
+                method = SCANN_NAIVE_INDEX_FORMAT
+            elif assignment_method == SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD:
+                method = SMAFA_NAIVE_INDEX_FORMAT
             else:
                 raise Exception("Programming error")
             query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy(
@@ -1187,7 +1192,8 @@ class SearchPipe:
                     if assignment_method in (
                         ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                        NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                        SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                        SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
 
                         # Only assign taxonomy to the sequences that are
                         # still "unknown" after the query.
@@ -1196,6 +1202,7 @@ class SearchPipe:
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 0)],
                             [u for u in readset[1].unknown_sequences if not \
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1)]]
+
                         if len(still_unknown_sequences[0] + still_unknown_sequences[1]) > 0:
                             logging.info("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({}% and {}%) for sample {}, package {}".format(
                                 len(still_unknown_sequences[0]), len(still_unknown_sequences[1]),
@@ -1249,7 +1256,8 @@ class SearchPipe:
                         if assignment_method in (
                             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                             SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                            NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
 
                             # Only assign taxonomy to the sequences that are
                             # still "unknown" after the query.
@@ -1277,7 +1285,8 @@ class SearchPipe:
                     DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                     ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                    SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                     
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
                         # Running DIAMOND from here uses too much RAM when there
@@ -1332,7 +1341,8 @@ class SearchPipe:
                                     DIAMOND_ASSIGNMENT_METHOD,
                                     ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                                     SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                                    NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                                    SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                                    SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
                                     for (query, best_hit_ids) in chunk_best_hits.items():
                                         best_hits[query] = best_hit_ids
                                 else:
@@ -1427,7 +1437,8 @@ class SearchPipe:
         elif assignment_method in (
             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
             SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-            NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
             return QueryThenDiamondTaxonomicAssignmentResult(
                 query_based_assignment_result, 
                 DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs),
@@ -1636,7 +1647,7 @@ class SingleMPipeTaxonomicAssignmentResult:
         return os.path.join(self._graftm_output_directory,
                             '%s/%s' % (
                                 singlem_package.graftm_package_basename(),
-                                re.sub('\.fasta$','',tmpbase)))
+                                re.sub(r'\.fasta$','',tmpbase)))
 
     def _base_dir1(self, sample_name, singlem_package, tmpbase):
         return os.path.join(

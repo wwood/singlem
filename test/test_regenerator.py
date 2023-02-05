@@ -62,18 +62,27 @@ class Tests(unittest.TestCase):
                     window_position = window_position,
                     output_singlem_package = output_package,
                     sequence_prefix = sequence_prefix,
-                    min_aligned_percent = min_aligned_percent)
+                    min_aligned_percent = min_aligned_percent,
+                    no_further_euks = False)
 
             pkg = SingleMPackage.acquire(output_package)
             self.assertEqual(window_position, pkg.singlem_position())
 
             # assert sequences and taxonomy have been supplemented with euk sequences, updated and trimmed
-            observed_output_fasta = list(io.open(pkg.graftm_package().unaligned_sequence_database_path()))
-            expected_output_fasta = list(io.open(os.path.join(path_to_data, "regenerate", "output_trimmed.fasta")))
+            # observed_output_fasta = list(io.open(pkg.graftm_package().unaligned_sequence_database_path()))
+            with open(pkg.graftm_package().unaligned_sequence_database_path()) as f:
+                observed_output_fasta = list(f)
+            # expected_output_fasta = list(io.open(os.path.join(path_to_data, "regenerate", "output_trimmed.fasta")))
+            with open(os.path.join(path_to_data, "regenerate", "output_trimmed.fasta")) as f:
+                expected_output_fasta = list(f)
             self.assertListEqual(observed_output_fasta, expected_output_fasta)
 
-            observed_output_seqinfo = list(io.open(pkg.graftm_package().taxtastic_seqinfo_path()))
-            expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
+            # observed_output_seqinfo = list(io.open(pkg.graftm_package().taxtastic_seqinfo_path()))
+            with open(pkg.graftm_package().taxtastic_seqinfo_path()) as f:
+                observed_output_seqinfo = list(f)
+            # expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
+            with open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")) as f:
+                expected_output_seqinfo = list(f)
             self.assertListEqual(observed_output_seqinfo, expected_output_seqinfo)
 
             # assert seed_idx file has been created

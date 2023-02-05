@@ -12,22 +12,18 @@ jobs:
         matrix:
             os: ["ubuntu-latest"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: conda-incubator/setup-miniconda@v2
+      - uses: actions/checkout@v3
+      - uses: conda-incubator/setup-miniconda@v2.2.0
         with:
           activate-environment: test
           environment-file: singlem.yml
           python-version: 3.9
-          auto-activate-base: false
-          mamba-version: "*"
+          # auto-activate-base: false
+          # mamba-version: "*" # Appears to be broken as of writing.
           channels: conda-forge,defaults,bioconda
       - run: |
           conda info
           conda list
       - name: Run pytest
         run: |
-            python test/test_renew.py && \
-            python test/test_metapackage.py && \
-            python test/test_makedb_and_query.py && \
-            python test/test_condense.py && \
-            python test/test_summariser.py
+            pytest test

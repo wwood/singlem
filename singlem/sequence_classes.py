@@ -19,7 +19,7 @@ class AlignedProteinSequence(Sequence):
         return OrfMUtils().un_orfm_name(self.name)
 
     def orfm_nucleotides(self, nucleotide_sequence):
-        m = re.search('_(\d+)_(\d+)_\d+$', self.name)
+        m = re.search(r'_(\d+)_(\d+)_\d+$', self.name)
         start = int(m.groups(0)[0])-1
         translated_seq = nucleotide_sequence[start:(start+3*self.unaligned_length())]
         logging.debug("Returning orfm nucleotides %s" % translated_seq)

@@ -5,6 +5,7 @@ import shutil
 import extern
 import tempfile
 import json
+import pandas as pd
 
 import zenodo_backpack
 
@@ -12,7 +13,7 @@ from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
-DATA_DEFAULT_VERSION = '3.0.5'
+DATA_DEFAULT_VERSION = '3.1.0'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
 DATA_DOI = '10.5281/zenodo.5739611'
 
@@ -26,8 +27,9 @@ class Metapackage:
     SINGLEM_PACKAGES = 'singlem_packages'
     NUCLEOTIDE_SDB = 'nucleotide_sdb'
     SQLITE_DB_PATH_KEY = 'sqlite_db_path_key'
+    TAXON_GENOME_LENGTHS_KEY = 'taxon_genome_lengths'
 
-    _CURRENT_FORMAT_VERSION = 3
+    _CURRENT_FORMAT_VERSION = 4
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -38,6 +40,13 @@ class Metapackage:
                         PREFILTER_DB_PATH_KEY,
                         NUCLEOTIDE_SDB,
                         SQLITE_DB_PATH_KEY,
+                        ],
+                    '4': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_KEY,
                         ],
                       }
 
@@ -71,10 +80,22 @@ class Metapackage:
 
             contents_hash = json.load(f)
 
+        if not Metapackage.VERSION_KEY in contents_hash:
+            # If the user specifies a .zb directory, acquire the
+            # payload_directory
+            zb_version_key = 'zenodo_backpack_version'
+            if zb_version_key in contents_hash:
+                logging.info("Acquiring SingleM metapackage from Zenodo backpack directory specifid ..")
+                backpack = zenodo_backpack.acquire(
+                    path = metapackage_path)
+                return Metapackage.acquire(backpack.payload_directory_string())
+            else:
+                raise Exception("SingleM metapackage directory does not contain a {} key, and it also does not appear to be a ZenodoBackpack directory".format(Metapackage.VERSION_KEY))
+
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v not in (1,2,3):
+        if v not in (1,2,3,4):
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -93,6 +114,13 @@ class Metapackage:
             else:
                 # singlem metapackage was invoked with --no-nucleotide-sdb
                 mpkg._nucleotide_sdb_path = None
+        if v >= 4:
+            if contents_hash[Metapackage.TAXON_GENOME_LENGTHS_KEY] is not None:
+                mpkg._taxon_genome_lengths_path = os.path.join(metapackage_path, contents_hash[Metapackage.TAXON_GENOME_LENGTHS_KEY])
+            else:
+                # singlem metapackage was invoked with --no-taxon-genome-lengths
+                mpkg._taxon_genome_lengths_path = None
+
 
         return mpkg
 
@@ -145,6 +173,7 @@ class Metapackage:
         output_path = kwargs.pop('output_path')
         threads = kwargs.pop('threads')
         prefilter_diamond_db = kwargs.pop('prefilter_diamond_db')
+        taxon_genome_lengths_csv = kwargs.pop('taxon_genome_lengths')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -177,6 +206,17 @@ class Metapackage:
         else:
             logging.info("Skipping SingleM db")
             nucleotide_sdb_name = None
+
+        # Copy taxon genome lengths csv into output directory
+        if taxon_genome_lengths_csv:
+            taxon_genome_lengths_csv_abspath = os.path.abspath(taxon_genome_lengths_csv)
+            taxon_genome_lengths_csv_name = os.path.basename(taxon_genome_lengths_csv_abspath)
+            taxon_genome_lengths_csv_path = os.path.join(output_path, taxon_genome_lengths_csv_name)
+            logging.info("Copying taxon genome lengths csv {} to {} ..".format(taxon_genome_lengths_csv, taxon_genome_lengths_csv_path))
+            shutil.copy(taxon_genome_lengths_csv, taxon_genome_lengths_csv_path)
+        else:
+            logging.info("Skipping taxon genome lengths csv")
+            taxon_genome_lengths_csv_name = None
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -218,11 +258,12 @@ class Metapackage:
         MetapackageReadNameStore.generate(
             singlem_packages, sqlitedb_path)
 
-        contents_hash = {Metapackage.VERSION_KEY: 3,
+        contents_hash = {Metapackage.VERSION_KEY: 4,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
                         Metapackage.SQLITE_DB_PATH_KEY: os.path.basename(sqlitedb_path),
+                        Metapackage.TAXON_GENOME_LENGTHS_KEY: taxon_genome_lengths_csv_name,
                         }
 
         # save contents file
@@ -344,3 +385,11 @@ class Metapackage:
             # Happens when version < 3 or metapackage created from spkgs directly
             return None
         return path
+
+    def taxon_genome_lengths(self):
+        try:
+            tsv = self._taxon_genome_lengths_path
+        except AttributeError:
+            # Happens when version < 3 or metapackage created from spkgs directly
+            return None
+        return pd.read_csv(tsv, sep='\t')

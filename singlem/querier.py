@@ -2,12 +2,12 @@ import tempfile
 import logging
 import subprocess
 import sys
-from Bio import pairwise2
 import numpy as np
 import csv
 import pandas as pd
 import itertools
 import math
+import extern
 from bird_tool_utils import iterable_chunks
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -63,50 +63,78 @@ class Querier:
         else:
             raise Exception("Programming error")
 
-    def preload_nucleotide_db(self, sdb, marker_id):
+    def preload_nucleotide_db(self, sdb, marker_id, limit_per_sequence):
         with Session(sdb.sqlalchemy_connection) as conn:
             marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
             logging.info("Caching nucleotide data for marker {}..".format(marker_name))
 
-            query = select([
+            query = select(
                 Otu.marker_wise_sequence_id,
                 Otu.sequence,
                 Otu.sample_name,
                 Otu.num_hits,
                 Otu.coverage,
-                Taxonomy.taxonomy]) \
+                Taxonomy.taxonomy) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id)
             result = conn.execute(query)
-            d1 = pd.DataFrame(result.fetchall(), 
+            current_preloaded_db = pd.DataFrame(result.fetchall(), 
                 columns = ('nucleotides_marker_wise_id','nucleotide_sequence', \
                     'sample_name', 'num_hits', 'coverage', 'taxonomy'))
-        return d1
 
-    def preload_protein_db(self, sdb, marker_id):
+        loaded = PreloadedDB()
+        loaded.indices = pd.Series(
+            current_preloaded_db.groupby('nucleotides_marker_wise_id').indices)
+        loaded.sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
+        loaded.count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
+        loaded.sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
+        loaded.coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
+        loaded.taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
+
+        del current_preloaded_db # Maybe not necessary, but just in case
+
+        if limit_per_sequence: loaded.limit_per_sequence(limit_per_sequence)
+
+        return loaded
+
+    def preload_protein_db(self, sdb, marker_id, limit_per_sequence):
         with Session(sdb.sqlalchemy_connection) as conn:
             marker_name = conn.execute(select(Marker.marker).where(Marker.id==marker_id)).fetchone()[0]
             logging.info("Caching protein data for marker {}..".format(marker_name))
 
-            query = select([
+            query = select(
                 ProteinSequence.marker_wise_id,
                 Otu.sequence,
                 ProteinSequence.protein_sequence,
                 Otu.sample_name,
                 Otu.num_hits,
                 Otu.coverage,
-                Taxonomy.taxonomy]) \
+                Taxonomy.taxonomy) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id) \
                     .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
                     .where(NucleotidesProteins.protein_id == ProteinSequence.id)
             result = conn.execute(query)
-            d1 = pd.DataFrame(result.fetchall(), 
+            current_preloaded_db = pd.DataFrame(result.fetchall(), 
                 columns = ('proteins_marker_wise_id','nucleotide_sequence','protein_sequence', \
                 'sample_name', 'num_hits', 'coverage', 'taxonomy'))
-        return d1
 
+        loaded = PreloadedDB()
+        loaded.indices = pd.Series(
+            current_preloaded_db.groupby('proteins_marker_wise_id').indices)
+        loaded.sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
+        loaded.count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
+        loaded.sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
+        loaded.coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
+        loaded.taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
 
+        loaded.protein_sequence = current_preloaded_db.xs('protein_sequence',axis=1).to_numpy()
+
+        del current_preloaded_db # Maybe not necessary, but just in case
+
+        if limit_per_sequence: loaded.limit_per_sequence(limit_per_sequence)
+
+        return loaded
 
 
     def prepare_query_sequences(self, otus, num_threads):
@@ -144,7 +172,7 @@ class Querier:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
             return self.query_by_sqlite(queries, sdb)
-        elif search_method == 'naive' or search_method == 'scann-naive':
+        elif search_method == 'scann-naive':
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=True, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         elif search_method == 'annoy':
@@ -160,6 +188,9 @@ class Querier:
         elif search_method == 'scann':
             return self.query_by_sequence_similarity_with_scann(
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
+        elif search_method == 'smafa-naive':
+            return self.query_by_sequence_similarity_with_smafa_naive(
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -179,11 +210,11 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                query = select([Marker.id]).where(Marker.marker == last_marker)
+                query = select(Marker.id).where(Marker.marker == last_marker)
                 m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
-                last_marker_id = m['id']
+                last_marker_id = m.id
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_protein_sequence = None
@@ -226,38 +257,20 @@ class Querier:
             if index is None:
                 raise Exception("The marker '{}' does not appear to be '{}' indexed in the singlem db".format(marker, index_format))
             logging.info("Querying index for {}".format(marker))
-            query = select([Marker.id]).where(Marker.marker == marker)
+            query = select(Marker.id).where(Marker.marker == marker)
             m = sdb.sqlalchemy_connection.execute(query).first()
             if m is None:
                 raise Exception("Marker {} not in the SQL DB".format(marker))
-            marker_id = m['id']
+            marker_id = m.id
 
             # Preload DB if needed
             if preload_db:
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                    current_preloaded_db = self.preload_nucleotide_db(sdb, marker_id)
-                    current_preloaded_db_indices = pd.Series(
-                        current_preloaded_db.groupby('nucleotides_marker_wise_id').indices)
+                    preloaded_db = self.preload_nucleotide_db(sdb, marker_id, limit_per_sequence)
                 elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    current_preloaded_db = self.preload_protein_db(sdb, marker_id)
-                    current_preloaded_db_indices = pd.Series(
-                        current_preloaded_db.groupby('proteins_marker_wise_id').indices)
+                    preloaded_db = self.preload_protein_db(sdb, marker_id, limit_per_sequence)
                 else:
                     raise Exception("Unexpected sequence_type")
-                # Convert everything to numpy arrays for speedier indexing than iloc
-                current_preloaded_db_sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
-                current_preloaded_db_count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
-                current_preloaded_db_sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
-                current_preloaded_db_coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
-                current_preloaded_db_taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
-                if sequence_type == SequenceDatabase.PROTEIN_TYPE:
-                    current_preloaded_db_protein_sequence = current_preloaded_db.xs('protein_sequence',axis=1).to_numpy()
-                del current_preloaded_db
-                # current_preloaded_db_count = current_preloaded_db_indices
-                if limit_per_sequence:
-                    # shuffle and truncate once up front
-                    current_preloaded_db_indices.apply(np.random.shuffle)
-                    current_preloaded_db_indices = pd.Series([a[:limit_per_sequence] for a in current_preloaded_db_indices])
 
             # When scann DB is absent due to too few seqs
             if index is None:
@@ -294,44 +307,27 @@ class Querier:
                         else:
                             div = round((1.0-float(dist))*len(query_protein_sequences[0])) # Not sure why this is necessary, why doesn't it return a real distance?
 
-                        ## DEBUG if statement
-                        # if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                        #     if current_preloaded_db is not None:
-                        #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].nucleotide_sequence
-                        #     else:
-                        #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence))[0].nucleotide_sequence
-                        #     if div != self.divergence(q.sequence, subject_seq):
-                        #         import IPython; IPython.embed()
-                        # else:
-                        #     if current_preloaded_db is not None:
-                        #         subject_seq = list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence
-                        #         # print(query_protein_sequence, list(current_preloaded_db.loc[[hit_index]].iterrows())[0][1].protein_sequence, div)
-                        #     else:
-                        #         subject_seq = list(self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, query_protein_sequence=query_protein_sequence))[0].subject_protein_sequence
-                        #     if div != self.divergence(query_protein_sequence, subject_seq):
-                        #         import IPython; IPython.embed()
-
                         if max_divergence is None or div <= max_divergence:
                             if preload_db:
                                 hit_index = int(hit_index) # Needed only for tiny databases?
-                                if hit_index <= 16 and hit_index >= len(current_preloaded_db_indices):
+                                if hit_index <= 16 and hit_index >= len(preloaded_db.indices):
                                     logging.debug("Skipping hit index {} because it is out of bounds, so a dummy entry".format(hit_index))
                                     continue
-                                for entry_i in current_preloaded_db_indices.iat[hit_index]:
+                                for entry_i in preloaded_db.indices.iat[hit_index]:
                                     otu = OtuTableEntry()
                                     otu.marker = marker
-                                    otu.sample_name = current_preloaded_db_sample_name[entry_i]
-                                    otu.count = current_preloaded_db_count[entry_i]
-                                    otu.sequence = current_preloaded_db_sequence[entry_i]
-                                    otu.coverage = current_preloaded_db_coverage[entry_i]
-                                    otu.taxonomy = current_preloaded_db_taxonomy[entry_i]
+                                    otu.sample_name = preloaded_db.sample_name[entry_i]
+                                    otu.count = preloaded_db.count[entry_i]
+                                    otu.sequence = preloaded_db.sequence[entry_i]
+                                    otu.coverage = preloaded_db.coverage[entry_i]
+                                    otu.taxonomy = preloaded_db.taxonomy[entry_i]
                                     if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                                         yield QueryResult(q, otu, div)
                                     else:
                                         yield QueryResult(
                                             q, otu, div, 
                                             query_protein_sequence=query_protein_sequences[i],
-                                            subject_protein_sequence=current_preloaded_db_protein_sequence[entry_i])
+                                            subject_protein_sequence=preloaded_db.protein_sequence[entry_i])
                             else:
                                 for qres in self.query_result_from_db(sdb, q, sequence_type, hit_index, marker, marker_id, div, 
                                     query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
@@ -341,6 +337,115 @@ class Querier:
                             num_reported += 1
                             if num_reported >= max_nearest_neighbours:
                                 break
+
+    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None):
+        logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
+
+        for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
+            index = sdb.get_sequence_index(marker, sequence_database.SMAFA_NAIVE_INDEX_FORMAT, sequence_type)
+            if index is None:
+                raise Exception("The marker '{}' does not appear to be 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
+            logging.info("Querying index for {}".format(marker))
+            query = select(Marker.id).where(Marker.marker == marker)
+            m = sdb.sqlalchemy_connection.execute(query).first()
+            if m is None:
+                raise Exception("Marker {} not in the SQL DB".format(marker))
+            marker_id = m.id
+
+            # Preload DB if needed
+            if preload_db:
+                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    preloaded_db = self.preload_nucleotide_db(sdb, marker_id, limit_per_sequence)
+                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    preloaded_db = self.preload_protein_db(sdb, marker_id, limit_per_sequence)
+                else:
+                    raise Exception("Unexpected sequence_type")
+            
+            # Actually do searches, in batches
+            for chunked_queries1 in iterable_chunks(marker_queries, 1000):
+                chunked_queries = list([a for a in chunked_queries1 if a is not None]) # Remove trailing Nones from the iterable
+
+                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                    pass
+                elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                    raise NotImplementedError("SMAFA NAIVE does not support protein sequences yet")
+                else:
+                    raise Exception("Unexpected sequence_type")
+
+                # Previous version of this code piped the fasta file via STDIN,
+                # but this ran into deadlock problems e.g. singlem query
+                # --query-archive-otu-tables <(zcat
+                # from_s3/us-west-2/sra_20211215_7_sample50000/singlem-err1193301-m82rp-ERR1193301/ERR1193301.annotated.singlem.json.gz)
+                # --db
+                # ~/m/msingle/sam/otu_tables/S3.0.5.metapackage20220806/NCBI_r215.sdb
+                #
+                # So instead just write the output to a temporary file, using
+                # extern rather than Popen.
+                smafa_args = ""
+                if max_divergence is not None:
+                    smafa_args += " --max-divergence {}".format(max_divergence)
+                if max_nearest_neighbours is not None:
+                    smafa_args += " --max-num-hits {}".format(max_nearest_neighbours)
+                smafa_cmd = 'smafa query --database \'{}\' --query /dev/stdin {}'.format(
+                    index, smafa_args)
+                smafa_stdout = extern.run(smafa_cmd, stdin='\n'.join([">{}\n{}".format(i, q.sequence) for i, q in enumerate(chunked_queries)]))
+
+                if not preload_db:
+                    batch_for_db_queries = []
+                    batch_for_db_hit_indices = []
+                    batch_for_db_divs = []
+
+                # Read the output
+                previous_query_index = None
+                previous_query_index_num_reported = 0
+                for line in smafa_stdout.splitlines():
+                    splits = line.strip().split("\t")
+                    if len(splits) != 4:
+                        raise Exception("Unexpected output from smafa: {}".format(line))
+                    query_index_str, hit_index, div_str, _ = splits
+                    query_index = int(query_index_str)
+                    hit_index = int(hit_index)
+                    div = int(div_str)
+
+                    if query_index == previous_query_index:
+                        if previous_query_index_num_reported > max_nearest_neighbours:
+                            continue
+                        previous_query_index_num_reported += 1
+                    else:
+                        previous_query_index_num_reported = 0
+                        previous_query_index = query_index
+
+                    if preload_db:
+                        for entry_i in preloaded_db.indices.iat[hit_index]:
+                            otu = OtuTableEntry()
+                            otu.marker = marker
+                            otu.sample_name = preloaded_db.sample_name[entry_i]
+                            otu.count = preloaded_db.count[entry_i]
+                            otu.sequence = preloaded_db.sequence[entry_i]
+                            otu.coverage = preloaded_db.coverage[entry_i]
+                            otu.taxonomy = preloaded_db.taxonomy[entry_i]
+                            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                                yield QueryResult(chunked_queries[query_index], otu, div)
+                            else:
+                                # Below not actually used - smafa doesn't handle proteins (yet)
+                                yield QueryResult(
+                                    chunked_queries[query_index], otu, div, 
+                                    query_protein_sequence=query_protein_sequences[i],
+                                    subject_protein_sequence=preloaded_db.protein_sequence[entry_i])
+                    else:
+                        # Query in batch as this should be faster than doing individually
+                        batch_for_db_queries.append(chunked_queries[query_index])
+                        batch_for_db_hit_indices.append(hit_index)
+                        batch_for_db_divs.append(div)
+
+                if not preload_db:
+                    for qres in self.query_result_batch_from_db(sdb, batch_for_db_queries, sequence_type, batch_for_db_hit_indices, 
+                        marker, marker_id, batch_for_db_divs, 
+                        query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                        limit_per_sequence=limit_per_sequence):
+
+                        yield qres
+
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
@@ -359,11 +464,11 @@ class Querier:
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
                 logging.info("Querying index for {}".format(last_marker))
-                query = select([Marker.id]).where(Marker.marker == last_marker)
+                query = select(Marker.id).where(Marker.marker == last_marker)
                 m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
                     raise Exception("Marker {} not in the SQL DB".format(last_marker))
-                last_marker_id = m['id']
+                last_marker_id = m.id
 
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 query_protein_sequence = None
@@ -400,13 +505,13 @@ class Querier:
                 yield QueryResult(query, otu, div)
 
         elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
-            query2 = select([
+            query2 = select(
                 Otu.sequence,
                 ProteinSequence.protein_sequence,
                 Otu.sample_name,
                 Otu.num_hits,
                 Otu.coverage,
-                Otu.taxonomy_id]) \
+                Otu.taxonomy_id) \
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id) \
                     .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
@@ -426,12 +531,51 @@ class Querier:
                 for entry in results:
                     otu = OtuTableEntry()
                     otu.marker = marker
-                    otu.sample_name = entry['sample_name']
-                    otu.sequence = entry['sequence']
-                    otu.count = entry['num_hits']
-                    otu.coverage = entry['coverage']
-                    otu.taxonomy = sdb.get_taxonomy_via_cache(entry['taxonomy_id'])
-                    yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry['protein_sequence'])
+                    otu.sample_name = entry.sample_name
+                    otu.sequence = entry.sequence
+                    otu.count = entry.num_hits
+                    otu.coverage = entry.coverage
+                    otu.taxonomy = sdb.get_taxonomy_via_cache(entry.taxonomy_id)
+                    yield QueryResult(query, otu, div, query_protein_sequence=query_protein_sequence, subject_protein_sequence=entry.protein_sequence)
+        else:
+            raise Exception("unknown sequence_type")
+
+    def query_result_batch_from_db(self, sdb, queries, sequence_type, hit_indexes, marker, marker_id, 
+        divergences, query_protein_sequence=None, limit_per_sequence=None):
+        '''
+        Like query_result_from_db except arrays of queries, hit_indexes, and
+        divergences are passed in, so that only one SQL query is needed.
+        '''
+        
+        if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+            query2 = select(
+                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id, Otu.marker_wise_sequence_id
+            ).filter(Otu.marker_wise_sequence_id.in_(set([int(h) for h in hit_indexes]))
+            ).where(Otu.marker_id == int(marker_id))
+
+            hits = {}
+            for row in sdb.sqlalchemy_connection.execute(query2):
+                otu = OtuTableEntry()
+                otu.marker = marker
+                otu.sample_name = row.sample_name
+                otu.count = row.num_hits
+                otu.sequence = row.sequence
+                otu.coverage = row.coverage
+                otu.taxonomy = sdb.get_taxonomy_via_cache(row.taxonomy_id)
+                if row.marker_wise_sequence_id not in hits:
+                    hits[row.marker_wise_sequence_id] = [otu]
+                else:
+                    hits[row.marker_wise_sequence_id].append(otu)
+
+            for query, hit_index, div in zip(queries, hit_indexes, divergences):
+                for i, hit_otu in enumerate(hits[int(hit_index)]):
+                    if limit_per_sequence is not None and i >= limit_per_sequence:
+                        break
+                    yield QueryResult(query, hit_otu, div)
+
+        elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+            raise Exception("batch queries not supported for protein sequences (yet)")
+
         else:
             raise Exception("unknown sequence_type")
 
@@ -462,14 +606,14 @@ class Querier:
 
         for chunk in iterable_chunks(seqs, max_set_size):
             with db.engine.connect() as connection:
-                stmt = select([
+                stmt = select(
                     Otu.sample_name,
                     Otu.num_hits,
                     Otu.coverage,
                     Otu.taxonomy_id,
                     NucleotideSequence.sequence,
                     Marker.marker,
-                    ]).select_from(Otu).join(NucleotideSequence).join(Marker).filter(NucleotideSequence.sequence.in_([seq for seq in chunk if seq is not None]))
+                    ).select_from(Otu).join(NucleotideSequence).join(Marker).filter(NucleotideSequence.sequence.in_([seq for seq in chunk if seq is not None]))
                 for entry in connection.execute(stmt):
                     for qid in sequence_to_query_id[entry.sequence]:
                         otu = OtuTableEntry()
@@ -511,12 +655,12 @@ class Querier:
 
             for entry in db.sqlalchemy_connection.execute(query):
                 otu = OtuTableEntry()
-                otu.marker = db.get_marker_via_cache(entry['marker_id'])
-                otu.sample_name = entry['sample_name']
-                otu.sequence = entry['sequence']
-                otu.count = entry['num_hits']
-                otu.coverage = entry['coverage']
-                otu.taxonomy = db.get_taxonomy_via_cache(entry['taxonomy_id'])
+                otu.marker = db.get_marker_via_cache(entry.marker_id)
+                otu.sample_name = entry.sample_name
+                otu.sequence = entry.sequence
+                otu.count = entry.num_hits
+                otu.coverage = entry.coverage
+                otu.taxonomy = db.get_taxonomy_via_cache(entry.taxonomy_id)
                 otus.add([otu])
                 total_printed += 1
             otus.write_to(output_io, print_header=first_chunk)
@@ -558,3 +702,30 @@ class MarkerSortedQueryInput:
     def __del__(self):
         self._original_io.close()
         self._reopened_io.close()
+
+class PreloadedDB:
+    ''' Simple container class for preloaded database '''
+
+    def __init__(self):
+        # loaded.indices = pd.Series(
+        #     current_preloaded_db.groupby('proteins_marker_wise_id').indices)
+        # loaded.sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
+        # loaded.count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
+        # loaded.sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
+        # loaded.coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
+        # loaded.taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
+        self.indices = None
+        self.sample_name = None
+        self.count = None
+        self.sequence = None
+        self.coverage = None
+        self.taxonomy = None
+
+        # loaded.protein_sequence = current_preloaded_db.xs('protein_sequence',axis=1).to_numpy()
+        self.protein_sequence = None
+
+    def limit_per_sequence(self, limit_per_sequence):
+        ''' shuffle and truncate once up front '''
+        self.indices.apply(np.random.shuffle)
+        self.indices = pd.Series([a[:limit_per_sequence] for a in self.indices])
+        

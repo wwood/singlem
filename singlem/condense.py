@@ -44,8 +44,8 @@ class Condenser:
             logging.info("Using default set of SingleM packages.")
             metapackage = Metapackage.acquire_default()
             
-        if metapackage.version != 3:
-            raise Exception("Condense function now only works with version 3 metapackages.")
+        if metapackage.version < 3:
+            raise Exception("Condense function now only works with version 3+ metapackages.")
 
         # Yield once per sample
         to_yield = self._condense_to_otu_table(metapackage, **kwargs)

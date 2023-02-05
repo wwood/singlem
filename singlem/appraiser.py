@@ -9,6 +9,7 @@ from .otu_table_collection import OtuTableCollection
 from .appraisal_result import Appraisal, AppraisalResult
 from .querier import Querier
 from .sequence_database import SequenceDatabase
+from .sequence_database import SMAFA_NAIVE_INDEX_FORMAT
 from .condense import _tmean
 
 class Appraiser:
@@ -117,13 +118,16 @@ class Appraiser:
         '''
         if sequence_identity:
             max_divergence = window_size * (1 - sequence_identity)
+            # max divergence must be a whole number, and we round down
+            max_divergence = int(max_divergence)
         else:
             max_divergence = 0
+        logging.debug("Using max divergence of %i for appraising" % max_divergence)
 
         tmp = tempfile.TemporaryDirectory()
         sdb_path = os.path.join(tmp.name, "tmp.sdb")
         sequence_database = SequenceDatabase()
-        sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = ['naive'])
+        sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         found_genes = [table.marker for table in found_otu_collection]
@@ -137,7 +141,7 @@ class Appraiser:
         metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
-        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, 'naive', SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
+        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
 
         sample_to_building_block = {}
         for hit in queries:

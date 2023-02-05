@@ -92,11 +92,12 @@ if __name__ == '__main__':
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
-        current_default = pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
+        current_default = pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
         argument_group.add_argument(
             '--assignment-method', '--assignment_method',
             choices=(
-                    pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_ASSIGNMENT_METHOD,
@@ -106,9 +107,10 @@ if __name__ == '__main__':
             help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) + 
                 table_roff([
                     ["Method", "Description"],
-                    [pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
-                    [pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.".format(pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
-                    [pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using SCANN rather than using brute force. Requires a non-standard metapackage.".format(pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
+                    [pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
+                    [pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
+                    [pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
+                    [pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using SCANN rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
                     [pipe.DIAMOND_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU."],
                     [pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy."],
                     [pipe.ANNOY_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage."],
@@ -209,7 +211,7 @@ if __name__ == '__main__':
     appraise_otu_table_options.add_argument('--genome-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on genomes")
     appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_otu_table_options.add_argument('--assembly-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on assembled sequence")
-    appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables', required=True)
+    appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
     appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~genus level divergence i.e. %s]" % GENUS_LEVEL_AVERAGE_IDENTITY, default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -250,12 +252,12 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--db', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
     makedb_other_args.add_argument('--threads', help='Use this many threads where possible [default 1]')
-    current_default = ['naive']
+    current_default = ['smafa-naive']
     makedb_other_args.add_argument('--sequence-database-methods',
         nargs='+',
-        choices = ['annoy','scann','nmslib','naive','none'],
+        choices = ['smafa-naive','annoy','scann','nmslib','scann-naive','none'],
         default = current_default,
-        help='Index sequences using these methods. Note that specifying "naive" means "scann" databases will also be built [default {}]'.format(current_default))
+        help='Index sequences using these methods. Note that specifying "scann-naive" means "scann" databases will also be built [default {}]'.format(current_default))
     current_default = ['nucleotide']
     makedb_other_args.add_argument('--sequence-database-types', help='Index sequences using these types. [default: {}]'.format(current_default), nargs='+', default=['nucleotide'], choices=['nucleotide','protein'])
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
@@ -278,13 +280,13 @@ if __name__ == '__main__':
     current_default = 20
     query_otu_args.add_argument('--max-nearest-neighbours', help="How many nearest neighbours to report. Each neighbour is a distinct sequence from the DB. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
-    current_default = 'naive'
-    query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['nmslib','annoy','naive','scann'])
+    current_default = 'smafa-naive'
+    query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['smafa-naive','nmslib','annoy','scann','scann-naive'])
     current_default = 'nucleotide'
     query_otu_args.add_argument('--sequence-type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
         choices=['nucleotide','protein'])
     current_default = 100
-    query_otu_args.add_argument('--max-search-nearest-neighbours', help="How many nearest neighbours to search for with approximate nearest neighbours. Of these hits, only --max-nearest-neighbours will actually be reported. Ignored for --search-method naive. [default: {}]".format(current_default), type=int, default=current_default)
+    query_otu_args.add_argument('--max-search-nearest-neighbours', help="How many nearest neighbours to search for with approximate nearest neighbours. Of these hits, only --max-nearest-neighbours will actually be reported. Ignored for --search-method naive and scann-naive. [default: {}]".format(current_default), type=int, default=current_default)
     # query_otu_args.add_argument('--stream-output','--stream_output', help='Stream output. Results may not be sorted by divergence [default: do not]', action='store_true')
     current_default = 1
     query_otu_args.add_argument('--threads', help='Use this many threads where possible [default %i]' % current_default, default=current_default)
@@ -331,6 +333,17 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     summarise_output_args.add_argument('--unaligned-sequences-dump-file',
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads, but ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
+
+    read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. phages and eukaryotes.'
+    read_fraction_parser = bird_argparser.new_subparser('read_fraction', read_fraction_description, parser_group='Tools')
+    read_fraction_io_args = read_fraction_parser.add_argument_group('input')
+    read_fraction_io_args.add_argument('-p', '--input-profile', help="Input taxonomic profile file", required=True)
+    read_fraction_io_args.add_argument('--input-metagenome-sizes', help="TSV file with 'sample' and 'num_bases' as a header, where sample matches the input profile name, and num_reads is the total number (forward+reverse) of bases in the metagenome that was analysed with 'pipe'.", required=True)
+    # accept_missing_samples
+    read_fraction_io_args.add_argument('--accept-missing-samples', action='store_true', help="If a sample is missing from the input-metagenome-sizes file, skip analysis of it without croaking.")
+    read_fraction_database_args = read_fraction_parser.add_argument_group('database')
+    read_fraction_database_args.add_argument('--taxon-genome-lengths-file', help="TSV file with 'rank' and 'genome_size' as headers")
+    read_fraction_database_args.add_argument('--metapackage', help="Metapackage containing genome lengths")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
@@ -385,6 +398,8 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--singlem-packages', nargs='+', help="Input packages")
     metapackage_parser.add_argument('--nucleotide-sdb', help="Nucleotide SingleM database for initial assignment pass")
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
+    metapackage_parser.add_argument('--taxon-genome-lengths', help="TSV file of genome lengths for each taxon")
+    metapackage_parser.add_argument('--no-taxon-genome-lengths', action='store_true', help="Skip taxon genome lengths")
     metapackage_parser.add_argument('--metapackage', help='Path to write generated metapackage to')
     metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
@@ -818,7 +833,12 @@ if __name__ == '__main__':
                     metagenomes.add_archive_otu_table(f)
 
         logging.info("Removing hits that are not assigned to their target domains")
-        pkgs = Metapackage.acquire(args.metapackage).singlem_packages
+        if args.metapackage:
+            pkgs = Metapackage.acquire(args.metapackage).singlem_packages
+        else:
+            mpkg = Metapackage.acquire_default()
+            pkgs = mpkg.singlem_packages
+
         o2 = OtuTableCollection()
         o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
         metagenomes = o2
@@ -971,9 +991,12 @@ if __name__ == '__main__':
                 raise Exception("Must specify at least one singlem package to create a metapackage")
             if not args.nucleotide_sdb and not args.no_nucleotide_sdb:
                 raise Exception("Must specify --nucleotide-sdb or --no-nucleotide-sdb")
+            if not args.taxon_genome_lengths and not args.no_taxon_genome_lengths:
+                raise Exception("Must specify --taxon-genome-lengths or --no-taxon-genome-lengths")
             Metapackage.generate(
                 singlem_packages = args.singlem_packages,
                 nucleotide_sdb = args.nucleotide_sdb,
+                taxon_genome_lengths = args.taxon_genome_lengths,
                 output_path = args.metapackage,
                 threads = args.threads,
                 prefilter_clustering_threshold = args.prefilter_clustering_threshold,
@@ -1088,166 +1111,14 @@ if __name__ == '__main__':
                 output_directory = args.output_directory,
             )
 
+    elif args.subparser_name=='read_fraction':
+        from singlem.read_fraction import ReadFractionEstimator
+        ReadFractionEstimator().calculate_and_report_read_fraction(
+            input_profile = args.input_profile,
+            metagenome_sizes = args.input_metagenome_sizes,
+            taxonomic_genome_lengths_file = args.taxon_genome_lengths_file,
+            metapackage = args.metapackage,
+            accept_missing_samples = args.accept_missing_samples)
+
     else:
         raise Exception("Programming error")
-
-
-
-# class MyParser(argparse.ArgumentParser):
-#     FULL_HELP_FLAG = 'full-help'
-
-#     PIPE_DEFAULT_ASSIGNMENT_METHOD=pipe.NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
-
-#     def format_help(self):
-#         prog = self.prog
-#         detail_str = 'See %s --%s for further options and further detail.\n' % (
-#             prog,
-#             self.FULL_HELP_FLAG)
-#         splits = prog.split()
-#         if len(splits) == 2:
-#             subcommand = splits[1]
-#         else:
-#             subcommand = None
-#         if subcommand == 'pipe':
-#             help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
-
-# '''+bcolors.HEADER+'Common usage:'+bcolors.ENDC+'''
-
-# With paired read input:
-
-#   singlem pipe --forward <fastq_or_fasta1> --reverse <fastq_or_fasta2> \\
-#     --otu-table <output.otu_table.tsv>
-
-# With unpaired read input:
-
-#   singlem pipe --forward <fastq_or_fasta1> \\
-#     --otu-table <output.otu_table.tsv>
-
-# Or with genomic fasta input sequences:
-
-#   singlem pipe --genome-fasta-files <input_fastq_or_fasta> \\
-#     --otu-table <output.otu_table.tsv>
-
-# '''+bcolors.HEADER+'Popular options:'+bcolors.ENDC+'''
-#   --threads N\t\tUse N threads [default: %s].
-#   --output-extras\tOutput more detailed information in the OTU table.
-#   --assignment-method {%s,%s,%s}\t
-# \t\t\tSpecify taxonomic assignment method [default: %s].
-
-# %s
-# ''' % (pipe.DEFAULT_THREADS,
-#        pipe.PPLACER_ASSIGNMENT_METHOD,
-#        pipe.DIAMOND_ASSIGNMENT_METHOD,
-#        pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-#        self.PIPE_DEFAULT_ASSIGNMENT_METHOD,
-#        detail_str)
-#             return help
-
-#         elif subcommand == 'summarise':
-#             help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
-
-# '''+bcolors.HEADER+'To convert an OTU table into a Krona HTML visualisation:'+bcolors.ENDC+'''
-
-#   singlem summarise --input-otu-tables otu_table.from_pipe.tsv \\
-#             --krona singlem.krona.html
-
-# '''+bcolors.HEADER+'To cluster an OTU table based on 89 percent sequence identity:'+bcolors.ENDC+'''
-
-#   singlem summarise --input-otu-tables otu_table.from_pipe.tsv \\
-#             --cluster --cluster-id 0.89 \\
-#             --output-otu-table clustered.otu_table.tsv
-
-# '''+bcolors.HEADER+'To concatenate several OTU tables together:'+bcolors.ENDC+'''
-
-#   singlem summarise --input-otu-tables \\
-#             otu_table1.from_pipe.tsv otu_table2.from_pipe.tsv \\
-#             --output-otu-table concatenated.otu_table.tsv
-
-# %s
-# ''' % detail_str
-#             return help
-
-#         elif subcommand == 'appraise':
-#             help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
-
-# '''+bcolors.HEADER+'Determine how much of a metagenome is represented by some genomes:'+bcolors.ENDC+'''
-
-#   singlem appraise --metagenome-otu-tables otu_table.from_pipe_on_reads.tsv \\
-#             --genome-otu-tables otu_table.from_pipe_on_genomes.tsv
-
-# '''+bcolors.HEADER+'Determine how much of a metagenome is represented by an assembly:'+bcolors.ENDC+'''
-
-#   singlem appraise --metagenome-otu-tables otu_table.from_pipe_on_reads.tsv \\
-#             --assembly-otu-tables otu_table.from_pipe_on_assembly.tsv
-
-# '''+bcolors.HEADER+\
-#     'Visualise which OTUs have been assembled or binned.'+bcolors.ENDC+ \
-# ''' One marker gene is chosen
-# for visualisation, the one best represents the fraction binned, assembled or
-# otherwise. To interpret these visualisations, see the description in the README
-# at
-# https://github.com/wwood/singlem#appraising-assembly-and-genome-recovery-efforts
-
-#   singlem appraise --metagenome-otu-tables otu_table.from_pipe_on_reads.tsv \\
-#             --assembly-otu-tables otu_table.from_pipe_on_assembly.tsv \\
-#             --genome-otu-tables otu_table.from_pipe_on_genomes.tsv \\
-#             --plot singlem_appraise.svg
-
-# %s
-# ''' % detail_str
-#             return help
-
-#         elif subcommand == 'makedb':
-#             help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
-
-# '''+bcolors.HEADER+'Generate a queryable database from an OTU table:'+bcolors.ENDC+'''
-
-#   singlem makedb --db my.sdb --otu-table otu_table.from_pipe.tsv
-
-# %s
-# ''' % detail_str
-#             return help
-
-#         elif subcommand == 'query':
-#             help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
-
-# '''+bcolors.HEADER+'Query a database via an OTU sequence:'+bcolors.ENDC+'''
-
-#   singlem query --db my.sdb --query-sequence \\
-#             AAAGACAATCACAGCCGGCGTGGCCTGCTGATGTTGGTTGGCCAACGCAAGAAACTCCTC
-
-# '''+bcolors.HEADER+'Query a database with all entries in an OTU table:'+bcolors.ENDC+'''
-
-#   singlem query --db my.sdb --query-otu-table another.otu_table.tsv
-
-# '''+bcolors.HEADER+'Extract all OTUs assigned to Firmicutes:'+bcolors.ENDC+'''
-
-#   singlem query --db my.db --taxonomy Firmicutes
-
-# %s
-# ''' % detail_str
-#             return help
-
-#         elif subcommand == 'renew':
-#             help = '\n'+bcolors.OKGREEN+prog+': '+self.description+bcolors.ENDC+'''
-
-# '''+bcolors.HEADER+'Example:'+bcolors.ENDC+'''
-
-#   singlem renew --input-archive-otu-table my.archive_otu_table_from_pipe.json \\
-#             --sequences <input_fastq_or_fasta> --otu-table <output.otu_table.tsv>
-
-# '''+bcolors.HEADER+'Note:'+bcolors.ENDC+'''
-
-#   The <input_fastq_or_fasta> must be the same as was used in the previous run
-#   of 'pipe'. Note that this mode should be used with care, especially because
-#   the singlem package sets used in each run may change in time.
-
-#   This 'renew' mode accepts all arguments that 'pipe' does.
-
-# %s
-# ''' % detail_str
-#             return help
-
-#         else:
-#             return argparse.ArgumentParser.format_help(self)
-

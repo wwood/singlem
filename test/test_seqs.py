@@ -56,8 +56,8 @@ TATGGAGGAACACCAGTGGC
             a.write(aln)
             a.flush()
             with tempfile.NamedTemporaryFile() as stderr:
-                cmd = "%s --debug seqs --alignment %s --alignment_type dna"\
-                      " --window_size 20 2>%s" % (
+                cmd = "%s seqs --debug --alignment %s --alignment-type dna"\
+                      " --window-size 20 2>%s" % (
                           path_to_script, a.name, stderr.name)
                 self.assertEqual('', extern.run(cmd))
                 # This includes ignored columns at the front, which were messing things up.

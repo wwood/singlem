@@ -65,7 +65,7 @@ class Clusterer:
             with subprocess.Popen([
                     'bash',
                     '-c',
-                    "smafa cluster --fragment-method -d {} '{}'".format(
+                    "smafa cluster -d {} -i '{}'".format(
                         divergence, f.name)],
                 stdout=subprocess.PIPE,
                 bufsize=1,
