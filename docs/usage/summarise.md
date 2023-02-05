@@ -48,8 +48,7 @@ convertToEBD.py otu_table-S3.5.ribosomal_protein_S2_rpsB.unifrac \
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
 
-INPUT
-=====
+# INPUT
 
 **\--input-otu-tables**, **\--input-otu-table** *INPUT_OTU_TABLES* [*INPUT_OTU_TABLES* \...]
 
@@ -78,8 +77,7 @@ INPUT
     \--output-otu-table and transformation options do not work [expert
     option].
 
-TRANSFORMATION
-==============
+# TRANSFORMATION
 
 **\--cluster**
 
@@ -119,8 +117,7 @@ TRANSFORMATION
   For archive OTU tables that have both paired and unpaired
     components, merge these into a single output archive OTU table
 
-OUTPUT
-======
+# OUTPUT
 
 **\--output-otu-table** *OUTPUT_OTU_TABLE*
 
@@ -184,8 +181,7 @@ OUTPUT
     the first read in the original input sequence set, but instead to
     the order in the input archive OTU table.
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -207,8 +203,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

@@ -24,8 +24,7 @@ Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimmin
 
 The [examples section](/usage/pipe#examples) may be of use.
 
-COMMON OPTIONS
-==============
+# COMMON OPTIONS
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
@@ -63,20 +62,21 @@ COMMON OPTIONS
 
   number of CPUS to use [default: 1]
 
-**\--assignment-method** {naive_then_diamond,annoy_then_diamond,scann_then_diamond,diamond,diamond_example,annoy,pplacer}
+**\--assignment-method** {smafa_naive_then_diamond,scann_naive_then_diamond,annoy_then_diamond,scann_then_diamond,diamond,diamond_example,annoy,pplacer}
 
   Method of assigning taxonomy to OTUs and taxonomic profiles
-    [default: naive_then_diamond]
+    [default: smafa_naive_then_diamond]
 
-| Method             | Description                                                                                                                                                                                                  |
-|:-------------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| naive_then_diamond | Search for the most similar window sequences \<= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU. |
-| annoy_then_diamond | Same as naive_then_diamond, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.                                                                                    |
-| scann_then_diamond | Same as naive_then_diamond, except search using SCANN rather than using brute force. Requires a non-standard metapackage.                                                                                    |
-| diamond            | DIAMOND blastx best hit(s) of all reads from each OTU.                                                                                                                                                       |
-| diamond_example    | DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy.                                                                                       |
-| annoy              | Search for the most similar window sequences \<= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage.                                                          |
-| pplacer            | Use pplacer to assign taxonomy of each read in each OTU. Requires a non-standard metapackage.                                                                                                                |
+| Method                   | Description                                                                                                                                                                                                                                   |
+|:-------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| smafa_naive_then_diamond | Search for the most similar window sequences \<= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU. |
+| scann_naive_then_diamond | Search for the most similar window sequences \<= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU.                                  |
+| annoy_then_diamond       | Same as scann_naive_then_diamond, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.                                                                                                               |
+| scann_then_diamond       | Same as scann_naive_then_diamond, except search using SCANN rather than using brute force. Requires a non-standard metapackage.                                                                                                               |
+| diamond                  | DIAMOND blastx best hit(s) of all reads from each OTU.                                                                                                                                                                                        |
+| diamond_example          | DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy.                                                                                                                        |
+| annoy                    | Search for the most similar window sequences \<= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage.                                                                                           |
+| pplacer                  | Use pplacer to assign taxonomy of each read in each OTU. Requires a non-standard metapackage.                                                                                                                                                 |
 
 **\--output-extras**
 
@@ -84,8 +84,7 @@ COMMON OPTIONS
     each OTU was generated from) in the output OTU table [default: not
     set]
 
-LESS COMMON OPTIONS
-===================
+# LESS COMMON OPTIONS
 
 **\--archive-otu-table** filename
 
@@ -214,8 +213,7 @@ LESS COMMON OPTIONS
   Sleep for this many seconds after running os.mkfifo [default:
     None]
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -237,15 +235,13 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 
-EXAMPLES
-========
+# EXAMPLES
 
 Get a taxonomic profile from paired read input:
 

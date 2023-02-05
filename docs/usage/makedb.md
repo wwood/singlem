@@ -16,8 +16,7 @@ singlem pipe -1 A.fq.gz --otu-table A.otu_table.csv
 singlem query --query-otu-table A.otu_table.csv --db BCD.sdb
 ```
 
-REQUIRED ARGUMENTS
-==================
+# REQUIRED ARGUMENTS
 
 **\--otu-tables**, **\--otu-table** *OTU_TABLES* [*OTU_TABLES* \...]
 
@@ -44,18 +43,17 @@ REQUIRED ARGUMENTS
 
   Name of database to create e.g. tundra.sdb
 
-OTHER ARGUMENTS
-===============
+# OTHER ARGUMENTS
 
 **\--threads** *THREADS*
 
   Use this many threads where possible [default 1]
 
-**\--sequence-database-methods** {annoy,scann,nmslib,naive,none} [{annoy,scann,nmslib,naive,none} \...]
+**\--sequence-database-methods** {smafa-naive,annoy,scann,nmslib,scann-naive,none} [{smafa-naive,annoy,scann,nmslib,scann-naive,none} \...]
 
-  Index sequences using these methods. Note that specifying \"naive\"
-    means \"scann\" databases will also be built [default
-    [\'naive\']]
+  Index sequences using these methods. Note that specifying
+    \"scann-naive\" means \"scann\" databases will also be built
+    [default [\'smafa-naive\']]
 
 **\--sequence-database-types** {nucleotide,protein} [{nucleotide,protein} \...]
 
@@ -79,8 +77,7 @@ OTHER ARGUMENTS
 
   [for internal usage] use this directory internally for working
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -102,8 +99,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

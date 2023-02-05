@@ -3,14 +3,14 @@ title: SingleM condense
 ---
 # singlem condense
 
-DESCRIPTION
-===========
+# DESCRIPTION
 
 Combine OTU tables across different markers into a single taxonomic
 profile.
 
-INPUT ARGUMENTS (1+ REQUIRED)
-=============================
+# OPTIONS
+
+# INPUT ARGUMENTS (1+ REQUIRED)
 
 **\--input-otu-tables**, **\--input-otu-table** *INPUT_OTU_TABLES* [*INPUT_OTU_TABLES* \...]
 
@@ -33,8 +33,7 @@ INPUT ARGUMENTS (1+ REQUIRED)
   Condense from the gzip\'d archive tables newline separated in this
     file
 
-OUTPUT ARGUMENTS (1+ REQUIRED)
-==============================
+# OUTPUT ARGUMENTS (1+ REQUIRED)
 
 **-p**, **\--taxonomic-profile** filename
 
@@ -50,8 +49,7 @@ OUTPUT ARGUMENTS (1+ REQUIRED)
     Note that this table usually contains multiple rows with the same
     window sequence.
 
-OTHER OPTIONS
-=============
+# OTHER OPTIONS
 
 **\--metapackage** *METAPACKAGE*
 
@@ -66,8 +64,7 @@ OTHER OPTIONS
   percentage of markers to be trimmed for each taxonomy [default:
     10]
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -89,8 +86,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
