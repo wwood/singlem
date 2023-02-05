@@ -13,8 +13,6 @@ import numpy as np
 
 from sqlalchemy import create_engine, select, distinct
 
-import numba
-from numba.core import types
 import Bio.Data.CodonTable
 
 from .otu_table import OtuTable
@@ -25,7 +23,8 @@ DEFAULT_NUM_THREADS = 1
 ANNOY_INDEX_FORMAT = 'annoy'
 NMSLIB_INDEX_FORMAT = 'nmslib'
 SCANN_INDEX_FORMAT = 'scann'
-NAIVE_INDEX_FORMAT = 'scann-naive'
+SCANN_NAIVE_INDEX_FORMAT = 'scann-naive'
+SMAFA_NAIVE_INDEX_FORMAT = 'smafa-naive'
 
 NUCLEOTIDE_DATABASE_TYPE = 'nucleotide'
 PROTEIN_DATABASE_TYPE = 'protein'
@@ -41,6 +40,7 @@ class SequenceDatabase:
     _marker_to_scann_protein_index_file = {}
     _marker_to_scann_naive_nucleotide_index_file = {}
     _marker_to_scann_naive_protein_index_file = {}
+    _marker_to_smafa_naive_nucleotide_index_file = {}
 
     _CONTENTS_FILE_NAME = 'CONTENTS.json'
 
@@ -90,11 +90,20 @@ class SequenceDatabase:
                 self._marker_to_scann_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format == NAIVE_INDEX_FORMAT:
+        elif index_format == SCANN_NAIVE_INDEX_FORMAT:
             if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
                 self._marker_to_scann_naive_nucleotide_index_file[marker_name] = db_path
             elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
                 self._marker_to_scann_naive_protein_index_file[marker_name] = db_path
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
+        elif index_format == SMAFA_NAIVE_INDEX_FORMAT:
+            
+            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                self._marker_to_smafa_naive_nucleotide_index_file[marker_name] = db_path
+            elif sequence_type == SequenceDatabase.PROTEIN_TYPE:
+                raise NotImplementedError()
+                # self._marker_to_smafa_naive_protein_index_file[marker_name] = db_path
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
         else:
@@ -136,7 +145,7 @@ class SequenceDatabase:
                     return index
             else:
                 raise Exception('Invalid sequence type: %s' % sequence_type)
-        elif index_format in [SCANN_INDEX_FORMAT, NAIVE_INDEX_FORMAT]:
+        elif index_format in [SCANN_INDEX_FORMAT, SCANN_NAIVE_INDEX_FORMAT]:
             import tensorflow as tf
             if sequence_type == 'nucleotide':
                 if index_format == SCANN_INDEX_FORMAT:
@@ -162,6 +171,15 @@ class SequenceDatabase:
                     reloaded = tf.compat.v2.saved_model.load(export_dir=index_path)
                     index = scann.scann_ops.searcher_from_module(reloaded)
                 return index
+        elif index_format == SMAFA_NAIVE_INDEX_FORMAT:
+            if sequence_type == 'nucleotide':
+                if marker_name in self._marker_to_smafa_naive_nucleotide_index_file:
+                    index_path = self._marker_to_smafa_naive_nucleotide_index_file[marker_name]
+                    return index_path
+            elif sequence_type == 'protein':
+                raise NotImplementedError("SMAFA naive protein index not implemented")
+            else:
+                raise Exception('Invalid sequence type: %s' % sequence_type)
         else:
             raise Exception("Unknown index type {}".format(index_format))
         
@@ -179,13 +197,13 @@ class SequenceDatabase:
         return nmslib.init(space='bit_hamming', data_type=nmslib.DataType.OBJECT_AS_STRING, dtype=nmslib.DistType.INT, method='hnsw')
 
     def _nucleotide_annoy_init(self):
-        example_seq = self.sqlalchemy_connection.execute(select(NucleotideSequence).limit(1)).first()['sequence']
+        example_seq = self.sqlalchemy_connection.execute(select(NucleotideSequence).limit(1)).first().sequence
         ndim = len(example_seq)*5
         from annoy import AnnoyIndex
         return AnnoyIndex(ndim, 'hamming')
 
     def _protein_annoy_init(self):
-        example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first()['protein_sequence']
+        example_seq = self.sqlalchemy_connection.execute(select(ProteinSequence).limit(1)).first().protein_sequence
         ndim = len(example_seq)*len(AA_ORDER)
         from annoy import AnnoyIndex
         return AnnoyIndex(ndim, 'hamming')
@@ -260,7 +278,7 @@ class SequenceDatabase:
         logging.debug("Found scann_brute_force_nucleotide_index_files: %s" % ", ".join(scann_naive_nucleotide_index_files))
         for g in scann_naive_nucleotide_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, NAIVE_INDEX_FORMAT,'nucleotide')
+            db.add_sequence_db(marker, g, SCANN_NAIVE_INDEX_FORMAT,'nucleotide')
         
         scann_protein_index_files = glob.glob("%s/protein_indices_scann/*" % path)
         logging.debug("Found scann_protein_index_files: %s" % ", ".join(scann_protein_index_files))
@@ -272,7 +290,14 @@ class SequenceDatabase:
         logging.debug("Found scann_brute_force_protein_index_files: %s" % ", ".join(scann_naive_protein_index_files))
         for g in scann_naive_protein_index_files:
             marker = os.path.basename(g)
-            db.add_sequence_db(marker, g, NAIVE_INDEX_FORMAT,'protein')
+            db.add_sequence_db(marker, g, SCANN_NAIVE_INDEX_FORMAT,'protein')
+
+        smafa_naive_nucleotide_index_files = glob.glob("%s/nucleotide_indices_smafa_naive/*" % path)
+        logging.debug("Found smafa-naive: %s" % ", ".join(smafa_naive_nucleotide_index_files))
+        for g in smafa_naive_nucleotide_index_files:
+            marker = os.path.basename(g.replace('.smafa_naive_index',''))
+            logging.debug("Found marker: %s" % marker)
+            db.add_sequence_db(marker, g, SMAFA_NAIVE_INDEX_FORMAT,'nucleotide')
 
         return db
 
@@ -290,7 +315,7 @@ class SequenceDatabase:
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
         num_annoy_protein_trees = 10,
-        sequence_database_methods = [NAIVE_INDEX_FORMAT],
+        sequence_database_methods = [SCANN_NAIVE_INDEX_FORMAT],
         sequence_database_types = [NUCLEOTIDE_DATABASE_TYPE]):
 
         if num_threads is None:
@@ -375,6 +400,8 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                proc.stderr.close()
+
                 logging.info("Loading taxonomy table ..")
                 sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
                 extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
@@ -437,6 +464,7 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                proc.stderr.close()
 
                 #################################################################
                 logging.info("Importing OTU table into SQLite ..")
@@ -512,6 +540,7 @@ class SequenceDatabase:
                     raise Exception("Sort command returned non-zero exit status %i.\n"\
                         "STDERR was: %s" % (
                             proc.returncode, proc.stderr.read()))
+                proc.stderr.close()
 
                 logging.info("Creating protein sequence data for import ..")
                 # Write a file with unique protein IDs, and the join table between nuc and prot
@@ -568,10 +597,10 @@ class SequenceDatabase:
 
         # Create sequence indices
         sdb = SequenceDatabase.acquire(db_path)
-        if 'naive' in sequence_database_methods:
-            sequence_database_methods.append(NAIVE_INDEX_FORMAT)
-        if SCANN_INDEX_FORMAT in sequence_database_methods or NAIVE_INDEX_FORMAT in sequence_database_methods:
-            sdb.create_scann_indexes(sequence_database_types, NAIVE_INDEX_FORMAT in sequence_database_methods)
+        if 'scann-naive' in sequence_database_methods:
+            sequence_database_methods.append(SCANN_NAIVE_INDEX_FORMAT)
+        if SCANN_INDEX_FORMAT in sequence_database_methods or SCANN_NAIVE_INDEX_FORMAT in sequence_database_methods:
+            sdb.create_scann_indexes(sequence_database_types, SCANN_NAIVE_INDEX_FORMAT in sequence_database_methods)
 
         if NMSLIB_INDEX_FORMAT in sequence_database_methods:
             if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
@@ -585,7 +614,37 @@ class SequenceDatabase:
             if PROTEIN_DATABASE_TYPE in sequence_database_types:
                 sdb.create_annoy_protein_indexes(ntrees=num_annoy_protein_trees)
 
+        if SMAFA_NAIVE_INDEX_FORMAT in sequence_database_methods:
+            if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
+                sdb.create_smafa_naive_nucleotide_indexes()
+
         logging.info("Finished singlem DB creation")
+
+    def create_smafa_naive_nucleotide_indexes(self):
+        logging.info("Creating smafa-naive nucleotide sequence indices ..")
+        nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_smafa_naive')
+        os.makedirs(nucleotide_db_dir)
+        
+        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+            marker_name = marker_row.marker
+            logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
+            count = 0
+
+            with tempfile.NamedTemporaryFile(prefix='singlem-smafa-create-', suffix='.fasta') as fasta_file:
+                for row in self.sqlalchemy_connection.execute(select(
+                    NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
+                    .where(NucleotideSequence.marker_id == marker_row.id)
+                    .order_by(NucleotideSequence.marker_wise_id)):
+
+                    fasta_file.write(str.encode(">{}\n{}\n".format(row.marker_wise_id, row.sequence)))
+                    count += 1
+                fasta_file.flush()
+
+                extern.run('smafa makedb --database {} --input {}'.format(
+                    os.path.join(nucleotide_db_dir, "%s.smafa_naive_index" % marker_name),
+                    fasta_file.name))
+            logging.info("Finished writing index containing {} sequences to disk".format(count))
+
 
     def create_nmslib_nucleotide_indexes(self):
         logging.info("Creating nmslib nucleotide sequence indices ..")
@@ -595,15 +654,15 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             nucleotide_index = SequenceDatabase._nucleotide_nmslib_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
             for row in self.sqlalchemy_connection.execute(select(
                 NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                .where(NucleotideSequence.marker_id == marker_row['id'])):
+                .where(NucleotideSequence.marker_id == marker_row.id)):
 
-                nucleotide_index.addDataPoint(row['marker_wise_id'], nucleotides_to_binary(row['sequence']))
+                nucleotide_index.addDataPoint(row.marker_wise_id, nucleotides_to_binary(row.sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -622,7 +681,7 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             protein_index = SequenceDatabase._protein_nmslib_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
@@ -630,8 +689,8 @@ class SequenceDatabase:
                 distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
                     .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
                     .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                    .where(NucleotideSequence.marker_id == marker_row['id'])):
-                protein_index.addDataPoint(row['marker_wise_id'], protein_to_binary(row['protein_sequence']))
+                    .where(NucleotideSequence.marker_id == marker_row.id)):
+                protein_index.addDataPoint(row.marker_wise_id, protein_to_binary(row.protein_sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -651,15 +710,15 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._nucleotide_annoy_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
             for row in self.sqlalchemy_connection.execute(select(
                 NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                .where(NucleotideSequence.marker_id == marker_row['id'])):
+                .where(NucleotideSequence.marker_id == marker_row.id)):
 
-                annoy_index.add_item(row['marker_wise_id'], nucleotides_to_binary_array(row['sequence']))
+                annoy_index.add_item(row.marker_wise_id, nucleotides_to_binary_array(row.sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -680,7 +739,7 @@ class SequenceDatabase:
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
             annoy_index = self._protein_annoy_init()
 
-            marker_name = marker_row['marker']
+            marker_name = marker_row.marker
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
@@ -688,9 +747,9 @@ class SequenceDatabase:
                 distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
                     .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
                     .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                    .where(NucleotideSequence.marker_id == marker_row['id'])):
+                    .where(NucleotideSequence.marker_id == marker_row.id)):
 
-                annoy_index.add_item(row['marker_wise_id'], protein_to_binary_array(row['protein_sequence']))
+                annoy_index.add_item(row.marker_wise_id, protein_to_binary_array(row.protein_sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -752,12 +811,12 @@ class SequenceDatabase:
                 del searcher_naive
 
         for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
-            marker_name = marker_row['marker']
-            marker_id = marker_row['id']
+            marker_name = marker_row.marker
+            marker_id = marker_row.id
             
             if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
-                a = np.concatenate([np.array([nucleotides_to_binary_array(entry['sequence'])]) for entry in \
+                a = np.concatenate([np.array([nucleotides_to_binary_array(entry.sequence)]) for entry in \
                     self.sqlalchemy_connection.execute(select(
                         NucleotideSequence.sequence) \
                         .where(NucleotideSequence.marker_id == marker_id) \
@@ -771,7 +830,7 @@ class SequenceDatabase:
             
             if PROTEIN_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
-                a = np.concatenate([np.array([protein_to_binary_array(entry['protein_sequence'])]) for entry in \
+                a = np.concatenate([np.array([protein_to_binary_array(entry.protein_sequence)]) for entry in \
                     self.sqlalchemy_connection.execute(select(
                         ProteinSequence.protein_sequence) \
                             .order_by(ProteinSequence.marker_wise_id) \
@@ -821,7 +880,6 @@ class SequenceDatabase:
                         taxonomy_entries[row.taxonomy_id]
                     ]))
 
-@numba.njit()
 def _base_to_binary(x):
     if x == 'A':
         return '1 0 0 0 0'
@@ -834,11 +892,9 @@ def _base_to_binary(x):
     else:
         return '0 0 0 0 1'
     
-@numba.njit()
 def nucleotides_to_binary(seq):
     return ' '.join([_base_to_binary(b) for b in seq])
     
-@numba.njit()
 def _base_to_binary_array(x):
     if x == 'A':
         return [1,0,0,0,0]
@@ -851,7 +907,6 @@ def _base_to_binary_array(x):
     else:
         return [0,0,0,0,1]
     
-# @numba.njit()
 def nucleotides_to_binary_array(seq):
     return list(itertools.chain(*[_base_to_binary_array(b) for b in seq]))
 
@@ -891,7 +946,6 @@ def _aa_to_binary_array(x):
 def protein_to_binary_array(seq):
     return list(itertools.chain(*[_aa_to_binary_array(b) for b in seq]))
 
-# @numba.njit() # would like to do this, but better to move to lists not dict for codon table
 def nucleotides_to_protein(seq):
     aas = []
     codon_table=Bio.Data.CodonTable.standard_dna_table.forward_table

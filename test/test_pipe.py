@@ -37,6 +37,15 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.
 from singlem.pipe import SearchPipe
 from singlem.sequence_classes import SeqReader
 
+TEST_ANNOY = False
+try:
+    import annoy
+    TEST_ANNOY = True
+    print("annoy found, running relevant tests", file=sys.stderr)
+except ImportError:
+    print("WARNING: annoy not found, skipping relevant tests", file=sys.stderr)
+    pass
+
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
     headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
@@ -171,12 +180,12 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA''')
                 n2.flush()
 
-                cmd = "%s pipe --forward %s --reverse %s --otu-table /dev/stdout --singlem-packages %s" % (
+                cmd = "%s pipe --assignment-method diamond --forward %s --reverse %s --otu-table /dev/stdout --singlem-packages %s" % (
                     path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
-                cmd = "%s pipe --reverse %s --forward %s --otu-table /dev/stdout --singlem-packages %s" % (
+                cmd = "%s pipe --assignment-method diamond --reverse %s --forward %s --otu-table /dev/stdout --singlem-packages %s" % (
                     path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
@@ -232,7 +241,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.flush()
 
             cmd = "%s pipe --sequences %s --otu-table /dev/stdout --metapackage %s --assignment-method diamond" % (
-                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.v3.gpkg.spkg.smpkg'))
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg.smpkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
@@ -250,7 +259,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.flush()
 
             cmd = "%s pipe --sequences %s --metapackage %s --assignment-method diamond --taxonomic-profile /dev/stdout --taxonomic-profile-krona /tmp/blah.html" % (
-                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.v3.gpkg.spkg.smpkg'))
+                path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg.smpkg'))
             self.assertEqual(
                 expected, extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),'SAMPLE_ID'))
 
@@ -320,8 +329,8 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --no-diamond-prefilter --assignment-method diamond --otu-table /dev/stdout --threads 4" % (path_to_script,
-                                                                                                    path_to_data)
+        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (path_to_script, path_to_data, path_to_data)
+
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
         
     def test_minimal_prefilter(self):
@@ -330,24 +339,30 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --otu-table /dev/stdout --threads 4" % (path_to_script,
-                                                                                                    path_to_data)
+        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+            path_to_script,
+            path_to_data,
+            path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
     def test_insert(self):
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/insert.fna --no-diamond-prefilter --otu-table /dev/stdout --threads 4" % (path_to_script,
-                                                                                                    path_to_data)
+        cmd = "%s pipe --sequences %s/1_pipe/insert.fna --assignment-method diamond --no-diamond-prefilter --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+            path_to_script,
+            path_to_data,
+            path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
     
     def test_insert_prefilter(self):
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/insert.fna --otu-table /dev/stdout --threads 4" % (path_to_script,
-                                                                                                    path_to_data)
+        cmd = "%s pipe --sequences %s/1_pipe/insert.fna --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+            path_to_script,
+            path_to_data,
+            path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
     def test_print_insert(self):
@@ -355,10 +370,13 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                     ['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTtttCAAGCAGGTGTG','1','2.51','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --debug --sequences %s/1_pipe/insert.fna --otu-table /dev/stdout --assignment-method diamond --threads 4 --include-inserts" % (path_to_script,
-                                                                                                    path_to_data)
+        cmd = "%s pipe --debug --sequences %s/1_pipe/insert.fna --otu-table /dev/stdout --assignment-method diamond --threads 4 --include-inserts --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+            path_to_script,
+            path_to_data,
+            path_to_data)
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
 
+    @unittest.skip("not really supported any more")
     def test_known_tax_table(self):
         expected = [
             self.headers,
@@ -370,7 +388,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
              '2','4.88','Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --quiet --sequences %s/1_pipe/small.fa --no-diamond-prefilter --otu-table /dev/stdout --threads 4 --singlem-packages %s" % (
+        cmd = "%s pipe --quiet --sequences %s/1_pipe/small.fa --no-diamond-prefilter --otu-table /dev/stdout --assignment-method diamond --threads 4 --singlem-packages %s" % (
             path_to_script,
             path_to_data,
             self.two_packages)
@@ -403,8 +421,10 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             f.write(query)
             f.flush()
 
-            cmd = "%s pipe --debug --sequences %s --otu-table /dev/stdout --assignment_method diamond --threads 4" % (path_to_script,
-                                                            f.name)
+            cmd = "%s pipe --debug --sequences %s --otu-table /dev/stdout --assignment_method diamond --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+                path_to_script,
+                f.name,
+                path_to_data)
 
             expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK',os.path.basename(f.name)[:-6],'CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','1','2.44','Root; d__Bacteria; p__Firmicutes; c__Bacilli_A; o__Thermoactinomycetales; f__Thermoactinomycetaceae']]
             expected = ["\t".join(x) for x in expected]+['']
@@ -417,8 +437,10 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                     ]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --debug --sequences %s/1_pipe/minimal.fa --otu-table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
-                                                                                                    path_to_data)
+        cmd = "%s pipe --debug --sequences %s/1_pipe/minimal.fa --otu-table /dev/stdout --threads 4 --assignment_method diamond_example --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+            path_to_script,
+            path_to_data,
+            path_to_data)
         observed = sorted(extern.run(cmd).split("\n"))
         r = re.compile('\t.*?$') # Do not test the exact genome number because updated diamond version change this slightly.
         self.assertEqual([r.sub('',e) for e in exp], [r.sub('',e) for e in observed])
@@ -435,8 +457,10 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
         with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
             t.flush()
-            cmd = "%s pipe --quiet --sequences %s --otu-table /dev/stdout --threads 4 --assignment_method diamond_example" % (path_to_script,
-                                                                                                    t.name)
+            cmd = "%s pipe --quiet --sequences %s --otu-table /dev/stdout --threads 4 --assignment_method diamond_example --singlem-packages %s/S1.7.ribosomal_protein_L16_L10E_rplP.gpkg.spkg" % (
+                path_to_script,
+                t.name,
+                path_to_data)
             self.assertEqual(exp,
                              sorted(extern.run(cmd).
                                     replace(
@@ -985,6 +1009,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
                     list([line.split("\t") for line in expected]),
                     extern.run('bash {}'.format(script.name)))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
@@ -998,6 +1023,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_paired(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
@@ -1012,6 +1038,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_output_extras_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy	read_names	nucleotides_aligned	taxonomy_by_known?	read_unaligned_sequences	equal_best_hit_taxonomies	taxonomy_assignment_method',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179 Root; part_of_sdb; novel_domain	singlem_query_based']
@@ -1025,6 +1052,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_output_archive_single(self):
         cmd = '{} pipe --sequences {} --archive-otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method annoy'.format(
             path_to_script,
@@ -1034,6 +1062,19 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         )
         self.assertEqual(json.loads('{"version": 4, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies", "taxonomy_assignment_method"], "otus": [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based"]]}'),
             json.loads(extern.run(cmd)))
+
+    def test_smafa_naive_then_diamond_single(self):
+        expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
+        '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
+        cmd = '{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond'.format(
+            path_to_script,
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs.fna'),
+            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
+            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
+        )
+        self.assertEqualOtuTable(
+            list([line.split("\t") for line in expected]),
+            extern.run(cmd))
 
     @unittest.skip('scann not currently working on small DBs')
     def test_scann_then_diamond_assignment_single(self):
@@ -1049,11 +1090,10 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
-    @unittest.skip('scann not currently working on small DBs')
-    def test_scann_then_diamond_assignment_paired(self):
+    def test_smafa_naive_then_diamond_assignment_paired(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
-        cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method scann_then_diamond'.format(
+        cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond'.format(
             path_to_script,
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs.fna'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
@@ -1064,11 +1104,10 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
-    @unittest.skip('scann not currently working on small DBs')
-    def test_scann_then_diamond_assignment_paired_only_read2_hits(self):
+    def test_smafa_naive_then_diamond_assignment_paired_only_read2_hits(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	random	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
-        cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method scann_then_diamond'.format(
+        cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond'.format(
             path_to_script,
             os.path.join(path_to_data, 'random.fna'), # i.e. no hits
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
@@ -1079,11 +1118,10 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
-    @unittest.skip('scann not currently working on small DBs')
-    def test_scann_then_diamond_assignment_paired_only_read1_hits(self):
+    def test_smafa_naive_then_diamond_assignment_paired_only_read1_hits(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
         '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs2	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']
-        cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method scann_then_diamond'.format(
+        cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond'.format(
             path_to_script,
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
             os.path.join(path_to_data, 'random.fna'), # i.e. no hits

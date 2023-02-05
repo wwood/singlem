@@ -84,7 +84,7 @@ class Tests(unittest.TestCase):
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
         with tempfile.NamedTemporaryFile(prefix='singlem_cluster',mode='w') as f:
-            cmd = "%s summarise --cluster --cluster_id %f --input_otu_tables %s --output_otu_table /dev/stdout" % (
+            cmd = "%s summarise --cluster --cluster-id %f --input-otu-tables %s --output-otu-table /dev/stdout" % (
                 path_to_script, 58.5/60, f.name)
             for l in ["\t".join(o) for o in e]:
                 f.write(l+"\n")
@@ -119,7 +119,7 @@ class Tests(unittest.TestCase):
         exp = "\n".join(["\t".join(x) for x in e]+[''])
 
         with tempfile.NamedTemporaryFile(prefix='singlem_cluster',mode='w') as f:
-            cmd = "%s summarise --cluster --cluster_id %f --input_otu_tables %s --output_otu_table /dev/stdout" % (
+            cmd = "%s summarise --cluster --cluster-id %f --input-otu-tables %s --output-otu-table /dev/stdout" % (
                 path_to_script, 58.5/60, f.name)
             for l in ["\t".join(o) for o in e]:
                 f.write(l+"\n")

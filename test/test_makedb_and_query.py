@@ -34,6 +34,32 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
 TEST_NMSLIB = False
+try:
+    import nmslib
+    TEST_NMSLIB = True
+    print("nmslib found, running relevant tests", file=sys.stderr)
+except ImportError:
+    print("WARNING: nmslib not found, skipping relevant tests", file=sys.stderr)
+    pass
+
+TEST_SCANN = False
+try:
+    import scann
+    TEST_SCANN = True
+    print("scann found, running relevant tests", file=sys.stderr)
+except ImportError:
+    print("WARNING: scann not found, skipping relevant tests", file=sys.stderr)
+    pass
+
+TEST_ANNOY = False
+try:
+    import annoy
+    TEST_ANNOY = True
+    print("annoy found, running relevant tests", file=sys.stderr)
+except ImportError:
+    print("WARNING: annoy not found, skipping relevant tests", file=sys.stderr)
+    pass
+
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
@@ -71,9 +97,14 @@ class Tests(unittest.TestCase):
 
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','naive']
+            methods = ['smafa-naive']
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
+            if TEST_ANNOY:
+                methods.append('annoy')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s" %(
                 path_to_script,
                 d,
@@ -91,11 +122,17 @@ class Tests(unittest.TestCase):
                 self.assertEqual(observed.split("\n")[0], "\t".join(self.query_result_headers))
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	0	1	1.1	GB_GCA_000309865.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n' in observed)
 
+    @unittest.skipIf(not TEST_NMSLIB and not TEST_ANNOY and not TEST_SCANN, "no protein search methods found, skipping test")
     def test_protein_search_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','naive']
+            methods = [] # 'smafa-naive' is not supported for protein search (yet)
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
+            if TEST_ANNOY:
+                methods.append('annoy')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
@@ -112,19 +149,17 @@ class Tests(unittest.TestCase):
                 self.assertEqual(observed.split("\n")[0], "\t".join(self.protein_query_result_headers))
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	1.1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
 
-
+    @unittest.skipIf(not TEST_SCANN, "no protein search preload_db methods found, skipping test")
     def test_protein_search_methanobacteria_preload_db(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','naive']
-            if TEST_NMSLIB:
-                methods.append('nmslib')
+            methods = ['scann','scann-naive']
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
                                                             ' '.join(methods))
             extern.run(cmd)
 
-            for method in ['scann','naive']: # not implemented for 'annoy','nmslib',
+            for method in ['scann','scann-naive']: # not implemented for 'annoy','nmslib',
                 cmd = "%s query --preload-db --sequence-type protein --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s --max-nearest-neighbours 2" % (
                     path_to_script,
                     path_to_data,
@@ -135,13 +170,16 @@ class Tests(unittest.TestCase):
                 self.assertTrue('GB_GCA_000309865.1_protein	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTTAAAGAAGAGGGCCAGGGGATG	QTEIFMDNMRMFLKEEGQGM	0	1	1.1	RS_GCF_000302455.1_protein	S3.32.Fibrillarin	CAGACTGAAATATTCATGGACAACATGCGAATGTTCCTGAAAGAAGAGGGTCAGGGAATG	QTEIFMDNMRMFLKEEGQGM	Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium formicicum_A\n' in observed)
 
 
-
-
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
-            methods = ['annoy','scann','naive']
+            methods = ['smafa-naive']
             if TEST_NMSLIB:
                 methods.append('nmslib')
+            if TEST_SCANN:
+                methods.append('scann')
+                methods.append('scann-naive')
+            if TEST_ANNOY:
+                methods.append('annoy')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
@@ -150,6 +188,8 @@ class Tests(unittest.TestCase):
 
             for (seq_type,unlimited_count,limited_count) in [('nucleotide',64,61),('protein',72,39)]:
                 for method in methods:
+                    if method == 'smafa-naive' and seq_type == 'protein':
+                        continue # not implemented
                     cmd = "%s query --sequence-type %s --query-otu-table %s/methanobacteria/otus.transcripts.on_target.3random.csv --db %s/db --search-method %s" % (
                         path_to_script,
                         seq_type,
@@ -202,6 +242,27 @@ class Tests(unittest.TestCase):
             f.flush()
 
             cmd = "%s query --preload-db --query-otu-table %s --db %s" % (
+                path_to_script,
+                f.name,
+                os.path.join(path_to_data,'a.sdb'))
+
+            expected = 'query_name\tquery_sequence\tdivergence\tnum_hits\tcoverage\tsample\tmarker\thit_sequence\ttaxonomy\nminimal\tCGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\t15.1\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\nmaximal\tCGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA\t40\t7\t15.1\tminimal\tribosomal_protein_L11_rplK_gpkg\tGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC\tRoot; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales\n'.split('\n')
+            observed = extern.run(cmd).split('\n')
+            self.assertEqual(expected, observed)
+
+    @unittest.skipIf(not TEST_SCANN, "scann not installed")
+    def test_query_with_otu_table_two_samples_preload_db_scann(self):
+        with tempfile.NamedTemporaryFile(mode='w') as f:
+            query = [self.headers,
+                     # second sequence with an extra A at the end
+                     ['ribosomal_protein_L11_rplK_gpkg','maximal','CGTCGTTGGAACCCAAAAATGAAATAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                     ['ribosomal_protein_L11_rplK_gpkg','minimal','CGTCGTTGGAACCCAAAAATGAAAAAATATATCTTCACTGAGAGAAATGGTATTTATATA','7','4.95','Root; k__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']
+                     ] # converted A to T in the middle
+            query = "\n".join(["\t".join(x) for x in query])
+            f.write(query)
+            f.flush()
+
+            cmd = "%s query --preload-db --query-otu-table %s --search-method scann --db %s" % (
                 path_to_script,
                 f.name,
                 os.path.join(path_to_data,'a.sdb'))
