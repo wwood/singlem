@@ -96,7 +96,7 @@ class PackageCreator:
                     tax_hash[split_line[0]] = [taxa.strip() for taxa in split_line[1].split(';')]
 
         pickle.dump(tax_hash, taxonomy_hash_tf)
-        taxonomy_hash_tf.close()
+        taxonomy_hash_tf.flush()
 
 
         # Compile the final graftm/singlem package
@@ -133,3 +133,5 @@ class PackageCreator:
                 dmnd_tf.close()
 
             logging.info("SingleM-compatible package creation finished")
+
+        taxonomy_hash_tf.close()

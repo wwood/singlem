@@ -54,7 +54,7 @@ class Tests(unittest.TestCase):
             f.write(metagenomes)
             f.flush()
 
-            cmd = "%s chance --otu_table %s --taxonomy 'Root'" % (
+            cmd = "%s chance --otu-table %s --taxonomy 'Root'" % (
                 path_to_script, f.name)
             self.assertEqual(
                 "\n".join(["\t".join(x) for x in [
