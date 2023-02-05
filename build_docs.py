@@ -6,7 +6,9 @@ import argparse
 import os
 
 def remove_before(marker, string_to_process):
-    splitter = '\n' + marker + '\n'
+    splitter = '\n# ' + marker + '\n'
+    if splitter not in string_to_process:
+        raise Exception("Marker '{}' not found in string".format(marker))
     return splitter+string_to_process.split(splitter)[1]
 
 if __name__ == '__main__':
@@ -25,7 +27,7 @@ if __name__ == '__main__':
         loglevel = logging.DEBUG
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    for subcommand in ['data','pipe','appraise','makedb','query','condense','summarise','renew',]:
+    for subcommand in ['data','pipe','appraise','makedb','query','condense','summarise','renew','read_fraction']:
         cmd_stub = "bin/singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
         man_usage = extern.run(cmd_stub)
 
@@ -34,11 +36,14 @@ if __name__ == '__main__':
             # Remove everything before the options section
             splitters = {
                 'pipe': 'COMMON OPTIONS',
+                'read_fraction': 'OPTIONS',
                 'data': 'OPTIONS',
                 'summarise': 'INPUT',
                 'makedb': 'REQUIRED ARGUMENTS',
                 'appraise': 'INPUT OTU TABLE OPTIONS',
             }
+            logging.info("For ROFF for command {}, removing everything before '{}'".format(
+                subcommand, splitters[subcommand]))
             man_usage = remove_before(splitters[subcommand], man_usage)
 
             with open('docs/usage/{}.md'.format(subcommand),'w') as f:

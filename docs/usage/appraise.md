@@ -45,8 +45,7 @@ lineages did not necessarily assemble and bin successfully. The marker
 because it has a representative fraction of OTUs binned, assembled and
 unassembled.
 
-INPUT OTU TABLE OPTIONS
-=======================
+# INPUT OTU TABLE OPTIONS
 
 **\--metagenome-otu-tables** *METAGENOME_OTU_TABLES* [*METAGENOME_OTU_TABLES* \...]
 
@@ -76,8 +75,7 @@ INPUT OTU TABLE OPTIONS
 
   Metapackage used in the creation of the OTU tables
 
-INEXACT APPRAISAL OPTIONS
-=========================
+# INEXACT APPRAISAL OPTIONS
 
 **\--imperfect**
 
@@ -89,8 +87,7 @@ INEXACT APPRAISAL OPTIONS
   sequence identity cutoff to use if \--imperfect is specified
     [default: \~genus level divergence i.e. 0.86]
 
-PLOTTING-RELATED OPTIONS
-========================
+# PLOTTING-RELATED OPTIONS
 
 **\--plot** *PLOT*
 
@@ -106,8 +103,7 @@ PLOTTING-RELATED OPTIONS
   Plot visualisation of appraisal results from all markers to this
     basename (one SVG per marker)
 
-OUTPUT SUMMARY OTU TABLES
-=========================
+# OUTPUT SUMMARY OTU TABLES
 
 **\--output-binned-otu-table** *OUTPUT_BINNED_OTU_TABLE*
 
@@ -129,8 +125,7 @@ OUTPUT SUMMARY OTU TABLES
 
   Output sample name (genome or assembly) the hit was found in
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -152,8 +147,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

@@ -3,20 +3,19 @@ title: SingleM query
 ---
 # singlem query
 
-DESCRIPTION
-===========
+# DESCRIPTION
 
 Find closely related sequences in a database.
 
-REQUIRED ARGUMENTS
-==================
+# OPTIONS
+
+# REQUIRED ARGUMENTS
 
 **\--db** *DB*
 
   Output from \'makedb\' mode
 
-DATABASE QUERYING BY OTU SEQUENCE
-=================================
+# DATABASE QUERYING BY OTU SEQUENCE
 
 **\--query-otu-table**, **\--query-otu-tables** file [file \...]
 
@@ -51,9 +50,9 @@ DATABASE QUERYING BY OTU SEQUENCE
   Report sequences less than or equal to this divergence i.e. number
     of different bases/amino acids
 
-**\--search-method** {nmslib,annoy,naive,scann}
+**\--search-method** {smafa-naive,nmslib,annoy,scann,scann-naive}
 
-  Algorithm to perform search [default: naive]
+  Algorithm to perform search [default: smafa-naive]
 
 **\--sequence-type** {nucleotide,protein}
 
@@ -64,8 +63,8 @@ DATABASE QUERYING BY OTU SEQUENCE
 
   How many nearest neighbours to search for with approximate nearest
     neighbours. Of these hits, only \--max-nearest-neighbours will
-    actually be reported. Ignored for \--search-method naive. [default:
-    100]
+    actually be reported. Ignored for \--search-method naive and
+    scann-naive. [default: 100]
 
 **\--threads** *THREADS*
 
@@ -84,8 +83,7 @@ DATABASE QUERYING BY OTU SEQUENCE
     but uses more memory and has a larger start-up time for each marker
     gene.
 
-OTHER DATABASE EXTRACTION METHODS
-=================================
+# OTHER DATABASE EXTRACTION METHODS
 
 **\--sample-names** name [name \...]
 
@@ -105,8 +103,7 @@ OTHER DATABASE EXTRACTION METHODS
 
   Print all OTUs in the DB
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -128,8 +125,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
