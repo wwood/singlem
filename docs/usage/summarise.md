@@ -177,9 +177,9 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
     file. After each read name \'\~N\' is added which corresponds to the
     order of the read in the archive OTU table, so that no two sequences
     have the same read name. N\>1 can happen e.g. when the input file
-    contains paired reads, but \~0 does not necessarily correspond to
-    the first read in the original input sequence set, but instead to
-    the order in the input archive OTU table.
+    contains paired reads. \~0 does not necessarily correspond to the
+    first read in the original input sequence set, but instead to the
+    order in the input archive OTU table.
 
 # OTHER GENERAL OPTIONS
 
