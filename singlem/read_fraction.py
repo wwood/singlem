@@ -136,6 +136,6 @@ class SmafaCountedMetagenomeSizes:
         # [{"path":"/dev/fd/63","num_reads":1,"num_bases":3},{"path":"/dev/fd/62","num_reads":1,"num_bases":2}]
         for read_file in j2:
             total_base_count += int(read_file['num_bases'])
-        logging.info("Total base count for stem '%s' is %.2f Gbp" % (stem, total_base_count / 1_000_000_000))
+        logging.info("Total base count for sample '%s' is %.2f Gbp" % (stem, total_base_count / 1_000_000_000))
 
         return total_base_count
