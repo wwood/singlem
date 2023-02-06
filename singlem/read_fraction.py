@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 import json
-import os
+import os, sys
 
 import extern
 
@@ -21,8 +21,11 @@ class ReadFractionEstimator:
         taxonomic_genome_lengths_file = kwargs.pop('taxonomic_genome_lengths_file')
         metapackage = kwargs.pop('metapackage')
         accept_missing_samples = kwargs.pop('accept_missing_samples')
+        output_tsv = kwargs.pop('output_tsv')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        output_fh = open(output_tsv, 'w') if output_tsv else sys.stdout
 
         # Grab the genome length data
         if taxonomic_genome_lengths_file:
@@ -67,7 +70,7 @@ class ReadFractionEstimator:
 
         # Iterate through the input profile, calculating the read fraction for each sample
         read_fractions = {}
-        print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction")
+        print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction", file=output_fh)
         num_samples = 0
         with open(input_profile) as f:
             for profile in CondensedCommunityProfile.each_sample_wise(f):
@@ -90,9 +93,13 @@ class ReadFractionEstimator:
                     contribution = node.coverage * taxonomic_genome_lengths[taxonomy]
                     account += contribution
                 
-                print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100))
+                print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100),
+                      file=output_fh)
                 num_samples += 1
         logging.info("Calculated read fractions for %d samples." % num_samples)
+
+        if output_tsv: output_fh.close()
+
         logging.info("Finished.")
 
     def _get_stems_and_read_files(self, forward_read_files, reverse_read_files):

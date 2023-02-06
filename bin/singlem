@@ -356,6 +356,7 @@ if __name__ == '__main__':
     read_fraction_database_args.add_argument('--metapackage', help="Metapackage containing genome lengths [default: Use genome lengths from the default metapackage]")
     read_fraction_uncommon_args = read_fraction_parser.add_argument_group('other options')
     read_fraction_uncommon_args.add_argument('--accept-missing-samples', action='store_true', help="If a sample is missing from the input-metagenome-sizes file, skip analysis of it without croaking.")
+    read_fraction_uncommon_args.add_argument('--output-tsv', help="Output file [default: stdout]")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
@@ -1132,7 +1133,8 @@ if __name__ == '__main__':
             reverse_read_files = args.reverse,
             taxonomic_genome_lengths_file = args.taxon_genome_lengths_file,
             metapackage = args.metapackage,
-            accept_missing_samples = args.accept_missing_samples)
+            accept_missing_samples = args.accept_missing_samples,
+            output_tsv = args.output_tsv,)
 
     else:
         raise Exception("Programming error")
