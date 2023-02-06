@@ -22,10 +22,14 @@ class ReadFractionEstimator:
         metapackage = kwargs.pop('metapackage')
         accept_missing_samples = kwargs.pop('accept_missing_samples')
         output_tsv = kwargs.pop('output_tsv')
+        output_per_taxon_read_fractions = kwargs.pop('output_per_taxon_read_fractions')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         output_fh = open(output_tsv, 'w') if output_tsv else sys.stdout
+
+        if output_per_taxon_read_fractions:
+            output_per_taxon_read_fractions_fh = open(output_per_taxon_read_fractions, 'w')
 
         # Grab the genome length data
         if taxonomic_genome_lengths_file:
@@ -71,6 +75,8 @@ class ReadFractionEstimator:
         # Iterate through the input profile, calculating the read fraction for each sample
         read_fractions = {}
         print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction", file=output_fh)
+        if output_per_taxon_read_fractions:
+            print("sample\ttaxonomy\tbase_contribution", file=output_per_taxon_read_fractions_fh)
         num_samples = 0
         with open(input_profile) as f:
             for profile in CondensedCommunityProfile.each_sample_wise(f):
@@ -92,6 +98,9 @@ class ReadFractionEstimator:
                         raise Exception("Taxonomy '%s' in profile not found in taxonomic genome lengths file." % taxonomy)
                     contribution = node.coverage * taxonomic_genome_lengths[taxonomy]
                     account += contribution
+                    if contribution > 0 and output_per_taxon_read_fractions:
+                        print("%s\t%s\t%s" % (sample, taxonomy, contribution),
+                            file=output_per_taxon_read_fractions_fh)
                 
                 print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100),
                       file=output_fh)
@@ -99,6 +108,7 @@ class ReadFractionEstimator:
         logging.info("Calculated read fractions for %d samples." % num_samples)
 
         if output_tsv: output_fh.close()
+        if output_per_taxon_read_fractions: output_per_taxon_read_fractions_fh.close()
 
         logging.info("Finished.")
 
