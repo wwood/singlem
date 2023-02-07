@@ -26,7 +26,7 @@ RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png
 RUN mkdir -p singlem/db && cd singlem/db && /tmp/singlem/bin/singlem data --output-directory .
 
 ######### UPDATE ME !!!!!!!!!! #########
-ENV SINGLEM_METAPACKAGE_PATH=/tmp/singlem/db/S3.0.5.metapackage20220806.smpkg.zb
+ENV SINGLEM_METAPACKAGE_PATH=/tmp/singlem/db/SINGLEM_DB_BASENAME
 # Checks whether the metapackage is up to date
 RUN /tmp/singlem/bin/singlem data --verify
 
