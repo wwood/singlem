@@ -11,6 +11,7 @@ navigation:
     - path: docs/usage/data.md
     - path: docs/usage/pipe.md
     - path: docs/usage/appraise.md
+    - path: docs/usage/read_fraction.md
     - path: docs/usage/makedb.md
     - path: docs/usage/query.md
     - path: docs/usage/summarise.md
