@@ -29,6 +29,7 @@ from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
 
 DEFAULT_WINDOW_SIZE=60
+SPECIES_LEVEL_AVERAGE_IDENTITY = 0.95
 GENUS_LEVEL_AVERAGE_IDENTITY = 0.86
 
 def seqs(args):
@@ -215,7 +216,7 @@ if __name__ == '__main__':
     appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
-    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~genus level divergence i.e. %s]" % GENUS_LEVEL_AVERAGE_IDENTITY, default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~species level divergence i.e. %s]" % SPECIES_LEVEL_AVERAGE_IDENTITY, default=SPECIES_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
     appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot-marker is also specified)', default=None)
     appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
