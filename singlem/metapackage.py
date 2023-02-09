@@ -85,7 +85,7 @@ class Metapackage:
             # payload_directory
             zb_version_key = 'zenodo_backpack_version'
             if zb_version_key in contents_hash:
-                logging.info("Acquiring SingleM metapackage from Zenodo backpack directory specifid ..")
+                logging.info("Acquiring SingleM metapackage from Zenodo backpack directory specified ..")
                 backpack = zenodo_backpack.acquire(
                     path = metapackage_path)
                 return Metapackage.acquire(backpack.payload_directory_string())

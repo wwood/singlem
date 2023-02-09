@@ -168,7 +168,7 @@ class OtuTableCollection:
                 raise Exception("Unexpected taxonomy string encountered: '{}'".format(otu.taxonomy))
             tax = otu.taxonomy.split('; ')
             targets = package_to_targets[otu.marker]
-            if tax == ['Root']:
+            if tax == ['Root'] or tax == ['Root', '']:
                 continue
             elif not tax[1].startswith('d__'):
                 raise Exception("Unexpected taxonomy string encountered: {}".format(tax))
