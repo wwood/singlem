@@ -40,5 +40,6 @@ class FastaNameToSampleName:
         for extension in ('.gz','.fna','.fq','.fastq','.fasta','.fa'):
             if sample_name.endswith(extension):
                 sample_name = sample_name[0:(len(sample_name)-len(extension))]
-                break
+                if extension != '.gz':
+                    break
         return sample_name
