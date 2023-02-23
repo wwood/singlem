@@ -118,7 +118,7 @@ class Appraiser:
         '''
         if sequence_identity:
             logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
-            sys.stdout.write("# Clustered using %i% ANI" % sequence_identity)
+            sys.stdout.write("# Clustered using %0.2f%% ANI" % sequence_identity)
             max_divergence = window_size * (1 - sequence_identity)
             # max divergence must be a whole number, and we round down
             max_divergence = int(max_divergence)
