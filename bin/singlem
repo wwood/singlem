@@ -311,6 +311,7 @@ if __name__ == '__main__':
     summarise_io_args.add_argument('--input-archive-otu-table-list',
         help="Summarise the archive tables newline separated in this file")
     summarise_io_args.add_argument('--stream-inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
+    summarise_io_args.add_argument('--input-taxonomic-profiles', nargs='+', help='Convert these taxonomic profiles to krona HTML, output specified by  --output-taxonomic-profile-krona')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_transformation_args.add_argument('--cluster-id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
@@ -334,6 +335,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     summarise_output_args.add_argument('--unaligned-sequences-dump-file',
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads. ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
+    summarise_output_args.add_argument('--output-taxonomic-profile-krona', help="Output taxonomic profile to this file in Krona format. Requires --input-taxonomic-profiles")
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage.'
     read_fraction_parser = bird_argparser.new_subparser('read_fraction', read_fraction_description, parser_group='Tools')
@@ -666,10 +668,11 @@ if __name__ == '__main__':
         if args.wide_format_otu_table: num_output_types += 1
         if args.collapse_paired_with_unpaired_archive_otu_table: num_output_types += 1
         if args.unaligned_sequences_dump_file: num_output_types += 1
+        if args.output_taxonomic_profile_krona: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
-        if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list:
-            raise Exception("Summary requires input OTU tables or archive tables")
+        if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list and not args.input_taxonomic_profiles:
+            raise Exception("Summary requires input OTU tables, archive OTU tables, or taxonomic profiles")
         if args.exclude_off_target_hits:
             if args.singlem_packages and args.metapackage:
                 raise Exception("Only one of --metapackage or --singlem-packages can be defined")
@@ -678,11 +681,13 @@ if __name__ == '__main__':
                 raise Exception("--collapse_paired_with_unpaired_archive_otu_table currently only works with archive tables")
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse_paired_with_unpaired_archive_otu_table requires exactly two archive tables")
+        if (args.input_taxonomic_profiles and not args.output_taxonomic_profile_krona) or (args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles):
+            raise Exception("--input-taxonomic-profiles and --output-taxonomic-profile-krona require each other to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
             if not args.output_otu_table and not args.unaligned_sequences_dump_file:
-                raise Exception("--stream-inputs requires --output_otu_table or --unaligned_sequences_dump_file to be defined")
+                raise Exception("--stream-inputs requires --output-otu-table or --unaligned-sequences-dump-file to be defined")
             if args.taxonomy:
                 raise Exception("--stream-inputs does not currently support --taxonomy")
             require_archive_input = args.unaligned_sequences_dump_file is not None
@@ -812,6 +817,18 @@ if __name__ == '__main__':
                 Summariser.dump_raw_sequences_from_archive_otu_table(
                     table_collection = otus,
                     output_table_io = f)
+        elif args.input_taxonomic_profiles:
+            from singlem.condense import CondensedCommunityProfile, CondensedCommunityProfileKronaWriter
+            profiles = []
+            logging.info("Reading taxonomic profiles ..")
+            for p in args.input_taxonomic_profiles:
+                with open(p) as f:
+                    for sample_profile in CondensedCommunityProfile.each_sample_wise(f):
+                        profiles.append(sample_profile)
+            logging.info("Writing krona to %s" % args.output_taxonomic_profile_krona)
+            CondensedCommunityProfileKronaWriter.write_krona(
+                profiles, args.output_taxonomic_profile_krona
+            )
 
         else: raise Exception("Programming error")
         logging.info("Finished")
