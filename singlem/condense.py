@@ -593,10 +593,7 @@ class Condenser:
             # Calculate the (possibly trimmed) mean for each species
             next_species_to_coverage = {}
             for tax, gene_to_coverage in next_species_to_gene_to_coverage.items():
-                try:
-                    num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
-                except IndexError:
-                    import IPython; IPython.embed()
+                num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 # logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
                 next_species_to_coverage[tax] = trimmed_mean
