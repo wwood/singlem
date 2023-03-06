@@ -4,7 +4,7 @@ channels:
   - defaults
 dependencies:
   - python>=3.7 #, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10. Older python versions than 3.7 may also work, not tested.
-  - diamond>2.0.11
+  - diamond>2.0.11,<2.1 # Getting segmentation fault on test_insert_prefilter
   - biopython
   - hmmer
   - orfm
