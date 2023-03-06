@@ -32,11 +32,15 @@ class PipeTaxonomyAssignerByQuery:
                                 window_to_read_names[pair_index][read.aligned_sequence] = []
                                 spkg_to_queries[spkg_key][pair_index].append(QueryInputSequence(
                                     read.name, read.aligned_sequence, spkg.graftm_package_basename()))
-                                # TODO: don't store many copies of the sample name
-                                # TODO: Does this fail when there are 2 reads with the same name from different samples?
-                                # Always take the sample name as the first of the pair's sample name
-                                aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence] = \
-                                    (spkg, maybe_paired_readset[0].sample_name)
+                            # TODO: don't store many copies of the sample name
+                            # TODO: Does this fail when there are 2 reads with the same name from different samples?
+                            # Always take the sample name as the first of the pair's sample name
+                            sample_name = maybe_paired_readset[0].sample_name
+                            if read.aligned_sequence not in aligned_seqs_to_package_and_sample_name[pair_index]:
+                                aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence] = {}
+                            if sample_name not in aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence]:
+                                aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence][sample_name] = set()
+                            aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence][sample_name].add(spkg)
 
                             window_to_read_names[pair_index][read.aligned_sequence].append(read.name)
                 else:
@@ -48,13 +52,15 @@ class PipeTaxonomyAssignerByQuery:
                             spkg_to_queries[spkg_key].append(QueryInputSequence(read.name, read.aligned_sequence, spkg.graftm_package_basename()))
                         
                         # TODO: don't store many copies of the sample name
-                        if read.aligned_sequence not in aligned_seqs_to_package_and_sample_name[0]:
-                            aligned_seqs_to_package_and_sample_name[0][read.aligned_sequence] = {}
-                        if maybe_paired_readset.sample_name not in aligned_seqs_to_package_and_sample_name[0][read.aligned_sequence]:
-                            aligned_seqs_to_package_and_sample_name[0][read.aligned_sequence][maybe_paired_readset.sample_name] = set()
-                        aligned_seqs_to_package_and_sample_name[0][read.aligned_sequence][maybe_paired_readset.sample_name].add(spkg)
+                        sample_name = maybe_paired_readset.sample_name
+                        pair_index = 0
+                        if read.aligned_sequence not in aligned_seqs_to_package_and_sample_name[pair_index]:
+                            aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence] = {}
+                        if sample_name not in aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence]:
+                            aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence][sample_name] = set()
+                        aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence][sample_name].add(spkg)
 
-                        window_to_read_names[0][read.aligned_sequence].append(read.name)
+                        window_to_read_names[pair_index][read.aligned_sequence].append(read.name)
 
         return window_to_read_names, spkg_to_queries, aligned_seqs_to_package_and_sample_name
 
