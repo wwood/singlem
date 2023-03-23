@@ -298,6 +298,8 @@ if __name__ == '__main__':
     query_other_args.add_argument('--sample-list', metavar='path', help='Print all OTUs from the samples listed in the file (newline-separated)')
     query_other_args.add_argument('--taxonomy', metavar='name', help='Print all OTUs assigned a taxonomy including this string e.g. \'Archaea\'')
     query_other_args.add_argument('--dump', action='store_true', help='Print all OTUs in the DB')
+    # continue_on_missing_genes
+    query_other_args.add_argument('--continue-on-missing-genes', action='store_true', help='Continue if a gene is missing from the DB. Only works with smafa/nuclotide search method.')
     current_default = None
 
     summarise_description = 'Summarise and transform taxonomic profiles and OTU tables.'
@@ -1131,7 +1133,8 @@ if __name__ == '__main__':
                     max_nearest_neighbours = args.max_nearest_neighbours,
                     max_search_nearest_neighbours = args.max_search_nearest_neighbours,
                     preload_db = args.preload_db,
-                    limit_per_sequence = args.limit_per_sequence)
+                    limit_per_sequence = args.limit_per_sequence,
+                    continue_on_missing_genes = args.continue_on_missing_genes)
 
     elif args.subparser_name=='data':
         from singlem.metapackage import Metapackage

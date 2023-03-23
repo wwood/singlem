@@ -40,6 +40,7 @@ class Querier:
         max_search_nearest_neighbours = kwargs.pop('max_search_nearest_neighbours')
         preload_db = kwargs.pop('preload_db')
         limit_per_sequence = kwargs.pop('limit_per_sequence')
+        continue_on_missing_genes = kwargs.pop('continue_on_missing_genes')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -49,7 +50,7 @@ class Querier:
         query_results = self.query_with_queries(
             queries, db, max_divergence, search_method, sequence_type, 
             max_nearest_neighbours=max_nearest_neighbours, max_search_nearest_neighbours=max_search_nearest_neighbours, \
-            preload_db=preload_db, limit_per_sequence=limit_per_sequence)
+            preload_db=preload_db, limit_per_sequence=limit_per_sequence, continue_on_missing_genes=continue_on_missing_genes)
         # Only reason not to stream would be so that the queries are returned in the same order as passed in. eh for now.
         do_stream = True
         if not do_stream:
@@ -167,7 +168,7 @@ class Querier:
         logging.info("Sorted {} OTU queries ..".format(total_otu_count))
         return MarkerSortedQueryInput(sorted_io)
 
-    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence):
+    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence, continue_on_missing_genes):
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
@@ -190,7 +191,7 @@ class Querier:
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'smafa-naive':
             return self.query_by_sequence_similarity_with_smafa_naive(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence, continue_on_missing_genes=continue_on_missing_genes)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -338,12 +339,15 @@ class Querier:
                             if num_reported >= max_nearest_neighbours:
                                 break
 
-    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None):
+    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None, continue_on_missing_genes=False):
         logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
 
         for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
             index = sdb.get_sequence_index(marker, sequence_database.SMAFA_NAIVE_INDEX_FORMAT, sequence_type)
             if index is None:
+                if continue_on_missing_genes:
+                    logging.info("Skipping marker {} because it is not 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
+                    continue
                 raise Exception("The marker '{}' does not appear to be 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
             logging.info("Querying index for {}".format(marker))
             query = select(Marker.id).where(Marker.marker == marker)
