@@ -173,6 +173,9 @@ class SearchPipe:
             raise Exception("Cannot process reads and genomes in the same run")
         if genome_fasta_files:
             forward_read_files = []
+            warning_threshold = 100
+            if len(genome_fasta_files) > warning_threshold:
+                logging.warning("Running singlem with more than {} genomes may take a long time or use a lot of RAM - you might be better off splitting them into batches. Consider also using --no-assign-taxonomy to speed things up.".format(warning_threshold))
 
         analysing_pairs = reverse_read_files is not None
         if analysing_pairs:
