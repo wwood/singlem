@@ -77,7 +77,11 @@ def generate_new_singlem_package(myargs):
     with open(old_spkg.graftm_package().unaligned_sequence_database_path()) as f:
         first_line = f.readline()
         if first_line.startswith('>'):
-            sequence_prefix = first_line[1:].split('~')[0]
+            if '~' in first_line:
+                sequence_prefix = first_line[1:].split('~')[0]
+            else:
+                logging.warning("Using an empty sequence prefix to delineate different spkgs in sequence names, because the old spkg  didn't specify one.")
+                sequence_prefix = ''
         else:
             raise Exception("Unexpected first line in unaligned sequence database: {}".format(first_line))
 
@@ -214,7 +218,10 @@ def generate_new_metapackage(
     
     # For each spkg in the old mpkg, create a new spkg
     to_process = [(working_directory, spkg, matched_transcript_path, sequence_to_genome, genome_to_taxonomy) for spkg in old_metapackage.singlem_packages]
-    new_spkg_paths = Pool(num_threads).map(generate_new_singlem_package, to_process)
+    if num_threads > 1:
+        new_spkg_paths = Pool(num_threads).map(generate_new_singlem_package, to_process)
+    else:
+        new_spkg_paths = list([generate_new_singlem_package(x) for x in to_process])
 
     # Create a new metapackage from the singlem packages
     logging.info("Creating new metapackage ..")
