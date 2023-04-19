@@ -82,6 +82,19 @@ class Tests(unittest.TestCase):
                 '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms']
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
+    def test_auto_taxonomy_with_not_all_new(self):
+        with in_tempdir():
+            cmd = f"{run} --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.fna {path_to_data}/GCA_011373445.1_genomic.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg"
+            extern.run(cmd)
+
+            cmd2 = f'{singlem} pipe --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.fna {path_to_data}/GCA_011373445.1_genomic.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
+            output = extern.run(cmd2)
+            expected = [
+                "\t".join(self.headers),
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms',
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Desulfurococcales; f__Desulfurococcaceae; g__Thermosphaera']
+            self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
 
 if __name__ == "__main__":
     unittest.main()
