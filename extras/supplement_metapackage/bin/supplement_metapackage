@@ -58,6 +58,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
     new_genome_fasta_files = kwargs.pop('new_genome_fasta_files')
     pplacer_threads = kwargs.pop('pplacer_threads')
     working_directory = kwargs.pop('working_directory')
+    gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
     if len(kwargs) > 0:
         raise Exception("Unexpected arguments detected: %s" % kwargs)
     
@@ -70,22 +71,26 @@ def generate_taxonomy_for_new_genomes(**kwargs):
             batchfile.write(genome_fasta + '\t' + name + '\n')
         batchfile.flush()
 
-        # run gtdbtk to temporary output directory
-        gtdbtk_output = os.path.join(working_directory, 'gtdbtk_output')
-        logging.info("Running GTDBtk to generate taxonomy for new genomes ..")
-        logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
-        cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db ~/m/db/gtdb/gtdb_release207_v2/mash.msh'
-        if pplacer_threads:
-            cmd += f' --pplacer_threads {pplacer_threads}'
-        extern.run(cmd)
-        logging.info("GTDBtk finished")
+        if gtdbtk_output_directory:
+            logging.info("Using pre-existing GTDBtk output directory: {}".format(gtdbtk_output_directory))
+            gtdbtk_output = gtdbtk_output_directory
+        else:
+            # run gtdbtk to temporary output directory
+            gtdbtk_output = os.path.join(working_directory, 'gtdbtk_output')
+            logging.info("Running GTDBtk to generate taxonomy for new genomes ..")
+            logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
+            cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db ~/m/db/gtdb/gtdb_release207_v2/mash.msh'
+            if pplacer_threads:
+                cmd += f' --pplacer_cpus {pplacer_threads}'
+            extern.run(cmd)
+            logging.info("GTDBtk finished")
 
         # read in assigned taxonomy from gtdbtk output
         if not os.path.exists(gtdbtk_output):
             raise Exception("GTDBtk output directory not found: {}".format(gtdbtk_output))
         bacteria_taxonomy_path = os.path.join(gtdbtk_output, 'gtdbtk.bac120.summary.tsv')
         archaea_taxonomy_path = os.path.join(gtdbtk_output, 'gtdbtk.ar53.summary.tsv')
-        new_taxonomies = []
+        new_taxonomies = {}
         for tax_file in [bacteria_taxonomy_path, archaea_taxonomy_path]:
             if os.path.exists(tax_file):
                 logging.info("Reading taxonomy from {}".format(tax_file))
@@ -107,7 +112,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                             if taxonomy[i] == prefix:
                                 taxonomy[i] = prefix+placeholder_taxonomy
                         logging.debug("Adding new species-level genome {} with taxonomy {}".format(genome_name, taxonomy))
-                        new_taxonomies.append((name_to_genome_fasta[genome_name], taxonomy))
+                        new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
         if len(new_taxonomies) == 0:
             raise Exception("No new species-level genomes found in GTDBtk output, so there are no genomes to add to the metapackage.")
 
@@ -116,10 +121,17 @@ def generate_taxonomy_for_new_genomes(**kwargs):
         taxonomy_path = os.path.join(working_directory, 'new_genomes_taxonomy.tsv')
         with open(taxonomy_path, 'w') as taxonomy_file:
             writer = csv.writer(taxonomy_file, delimiter='\t')
-            for genome_fasta, taxonomy in new_taxonomies:
+            for genome_fasta, taxonomy in new_taxonomies.items():
                 writer.writerow([genome_fasta] + ['; '.join(taxonomy)])
         logging.debug("New genomes taxonomy file written to {}".format(taxonomy_path))
-        return taxonomy_path
+
+        # Remove fasta files where the species is not new
+        initial_count = len(new_genome_fasta_files)
+        new_genome_fasta_files = list([g for g in args.new_genome_fasta_files if g in new_taxonomies])
+        logging.info("Removed {} genomes from new genomes list because they already had a species-level taxonomic assignment".format(initial_count - len(new_genome_fasta_files)))
+        logging.info("Number of new genomes to add to metapackage: {}".format(len(new_genome_fasta_files)))
+
+        return taxonomy_path, new_genome_fasta_files
 
 
 def generate_new_singlem_package(myargs):
@@ -323,6 +335,8 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
     metapackage_parser.add_argument('--threads', help='parallelisation', type=int, default=1)
     metapackage_parser.add_argument('--pplacer-threads', help='for GTDBtk classify_wf', type=int)
+    metapackage_parser.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
+    metapackage_parser.add_argument('--gtdbtk-output-directory', help='use this GTDBtk result. Not used if --new-taxonomies is used [default: run GTDBtk]')
     args = parser.parse_args()
 
     if args.debug:
@@ -335,17 +349,20 @@ if __name__ == '__main__':
 
     if args.subparser_name == 'metapackage':
         with tempfile.TemporaryDirectory() as working_directory:
-            # working_directory = '/tmp/ben_tmp_working'
+            if args.working_directory:
+                working_directory = args.working_directory
             if not os.path.exists(working_directory): os.mkdir(working_directory)
 
             if args.new_taxonomies:
                 taxonomy_file = args.new_taxonomies
+                new_genome_fasta_files=args.new_genome_fasta_files
             else:
                 logging.info("Generating taxonomy for new genomes ..")
-                taxonomy_file = generate_taxonomy_for_new_genomes(
+                taxonomy_file, new_genome_fasta_files = generate_taxonomy_for_new_genomes(
                     working_directory=working_directory,
                     threads=args.threads,
                     new_genome_fasta_files=args.new_genome_fasta_files,
+                    gtdbtk_output_directory=args.gtdbtk_output_directory,
                     pplacer_threads=args.pplacer_threads,)
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
@@ -354,7 +371,7 @@ if __name__ == '__main__':
                 args.threads,
                 working_directory,
                 args.input_metapackage,
-                args.new_genome_fasta_files,
+                new_genome_fasta_files,
                 taxonomy_file)
 
             logging.info("Copying generated metapackage to {}".format(args.output_metapackage))
