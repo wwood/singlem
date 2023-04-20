@@ -164,6 +164,7 @@ if __name__ == '__main__':
                                     metavar='length',
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
+        argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
@@ -625,6 +626,7 @@ if __name__ == '__main__':
             assignment_singlem_db = args.assignment_singlem_db,
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
+            exclude_off_target_hits = args.exclude_off_target_hits,
         )
 
     elif args.subparser_name=='renew':
