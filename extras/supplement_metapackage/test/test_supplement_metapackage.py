@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-#=======================================================================
+# =======================================================================
 # Author:
 #
 # Unit tests.
@@ -19,12 +19,10 @@
 #
 # You should have received a copy of the GNU General Public License.
 # If not, see <http://www.gnu.org/licenses/>.
-#=======================================================================
+# =======================================================================
 
 import unittest
-import sys
 import extern
-import tempfile
 import os.path
 
 from bird_tool_utils import in_tempdir
@@ -39,13 +37,15 @@ singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
 run = f"PATH=$PATH:{singlem_bin_directory}:~/e/gtdbtk-v2.2.6/bin PYTHONPATH=$PYTHONPATH:{singlem_base_directory} {path_to_script} metapackage"
 singlem = f"{singlem_bin_directory}/singlem"
 
+
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
-    headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
+    headers_with_extras = headers + str.split(
+        'read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method'
+    )
     maxDiff = None
-    two_packages = '%s %s' % (
-        os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
-        os.path.join(path_to_data, '4.12.22seqs.spkg'))
+    two_packages = '%s %s' % (os.path.join(path_to_data,
+                                           '4.11.22seqs.gpkg.spkg'), os.path.join(path_to_data, '4.12.22seqs.spkg'))
 
     def assertEqualOtuTable(self, expected_array, observed_string):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])
@@ -67,7 +67,8 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES']
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
+            ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
     def test_auto_taxonomy(self):
@@ -79,7 +80,8 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms']
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms'
+            ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
     def test_auto_taxonomy_with_not_all_new(self):
@@ -92,8 +94,31 @@ class Tests(unittest.TestCase):
             expected = [
                 "\t".join(self.headers),
                 '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms',
-                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Desulfurococcales; f__Desulfurococcaceae; g__Thermosphaera']
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Desulfurococcales; f__Desulfurococcaceae; g__Thermosphaera'
+            ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
+    def test_auto_taxonomy_with_not_all_new_fast(self):
+        with in_tempdir():
+            cmd = f"{run} --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.fna {path_to_data}/GCA_011373445.1_genomic.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --gtdbtk-output-directory {path_to_data}/GCA_011373445.1_genomic_and_mutated93.gtdbtk_output --output-taxonomies out.taxonomy.tsv"
+            extern.run(cmd)
+
+            cmd2 = f'{singlem} pipe --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.fna {path_to_data}/GCA_011373445.1_genomic.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
+            output = extern.run(cmd2)
+            expected = [
+                "\t".join(self.headers),
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms	CTTAAAAAGAAACTAAAAGGT------GCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.16	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms',
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Desulfurococcales; f__Desulfurococcaceae; g__Thermosphaera'
+            ]
+            self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
+            # Assert taxonomy file is correct
+            with open('out.taxonomy.tsv') as f:
+                taxonomy = f.read()
+            expected = "genome	taxonomy\n" \
+            "GCA_011373445.1_genomic.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__DRVV01 sp011373445\n" \
+            "GCA_011373445.1_genomic.mutated93_ms.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms\n"
+            self.assertEqual(expected, taxonomy)
 
 
 if __name__ == "__main__":

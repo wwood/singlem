@@ -33,6 +33,9 @@ class OtuTableCollection:
 
     def add_archive_otu_table(self, input_archive_table_io):
         self.archive_table_objects.append(ArchiveOtuTable.read(input_archive_table_io))
+
+    def add_archive_otu_table_object(self, input_archive_table_object):
+        self.archive_table_objects.append(input_archive_table_object)
     
     def add_otu_table_object(self, input_otu_table_object):
         self.otu_table_objects.append(input_otu_table_object)
@@ -256,6 +259,7 @@ class StreamingOtuTableCollection:
         only be done once since the data is streamed in.'''
 
         current_sample = None
+        current_otus = None
         for otu in self:
             if otu.sample_name != current_sample:
                 if current_sample is not None:
