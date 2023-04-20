@@ -150,14 +150,19 @@ class OtuTableCollection:
                     otu_table.add([o])
         return otu_table
 
-    def exclude_off_target_hits(self, singlem_packages):
+    def exclude_off_target_hits(self, singlem_packages, return_archive_table=False):
         '''Return an OTU table that only contains hits from the target domain.
         
         Parameters
         ----------
         singlem_packages: SingleMPackage objects (version 3+)
+        return_archive_table: bool
+            If True, then return an ArchiveOtuTable, rather than an OtuTable
         '''
-        to_return = OtuTable()
+        if return_archive_table:
+            to_return = ArchiveOtuTable()
+        else:
+            to_return = OtuTable()
         package_to_targets = {}
         for pkg in singlem_packages:
             package_to_targets[pkg.graftm_package_basename()] = pkg.target_domains()
@@ -175,7 +180,7 @@ class OtuTableCollection:
                 continue
             elif not tax[1].startswith('d__'):
                 raise Exception("Unexpected taxonomy string encountered: {}".format(tax))
-            elif tax[1].replace('d__','') in targets:
+            elif tax[1].replace('d__', '') in targets:
                 to_return.add([otu])
             else:
                 logging.debug("Excluding OTU {} as not being in the target taxonomy".format(otu))

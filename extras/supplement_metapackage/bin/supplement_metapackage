@@ -38,6 +38,7 @@ import tempfile
 import polars as pl
 
 import extern
+from bird_tool_utils import iterable_chunks
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 
@@ -242,8 +243,6 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
     # Taxonomy/seqinfo give the taxonomy of target and euk sequences
     old_metapackage = Metapackage.acquire(old_metapackage_path)
 
-    genome_otu_table = os.path.join(working_directory, 'genome_otu_table.json')
-
     genome_to_taxonomy = {}
     with open(new_taxonomies_file) as f:
         for row in csv.reader(f, delimiter='\t'):
@@ -267,29 +266,39 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
         raise
 
     logging.info("Gathering OTUs from new genomes ..")
-    # TODO: This could be sped up by multithreading. Should not try to run too
-    # many genomes through singlem at once anyway.
-    extern.run(
-        'singlem pipe --threads {} --genome-fasta-files {} --archive-otu-table {} --metapackage {}'.format(
-            num_threads, ' '.join(new_genome_fasta_files), genome_otu_table, old_metapackage_path))
+    # Multiprocess the singlem pipe commands to speed things up, since pipe is
+    # slow for many genomes at the moment, especially since we need to assign
+    # taxonomy to exclude off-target hits.
+    commands = []
+    old_metapackage_on_new_genomes_tempfiles = []
+    for chunk in iterable_chunks(new_genome_fasta_files, 10):
+        chunk2 = [c for c in chunk if c is not None]
+        tf = tempfile.NamedTemporaryFile(prefix='supplement_metapackage_otu_table')
+        old_metapackage_on_new_genomes_tempfiles.append(tf)
+        commands.append('singlem pipe --genome-fasta-files {} --archive-otu-table {} --metapackage {}'.format(
+            ' '.join(chunk2), tf.name, old_metapackage_path))
+    extern.run_many(commands, num_threads)
 
     # Create SDB for final metapackage
     logging.info("Creating sdb to include in metapackage ..")
     new_metapackage_sdb_path = os.path.join(working_directory, 'new_metapackage.sdb')
+    all_otu_tables = OtuTableCollection()
     with tempfile.NamedTemporaryFile(prefix='supplement_metapackage_otu_table_renamed') as f:
+        f.write(('\t'.join(OtuTable.DEFAULT_OUTPUT_FIELDS) + '\n').encode())
+
         # Change the taxonomy to be correct
-        with open(genome_otu_table) as g:
-            ar = ArchiveOtuTable.read(g)
-            collection = OtuTableCollection()
-            collection.add_archive_otu_table_object(ar)
-            collection2 = OtuTableCollection()
-            collection2.add_otu_table_object(collection.exclude_off_target_hits(old_metapackage.singlem_packages))
+        for tf in old_metapackage_on_new_genomes_tempfiles:
+            with open(tf.name) as g:
+                ar = ArchiveOtuTable.read(g)
+                collection = OtuTableCollection()
+                collection.add_archive_otu_table_object(ar)
+                all_otu_tables.add_otu_table_object(
+                    collection.exclude_off_target_hits(
+                        old_metapackage.singlem_packages, return_archive_table=True))
 
-            f.write(('\t'.join(OtuTable.DEFAULT_OUTPUT_FIELDS) + '\n').encode())
-
-            for otu in collection2:
-                otu.taxonomy = genome_to_taxonomy[otu.sample_name]
-                f.write((str(otu) + "\n").encode())
+        for otu in all_otu_tables:
+            otu.taxonomy = genome_to_taxonomy[otu.sample_name]
+            f.write((str(otu) + "\n").encode())
 
         f.flush()
         cmd = 'singlem makedb --otu-tables {} <(singlem query --dump --db {}) --db {} --sequence-database-methods smafa-naive --threads {}'.format(
@@ -299,13 +308,14 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     # Dump matched transcript sequences to a file for graftm graft
     matched_transcript_path = os.path.join(working_directory, 'matched_transcripts.fasta')
-    extern.run('singlem summarise --input-archive-otu-table {} --unaligned-sequences-dump-file {}'.format(
-        genome_otu_table, matched_transcript_path))
-    with open(genome_otu_table) as f:
-        genome_archive_otu = ArchiveOtuTable.read(f)
+    with open(matched_transcript_path, 'w') as _: pass  # Just create it
+    for tf in old_metapackage_on_new_genomes_tempfiles:
+        extern.run('singlem summarise --input-archive-otu-table {} --unaligned-sequences-dump-file /dev/stdout >> {}'.format(
+            tf.name, matched_transcript_path))
+
     sequence_to_genome = {}
     with open(matched_transcript_path, 'w') as f:
-        for otu in genome_archive_otu:
+        for otu in all_otu_tables:
             read_names = otu.read_names()
             seqs = otu.read_unaligned_sequences()
             for seq, read_name in zip(seqs, read_names):
