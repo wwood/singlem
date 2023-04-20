@@ -650,6 +650,7 @@ if __name__ == '__main__':
             assignment_singlem_db = args.assignment_singlem_db,
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
+            exclude_off_target_hits = args.exclude_off_target_hits,
             )
 
     elif args.subparser_name == 'summarise':

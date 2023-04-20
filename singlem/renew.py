@@ -27,6 +27,7 @@ class Renew:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile')
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona')
+        exclude_off_target_hits = kwargs.pop('exclude_off_target_hits')
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -158,7 +159,8 @@ class Renew:
                 output_otu_table,
                 output_archive_otu_table,
                 output_extras,
-                metapackage)
+                metapackage,
+                exclude_off_target_hits)
         
         if output_taxonomic_profile or output_taxonomic_profile_krona:
             from .condense import Condenser
