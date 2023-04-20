@@ -114,8 +114,11 @@ class SearchPipe:
                     collection.add_otu_table_object(otu_table_object)
                     collection2 = OtuTableCollection()
                     collection2.add_otu_table_object(collection.exclude_off_target_hits(metapackage.singlem_packages))
-                    otu_table_object = collection2
-                Summariser.write_otu_table(table_collection=otu_table_object,
+                    to_print = collection2
+                else:
+                    to_print = OtuTableCollection()
+                    to_print.add_otu_table_object(otu_table_object)
+                Summariser.write_otu_table(table_collection=to_print,
                                            output_table_io=f,
                                            output_extras=output_extras)
         if archive_otu_table:
