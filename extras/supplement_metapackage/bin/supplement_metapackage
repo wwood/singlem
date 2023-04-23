@@ -114,7 +114,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                             "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
                                 genome_name, row['classification']))
                         if output_taxonomies_file:
-                            output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
+                            output_taxonomies_fh.write(
+                                '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
                     else:
                         placeholder_taxonomy = genome_name
                         for suffix in genome_file_suffixes:
@@ -271,13 +272,15 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
     # taxonomy to exclude off-target hits.
     commands = []
     old_metapackage_on_new_genomes_tempfiles = []
-    for chunk in iterable_chunks(new_genome_fasta_files, 10):
+    # Create regular files in a tempdir so that we don't need so many file handles
+    td = tempfile.TemporaryDirectory(prefix='supplement_metapackage_otu_table_genome_jsons')
+    for i, chunk in enumerate(iterable_chunks(new_genome_fasta_files, 10)):
         chunk2 = [c for c in chunk if c is not None]
-        tf = tempfile.NamedTemporaryFile(prefix='supplement_metapackage_otu_table')
+        tf = os.path.join(td.name, f"{i}.json")
         old_metapackage_on_new_genomes_tempfiles.append(tf)
         commands.append('singlem pipe --genome-fasta-files {} --archive-otu-table {} --metapackage {}'.format(
-            ' '.join(chunk2), tf.name, old_metapackage_path))
-    extern.run_many(commands, num_threads)
+            ' '.join(chunk2), tf, old_metapackage_path))
+    extern.run_many(commands, num_threads=num_threads, progress_stream=sys.stderr)
 
     # Create SDB for final metapackage
     logging.info("Creating sdb to include in metapackage ..")
@@ -288,13 +291,12 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
         # Change the taxonomy to be correct
         for tf in old_metapackage_on_new_genomes_tempfiles:
-            with open(tf.name) as g:
+            with open(tf) as g:
                 ar = ArchiveOtuTable.read(g)
                 collection = OtuTableCollection()
                 collection.add_archive_otu_table_object(ar)
                 all_otu_tables.add_otu_table_object(
-                    collection.exclude_off_target_hits(
-                        old_metapackage.singlem_packages, return_archive_table=True))
+                    collection.exclude_off_target_hits(old_metapackage.singlem_packages, return_archive_table=True))
 
         for otu in all_otu_tables:
             otu.taxonomy = genome_to_taxonomy[otu.sample_name]
@@ -308,10 +310,12 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     # Dump matched transcript sequences to a file for graftm graft
     matched_transcript_path = os.path.join(working_directory, 'matched_transcripts.fasta')
-    with open(matched_transcript_path, 'w') as _: pass  # Just create it
+    with open(matched_transcript_path, 'w') as _:
+        pass  # Just create it
     for tf in old_metapackage_on_new_genomes_tempfiles:
-        extern.run('singlem summarise --input-archive-otu-table {} --unaligned-sequences-dump-file /dev/stdout >> {}'.format(
-            tf.name, matched_transcript_path))
+        extern.run(
+            'singlem summarise --input-archive-otu-table {} --unaligned-sequences-dump-file /dev/stdout >> {}'.format(
+                tf, matched_transcript_path))
 
     sequence_to_genome = {}
     with open(matched_transcript_path, 'w') as f:
@@ -341,6 +345,9 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
         .format(new_metapackage_sdb_path, ' '.join(new_spkg_paths), new_metapackage_path,
                 old_metapackage.prefilter_db_path()))
     logging.info("New metapackage created at {}".format(new_metapackage_path))
+
+    td.cleanup()
+
     return new_metapackage_path
 
 
@@ -361,7 +368,8 @@ if __name__ == '__main__':
                                     required=True)
     metapackage_parser.add_argument(
         '--new-taxonomies',
-        help='newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
+        help=
+        'newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
     )
     metapackage_parser.add_argument('--input-metapackage', help='metapackage to build upon', required=True)
     metapackage_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
