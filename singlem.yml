@@ -32,8 +32,10 @@ dependencies:
   - zenodo_backpack
   - smafa>=0.7.0
   - pytest # For testing only
+  - ipython # For testing only
   # - python-annoy optional
   # - nmslib # optional
-  # - pip:
+  - pip:
+    - genomicranges # Not on conda yet
   #   - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
   #   - scann # optional
