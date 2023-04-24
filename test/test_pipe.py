@@ -22,7 +22,6 @@
 #=======================================================================
 
 import unittest
-import subprocess
 import os.path
 import tempfile
 import extern
@@ -54,7 +53,7 @@ class Tests(unittest.TestCase):
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
 
-    def assertEqualOtuTable(self, expected_array_or_string, observed_string):
+    def assertEqualOtuTable(self, expected_array_or_string, observed_string, no_assign_taxonomy=False):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])
 
         r = re.compile(r'  +')
@@ -62,6 +61,11 @@ class Tests(unittest.TestCase):
             expected_array = list(expected_array_or_string.split("\n"))
             expected_array = [r.sub("\t", line) for line in expected_array]
             expected_array = [line.split("\t") for line in expected_array]
+            if no_assign_taxonomy:
+                expected_array2 = [expected_array[0]]
+                for line in expected_array[1:]:
+                    expected_array2.append(line+[''])
+                expected_array = expected_array2
         else:
             expected_array = expected_array_or_string
 
@@ -1152,8 +1156,8 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         self.assertEqualOtuTable(with_exclude, extern.run(cmd))
 
     def test_genome_input_dereplication(self):
-        expected = ['gene    sample  sequence        num_hits        coverage        taxonomy',
-            '4.12.22seqs     GCA_000309865.1_genomic GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    2       2.39']
+        expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
+            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    2       2.39'
         # ~/git/singlem/bin/singlem pipe --genome-fasta-files genomes/GCA_000309865.1_genomic.fna --singlem-package ../4.12.22seqs.spkg/ --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96
         cmd = '{} pipe --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
             path_to_script,
@@ -1161,8 +1165,9 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             os.path.join(path_to_data, '4.12.22seqs.spkg'),
         )
         self.assertEqualOtuTable(
-            list([line.split("\t") for line in expected]),
-            extern.run(cmd))
+            expected,
+            extern.run(cmd),
+            no_assign_taxonomy=True)
 
 
 
