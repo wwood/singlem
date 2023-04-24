@@ -31,11 +31,11 @@ dependencies:
   - bird_tool_utils_python>=0.4.1
   - zenodo_backpack
   - smafa>=0.7.0
+  - pyranges
   - pytest # For testing only
   - ipython # For testing only
   # - python-annoy optional
   # - nmslib # optional
-  - pip:
-    - genomicranges # Not on conda yet
+  # - pip:
   #   - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
   #   - scann # optional

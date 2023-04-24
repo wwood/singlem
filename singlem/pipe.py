@@ -431,6 +431,12 @@ class SearchPipe:
             else:
                 self._remove_single_sequence_duplicates(readset)
 
+        #### Remove duplications which happen when OrfM hits the same sequence more than once.
+        if genome_fasta_files:
+            logging.info("Removing duplicate sequences from rough transcriptome ..")
+            for readset in extracted_reads:
+                readset.remove_duplicate_sequences()
+
         #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
         otu_table_object = self.assign_taxonomy_and_process(
             extracted_reads=extracted_reads,
