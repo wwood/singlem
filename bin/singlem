@@ -165,6 +165,10 @@ if __name__ == '__main__':
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
         argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
+        argument_group.add_argument('--min-taxon-coverage',
+                                    metavar='FLOAT',
+                                    help='Minimum coverage to report in a taxonomic profile. [default: {} for reads, {} for genomes]'.format(Condenser.DEFAULT_MIN_TAXON_COVERAGE, Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE),
+                                    type=float)
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
@@ -588,6 +592,14 @@ if __name__ == '__main__':
             return SearchPipe.DEFAULT_MIN_ORF_LENGTH
         else:
             raise Exception("Programming error")
+        
+    def get_min_taxon_coverage(args, subparser='pipe'):
+        if args.min_taxon_coverage:
+            return args.min_taxon_coverage
+        elif subparser == 'pipe' and args.genome_fasta_files:
+            return Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE
+        else:
+            return Condenser.DEFAULT_MIN_TAXON_COVERAGE
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
@@ -627,6 +639,7 @@ if __name__ == '__main__':
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
             exclude_off_target_hits = args.exclude_off_target_hits,
+            min_taxon_coverage = get_min_taxon_coverage(args),
         )
 
     elif args.subparser_name=='renew':
