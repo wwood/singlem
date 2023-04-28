@@ -30,6 +30,7 @@ class Condenser:
 
     DEFAULT_TRIM_PERCENT = 10
     DEFAULT_MIN_TAXON_COVERAGE = 0.35
+    DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
 
     def condense(self, **kwargs):
         output_otu_table = kwargs.pop('output_otu_table')
@@ -74,6 +75,8 @@ class Condenser:
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
