@@ -48,6 +48,7 @@ class SearchPipe:
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona', None)
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras')
+        min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
         if outputting_taxonomic_profile:
@@ -80,7 +81,9 @@ class SearchPipe:
                     input_streaming_otu_table = otu_table_collection,
                     output_otu_table = output_taxonomic_profile,
                     krona = output_taxonomic_profile_krona,
-                    metapackage = metapackage)
+                    metapackage = metapackage,
+                    min_taxon_coverage = min_taxon_coverage,
+                )
 
 
 
