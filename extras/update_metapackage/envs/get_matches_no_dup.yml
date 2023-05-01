@@ -6,3 +6,4 @@ dependencies:
   - python>3.6
   - mfqe>=0.5.0
   - biopython>=1.64
+  - extern

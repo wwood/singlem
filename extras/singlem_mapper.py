@@ -48,8 +48,8 @@ if __name__ == '__main__':
     parent_parser.add_argument('--quiet', help='only output errors', action="store_true")
 
     parent_parser.add_argument('--forward', help='forward reads for mapping', required=True)
-    parent_parser.add_argument('--reverse', help='reverse reads for mapping', required=True)
-    parent_parser.add_argument('--singlem-profile', help='regular or output extras form of singlem profile for the reads being mapped', required=True)
+    parent_parser.add_argument('--reverse', help='reverse reads 1for mapping', required=True)
+    parent_parser.add_argument('--singlem-profile', help='regular or output extras form of singlem OTU table for the reads being mapped', required=True)
     parent_parser.add_argument('--reference-genome-singlem-database', help='map reads only to those genomes closely related in this SingleM database', required=True)
     parent_parser.add_argument('--reference-genome-locations', help='Two column TSV file with <genome_id>TAB<location>', required=True)
     parent_parser.add_argument('--output', help='output profile from CoverM', required=True)
