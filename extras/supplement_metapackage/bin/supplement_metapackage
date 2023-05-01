@@ -67,6 +67,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
     name_to_genome_fasta = {}
     with tempfile.NamedTemporaryFile(mode='w') as batchfile:
         for genome_fasta in new_genome_fasta_files:
+            if not os.path.isfile(genome_fasta):
+                raise Exception("Specified genome does not appear to be a file: {}".format(genome_fasta))
             name = os.path.basename(genome_fasta)
             name_to_genome_fasta[name] = genome_fasta
             batchfile.write(genome_fasta + '\t' + name + '\n')
@@ -107,8 +109,14 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     genome_name = row['user_genome']
                     taxonomy = row['classification'].split(';')
                     if len(taxonomy) != 7:
-                        raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
-                            tax_file, taxonomy))
+                        if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
+                            logging.warning("The genome {} was not given any classification, perhaps it is poor quality?".format(genome_name))
+                            if output_taxonomies_file:
+                                output_taxonomies_fh.write(
+                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
+                        else:
+                            raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
+                                tax_file, taxonomy))
                     elif taxonomy[6] != 's__':
                         logging.debug(
                             "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(

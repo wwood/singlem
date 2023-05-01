@@ -1,24 +1,30 @@
 
-# Get around reuqirement for GTDBTK_DATA_PATH
 import os
-os.environ['GTDBTK_DATA_PATH'] = '/work/microbiome/db/gtdb/gtdb_release207_v2'
-
-from gtdbtk.external.pypfam.Scan.PfamScan import PfamScan
 import logging
 import pathlib
+import extern
 from tqdm.contrib.concurrent import process_map
 
 def process_a_genome(params):
-    genome_input, output_tsv, pfams = params
+    genome_faa, output, tigrfams, log = params
     logging.debug("Processing genome: " + genome)
+
     pathlib.Path(os.path.dirname(output_tsv)).mkdir(parents=True, exist_ok=True)
+    pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
-    pfam_scan = PfamScan(cpu=1, fasta=genome_input, dir=pfams)
-    pfam_scan.search()
-    pfam_scan.write_results(output_tsv, None, None, None, None)
+    cmd = "hmmsearch " \
+        "-o /dev/null " \
+        "--tblout {} ".format(output) + \
+        "--noali " \
+        "--notextw " \
+        "--cut_nc " \
+        "--cpu 1 " \
+        "{} ".format(tigrfams) + \
+        "{} ".format(genome_faa) + \
+        "&> {}".format(log)
+    extern.run(cmd)
 
-
-pfams = snakemake.params.pfams
+tigrfams = snakemake.config['tigrfams']
 genomes = snakemake.params.genome_ids
 fasta_base = snakemake.config['gtdb_protein_faa_reps']
 output_dir = snakemake.params.output_dir
@@ -31,8 +37,9 @@ logging.info(os.path.basename(__file__) + ": Processing {} genomes with {} threa
 param_sets = []
 for genome in genomes:
     genome_fasta = os.path.join(fasta_base, genome)
-    output_tsv = os.path.join(output_dir, f"hmmsearch/pfam/{genome}.tsv")
-    param_sets.append((genome_fasta, output_tsv, pfams))
+    output_tsv = os.path.join(output_dir, f"{genome}.tsv")
+    log = os.path.join(output_dir, f"{genome}.log")
+    param_sets.append((genome_fasta, output_tsv, tigrfams, log))
 
 process_map(process_a_genome, param_sets, max_workers=num_threads, chunksize=1)
 

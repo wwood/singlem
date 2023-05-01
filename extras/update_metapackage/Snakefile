@@ -17,8 +17,13 @@ hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
+
+print("Finding genomes...")
 genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
 genomes = ["/".join(g.split("/")[-2:]) for g in genome_paths]
+
+# genomes = genomes[:50]+genomes[(len(genomes)-50):] # debug, so have archaea and bacteria
+print("Found {} genomes.".format(len(genomes)))
 
 if not "max_threads" in config: config["max_threads"] = 8
 
@@ -35,14 +40,17 @@ rule all:
 ####################
 rule pfam_search:
     input:
-        config["gtdb_protein_faa_reps"] + "/{genome}"
+        # config["gtdb_protein_faa_reps"] + "/{genome}"
     output:
-        output_dir + "/hmmsearch/pfam/{genome}.tsv"
+        done=output_dir + "/pfam_search.done" #"/hmmsearch/pfam/{genome}.tsv"
     params:
         pfams = config["pfams"],
-    threads: 1
+        genome_ids = genomes,
+        output_dir = output_dir,
+    threads:
+        config["max_threads"]
     log:
-        logs_dir + "/hmmsearch/pfam/{genome}.log"
+        logs_dir + "/pfam_search.log" #"/hmmsearch/pfam/{genome}.log"
     conda:
         "envs/hmm_tools.yml"
     script:
@@ -50,116 +58,101 @@ rule pfam_search:
 
 rule tigrfam_search:
     input:
-        config["gtdb_protein_faa_reps"] + "/{genome}"
+        # config["gtdb_protein_faa_reps"] + "/{genome}"
     output:
-        output_dir + "/hmmsearch/tigrfam/{genome}.tsv"
+        done=output_dir + "/tigrfam_search.done" #output_dir + "/hmmsearch/tigrfam/{genome}.tsv"
     params:
         tigrfams = config["tigrfams"],
-    threads: 1
-    log:
-        logs_dir + "/hmmsearch/tigrfam/{genome}.log"
+        log_dir=logs_dir + "/hmmsearch/tigrfam/",
+        output_dir=output_dir + "/hmmsearch/tigrfam/",
+        genome_ids = genomes,
+    threads:
+        config["max_threads"]
     conda:
-        "envs/hmm_tools.yml"
-    shell:
-        "hmmsearch "
-        "-o /dev/null "
-        "--tblout {output} "
-        "--noali "
-        "--notextw "
-        "--cut_nc "
-        "--cpu {threads} "
-        "{params.tigrfams} "
-        "{input} "
-        "&> {log}"
+        "envs/tigrfam_search.yml"
+    script:
+        "scripts/tigrfam_search.py"
 
 rule get_matches_no_dup:
     input:
-        pfam_search = output_dir + "/hmmsearch/pfam/{genome}.tsv",
-        tigrfam_search = output_dir + "/hmmsearch/tigrfam/{genome}.tsv"
+        output_dir + "/pfam_search.done",
+        output_dir + "/tigrfam_search.done",
     output:
-        output_dir + "/hmmsearch/matches/{genome}.fam"
+        done=output_dir + "/get_matches_no_dup.done"
     params:
-        hmms_and_names = "hmms_and_names"
-    log:
-        logs_dir + "/hmmsearch/matches/{genome}_matching.log"
+        pfam_search_directory = output_dir + "/hmmsearch/pfam/",
+        tigrfam_search_directory = output_dir + "/hmmsearch/tigrfam/",
+        hmms_and_names = "hmms_and_names",
+        output_dir = output_dir + "/hmmsearch/matches",
+        logs_dir = logs_dir + "/hmmsearch/matches",
+        genome_ids = genomes,
+    threads:
+        config["max_threads"]
     conda:
         "envs/get_matches_no_dup.yml"
-    shell:
-        "python scripts/get_matches_no_dup.py "
-        "--pfam-search {input.pfam_search} "
-        "--tigrfam-search {input.tigrfam_search} "
-        "--hmm-list {params.hmms_and_names} "
-        "--output {output} "
-        "&> {log}"
-
-rule get_matching_seq_list:
-    input:
-        matches = output_dir + "/hmmsearch/matches/{genome}.fam"
-    output:
-        temp(output_dir + "/hmmsearch/matches/{genome}.tmp")
-    shell:
-        "cut -f1 {input} > {output}"
+    script:
+        "scripts/get_matches_no_dup_all.py"
 
 rule mfqe:
     input:
-        fasta = config["gtdb_protein_faa_reps"] + "/{genome}",
-        seqnames = output_dir + "/hmmsearch/matches/{genome}.tmp"
+        done=output_dir + "/get_matches_no_dup.done",
+    params:
+        # fasta = config["gtdb_protein_faa_reps"] + "/{genome}",
+        # output_tsv = os.path.join(output_dir, f"{genome}.fam") + "/hmmsearch/matches",
+        fam_directory = output_dir + "/hmmsearch/matches",
+        # seqnames = output_dir + "/hmmsearch/matches/{genome}.tmp"
+        output_dir = output_dir + "/hmmsearch/matches",
+        logs_dir = logs_dir + "/mfqe",
+        genome_ids = genomes,
     output:
-        output_dir + "/hmmsearch/matches/{genome}"
-    log:
-        logs_dir + "/hmmsearch/matches/{genome}_mfqe.log"
+        done=output_dir + "/mfqe.done",
+    # log:
+    #     logs_dir + "/hmmsearch/matches/{genome}_mfqe.log"
     conda:
         "../../singlem.yml"
-    shell:
-        "mfqe "
-        "--input-fasta {input.fasta} "
-        "--sequence-name-lists {input.seqnames} "
-        "--output-fasta-files {output} "
-        "--output-uncompressed "
-        "&> {log}"
+    threads:
+        config["max_threads"]
+    script:
+        "scripts/mfqe_all.py"
 
 ########################
 ### Package creation ###
 ########################
 rule transpose_hmms_with_sequences:
     input:
-        fasta = output_dir + "/hmmsearch/matches/{genome}",
-        matches = output_dir + "/hmmsearch/matches/{genome}.fam",
+        output_dir + "/mfqe.done",
     output:
-        touch = output_dir + "/hmmseq_touches/{genome}.done",
+        done = output_dir + "/transpose_hmms_with_sequences.done",
     params:
-        script = "scripts/transpose_hmms_with_sequences.py",
-        dir = directory(output_dir + "/hmmseq/"), # output is file for each spkg
-        gtdb_bac_tax = config["gtdb_bac_tax"],
-        gtdb_arc_tax = config["gtdb_arc_tax"],
-        hmms_and_names = "hmms_and_names"
-    log:
-        logs_dir + "/hmmsearch/matches/{genome}_transpose.log"
+        output_dir = directory(output_dir + "/hmmseq/"), # output is file for each spkg
+        hmms_and_names = "hmms_and_names",
+        matches_dir = output_dir + "/hmmsearch/matches",
+        logs_dir = logs_dir + "/transpose_hmms_with_sequences",
+        genome_ids = genomes,
+    threads:
+        config["max_threads"]
     conda:
         "envs/transpose_hmms_with_sequences.yml"
-    shell: 
-        "mkdir -p {params.dir} "
-        "&& python {params.script} "
-        "--input-fasta {input.fasta} "
-        "--bacterial-taxonomy {params.gtdb_bac_tax} "
-        "--archaeal-taxonomy {params.gtdb_arc_tax} "
-        "--hmm-seq {input.matches} "
-        "--hmm-spkg {params.hmms_and_names} "
-        "--output {params.dir} "
-        "&> {log} "
-        "&& touch {output.touch}"
+    script:
+        "scripts/transpose_hmms_with_sequences_all.py"
 
-rule check_transposes:
+rule concatenate_seqs_and_taxonomies:
     input:
-        expand(output_dir + "/hmmseq_touches/{genome}.done", genome=genomes),
+        done = output_dir + "/transpose_hmms_with_sequences.done",
     output:
-        output_dir + "/hmmseq/done"
+        done = output_dir + "/concatenate_seqs_and_taxonomies.{spkg}.done",
+    params:
+        hmmseq_dir = output_dir + "/hmmseq/",
+        concat_dir = output_dir + "/hmmseq_concat/",
+        spkg_seq = output_dir + "/hmmseq_concat/{spkg}.faa",
+        spkg_tax = output_dir + "/hmmseq_concat/{spkg}_taxonomy.tsv",
     shell:
-        "touch {output}"
+        "mkdir -p {params.concat_dir} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep .faa$ |parallel -j1 --ungroup cat {{}} >{params.spkg_seq} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep _taxonomy.tsv$ |parallel -j1 --ungroup cat {{}} >{params.spkg_tax} && touch {output.done}"
+
 
 rule create_SingleM_packages:
     input:
-        output_dir + "/hmmseq/done"
+        output_dir + "/concatenate_seqs_and_taxonomies.{spkg}.done",
     output:
         directory(output_dir + "/packages/{spkg}.spkg")
     params:
@@ -168,8 +161,8 @@ rule create_SingleM_packages:
         uniprot_seq = config["uniprot_seq"],
         uniprot_tax = config["uniprot_tax"],
         spkg = config["metapackage"] + "/{spkg}.spkg",
-        spkg_seq = output_dir + "/hmmseq/{spkg}.faa",
-        spkg_tax = output_dir + "/hmmseq/{spkg}_taxonomy.tsv",
+        spkg_seq = output_dir + "/hmmseq_concat/{spkg}.faa",
+        spkg_tax = output_dir + "/hmmseq_concat/{spkg}_taxonomy.tsv",
         spkg_name = lambda wildcards: hmms_and_names.loc[wildcards.spkg, "name_without_number"]
     log:
         logs_dir + "/packages/{spkg}.log"
@@ -196,7 +189,8 @@ rule create_draft_SingleM_metapackage:
         directory(output_dir + "/draft_metapackage.smpkg")
     params:
         singlem = singlem_bin
-    threads: 8
+    threads:
+        config["max_threads"]
     log:
         logs_dir + "/draft_metapackage.log"
     conda:
@@ -226,7 +220,7 @@ rule SingleM_transcripts:
     shell:
         "mkdir -p {params.logs} "
         "&& cat <( find {input.dir} -name '*.fna' ) "
-        "| parallel -j {threads} "
+        "| parallel --eta -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
         "--metapackage {input.metapackage} "
@@ -281,7 +275,8 @@ rule create_SingleM_metapackage:
         directory(output_dir + "/metapackage/" + config["new_metapackage"])
     params:
         singlem = singlem_bin
-    threads: 8
+    threads:
+        config["max_threads"]
     log:
         logs_dir + "/metapackage.log"
     conda:
@@ -329,7 +324,8 @@ rule test_metapackage:
         profile_krona = output_dir + "/sra/{sra}_new.otu_table.condensed.krona.html"
     params:
         singlem = singlem_bin
-    threads: 8
+    threads:
+        8
     log:
         logs_dir + "/sra/{sra}_new_test.log"
     conda:
@@ -358,7 +354,8 @@ rule test_old_metapackage:
         profile_krona = output_dir + "/sra/{sra}_old.otu_table.condensed.krona.html"
     params:
         singlem = singlem_bin
-    threads: 8
+    threads:
+        8
     log:
         logs_dir + "/sra/{sra}_old_test.log"
     conda:
@@ -367,7 +364,6 @@ rule test_old_metapackage:
         "{params.singlem} pipe "
         "--forward {input.sra_1} "
         "--reverse {input.sra_2} "
-        "--assignment-method scann_naive_then_diamond "
         "--metapackage {input.metapackge} "
         "--otu-table {output.table} "
         "--archive-otu-table {output.archive_table} "

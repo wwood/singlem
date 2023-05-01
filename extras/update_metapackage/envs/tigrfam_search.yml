@@ -3,8 +3,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - python>=3.6
-  - biopython
-  - gffutils
-  - bcbiogff
   - extern
+  - python
+  - hmmer
