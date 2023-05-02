@@ -22,7 +22,6 @@
 #=======================================================================
 
 import unittest
-import subprocess
 import os.path
 import tempfile
 import extern
@@ -54,8 +53,22 @@ class Tests(unittest.TestCase):
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
 
-    def assertEqualOtuTable(self, expected_array, observed_string):
+    def assertEqualOtuTable(self, expected_array_or_string, observed_string, no_assign_taxonomy=False):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])
+
+        r = re.compile(r'  +')
+        if isinstance(expected_array_or_string, str):
+            expected_array = list(expected_array_or_string.split("\n"))
+            expected_array = [r.sub("\t", line) for line in expected_array]
+            expected_array = [line.split("\t") for line in expected_array]
+            if no_assign_taxonomy:
+                expected_array2 = [expected_array[0]]
+                for line in expected_array[1:]:
+                    expected_array2.append(line+[''])
+                expected_array = expected_array2
+        else:
+            expected_array = expected_array_or_string
+
         if expected_array[-1] != ['']:
             expected_array.append([''])
 
@@ -1132,7 +1145,29 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    def test_exclude_off_target_hits(self):
+        without_exclude = "gene    sample  sequence        num_hits        coverage        taxonomy\n" \
+                "4.11.22seqs     4.11.22seqs.gpkg.spkg_inseqs    TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA    1       2.44    Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179\n"
+        cmd = f"{path_to_script} pipe --forward {path_to_data}/4.11.22seqs.gpkg.spkg_inseqs.fna --assignment-method diamond --singlem-package {path_to_data}/4.11.22seqs.v3_archaea_targetted.gpkg.spkg --otu-table /dev/stdout"
+        self.assertEqualOtuTable(without_exclude, extern.run(cmd))
 
+        with_exclude = "gene    sample  sequence        num_hits        coverage        taxonomy\n"
+        cmd = f"{path_to_script} pipe --forward {path_to_data}/4.11.22seqs.gpkg.spkg_inseqs.fna --assignment-method diamond --singlem-package {path_to_data}/4.11.22seqs.v3_archaea_targetted.gpkg.spkg --otu-table /dev/stdout --exclude-off-target-hits"
+        self.assertEqualOtuTable(with_exclude, extern.run(cmd))
+
+    def test_genome_input_dereplication(self):
+        expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
+            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.13'
+        # ~/git/singlem/bin/singlem pipe --genome-fasta-files genomes/GCA_000309865.1_genomic.fna --singlem-package ../4.12.22seqs.spkg/ --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96
+        cmd = '{} pipe --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
+            path_to_script,
+            os.path.join(path_to_data, 'methanobacteria/genomes/GCA_000309865.1_genomic.fna'),
+            os.path.join(path_to_data, '4.12.22seqs.spkg'),
+        )
+        self.assertEqualOtuTable(
+            expected,
+            extern.run(cmd),
+            no_assign_taxonomy=True)
 
 
 
