@@ -1,0 +1,4 @@
+Name	Completeness	Contamination	Completeness_Model_Used	Translation_Table_Used	Coding_Density	Contig_N50	Average_Gene_Length	Genome_Size	GC_Content	Total_Coding_Sequences	Additional_Notes
+NASQAN2010_127_B_bin.3	94.3	3.03	Gradient Boost (General Model)	11	0.91	17768	301.6806144067797	3748012	0.64	3776	None
+NASQAN2010_155_B_bin.3	90.56	0.31	Gradient Boost (General Model)	11	0.947	7577	286.2611424984306	1441529	0.6	1593	None
+NASQAN2010_155_F_bin.27	96.65	3.99	Neural Network (Specific Model)	11	0.944	26585	337.8097062579821	2515434	0.37	2349	None

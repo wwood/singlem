@@ -60,6 +60,7 @@ class Tests(unittest.TestCase):
 
     def test_defined_taxonomy(self):
         with in_tempdir():
+            import IPython; IPython.embed()
             cmd = f"{run} --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.fna.taxonomy"
             extern.run(cmd)
 
