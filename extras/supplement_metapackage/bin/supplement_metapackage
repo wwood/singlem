@@ -39,6 +39,10 @@ import polars as pl
 
 import extern
 from bird_tool_utils import iterable_chunks
+from singlem.biolib_lite.prodigal_biolib import Prodigal
+from singlem.biolib_lite.common import remove_extension
+from tqdm.contrib.concurrent import process_map
+from tqdm import tqdm
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 
@@ -245,7 +249,7 @@ def generate_new_singlem_package(myargs):
 
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
-                             new_taxonomies_file):
+                             new_taxonomies_file, new_genome_transcripts_and_proteins):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
@@ -286,8 +290,9 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
         chunk2 = [c for c in chunk if c is not None]
         tf = os.path.join(td.name, f"{i}.json")
         old_metapackage_on_new_genomes_tempfiles.append(tf)
-        commands.append('singlem pipe --genome-fasta-files {} --archive-otu-table {} --metapackage {}'.format(
-            ' '.join(chunk2), tf, old_metapackage_path))
+        transcript_paths = [new_genome_transcripts_and_proteins[c].transcript_fasta for c in chunk2]
+        commands.append('singlem pipe --forward {} --archive-otu-table {} --metapackage {}'.format(
+            ' '.join(transcript_paths), tf, old_metapackage_path))
     extern.run_many(commands, num_threads=num_threads, progress_stream=sys.stderr)
 
     # Create SDB for final metapackage
@@ -358,6 +363,78 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     return new_metapackage_path
 
+class TranscriptsAndProteins:
+    def __init__(self):
+        self.transcript_fasta = None
+        self.protein_fasta = None
+        self.translation_table = None
+
+def run_prodigal_on_one_genome(params):
+    genome_fasta, output_directory = params
+    logging.debug("Running prodigal on {}, output {}".format(genome_fasta, output_directory))
+    prodigal = Prodigal(cpus=1, verbose=False)
+    prodigal_return = prodigal.run([genome_fasta], output_directory)
+
+    genome_id = remove_extension(genome_fasta)
+    # These must match result from biolib, which I modified
+    aa_gene_file = os.path.join(output_directory, genome_id + '.faa')
+    nt_gene_file = os.path.join(output_directory, genome_id + '.fna')
+
+    to_return = TranscriptsAndProteins()
+    to_return.protein_fasta = aa_gene_file
+    to_return.transcript_fasta = nt_gene_file
+    to_return.translation_table = prodigal_return[genome_id].best_translation_table
+    return to_return
+
+
+def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
+    # working_directory=working_directory,
+    # threads=args.threads,
+    # new_genome_fasta_files=args.new_genome_fasta_files
+    working_directory = kwargs.pop('working_directory')
+    threads = kwargs.pop('threads')
+    new_genome_fasta_files = kwargs.pop('new_genome_fasta_files')
+    if len(kwargs) > 0:
+        raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+    # Run prodigal on the new genomes, returning a translation table (4 or 11)
+    # appropriate one.
+    output_directory_base = os.path.join(working_directory, 'prodigal_output')
+    if not os.path.exists(output_directory_base):
+        os.makedirs(output_directory_base)
+    genome_ids = set()
+    param_sets = []
+    for genome_fasta in new_genome_fasta_files:
+        genome_id = remove_extension(genome_fasta)
+        
+        if genome_id in genome_ids:
+            raise Exception("Duplicate genome ID: %s" % genome_id)
+        genome_ids.add(genome_id)
+
+        output_directory = os.path.join(output_directory_base, genome_id)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+        param_sets.append((genome_fasta, output_directory))
+
+    logging.info("Running prodigal on new genomes ..")
+    if threads > 1:
+        transcripts_and_proteins = process_map(fn=run_prodigal_on_one_genome, iterable=param_sets, max_workers=threads)
+    else:
+        transcripts_and_proteins = []
+        for x in tqdm(param_sets):
+            transcripts_and_proteins.append(run_prodigal_on_one_genome(x))
+
+    num_translation_table4 = sum([1 for x in transcripts_and_proteins if x.translation_table == 4])
+    num_translation_table11 = sum([1 for x in transcripts_and_proteins if x.translation_table == 11])
+    logging.info("Prodigal finished. Found {} with translation table 4, {} with translation table 11".format(
+        num_translation_table4, num_translation_table11))
+
+    to_return = {}
+    for genome_fasta, transcripts_and_proteins in zip(new_genome_fasta_files, transcripts_and_proteins):
+        to_return[genome_fasta] = transcripts_and_proteins
+    return to_return
+
+
 
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -408,6 +485,13 @@ if __name__ == '__main__':
             if not os.path.exists(working_directory):
                 os.mkdir(working_directory)
 
+            # Generate faa and transcript fna files for the new genomes
+            logging.info("Generating faa and transcript fna files for the new genomes ..")
+            genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
+                working_directory=working_directory,
+                threads=args.threads,
+                new_genome_fasta_files=args.new_genome_fasta_files)
+
             if args.new_taxonomies:
                 taxonomy_file = args.new_taxonomies
                 new_genome_fasta_files = args.new_genome_fasta_files
@@ -424,7 +508,7 @@ if __name__ == '__main__':
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
             new_metapackage = generate_new_metapackage(args.threads, working_directory, args.input_metapackage,
-                                                       new_genome_fasta_files, taxonomy_file)
+                                                       new_genome_fasta_files, taxonomy_file, genome_transcripts_and_proteins)
 
             logging.info("Copying generated metapackage to {}".format(args.output_metapackage))
             shutil.copytree(new_metapackage, args.output_metapackage)
