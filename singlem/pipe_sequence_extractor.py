@@ -4,8 +4,8 @@ import extern
 from Bio import SeqIO
 from io import StringIO
 import multiprocessing
-import itertools
 import tempfile
+import pyranges as pr
 
 from graftm.hmmsearcher import HmmSearcher
 
@@ -485,7 +485,7 @@ class ExtractedReadSet:
                  known_sequences, unknown_sequences):
         '''
         * sequences: list of Sequence objects
-        * unknown_sequences: list of UnalignedAlignedProteinSequence objects
+        * unknown_sequences: list of UnalignedAlignedNucleotideSequence objects
         '''
 
         self.sample_name = sample_name
@@ -496,4 +496,42 @@ class ExtractedReadSet:
         self.tmpfile_basename = None # Used as part of pipe, making this object
                                      # not suitable for use outside that
                                      # setting.
+
+    def remove_duplicate_sequences(self):
+        '''When OrfM is run on a genome, then sometimes the same stretch of the
+        genome will be in 2 transcripts, so is inappropriately included twice.
+        Remove these cases.'''
+        
+        logging.debug("Before duplicate removal for {}, have {} sequences".format(
+            self.singlem_package.graftm_package_basename(), len(self.unknown_sequences)))
+        
+        # Order the unknown_sequences in order of decreasing length, as longer
+        # ones are more likely to be correct.
+        sorted_unknowns = sorted(self.unknown_sequences, key=lambda x: len(x.unaligned_sequence), reverse=True)
+
+        unique_aligned_to_genome_ranges = {}
+        unknown_to_return = []
+
+        orfm_utils = OrfMUtils()
+
+        # Add each
+        for seq in sorted_unknowns:
+            start, _, _ = orfm_utils.un_orfm_start_frame_number(seq.orf_name)
+            grange = pr.PyRanges(
+                chromosomes=[orfm_utils.un_orfm_name(seq.name)],
+                starts=[start],
+                ends=[start + len(seq.unaligned_sequence) - 1], # minus one since edges are inclusive
+            )
+            if seq.aligned_sequence not in unique_aligned_to_genome_ranges:
+                unique_aligned_to_genome_ranges[seq.aligned_sequence] = grange
+                unknown_to_return.append(seq)
+            else:
+                if len(unique_aligned_to_genome_ranges[seq.aligned_sequence].intersect(grange)) == 0:
+                    unique_aligned_to_genome_ranges[seq.aligned_sequence] = \
+                        unique_aligned_to_genome_ranges[seq.aligned_sequence].join(grange)
+                    unknown_to_return.append(seq)
+        
+        # Reconstruct
+        logging.debug("After duplicate removal, now have {} sequences".format(len(unknown_to_return)))
+        self.unknown_sequences = unknown_to_return
 

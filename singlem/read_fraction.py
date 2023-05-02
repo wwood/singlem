@@ -146,6 +146,7 @@ class SmafaCountedMetagenomeSizes:
         if stem not in self.stems_to_read_files:
             raise Exception("Stem '%s' not found in input metagenome set." % stem)
         total_base_count = 0
+        logging.info("Counting bases in sample '%s' .." % stem)
         j = extern.run('smafa count -i %s' % ' '.join(self.stems_to_read_files[stem]))
         logging.debug("Found JSON response from smafa count: %s" % j)
         j2 = json.loads(j)

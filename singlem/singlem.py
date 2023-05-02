@@ -11,7 +11,11 @@ import tempfile
 class OrfMUtils:
     def un_orfm_name(self, name):
         return re.sub(r'_\d+_\d+_\d+$', '', name)
-
+    
+    def un_orfm_start_frame_number(self, name):
+        match = re.search(r'^.*_(\d+)_(\d+)_(\d+)$', name)
+        start, frame, number = match.groups()[:4]
+        return int(start), int(frame), int(number)
 
 class TaxonomyFile:
     def __init__(self, taxonomy_file_path):
@@ -40,5 +44,6 @@ class FastaNameToSampleName:
         for extension in ('.gz','.fna','.fq','.fastq','.fasta','.fa'):
             if sample_name.endswith(extension):
                 sample_name = sample_name[0:(len(sample_name)-len(extension))]
-                break
+                if extension != '.gz':
+                    break
         return sample_name

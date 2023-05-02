@@ -1,4 +1,3 @@
-from singlem.singlem import FastaNameToSampleName
 import logging
 import os.path
 import shutil
@@ -24,7 +23,8 @@ from .pipe_sequence_extractor import PipeSequenceExtractor
 from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
-from .otu_table_collection import StreamingOtuTableCollection
+from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
+from .summariser import Summariser
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -46,6 +46,7 @@ class SearchPipe:
         archive_otu_table = kwargs.pop('archive_otu_table', None)
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile', None)
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona', None)
+        exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras')
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
@@ -67,7 +68,8 @@ class SearchPipe:
                 output_otu_table,
                 archive_otu_table,
                 output_extras,
-                metapackage)
+                metapackage,
+                exclude_off_target_hits)
 
             if output_taxonomic_profile or output_taxonomic_profile_krona:
                 tempfile.tempdir = original_tmpdir
@@ -81,7 +83,7 @@ class SearchPipe:
                     metapackage = metapackage)
 
 
-                
+
 
     def _parse_packages_or_metapackage(self, **kwargs):
         metapackage_path = kwargs.pop('metapackage_path', None)
@@ -102,14 +104,23 @@ class SearchPipe:
             output_otu_table,
             archive_otu_table,
             output_extras,
-            metapackage):
+            metapackage,
+            exclude_off_target_hits):
         otu_table_object.fields = ArchiveOtuTable.FIELDS
         if output_otu_table:
             with open(output_otu_table, 'w') as f:
-                if output_extras:
-                    otu_table_object.write_to(f, otu_table_object.fields)
+                if exclude_off_target_hits:
+                    collection = OtuTableCollection()
+                    collection.add_otu_table_object(otu_table_object)
+                    collection2 = OtuTableCollection()
+                    collection2.add_otu_table_object(collection.exclude_off_target_hits(metapackage.singlem_packages))
+                    to_print = collection2
                 else:
-                    otu_table_object.write_to(f, str.split('gene sample sequence num_hits coverage taxonomy'))
+                    to_print = OtuTableCollection()
+                    to_print.add_otu_table_object(otu_table_object)
+                Summariser.write_otu_table(table_collection=to_print,
+                                           output_table_io=f,
+                                           output_extras=output_extras)
         if archive_otu_table:
             with open(archive_otu_table, 'w') as f:
                 otu_table_object.archive(metapackage).write_to(f)
@@ -173,6 +184,9 @@ class SearchPipe:
             raise Exception("Cannot process reads and genomes in the same run")
         if genome_fasta_files:
             forward_read_files = []
+            warning_threshold = 100
+            if len(genome_fasta_files) > warning_threshold:
+                logging.warning("Running singlem with more than {} genomes may take a long time or use a lot of RAM - you might be better off splitting them into batches. Consider also using --no-assign-taxonomy to speed things up.".format(warning_threshold))
 
         analysing_pairs = reverse_read_files is not None
         if analysing_pairs:
@@ -273,13 +287,13 @@ class SearchPipe:
             singlem_assignment_method = PPLACER_ASSIGNMENT_METHOD
         if not diamond_prefilter:
             diamond_package_assignment = False
-            
+
         if diamond_prefilter:
             # Set the min ORF length in DIAMOND, as this saves CPU time and
             # means absence doesn't crash hmmsearch later.
             diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
                 diamond_prefilter_performance_parameters, int(min_orf_length / 3))
-                
+
             if input_sra_files:
                 # Create a named pipe which is called the same as the .sra file
                 # minus the .sra bit. Then call kingfisher --stdout --unsorted
@@ -299,7 +313,7 @@ class SearchPipe:
                         logging.debug("Sleeping for {} seconds after mkfifo".format(sleep_after_mkfifo))
                         time.sleep(sleep_after_mkfifo)
                     forward_read_files.append(new_name)
-                    
+
                     # kingfisher extract --unsorted --stdout -r
                     cmd = "kingfisher extract --sra {} --stdout -f fasta --unsorted >{}".format(
                         os.path.abspath(sra), new_name)
@@ -388,7 +402,7 @@ class SearchPipe:
             logging.info("Assigning sequences to SingleM packages with DIAMOND ..")
             extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
                 self._num_threads, hmms,
-                diamond_forward_search_results, diamond_reverse_search_results, 
+                diamond_forward_search_results, diamond_reverse_search_results,
                 analysing_pairs, include_inserts, min_orf_length)
             del diamond_forward_search_results
             del diamond_reverse_search_results
@@ -399,7 +413,7 @@ class SearchPipe:
             if input_sra_files:
                 # If SRA was input, then we need to split up forward and reverse.
                 analysing_pairs, extracted_reads = KingfisherSra().split_extracted_reads(extracted_reads)
-                
+
         else:
             logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
             extracted_reads = self._find_and_extract_reads_by_hmmsearch(
@@ -416,6 +430,12 @@ class SearchPipe:
                 self._remove_single_sequence_duplicates(readset[1])
             else:
                 self._remove_single_sequence_duplicates(readset)
+
+        #### Remove duplications which happen when OrfM hits the same sequence more than once.
+        if genome_fasta_files:
+            logging.info("Removing duplicate sequences from rough transcriptome ..")
+            for readset in extracted_reads:
+                readset.remove_duplicate_sequences()
 
         #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
         otu_table_object = self.assign_taxonomy_and_process(
@@ -436,7 +456,7 @@ class SearchPipe:
         return_cleanly()
         return otu_table_object
 
-    def assign_taxonomy_and_process(self, **kwargs):        
+    def assign_taxonomy_and_process(self, **kwargs):
         extracted_reads = kwargs.pop('extracted_reads')
         analysing_pairs = kwargs.pop('analysing_pairs')
         assign_taxonomy = kwargs.pop('assign_taxonomy')
@@ -636,33 +656,33 @@ class SearchPipe:
                         SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,):
-                            best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
-                            taxonomies = {}
-                            equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
-                            equal_best_taxonomies = {}
-                            if analysing_pairs:
-                                for (name, best_hits) in best_hit_hash[1].items():
-                                    taxonomies[name] = best_hits
-                                for (name, best_hits) in best_hit_hash[0].items():
-                                    # Overwrite reverse hit with the forward hit
-                                    taxonomies[name] = best_hits
-                                for (name, equal_best_hits) in equal_best_hit_hash[1].items():
-                                    equal_best_taxonomies[name] = equal_best_hits
-                                for (name, equal_best_hits) in equal_best_hit_hash[0].items():
-                                    # Overwrite reverse hit with the forward hit
-                                    equal_best_taxonomies[name] = equal_best_hits
-                            else:
-                                for (name, best_hits) in best_hit_hash.items():
-                                    taxonomies[name] = best_hits
-                                for (name, equal_best_hits) in equal_best_hit_hash.items():
-                                    equal_best_taxonomies[name] = equal_best_hits
+                        best_hit_hash = assignment_result.get_best_hits(singlem_package, sample_name)
+                        taxonomies = {}
+                        equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
+                        equal_best_taxonomies = {}
+                        if analysing_pairs:
+                            for (name, best_hits) in best_hit_hash[1].items():
+                                taxonomies[name] = best_hits
+                            for (name, best_hits) in best_hit_hash[0].items():
+                                # Overwrite reverse hit with the forward hit
+                                taxonomies[name] = best_hits
+                            for (name, equal_best_hits) in equal_best_hit_hash[1].items():
+                                equal_best_taxonomies[name] = equal_best_hits
+                            for (name, equal_best_hits) in equal_best_hit_hash[0].items():
+                                # Overwrite reverse hit with the forward hit
+                                equal_best_taxonomies[name] = equal_best_hits
+                        else:
+                            for (name, best_hits) in best_hit_hash.items():
+                                taxonomies[name] = best_hits
+                            for (name, equal_best_hits) in equal_best_hit_hash.items():
+                                equal_best_taxonomies[name] = equal_best_hits
 
-                            if singlem_assignment_method in (
-                                DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-                                DIAMOND_ASSIGNMENT_METHOD):
-                                assignment_methods = SingleAnswerAssignmentMethodStore(singlem_assignment_method)
-                            else:
-                                assignment_methods = assignment_result.get_taxonomy_assignment_methods(singlem_package, sample_name)
+                        if singlem_assignment_method in (
+                            DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                            DIAMOND_ASSIGNMENT_METHOD):
+                            assignment_methods = SingleAnswerAssignmentMethodStore(singlem_assignment_method)
+                        else:
+                            assignment_methods = assignment_result.get_taxonomy_assignment_methods(singlem_package, sample_name)
 
                     elif singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD:
                         assignment_methods = SingleAnswerAssignmentMethodStore(singlem_assignment_method)
@@ -815,8 +835,8 @@ class SearchPipe:
         for s in sequences:
             if s.aligned_sequence in otu_sequence_assigned_taxonomies or \
                 per_read_taxonomies is None:
-                    tax = None
-                    equal_best_tax = None
+                tax = None
+                equal_best_tax = None
             else:
                 try:
                     tax = per_read_taxonomies[s.name]
@@ -914,7 +934,7 @@ class SearchPipe:
                        collected_info.unaligned_sequences,
                        collected_info.coverage,
                        collected_info.aligned_lengths,
-                       otu_taxonomy_assignment_method) 
+                       otu_taxonomy_assignment_method)
 
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
@@ -1124,7 +1144,7 @@ class SearchPipe:
 
     def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads,
         diamond_taxonomy_assignment_performance_parameters, assignment_singlem_db):
-        
+
         graftm_align_directory_base = os.path.join(self._working_directory, 'graftm_aligns')
         os.mkdir(graftm_align_directory_base)
         commands = []
@@ -1265,7 +1285,7 @@ class SearchPipe:
                                 [u for u in readset.unknown_sequences if not \
                                     query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset.sample_name, u.name, None)]
                             logging.info("Assigning taxonomy with DIAMOND for {} out of {} sequences ({:.1f}%) for sample {}, package {}".format(
-                                len(still_unknown_sequences), 
+                                len(still_unknown_sequences),
                                 len(readset.unknown_sequences),
                                 100.0*len(still_unknown_sequences)/len(readset.unknown_sequences),
                                 readset.sample_name,
@@ -1277,17 +1297,17 @@ class SearchPipe:
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
 
-            
+
 
             if len(tmp_files) > 0:
                 if assignment_method in (
-                    DIAMOND_ASSIGNMENT_METHOD, 
+                    DIAMOND_ASSIGNMENT_METHOD,
                     DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                     ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                     SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
-                    
+
                     def run_diamond_to_hash(cmd_stub, query, singlem_package):
                         # Running DIAMOND from here uses too much RAM when there
                         # are very many sequences to assign taxonomy to (>4000?)
@@ -1366,7 +1386,7 @@ class SearchPipe:
                                 current_chunk_sequences_fh.flush()
                                 run_diamond_chunk(current_chunk_sequences_fh.name)
                             current_chunk_sequences_fh.close()
-                                
+
                             return best_hits
 
                     cmd_stub = "diamond blastx " \
@@ -1440,7 +1460,7 @@ class SearchPipe:
             SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
             SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
             return QueryThenDiamondTaxonomicAssignmentResult(
-                query_based_assignment_result, 
+                query_based_assignment_result,
                 DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs),
                 extracted_reads.analysing_pairs)
         elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
@@ -1492,8 +1512,8 @@ class SearchPipe:
                                 to_delete[window_sequence] = [readname]
             readset.unknown_sequences = list(
                 [un for un in readset.unknown_sequences if not (un.aligned_sequence in to_delete and un.name in to_delete[un.aligned_sequence])])
-                
-                        
+
+
 
 
 class SingleMPipeSearchResult:
@@ -1903,7 +1923,7 @@ class MultiAnswerAssignmentMethodsStore:
             logging.warning("Unexpected lack (or >1 found) of assignment method for read name {}".format(read_name))
             return None
         return founds[0]
-        
+
 class SingleAnswerAssignmentMethodStore:
     def __init__(self, method):
         self._method = method
