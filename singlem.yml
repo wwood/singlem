@@ -32,6 +32,7 @@ dependencies:
   - zenodo_backpack
   - smafa>=0.7.0
   - pyranges
+  - polars
   - pytest # For testing only
   - ipython # For testing only
   # - python-annoy optional

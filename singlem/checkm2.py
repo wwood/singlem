@@ -12,4 +12,4 @@ class CheckM2:
         return list(self.qualities.filter(
             (pl.col("Completeness") >= min_completeness) &
             (pl.col("Contamination") <= max_contamination)
-        ).select('Genome'))
+        ).select('Name').get_columns()[0])
