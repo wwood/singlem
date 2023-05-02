@@ -29,7 +29,7 @@ from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
 
 DEFAULT_WINDOW_SIZE=60
-GENUS_LEVEL_AVERAGE_IDENTITY = 0.86
+SPECIES_LEVEL_AVERAGE_IDENTITY = 0.95
 
 def seqs(args):
     if args.alignment_type == 'aa':
@@ -216,7 +216,7 @@ if __name__ == '__main__':
     appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
-    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~genus level divergence i.e. %s]" % GENUS_LEVEL_AVERAGE_IDENTITY, default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~species level divergence i.e. %s]" % SPECIES_LEVEL_AVERAGE_IDENTITY, default=SPECIES_LEVEL_AVERAGE_IDENTITY)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
     appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot-marker is also specified)', default=None)
     appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
@@ -317,7 +317,7 @@ if __name__ == '__main__':
     summarise_io_args.add_argument('--input-taxonomic-profiles', nargs='+', help='Convert these taxonomic profiles to krona HTML, output specified by  --output-taxonomic-profile-krona')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
-    summarise_transformation_args.add_argument('--cluster-id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=GENUS_LEVEL_AVERAGE_IDENTITY)
+    summarise_transformation_args.add_argument('--cluster-id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=SPECIES_LEVEL_AVERAGE_IDENTITY)
     summarise_transformation_args.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
     summarise_transformation_args.add_argument('--rarefied-output-otu-table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
     summarise_transformation_args.add_argument('--number-to-choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
