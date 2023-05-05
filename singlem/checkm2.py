@@ -4,7 +4,7 @@ import logging
 
 class CheckM2:
 
-    def __init__(self, quality_file='\t'):
+    def __init__(self, quality_file):
         self.quality_file = quality_file
         self.qualities = pl.read_csv(self.quality_file, separator='\t')
         logging.info("Read in {} genome qualities".format(self.qualities.shape[0]))
@@ -13,3 +13,7 @@ class CheckM2:
         return list(
             self.qualities.filter((pl.col("Completeness") >= min_completeness) &
                                   (pl.col("Contamination") <= max_contamination)).select('Name').get_columns()[0])
+
+    # Implement "in"
+    def __contains__(self, item):
+        return self.qualities.filter(pl.col("Name") == item).shape[0] > 0

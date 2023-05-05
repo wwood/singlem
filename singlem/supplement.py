@@ -54,6 +54,7 @@ from .otu_table_collection import OtuTableCollection
 from .regenerator import Regenerator
 from .pipe import SearchPipe
 from .sequence_database import SequenceDatabaseOtuTable, SequenceDatabase
+from .checkm2 import CheckM2
 
 taxonomy_prefixes = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
 genome_file_suffixes = ['.fna', '.fa', '.fasta', '.fna.gz', '.fa.gz', '.fasta.gz']
@@ -66,6 +67,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
     working_directory = kwargs.pop('working_directory')
     gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
     output_taxonomies_file = kwargs.pop('output_taxonomies_file')
+    excluded_genomes = kwargs.pop('excluded_genomes')
     if len(kwargs) > 0:
         raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -106,6 +108,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
             output_taxonomies_fh.write('genome\ttaxonomy\n')
 
         new_taxonomies = {}
+        excluded_genome_basenames = set([os.path.basename(x) for x in excluded_genomes])
         for tax_file in [bacteria_taxonomy_path, archaea_taxonomy_path]:
             if os.path.exists(tax_file):
                 logging.info("Reading taxonomy from {}".format(tax_file))
@@ -114,6 +117,9 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 for row in df.rows(named=True):
                     genome_name = row['user_genome']
                     taxonomy = row['classification'].split(';')
+                    if genome_name in excluded_genome_basenames:
+                        logging.debug("Ignoring genome {} because it is in the excluded_genomes list".format(genome_name))
+                        continue
                     if len(taxonomy) != 7:
                         if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
                             logging.warning(
@@ -134,10 +140,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                             output_taxonomies_fh.write(
                                 '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
                     else:
-                        placeholder_taxonomy = genome_name
-                        for suffix in genome_file_suffixes:
-                            if placeholder_taxonomy.endswith(suffix):
-                                placeholder_taxonomy = placeholder_taxonomy[:-len(suffix)]
+                        placeholder_taxonomy = remove_file_extensions(genome_name)
+
                         for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
                             if taxonomy[i] == prefix:
                                 taxonomy[i] = prefix + placeholder_taxonomy
@@ -174,6 +178,11 @@ def generate_taxonomy_for_new_genomes(**kwargs):
 
         return taxonomy_path, new_genome_fasta_files
 
+def remove_file_extensions(filename):
+    for suffix in genome_file_suffixes:
+        if filename.endswith(suffix):
+            filename = filename[:-len(suffix)]
+    return filename
 
 def generate_new_singlem_package(myargs):
     (working_directory, old_spkg, matched_transcript_path, sequence_to_genome, genome_to_taxonomy) = myargs
@@ -478,6 +487,12 @@ class Supplementor:
         working_directory = kwargs.pop('working_directory')
         gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
         output_taxonomies = kwargs.pop('output_taxonomies')
+        # checkm2_quality_file=args.checkm2_quality_file,
+        # no_quality_filter=args.no_quality_filter,
+        checkm2_quality_file = kwargs.pop('checkm2_quality_file')
+        checkm2_min_completeness = kwargs.pop('checkm2_min_completeness')
+        checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
+        no_quality_filter = kwargs.pop('no_quality_filter')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -486,6 +501,32 @@ class Supplementor:
                 working_directory = working_directory
             if not os.path.exists(working_directory):
                 os.mkdir(working_directory)
+
+            # Quality filter the new genomes
+            num_before_quality_filter = len(new_genome_fasta_files)
+            excluded_genomes = set()
+            if no_quality_filter:
+                logging.info("Skipping quality filtering of new genomes")
+            elif checkm2_quality_file:
+                logging.info("Quality filtering new genomes using checkm2 quality file: %s" % checkm2_quality_file)
+                checkm = CheckM2(checkm2_quality_file)
+                new_genome_fasta_files_without_file_extension = set(checkm.genomes_of_sufficient_quality(checkm2_min_completeness, checkm2_max_contamination))
+                # Check the new genomes are in the checkm2 quality file
+                for g in new_genome_fasta_files:
+                    if remove_extension(g) not in checkm:
+                        raise Exception("Genome %s not found in checkm2 quality file" % g)
+                new_genome_fasta_files2 = []
+                for x in new_genome_fasta_files:
+                    if remove_extension(x) in new_genome_fasta_files_without_file_extension:
+                        new_genome_fasta_files2.append(x)
+                    else:
+                        excluded_genomes.add(x)
+                new_genome_fasta_files = new_genome_fasta_files2
+                logging.info("Removed {} genomes of insufficient quality, leaving {} genomes to be added to the metapackage".format(
+                    num_before_quality_filter - len(new_genome_fasta_files), len(new_genome_fasta_files)))
+            else:
+                raise Exception("Must provide either --no-quality-filter or --checkm2-quality-file")
+            
 
             # Generate faa and transcript fna files for the new genomes
             logging.info("Generating faa and transcript fna files for the new genomes ..")
@@ -503,7 +544,8 @@ class Supplementor:
                     new_genome_fasta_files=new_genome_fasta_files,
                     gtdbtk_output_directory=gtdbtk_output_directory,
                     pplacer_threads=pplacer_threads,
-                    output_taxonomies_file=output_taxonomies)
+                    output_taxonomies_file=output_taxonomies,
+                    excluded_genomes=excluded_genomes)
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
