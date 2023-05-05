@@ -40,6 +40,7 @@ class SearchPipe:
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_ASSIGNMENT_THREADS = 1
+    DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -47,7 +48,7 @@ class SearchPipe:
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile', None)
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona', None)
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
-        output_extras = kwargs.pop('output_extras')
+        output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
@@ -137,32 +138,32 @@ class SearchPipe:
         genome_fasta_files = kwargs.pop('genomes', None)
         sleep_after_mkfifo = kwargs.pop('sleep_after_mkfifo', None)
         num_threads = kwargs.pop('threads')
-        known_otu_tables = kwargs.pop('known_otu_tables')
-        singlem_assignment_method = kwargs.pop('assignment_method')
-        assignment_threads = kwargs.pop('assignment_threads')
-        output_jplace = kwargs.pop('output_jplace')
-        evalue = kwargs.pop('evalue')
-        min_orf_length = kwargs.pop('min_orf_length')
-        restrict_read_length = kwargs.pop('restrict_read_length')
-        filter_minimum_protein = kwargs.pop('filter_minimum_protein')
-        filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide')
-        include_inserts = kwargs.pop('include_inserts')
+        known_otu_tables = kwargs.pop('known_otu_tables', None)
+        singlem_assignment_method = kwargs.pop('assignment_method', SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_METHOD)
+        assignment_threads = kwargs.pop('assignment_threads', DEFAULT_THREADS)
+        output_jplace = kwargs.pop('output_jplace', None)
+        evalue = kwargs.pop('evalue', None)
+        min_orf_length = kwargs.pop('min_orf_length', SearchPipe.DEFAULT_MIN_ORF_LENGTH)
+        restrict_read_length = kwargs.pop('restrict_read_length', None)
+        filter_minimum_protein = kwargs.pop('filter_minimum_protein', SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
+        filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide', SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
+        include_inserts = kwargs.pop('include_inserts', False)
         # Metapackage object is used by preference
         metapackage_object = kwargs.pop('metapackage_object', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
         metapackage_path = kwargs.pop('metapackage_path', None)
-        assign_taxonomy = kwargs.pop('assign_taxonomy')
-        known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy')
-        diamond_prefilter = kwargs.pop('diamond_prefilter')
-        diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
-        diamond_package_assignment = kwargs.pop('diamond_package_assignment')
-        diamond_prefilter_db = kwargs.pop('diamond_prefilter_db')
-        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
-        assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+        assign_taxonomy = kwargs.pop('assign_taxonomy', True)
+        known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy', None)
+        diamond_prefilter = kwargs.pop('diamond_prefilter', None)
+        diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters', SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
+        diamond_package_assignment = kwargs.pop('diamond_package_assignment', False)
+        diamond_prefilter_db = kwargs.pop('diamond_prefilter_db', None)
+        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
+        assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
 
-        working_directory = kwargs.pop('working_directory')
-        working_directory_dev_shm = kwargs.pop('working_directory_dev_shm')
-        force = kwargs.pop('force')
+        working_directory = kwargs.pop('working_directory', None)
+        working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
+        force = kwargs.pop('force', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 

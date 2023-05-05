@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-#=======================================================================
+# =======================================================================
 # Authors: Ben Woodcroft
 #
 # Unit tests.
@@ -19,7 +19,7 @@
 #
 # You should have received a copy of the GNU General Public License.
 # If not, see <http://www.gnu.org/licenses/>.
-#=======================================================================
+# =======================================================================
 
 import unittest
 import os.path

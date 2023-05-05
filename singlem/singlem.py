@@ -7,6 +7,7 @@ import pkg_resources
 import extern
 import tempfile
 
+CREATE_MIN_ALIGNED_PERCENT = 10
 
 class OrfMUtils:
     def un_orfm_name(self, name):

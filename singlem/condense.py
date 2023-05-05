@@ -398,15 +398,6 @@ class Condenser:
         logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
 
-        # In [6]: sample_otus.alignment_hmm_sha256s = 'na'
-        # In [7]: sample_otus.singlem_package_sha256s = 'na'
-        # In [8]: with open('/tmp/before','w') as f: sample_otus.write_to(f)
-        # import IPython; IPython.embed()
-        # demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, QUERY_BASED_ASSIGNMENT_METHOD)
-        # demux_otus.alignment_hmm_sha256s = 'na'
-        # demux_otus.singlem_package_sha256s = 'na'
-        # with open('/tmp/after','w') as f: demux_otus.write_to(f)
-
         logging.info("Finished genus expectation maximization")
         return demux_otus
     

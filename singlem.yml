@@ -33,6 +33,8 @@ dependencies:
   - smafa>=0.7.0
   - pyranges
   - polars
+  - prodigal
+  - tqdm
   - pytest # For testing only
   - ipython # For testing only
   # - python-annoy optional

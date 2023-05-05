@@ -27,7 +27,6 @@ __maintainer__ = "Ben Woodcroft"
 __email__ = "benjwoodcroft near gmail.com"
 __status__ = "Development"
 
-import argparse
 import logging
 import sys
 import os
@@ -39,19 +38,22 @@ import polars as pl
 
 import extern
 from bird_tool_utils import iterable_chunks
-from singlem.biolib_lite.prodigal_biolib import Prodigal
-from singlem.biolib_lite.common import remove_extension
+
+from .biolib_lite.prodigal_biolib import Prodigal
+from .biolib_lite.common import remove_extension
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 
-from singlem.metapackage import Metapackage
-from singlem.archive_otu_table import ArchiveOtuTable
-from singlem.sequence_classes import SeqReader
-from singlem.singlem import OrfMUtils
-from singlem.otu_table import OtuTable
-from singlem.otu_table_collection import OtuTableCollection
+from .metapackage import Metapackage
+from .archive_otu_table import ArchiveOtuTable
+from .sequence_classes import SeqReader
+from .singlem import OrfMUtils
+from .otu_table_collection import OtuTableCollection
+from .regenerator import Regenerator
+from .pipe import SearchPipe
+from .sequence_database import SequenceDatabaseOtuTable, SequenceDatabase
 
 taxonomy_prefixes = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
 genome_file_suffixes = ['.fna', '.fa', '.fasta', '.fna.gz', '.fa.gz', '.fasta.gz']
@@ -85,8 +87,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
             # run gtdbtk to temporary output directory
             gtdbtk_output = os.path.join(working_directory, 'gtdbtk_output')
             logging.info("Running GTDBtk to generate taxonomy for new genomes ..")
-            logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
-            cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db ~/m/db/gtdb/gtdb_release207_v2/mash.msh'
+            # logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
+            cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db {working_directory}/gtdbtk_mash.msh'
             if pplacer_threads:
                 cmd += f' --pplacer_cpus {pplacer_threads}'
             extern.run(cmd)
@@ -114,10 +116,13 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     taxonomy = row['classification'].split(';')
                     if len(taxonomy) != 7:
                         if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
-                            logging.warning("The genome {} was not given any classification, perhaps it is poor quality?".format(genome_name))
+                            logging.warning(
+                                "The genome {} was not given any classification, perhaps it is poor quality?".format(
+                                    genome_name))
                             if output_taxonomies_file:
                                 output_taxonomies_fh.write(
-                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
+                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) +
+                                    '\n')
                         else:
                             raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
                                 tax_file, taxonomy))
@@ -161,7 +166,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
 
         # Remove fasta files where the species is not new
         initial_count = len(new_genome_fasta_files)
-        new_genome_fasta_files = list([g for g in args.new_genome_fasta_files if g in new_taxonomies])
+        new_genome_fasta_files = list([g for g in new_genome_fasta_files if g in new_taxonomies])
         logging.info(
             "Removed {} genomes from new genomes list because they already had a species-level taxonomic assignment".
             format(initial_count - len(new_genome_fasta_files)))
@@ -239,13 +244,27 @@ def generate_new_singlem_package(myargs):
 
         # Run singlem regenerate to create a new spkg
         logging.info("Regenerating {} ..".format(old_spkg.graftm_package_basename()))
-        cmd = 'singlem regenerate --no-further-euks --input-singlem-package {} --output-singlem-package {} --input-sequences {} --input-taxonomy {}'.format(
-            old_spkg.base_directory(), new_spkg_path, new_sequences_fasta, taxonomy_file)
-        extern.run(cmd)
+
+        Regenerator().regenerate(
+            input_singlem_package=old_spkg.base_directory(),
+            output_singlem_package=new_spkg_path,
+            input_sequences=new_sequences_fasta,
+            input_taxonomy=taxonomy_file,
+            sequence_prefix=sequence_prefix,
+            no_further_euks=True,
+        )
 
         logging.info("Regenerated {} ..".format(old_spkg.graftm_package_basename()))
 
     return new_spkg_path
+
+
+def run_pipe(params):
+    transcript_paths, tf, old_metapackage_path, threads = params
+    SearchPipe().run(sequences=transcript_paths,
+                     archive_otu_table=tf,
+                     metapackage_path=old_metapackage_path,
+                     threads=threads)
 
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
@@ -282,57 +301,63 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
     # Multiprocess the singlem pipe commands to speed things up, since pipe is
     # slow for many genomes at the moment, especially since we need to assign
     # taxonomy to exclude off-target hits.
-    commands = []
     old_metapackage_on_new_genomes_tempfiles = []
     # Create regular files in a tempdir so that we don't need so many file handles
     td = tempfile.TemporaryDirectory(prefix='supplement_metapackage_otu_table_genome_jsons')
+    param_sets = []
     for i, chunk in enumerate(iterable_chunks(new_genome_fasta_files, 10)):
         chunk2 = [c for c in chunk if c is not None]
         tf = os.path.join(td.name, f"{i}.json")
         old_metapackage_on_new_genomes_tempfiles.append(tf)
         transcript_paths = [new_genome_transcripts_and_proteins[c].transcript_fasta for c in chunk2]
-        commands.append('singlem pipe --forward {} --archive-otu-table {} --metapackage {}'.format(
-            ' '.join(transcript_paths), tf, old_metapackage_path))
-    extern.run_many(commands, num_threads=num_threads, progress_stream=sys.stderr)
+        param_sets.append((transcript_paths, tf, old_metapackage_path, 1))
+    process_map(run_pipe, param_sets, max_workers=num_threads, desc="Running singlem pipe")
 
     # Create SDB for final metapackage
     logging.info("Creating sdb to include in metapackage ..")
     new_metapackage_sdb_path = os.path.join(working_directory, 'new_metapackage.sdb')
-    all_otu_tables = OtuTableCollection()
-    with tempfile.NamedTemporaryFile(prefix='supplement_metapackage_otu_table_renamed') as f:
-        f.write(('\t'.join(OtuTable.DEFAULT_OUTPUT_FIELDS) + '\n').encode())
+    all_new_otu_tables = OtuTableCollection()
+    # Change the taxonomy to be correct
+    # old_metapackage_on_new_genomes_no_off_target_collection = StreamingOtuTableCollection(
+    # )  # Need streaming so each_sample_otus works
+    for tf in old_metapackage_on_new_genomes_tempfiles:
+        with open(tf) as g:
+            ar = ArchiveOtuTable.read(g)
+            # old_metapackage_on_new_genomes_no_off_target_collection.add_archive_otu_table_object(ar)
 
-        # Change the taxonomy to be correct
-        for tf in old_metapackage_on_new_genomes_tempfiles:
-            with open(tf) as g:
-                ar = ArchiveOtuTable.read(g)
-                collection = OtuTableCollection()
-                collection.add_archive_otu_table_object(ar)
-                all_otu_tables.add_otu_table_object(
-                    collection.exclude_off_target_hits(old_metapackage.singlem_packages, return_archive_table=True))
+            collection = OtuTableCollection()
+            collection.add_archive_otu_table_object(ar)
+            all_new_otu_tables.add_archive_otu_table_object(
+                collection.exclude_off_target_hits(old_metapackage.singlem_packages, return_archive_table=True))
+            # Set the source data's taxonomy
+            taxonomy_field = ArchiveOtuTable.TAXONOMY_FIELD_INDEX
+            sample_name_field = ArchiveOtuTable.SAMPLE_ID_FIELD_INDEX
+            for row in collection.archive_table_objects[0].data:
+                row[taxonomy_field] = genome_to_taxonomy[row[sample_name_field]]
 
-        for otu in all_otu_tables:
-            otu.taxonomy = genome_to_taxonomy[otu.sample_name]
-            f.write((str(otu) + "\n").encode())
+    # Add old metapackage's OTUs.
+    db_otu_table = SequenceDatabaseOtuTable(old_metapackage.nucleotide_sdb())
+    all_new_and_old_otu_tables = OtuTableCollection()
+    all_new_and_old_otu_tables.add_otu_table_object(all_new_otu_tables)
+    all_new_and_old_otu_tables.add_otu_table_object(db_otu_table)
 
-        f.flush()
-        cmd = 'singlem makedb --otu-tables {} <(singlem query --dump --db {}) --db {} --sequence-database-methods smafa-naive --threads {}'.format(
-            f.name,
-            old_metapackage.nucleotide_sdb().base_directory, new_metapackage_sdb_path, num_threads)
-        extern.run(cmd)
+    SequenceDatabase().create_from_otu_table(
+        new_metapackage_sdb_path,
+        all_new_and_old_otu_tables,
+        num_threads=num_threads,
+    )
 
     # Dump matched transcript sequences to a file for graftm graft
     matched_transcript_path = os.path.join(working_directory, 'matched_transcripts.fasta')
-    with open(matched_transcript_path, 'w') as _:
-        pass  # Just create it
-    for tf in old_metapackage_on_new_genomes_tempfiles:
-        extern.run(
-            'singlem summarise --input-archive-otu-table {} --unaligned-sequences-dump-file /dev/stdout >> {}'.format(
-                tf, matched_transcript_path))
+    # with open(matched_transcript_path, 'w') as matched_transcripts_fasta:
+    #     Summariser().dump_raw_sequences_from_archive_otu_table(
+    #         output_table_io=matched_transcripts_fasta,
+    #         table_collection=old_metapackage_on_new_genomes_no_off_target_collection,
+    #     )
 
     sequence_to_genome = {}
     with open(matched_transcript_path, 'w') as f:
-        for otu in all_otu_tables:
+        for otu in all_new_otu_tables:
             read_names = otu.read_names()
             seqs = otu.read_unaligned_sequences()
             for seq, read_name in zip(seqs, read_names):
@@ -353,21 +378,27 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     # Create a new metapackage from the singlem packages
     logging.info("Creating new metapackage ..")
-    extern.run(
-        'singlem metapackage --nucleotide-sdb {} --singlem-packages {} --metapackage {} --prefilter-diamond-db {} --no-taxon-genome-lengths'
-        .format(new_metapackage_sdb_path, ' '.join(new_spkg_paths), new_metapackage_path,
-                old_metapackage.prefilter_db_path()))
+    Metapackage.generate(singlem_packages=new_spkg_paths,
+                         nucleotide_sdb=new_metapackage_sdb_path,
+                         prefilter_diamond_db=old_metapackage.prefilter_db_path(),
+                         output_path=new_metapackage_path,
+                         threads=num_threads,
+                         prefilter_clustering_threshold=None,
+                         taxon_genome_lengths=None)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     td.cleanup()
 
     return new_metapackage_path
 
+
 class TranscriptsAndProteins:
+
     def __init__(self):
         self.transcript_fasta = None
         self.protein_fasta = None
         self.translation_table = None
+
 
 def run_prodigal_on_one_genome(params):
     genome_fasta, output_directory = params
@@ -406,7 +437,7 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
     param_sets = []
     for genome_fasta in new_genome_fasta_files:
         genome_id = remove_extension(genome_fasta)
-        
+
         if genome_id in genome_ids:
             raise Exception("Duplicate genome ID: %s" % genome_id)
         genome_ids.add(genome_id)
@@ -435,85 +466,51 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
     return to_return
 
 
+class Supplementor:
 
-if __name__ == '__main__':
-    parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument('--debug', help='output debug information', action="store_true")
-    # parent_parser.add_argument('--version', help='output version information and quit',  action='version', version=repeatm.__version__)
-    parent_parser.add_argument('--quiet', help='only output errors', action="store_true")
+    def supplement(self, **kwargs):
+        new_genome_fasta_files = kwargs.pop('new_genome_fasta_files')
+        new_taxonomies = kwargs.pop('new_taxonomies')
+        input_metapackage = kwargs.pop('input_metapackage')
+        output_metapackage = kwargs.pop('output_metapackage')
+        threads = kwargs.pop('threads')
+        pplacer_threads = kwargs.pop('pplacer_threads')
+        working_directory = kwargs.pop('working_directory')
+        gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
+        output_taxonomies = kwargs.pop('output_taxonomies')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-    parser = argparse.ArgumentParser(parents=[parent_parser])
-    subparsers = parser.add_subparsers(title="Sub-commands", dest='subparser_name')
-
-    metapackage_description = 'Create a new metapackage from a vanilla one plus new genomes'
-    metapackage_parser = subparsers.add_parser('metapackage')
-    metapackage_parser.add_argument('--new-genome-fasta-files',
-                                    help='FASTA files of new genomes',
-                                    nargs='+',
-                                    required=True)
-    metapackage_parser.add_argument(
-        '--new-taxonomies',
-        help=
-        'newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
-    )
-    metapackage_parser.add_argument('--input-metapackage', help='metapackage to build upon', required=True)
-    metapackage_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
-    metapackage_parser.add_argument('--threads', help='parallelisation', type=int, default=1)
-    metapackage_parser.add_argument('--pplacer-threads', help='for GTDBtk classify_wf', type=int)
-    metapackage_parser.add_argument('--working-directory',
-                                    help='working directory [default: use a temporary directory]')
-    metapackage_parser.add_argument(
-        '--gtdbtk-output-directory',
-        help='use this GTDBtk result. Not used if --new-taxonomies is used [default: run GTDBtk]')
-    metapackage_parser.add_argument(
-        '--output-taxonomies',
-        help='TSV output file of taxonomies of new genomes, whether they are novel species or not.')
-    args = parser.parse_args()
-
-    if args.debug:
-        loglevel = logging.DEBUG
-    elif args.quiet:
-        loglevel = logging.ERROR
-    else:
-        loglevel = logging.INFO
-    logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
-
-    if args.subparser_name == 'metapackage':
         with tempfile.TemporaryDirectory() as working_directory:
-            if args.working_directory:
-                working_directory = args.working_directory
+            if working_directory:
+                working_directory = working_directory
             if not os.path.exists(working_directory):
                 os.mkdir(working_directory)
 
             # Generate faa and transcript fna files for the new genomes
             logging.info("Generating faa and transcript fna files for the new genomes ..")
             genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
-                working_directory=working_directory,
-                threads=args.threads,
-                new_genome_fasta_files=args.new_genome_fasta_files)
+                working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
 
-            if args.new_taxonomies:
-                taxonomy_file = args.new_taxonomies
-                new_genome_fasta_files = args.new_genome_fasta_files
+            if new_taxonomies:
+                taxonomy_file = new_taxonomies
+                new_genome_fasta_files = new_genome_fasta_files
             else:
                 logging.info("Generating taxonomy for new genomes ..")
                 taxonomy_file, new_genome_fasta_files = generate_taxonomy_for_new_genomes(
                     working_directory=working_directory,
-                    threads=args.threads,
-                    new_genome_fasta_files=args.new_genome_fasta_files,
-                    gtdbtk_output_directory=args.gtdbtk_output_directory,
-                    pplacer_threads=args.pplacer_threads,
-                    output_taxonomies_file=args.output_taxonomies)
+                    threads=threads,
+                    new_genome_fasta_files=new_genome_fasta_files,
+                    gtdbtk_output_directory=gtdbtk_output_directory,
+                    pplacer_threads=pplacer_threads,
+                    output_taxonomies_file=output_taxonomies)
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
-            new_metapackage = generate_new_metapackage(args.threads, working_directory, args.input_metapackage,
-                                                       new_genome_fasta_files, taxonomy_file, genome_transcripts_and_proteins)
+            new_metapackage = generate_new_metapackage(threads, working_directory, input_metapackage,
+                                                       new_genome_fasta_files, taxonomy_file,
+                                                       genome_transcripts_and_proteins)
 
-            logging.info("Copying generated metapackage to {}".format(args.output_metapackage))
-            shutil.copytree(new_metapackage, args.output_metapackage)
-
-    else:
-        raise Exception("Unexpected subparser name: {}".format(args.subparser_name))
-
-    logging.info("Done!")
+            logging.info("Copying generated metapackage to {}".format(output_metapackage))
+            shutil.copytree(new_metapackage, output_metapackage)
+            logging.info("Finished suppplement.")
