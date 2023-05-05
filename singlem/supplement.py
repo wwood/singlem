@@ -270,6 +270,8 @@ def generate_new_singlem_package(myargs):
 
 def run_pipe(params):
     transcript_paths, tf, old_metapackage_path, threads = params
+    # Set it high as it is too verbose otherwise
+    logging.basicConfig(level=logging.ERROR, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
     SearchPipe().run(sequences=transcript_paths,
                      archive_otu_table=tf,
                      metapackage_path=old_metapackage_path,
