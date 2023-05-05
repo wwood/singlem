@@ -877,7 +877,7 @@ if __name__ == '__main__':
                 with open(table) as f:
                     metagenomes.add_otu_table(f)
         if args.metagenome_archive_otu_tables:
-            for table in args.input_archive_otu_tables:
+            for table in args.metagenome_archive_otu_tables:
                 with open(table) as f:
                     metagenomes.add_archive_otu_table(f)
 
