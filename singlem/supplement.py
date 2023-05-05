@@ -456,9 +456,9 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
             os.makedirs(output_directory)
         param_sets.append((genome_fasta, output_directory))
 
-    logging.info("Running prodigal on new genomes ..")
+    logging.info("Running prodigal on {} new genomes ..".format(len(param_sets)))
     if threads > 1:
-        transcripts_and_proteins = process_map(fn=run_prodigal_on_one_genome, iterable=param_sets, max_workers=threads)
+        transcripts_and_proteins = process_map(run_prodigal_on_one_genome, param_sets, max_workers=threads)
     else:
         transcripts_and_proteins = []
         for x in tqdm(param_sets):
