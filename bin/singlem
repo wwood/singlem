@@ -92,7 +92,7 @@ if __name__ == '__main__':
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
-        current_default = pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
+        current_default = SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_METHOD
         argument_group.add_argument(
             '--assignment-method', '--assignment_method',
             choices=(
@@ -104,7 +104,7 @@ if __name__ == '__main__':
                     pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                     pipe.ANNOY_ASSIGNMENT_METHOD,
                     pipe.PPLACER_ASSIGNMENT_METHOD),
-            help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) + 
+            help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) +
                 table_roff([
                     ["Method", "Description"],
                     [pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
@@ -251,9 +251,9 @@ if __name__ == '__main__':
     required_makedb_arguments.add_argument('--otu-tables', '--otu-table', nargs='+', help="Make a db from these OTU tables")
     required_makedb_arguments.add_argument('--otu-tables-list', help="Make a db from the OTU table files newline separated in this file")
     required_makedb_arguments.add_argument('--archive-otu-tables', '--archive-otu-table', nargs='+', help="Make a db from these archive tables")
-    required_makedb_arguments.add_argument('--archive-otu-table-list', 
+    required_makedb_arguments.add_argument('--archive-otu-table-list',
         help="Make a db from the archive tables newline separated in this file")
-    required_makedb_arguments.add_argument('--gzip-archive-otu-table-list', 
+    required_makedb_arguments.add_argument('--gzip-archive-otu-table-list',
         help="Make a db from the gzip'd archive tables newline separated in this file")
     required_makedb_arguments.add_argument('--db', help="Name of database to create e.g. tundra.sdb", required=True)
     makedb_other_args = makedb_parser.add_argument_group('Other arguments')
@@ -402,7 +402,8 @@ if __name__ == '__main__':
 
     regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = bird_argparser.new_subparser('regenerate', regenerate_description)
-    regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: 30]", type=int, default=30)
+    current_default = singlem.singlem.CREATE_MIN_ALIGNED_PERCENT
+    regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: {}]".format(current_default), type=int, default=current_default)
     regenerate_parser.add_argument('--window-position', help="change window position of output package [default: do not change]", type=int, default=False)
     regenerate_parser.add_argument('--sequence-prefix', help="add a prefix to sequence names", type=str, default="")
     regenerate_parser.add_argument('--euk-sequences', help='candidate euk sequences')
@@ -461,11 +462,11 @@ if __name__ == '__main__':
     output_condense_arguments.add_argument('-p', '--taxonomic-profile', metavar='filename', help="output OTU table")
     output_condense_arguments.add_argument('--taxonomic-profile-krona', metavar='filename', help='name of krona file to generate.')
     output_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
-    
+
     optional_condense_arguments = condense_parser.add_argument_group("Other options")
     optional_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
     current_default = Condenser.DEFAULT_MIN_TAXON_COVERAGE
-    optional_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION', 
+    optional_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION',
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = Condenser.DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
@@ -476,6 +477,28 @@ if __name__ == '__main__':
     required_trim_package_hmmsarguments = trim_package_hmms_parser.add_argument_group("required arguments")
     required_trim_package_hmmsarguments.add_argument('--input-singlem-package', required=True, help="Input package to trim HMMs from")
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
+
+    supplement_description = 'Create a new metapackage from a vanilla one plus new genomes'
+    supplement_parser = bird_argparser.new_subparser('supplement', supplement_description)
+    supplement_parser.add_argument('--new-genome-fasta-files',
+                                   help='FASTA files of new genomes',
+                                   nargs='+',
+                                   required=True)
+    supplement_parser.add_argument(
+        '--new-taxonomies',
+        help='newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
+    )
+    supplement_parser.add_argument('--input-metapackage', help='metapackage to build upon', required=True)
+    supplement_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
+    supplement_parser.add_argument('--threads', help='parallelisation', type=int, default=1)
+    supplement_parser.add_argument('--pplacer-threads', help='for GTDBtk classify_wf', type=int)
+    supplement_parser.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
+    supplement_parser.add_argument(
+        '--gtdbtk-output-directory',
+        help='use this GTDBtk result. Not used if --new-taxonomies is used [default: run GTDBtk]')
+    supplement_parser.add_argument(
+        '--output-taxonomies',
+        help='TSV output file of taxonomies of new genomes, whether they are novel species or not.')
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -507,7 +530,7 @@ if __name__ == '__main__':
 
 
 
-    def generate_streaming_otu_table_from_args(args, 
+    def generate_streaming_otu_table_from_args(args,
         input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
 
         if archive_only:
@@ -592,7 +615,7 @@ if __name__ == '__main__':
             return SearchPipe.DEFAULT_MIN_ORF_LENGTH
         else:
             raise Exception("Programming error")
-        
+
     def get_min_taxon_coverage(args, subparser='pipe'):
         if args.min_taxon_coverage:
             return args.min_taxon_coverage
@@ -712,7 +735,7 @@ if __name__ == '__main__':
             min_archive_otu_table_version = 2 if args.unaligned_sequences_dump_file else None
             otus = generate_streaming_otu_table_from_args(
                 args,
-                input_prefix=True, 
+                input_prefix=True,
                 archive_only=require_archive_input,
                 min_archive_otu_table_version=min_archive_otu_table_version)
         else:
@@ -742,7 +765,7 @@ if __name__ == '__main__':
 
         if args.cluster:
             if args.stream_inputs:
-                raise Exception("Streaming inputs is not currently known to work with cluster.")            
+                raise Exception("Streaming inputs is not currently known to work with cluster.")
             logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
             o2 = OtuTableCollection()
             o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
@@ -1031,7 +1054,7 @@ if __name__ == '__main__':
             if args.metapackage:
                 mpkg = Metapackage.acquire(args.metapackage)
             else:
-                mpkg = Metapackage.acquire_default()    
+                mpkg = Metapackage.acquire_default()
             mpkg.describe()
         else:
             if not args.metapackage:
@@ -1099,9 +1122,9 @@ if __name__ == '__main__':
                 sequence_database_methods = []
 
         singlem.sequence_database.SequenceDatabase.create_from_otu_table(
-            args.db, 
-            otus, 
-            num_threads=args.threads, 
+            args.db,
+            otus,
+            num_threads=args.threads,
             pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
             num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
             num_annoy_protein_trees=args.num_annoy_protein_trees,
@@ -1173,6 +1196,20 @@ if __name__ == '__main__':
             accept_missing_samples = args.accept_missing_samples,
             output_tsv = args.output_tsv,
             output_per_taxon_read_fractions = args.output_per_taxon_read_fractions,)
+
+    elif args.subparser_name == 'supplement':
+        from singlem.supplement import Supplementor
+        Supplementor().supplement(
+            new_genome_fasta_files=args.new_genome_fasta_files,
+            new_taxonomies=args.new_taxonomies,
+            input_metapackage=args.input_metapackage,
+            output_metapackage=args.output_metapackage,
+            threads=args.threads,
+            pplacer_threads=args.pplacer_threads,
+            working_directory=args.working_directory,
+            gtdbtk_output_directory=args.gtdbtk_output_directory,
+            output_taxonomies=args.output_taxonomies,
+        )
 
     else:
         raise Exception("Programming error")
