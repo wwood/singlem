@@ -1,0 +1,4 @@
+Name	Completeness	Contamination	Completeness_Model_Used	Translation_Table_Used	Coding_Density	Contig_N50	Average_Gene_Length	Genome_Size	GC_Content	Total_Coding_Sequences	Additional_Notes
+GCA_011373445.1_genomic	93.74	4.52	Gradient Boost (General Model)	11	0.878	18464	244.22428884026257	1519399	0.44	1828	None
+GCA_011373445.1_genomic.mutated93_ms	37.24	3.63	Neural Network (Specific Model)	11	0.735	18464	126.06161616161616	1519404	0.45	2970	None
+GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	37.24	3.63	Neural Network (Specific Model)	11	0.735	18464	126.06161616161616	1519404	0.45	2970	None
