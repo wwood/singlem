@@ -109,6 +109,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
 
         new_taxonomies = {}
         excluded_genome_basenames = set([os.path.basename(x) for x in excluded_genomes])
+        num_genomes_without_fasta = 0
         for tax_file in [bacteria_taxonomy_path, archaea_taxonomy_path]:
             if os.path.exists(tax_file):
                 logging.info("Reading taxonomy from {}".format(tax_file))
@@ -119,6 +120,10 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     taxonomy = row['classification'].split(';')
                     if genome_name in excluded_genome_basenames:
                         logging.debug("Ignoring genome {} because it is in the excluded_genomes list".format(genome_name))
+                        continue
+                    if genome_name not in name_to_genome_fasta:
+                        logging.debug("Genome {} was not found in the list of genomes to be included".format(genome_name))
+                        num_genomes_without_fasta += 1
                         continue
                     if len(taxonomy) != 7:
                         if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
@@ -150,6 +155,10 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                         new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
                         if output_taxonomies_file:
                             output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
+        if num_genomes_without_fasta > 0:
+            logging.warning(
+                "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these.".format(
+                    num_genomes_without_fasta))
 
         if output_taxonomies_file:
             output_taxonomies_fh.close()
@@ -372,10 +381,11 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
             read_names = otu.read_names()
             seqs = otu.read_unaligned_sequences()
             for seq, read_name in zip(seqs, read_names):
-                if read_name in sequence_to_genome:
-                    raise Exception("Duplicate sequence name: {}".format(read_name))
-                sequence_to_genome[read_name] = otu.sample_name
-                f.write('>{}\n{}\n'.format(read_name, seq))
+                new_read_name = otu.sample_name + '_' + read_name
+                if new_read_name in sequence_to_genome:
+                    raise Exception("Duplicate sequence name: {}".format(new_read_name))
+                sequence_to_genome[new_read_name] = otu.sample_name
+                f.write('>{}\n{}\n'.format(new_read_name, seq))
 
     new_metapackage_path = os.path.join(working_directory, 'new_metapackage.mpkg')
 
