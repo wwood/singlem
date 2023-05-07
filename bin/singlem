@@ -318,17 +318,19 @@ if __name__ == '__main__':
     summarise_io_args.add_argument('--input-archive-otu-table-list',
         help="Summarise the archive tables newline separated in this file")
     summarise_io_args.add_argument('--stream-inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
-    summarise_io_args.add_argument('--input-taxonomic-profiles', nargs='+', help='Convert these taxonomic profiles to krona HTML, output specified by  --output-taxonomic-profile-krona')
+    summarise_io_args.add_argument('--input-taxonomic-profiles', nargs='+', help='Convert these taxonomic profiles to krona HTML, output specified by --output-taxonomic-profile-krona')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
     summarise_transformation_args.add_argument('--cluster', action='store_true', help="Apply sequence clustering to the OTU table")
     summarise_transformation_args.add_argument('--cluster-id', type=float, help="Sequence clustering identity cutoff if --cluster is used", default=SPECIES_LEVEL_AVERAGE_IDENTITY)
     summarise_transformation_args.add_argument('--taxonomy', help="Restrict analysis to OTUs that have this taxonomy (exact taxonomy or more fully resolved)")
     summarise_transformation_args.add_argument('--rarefied-output-otu-table', help="Output rarefied output OTU table, where each gene and sample combination is rarefied")
     summarise_transformation_args.add_argument('--number-to-choose', type=int, help="Rarefy using this many sequences. Sample/gene combinations with an insufficient number of sequences are ignored with a warning [default: maximal number such that all samples have sufficient counts]")
+    summarise_transformation_args.add_argument('--collapse-to-sample-name', help="Merge all OTUs into a single OTU table, using the given sample name. Requires archive OTU table input and output.")
     summarise_transformation_args.add_argument('--collapse-coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
     summarise_transformation_args.add_argument('--collapse-paired-with-unpaired-archive-otu-table', help="For archive OTU tables that have both paired and unpaired components, merge these into a single output archive OTU table")
     summarise_output_args = summarise_parser.add_argument_group('output')
     summarise_output_args.add_argument('--output-otu-table', help="Output combined OTU table to this file")
+    summarise_output_args.add_argument('--output-archive-otu-table', help="Output combined OTU table to this file")
     summarise_output_args.add_argument('--output-translated-otu-table', help="Output combined OTU table to this file, with seqeunces translated into amino acids")
     summarise_output_args.add_argument('--output-extras', action='store_true', help="Output extra information in the standard output OTU table", default=False)
     summarise_output_args.add_argument('--krona', help="Name of krona file to generate")
@@ -712,6 +714,7 @@ if __name__ == '__main__':
         if args.unifrac_by_otu: num_output_types += 1
         if args.unifrac_by_taxonomy: num_output_types += 1
         if args.output_otu_table: num_output_types += 1
+        if args.output_archive_otu_table: num_output_types += 1
         if args.output_translated_otu_table: num_output_types += 1
         if args.clustered_output_otu_table: num_output_types += 1
         if args.rarefied_output_otu_table: num_output_types += 1
@@ -726,13 +729,20 @@ if __name__ == '__main__':
         if args.exclude_off_target_hits:
             if args.singlem_packages and args.metapackage:
                 raise Exception("Only one of --metapackage or --singlem-packages can be defined")
+        if args.collapse_to_sample_name:
+            if args.input_otu_tables:
+                raise Exception("--collapse-to-sample-name currently only works with archive tables")
+            elif not len(args.input_archive_otu_tables) >= 1:
+                raise Exception("--collapse-to-sample-name currently only works with archive tables as input")
         if args.collapse_paired_with_unpaired_archive_otu_table:
             if args.input_otu_tables:
-                raise Exception("--collapse_paired_with_unpaired_archive_otu_table currently only works with archive tables")
+                raise Exception("--collapse-paired-with-unpaired-archive-otu-table currently only works with archive tables")
             elif not len(args.input_archive_otu_tables) == 2:
-                raise Exception("--collapse_paired_with_unpaired_archive_otu_table requires exactly two archive tables")
+                raise Exception("--collapse-paired-with-unpaired-archive-otu-table requires exactly two archive tables")
         if (args.input_taxonomic_profiles and not args.output_taxonomic_profile_krona) or (args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles):
             raise Exception("--input-taxonomic-profiles and --output-taxonomic-profile-krona require each other to be defined")
+        if args.output_archive_otu_table and not args.collapse_to_sample_name:
+            raise Exception("--output-archive-otu-table requires --collapse-to-sample-name to be defined. Some other transfomations have output archive tables, but they are specified separately.")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -752,7 +762,7 @@ if __name__ == '__main__':
             if args.input_otu_tables:
                 for o in args.input_otu_tables:
                     otus.add_otu_table(open(o))
-            if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table:
+            if args.input_archive_otu_tables and not args.collapse_paired_with_unpaired_archive_otu_table and not args.collapse_to_sample_name:
                 for o in args.input_archive_otu_tables:
                     otus.add_archive_otu_table(open(o))
             if args.input_otu_tables_list:
@@ -857,6 +867,14 @@ if __name__ == '__main__':
                 Summariser.write_translated_otu_table(
                     table_collection = otus,
                     output_table_io = f)
+        elif args.collapse_to_sample_name:
+            if not args.output_archive_otu_table:
+                raise Exception("If --collapse-to-sample-name is set, then --output-archive-otu-table must be set")
+            with open(args.output_archive_otu_table, 'w') as f:
+                Summariser.write_collapsed_paired_with_unpaired_otu_table(
+                    archive_otu_tables = args.input_archive_otu_tables,
+                    output_table_io = f,
+                    set_sample_name = args.collapse_to_sample_name)
         elif args.collapse_paired_with_unpaired_archive_otu_table:
             with open(args.collapse_paired_with_unpaired_archive_otu_table,'w') as output_io:
                 Summariser.write_collapsed_paired_with_unpaired_otu_table(
