@@ -21,6 +21,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
+import json
 import unittest
 import os.path
 import sys
@@ -289,6 +290,16 @@ minimal2	0.2
             """
         expected = '\n'.join([line.strip() for line in expected.split('\n') if line.strip()])+"\n"
         self.assertEqual(expected, res)
+
+    def test_collapse_to_sample_name(self):
+        with tempfile.NamedTemporaryFile() as tf:
+            extern.run(f'bin/singlem summarise --collapse-to-sample-name a1 --input-archive-otu-tables {path_to_data}/summarise/original1_for_merge.json  {path_to_data}/summarise/original2_for_merge.json --output-archive-otu-table {tf.name}')
+
+            with open(tf.name) as f:
+                observed = json.load(f)
+                with open(f'{path_to_data}/summarise/collapsed_to_sample_name.json') as f:
+                    expected = json.load(f)
+                    self.assertEqual(observed, expected)
         
 
 if __name__ == "__main__":
