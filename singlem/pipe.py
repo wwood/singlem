@@ -156,7 +156,7 @@ class SearchPipe:
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy', None)
         diamond_prefilter = kwargs.pop('diamond_prefilter', None)
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters', SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
-        diamond_package_assignment = kwargs.pop('diamond_package_assignment', False)
+        diamond_package_assignment = kwargs.pop('diamond_package_assignment', True)
         diamond_prefilter_db = kwargs.pop('diamond_prefilter_db', None)
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
