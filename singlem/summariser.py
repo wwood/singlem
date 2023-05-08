@@ -395,6 +395,8 @@ class Summariser:
                 equal_best_hit_taxonomies = grouped.iloc[0]['equal_best_hit_taxonomies']
             elif tax_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                 equal_best_hit_taxonomies = list(itertools.chain(*grouped['equal_best_hit_taxonomies']))
+            elif tax_assignment_method == None:
+                equal_best_hit_taxonomies = None
             else:
                 raise Exception("Unexpected tax assignment method: {}".format(tax_assignment_method))
             return pd.DataFrame({
@@ -412,6 +414,7 @@ class Summariser:
                 'taxonomy_assignment_method':[tax_assignment_method],
             })
         transformed = df.groupby(['sequence','gene'], as_index=False).apply(combine_rows)[ArchiveOtuTable.FIELDS]
+        logging.info("Collapsed {} total OTUs into {} output OTUs".format(len(df), len(transformed)))
 
         logging.debug("Writing output table ..")
         ar.data = transformed.values.tolist()
