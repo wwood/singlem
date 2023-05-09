@@ -319,7 +319,7 @@ class Condenser:
 
         # Stage 3: Correct the coverages by accounting for each node's descendants
         for node in sample_summary_root_node:
-            children_coverage = sum([c.get_full_coverage() for c in node.children.values()])
+            children_coverage = sum([c.coverage for c in node.children.values()])
             # print("Found cov {} and child coverage {} for {}".format(node.coverage, children_coverage, node.get_taxonomy()))
             if node.word != 'Root':
                 node.coverage = node.coverage - children_coverage
@@ -327,7 +327,8 @@ class Condenser:
                 # Apply a general cutoff, which is somewhat arbitrary, but
                 # reduces noise. This cutoff also removes the very occasional
                 # situations that coverages are negative.
-                if node.coverage < min_taxon_coverage:
+                # if node.coverage < min_taxon_coverage:
+                if node.get_full_coverage() < min_taxon_coverage:
                     node.coverage = 0
 
         return CondensedCommunityProfile(sample, sample_summary_root_node)
