@@ -97,8 +97,7 @@ class PackageCreator:
                     num_seqs_unaligned += 1
                     SeqIO.write([s], filtered_aligned_tempfile, "fasta")
                 filtered_aligned_tempfile.flush()
-                logging.info("All %i sequences found in tree extracted successfully from unaligned"
-                            " sequences fasta file" % (num_seqs_unaligned))
+                logging.info("All %i sequences successfully copied from unaligned sequences fasta file" % (num_seqs_unaligned))
 
             # Create a new diamond database
             dmnd_tf = tempfile.NamedTemporaryFile(prefix='singlem_package_creator',suffix='.dmnd')
