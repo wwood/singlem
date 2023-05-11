@@ -92,13 +92,13 @@ class PackageCreator:
                         prefix='singlem_package_creator',
                         suffix='.fasta',
                         mode='w')
+                # okay for now, but copying the file would do just as well
                 for s in SeqIO.parse(gpkg.unaligned_sequence_database_path(), "fasta"):
                     num_seqs_unaligned += 1
                     SeqIO.write([s], filtered_aligned_tempfile, "fasta")
                 filtered_aligned_tempfile.flush()
                 logging.info("All %i sequences found in tree extracted successfully from unaligned"
-                            " sequences fasta file, which originally had %i sequences" % (
-                                num_seqs_unaligned, num_seqs_unaligned))
+                            " sequences fasta file" % (num_seqs_unaligned))
 
             # Create a new diamond database
             dmnd_tf = tempfile.NamedTemporaryFile(prefix='singlem_package_creator',suffix='.dmnd')
