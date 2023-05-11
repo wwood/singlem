@@ -39,10 +39,11 @@ class Condenser:
         metapackage = kwargs.pop('metapackage', None)
 
         if metapackage_path:
+            logging.info("Using the metapackage at {}".format(metapackage_path))
             metapackage = Metapackage.acquire(metapackage_path)
         elif not metapackage:
             # Neither were specified, so use the default set of packages
-            logging.info("Using default set of SingleM packages.")
+            logging.info("Using default SingleM metapackage")
             metapackage = Metapackage.acquire_default()
             
         if metapackage.version < 3:
@@ -900,6 +901,8 @@ class CondensedCommunityProfile:
                     last_taxon.children[tax] = wn
                     taxons_to_wordnode[tax] = wn
                 last_taxon = taxons_to_wordnode[tax]
+            if wn is None:
+                raise Exception("Unexpected processing of taxon {}".format(taxons_split))
             wn.coverage = float(coverage)
 
         if current_sample is not None:
