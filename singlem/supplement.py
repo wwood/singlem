@@ -35,6 +35,7 @@ import shutil
 from multiprocessing import Pool
 import tempfile
 import polars as pl
+from Bio import SearchIO
 
 import extern
 from bird_tool_utils import iterable_chunks
@@ -287,6 +288,62 @@ def run_pipe(params):
                      threads=threads)
 
 
+def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins, new_taxonomies_file):
+    # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
+    # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
+    concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
+    num_hmms = 0
+    with open(concatenated_hmms, 'w') as f:
+        for spkg in Metapackage.acquire(old_metapackage_path).singlem_packages:
+            with open(spkg.graftm_package().alignment_hmm_path()) as g:
+                f.write(g.read())
+                num_hmms += 1
+    logging.info("Concatenated {} HMMs".format(num_hmms))
+
+    # Take the best hitting HMM for each transcript
+    num_transcripts = 0
+    # mkdir working_directory/hmmsearch_output
+    os.mkdir(os.path.join(working_directory, 'hmmsearch_output'))
+    # TODO: parallelise this per-genome, not with --cpu which doesn't scale well
+    for genome, tranp in new_genome_transcripts_and_proteins.items():
+        hmmsearch_output = os.path.join(working_directory, 'hmmsearch_output', os.path.basename(genome) + '.hmmsearch')
+        # hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', '>(sed "s/  */\t/g" >', hmmsearch_output, ') --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
+        hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', hmmsearch_output, ' --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
+        logging.debug("Running hmmsearch on {} ..".format(genome))
+        extern.run(' '.join(hmmsearch_cmd))
+        logging.debug("Ran hmmsearch on {} ..".format(genome))
+        num_transcripts += 1
+
+        qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
+        found_hits = []
+        for qresult in qresults:
+            for hit in qresult.hits:
+                found_hits.append([qresult.id, hit.id, hit.bitscore])
+            found_hits.append(qresult[0])
+        df = pl.DataFrame(found_hits)
+        df.columns = ['transcript', 'hmm', 'bitscore']
+        # Take best hit for each transcript
+        df2 = df.sort('bitscore', descending=True).groupby('transcript').first()
+        # Remove genes where there is >1 hit
+        ok_genes = list(df2.groupby('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
+        df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
+        logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
+
+        import IPython; IPython.embed()
+        raise
+    logging.info("Ran hmmsearch on {} transcriptomes".format(num_transcripts))
+
+    # If any HMM is associated with multiple genes, remove it as being potentially dubious
+    hmm_to_gene = {}
+
+    # Remove genes that are off-target
+
+    # Create a new file which is a concatenation of the transcripts we want to include
+
+    # Run singlem pipe --forward on that, not assigning taxonomy
+
+
+
 def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
                              new_taxonomies_file, new_genome_transcripts_and_proteins):
 
@@ -318,6 +375,13 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
         raise
 
     logging.info("Gathering OTUs from new genomes ..")
+
+    gathered_hmmsearch_results = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins, new_taxonomies_file)
+    raise
+
+    # 
+
+
     # Multiprocess the singlem pipe commands to speed things up, since pipe is
     # slow for many genomes at the moment, especially since we need to assign
     # taxonomy to exclude off-target hits.
