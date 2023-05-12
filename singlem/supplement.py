@@ -38,7 +38,6 @@ import polars as pl
 from Bio import SearchIO
 
 import extern
-from bird_tool_utils import iterable_chunks
 
 from .biolib_lite.prodigal_biolib import Prodigal
 from .biolib_lite.common import remove_extension
@@ -50,12 +49,13 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + s
 from .metapackage import Metapackage
 from .archive_otu_table import ArchiveOtuTable
 from .sequence_classes import SeqReader
-from .singlem import OrfMUtils
+from .singlem import FastaNameToSampleName, OrfMUtils
 from .otu_table_collection import OtuTableCollection
 from .regenerator import Regenerator
 from .pipe import SearchPipe
 from .sequence_database import SequenceDatabaseOtuTable, SequenceDatabase
 from .checkm2 import CheckM2
+from .otu_table_entry import OtuTableEntry
 
 taxonomy_prefixes = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
 genome_file_suffixes = ['.fna', '.fa', '.fasta', '.fna.gz', '.fa.gz', '.fasta.gz']
@@ -120,10 +120,12 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     genome_name = row['user_genome']
                     taxonomy = row['classification'].split(';')
                     if genome_name in excluded_genome_basenames:
-                        logging.debug("Ignoring genome {} because it is in the excluded_genomes list".format(genome_name))
+                        logging.debug(
+                            "Ignoring genome {} because it is in the excluded_genomes list".format(genome_name))
                         continue
                     if genome_name not in name_to_genome_fasta:
-                        logging.debug("Genome {} was not found in the list of genomes to be included".format(genome_name))
+                        logging.debug(
+                            "Genome {} was not found in the list of genomes to be included".format(genome_name))
                         num_genomes_without_fasta += 1
                         continue
                     if len(taxonomy) != 7:
@@ -133,8 +135,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                                     genome_name))
                             if output_taxonomies_file:
                                 output_taxonomies_fh.write(
-                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) +
-                                    '\n')
+                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
                         else:
                             raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
                                 tax_file, taxonomy))
@@ -158,8 +159,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                             output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
         if num_genomes_without_fasta > 0:
             logging.warning(
-                "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these.".format(
-                    num_genomes_without_fasta))
+                "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these."
+                .format(num_genomes_without_fasta))
 
         if output_taxonomies_file:
             output_taxonomies_fh.close()
@@ -188,11 +189,13 @@ def generate_taxonomy_for_new_genomes(**kwargs):
 
         return taxonomy_path, new_genome_fasta_files
 
+
 def remove_file_extensions(filename):
     for suffix in genome_file_suffixes:
         if filename.endswith(suffix):
             filename = filename[:-len(suffix)]
     return filename
+
 
 def generate_new_singlem_package(myargs):
     (working_directory, old_spkg, matched_transcript_path, sequence_to_genome, genome_to_taxonomy) = myargs
@@ -269,7 +272,6 @@ def generate_new_singlem_package(myargs):
             output_singlem_package=new_spkg_path,
             input_sequences=new_sequences_fasta,
             input_taxonomy=taxonomy_file,
-            sequence_prefix=sequence_prefix,
             no_further_euks=True,
         )
 
@@ -278,17 +280,7 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
-def run_pipe(params):
-    transcript_paths, tf, old_metapackage_path, threads = params
-    # Set it high as it is too verbose otherwise
-    logging.basicConfig(level=logging.ERROR, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
-    SearchPipe().run(sequences=transcript_paths,
-                     archive_otu_table=tf,
-                     metapackage_path=old_metapackage_path,
-                     threads=threads)
-
-
-def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins, new_taxonomies_file):
+def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
@@ -305,43 +297,58 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
     # mkdir working_directory/hmmsearch_output
     os.mkdir(os.path.join(working_directory, 'hmmsearch_output'))
     # TODO: parallelise this per-genome, not with --cpu which doesn't scale well
-    for genome, tranp in new_genome_transcripts_and_proteins.items():
-        hmmsearch_output = os.path.join(working_directory, 'hmmsearch_output', os.path.basename(genome) + '.hmmsearch')
-        # hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', '>(sed "s/  */\t/g" >', hmmsearch_output, ') --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
-        hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', hmmsearch_output, ' --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
-        logging.debug("Running hmmsearch on {} ..".format(genome))
-        extern.run(' '.join(hmmsearch_cmd))
-        logging.debug("Ran hmmsearch on {} ..".format(genome))
-        num_transcripts += 1
+    # Create a new file which is a concatenation of the transcripts we want to include
+    matched_transcripts_fna = os.path.join(working_directory, 'matched_transcripts.fna')
+    with open(matched_transcripts_fna, 'w') as f:
+        for genome, tranp in new_genome_transcripts_and_proteins.items():
+            hmmsearch_output = os.path.join(working_directory, 'hmmsearch_output',
+                                            os.path.basename(genome) + '.hmmsearch')
+            # hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', '>(sed "s/  */\t/g" >', hmmsearch_output, ') --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
+            hmmsearch_cmd = [
+                'hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', hmmsearch_output, ' --cpu',
+                str(num_threads), concatenated_hmms, tranp.protein_fasta
+            ]
+            logging.debug("Running hmmsearch on {} ..".format(genome))
+            extern.run(' '.join(hmmsearch_cmd))
+            logging.debug("Ran hmmsearch on {} ..".format(genome))
+            num_transcripts += 1
 
-        qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
-        found_hits = []
-        for qresult in qresults:
-            for hit in qresult.hits:
-                found_hits.append([qresult.id, hit.id, hit.bitscore])
-            found_hits.append(qresult[0])
-        df = pl.DataFrame(found_hits)
-        df.columns = ['transcript', 'hmm', 'bitscore']
-        # Take best hit for each transcript
-        df2 = df.sort('bitscore', descending=True).groupby('transcript').first()
-        # Remove genes where there is >1 hit
-        ok_genes = list(df2.groupby('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
-        df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
-        logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
+            qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
+            found_hits = []
+            for qresult in qresults:
+                for hit in qresult.hits:
+                    found_hits.append([qresult.id, hit.id, hit.bitscore])
+            df = pl.DataFrame(found_hits)
+            df.columns = ['hmm', 'transcript', 'bitscore']
+            # Take best hit for each transcript
+            df2 = df.sort('bitscore', descending=True).groupby('transcript').first()
+            # Remove genes where there is >1 hit
+            # If any HMM is associated with multiple genes, remove it as being potentially dubious
+            ok_genes = list(df2.groupby('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
+            df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
+            logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
 
-        import IPython; IPython.embed()
-        raise
+            # Create a set of the transcripts which hit. Lazily assumes that the
+            # best hit in the hmmsearch output is the best hit by singlem pipe
+            matched_transcript_ids = set(df3['transcript'])
+
+            # Extract the transcripts belonging to these hits
+            # Rename the transcripts, with genome and original ID separated by a ~
+            num_printed = 0
+            with open(tranp.transcript_fasta) as g:
+                for name, seq, _ in SeqReader().readfq(g):
+                    if name in matched_transcript_ids:
+                        new_name = genome + '=' + name
+                        print('>' + new_name + '\n' + seq + '\n', file=f)
+                        num_printed += 1
+            logging.debug("Printed {} transcripts for {}".format(num_printed, genome))
+            if num_printed != len(matched_transcript_ids):
+                logging.error("Expected to print {} transcripts for {}, but only printed {}".format(
+                    len(matched_transcript_ids), genome, num_printed))
+
     logging.info("Ran hmmsearch on {} transcriptomes".format(num_transcripts))
 
-    # If any HMM is associated with multiple genes, remove it as being potentially dubious
-    hmm_to_gene = {}
-
-    # Remove genes that are off-target
-
-    # Create a new file which is a concatenation of the transcripts we want to include
-
-    # Run singlem pipe --forward on that, not assigning taxonomy
-
+    return matched_transcripts_fna
 
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
@@ -355,74 +362,56 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
     genome_to_taxonomy = {}
     with open(new_taxonomies_file) as f:
         for row in csv.reader(f, delimiter='\t'):
-            genome = row[0]
-            if genome.endswith('.fasta'):
-                genome = genome[:-6]
-            elif genome.endswith('.fasta.gz'):
-                genome = genome[:-9]
-            elif genome.endswith('.fa'):
-                genome = genome[:-3]
-            elif genome.endswith('.fa.gz'):
-                genome = genome[:-6]
-            elif genome.endswith('.fna'):
-                genome = genome[:-4]
-            elif genome.endswith('.fna.gz'):
-                genome = genome[:-7]
-            else:
-                raise Exception("Unexpected file extension for genome in new_taxonomies_file: {}".format(genome))
+            genome = FastaNameToSampleName.fasta_to_name(row[0])
             genome_to_taxonomy[os.path.basename(genome)] = row[1]
     if len(genome_to_taxonomy) != len(new_genome_fasta_files) or len(genome_to_taxonomy) == 0:
         raise
 
     logging.info("Gathering OTUs from new genomes ..")
 
-    gathered_hmmsearch_results = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins, new_taxonomies_file)
-    raise
+    matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path,
+                                                       new_genome_transcripts_and_proteins)
 
-    # 
+    # Run singlem pipe --forward on that, not assigning taxonomy - we know taxonomy from gtdbtk
+    logging.info("Running singlem pipe --forward on gathered transcripts ..")
+    # pipe messes up the tempdir, so cache and set back
+    original_tmpdir = tempfile.gettempdir()
+    new_genomes_otu_table_unassigned = SearchPipe().run_to_otu_table(
+        sequences=[matched_transcripts_fna],
+        metapackage_object=old_metapackage,
+        threads=num_threads,
+        diamond_prefilter=True,
+        assign_taxonomy=False)  # Maybe could remove off-targets here?
+    tempfile.tempdir = original_tmpdir
 
+    # Assign taxonomy. When multiple genomes have the same OTU, add each genome
+    # as a separate OTU.
+    taxonomy_field = ArchiveOtuTable.TAXONOMY_FIELD_INDEX
+    sample_name_field = ArchiveOtuTable.SAMPLE_ID_FIELD_INDEX
+    read_name_field = ArchiveOtuTable.READ_NAME_FIELD_INDEX
+    new_genomes_otu_table = ArchiveOtuTable()
+    sequence_to_genome = {}
+    for otu in new_genomes_otu_table_unassigned:
+        for read_name in otu.data[6]:
+            genome, _ = read_name.split('=')
+            sequence_to_genome[read_name] = FastaNameToSampleName.fasta_to_name(genome)
 
-    # Multiprocess the singlem pipe commands to speed things up, since pipe is
-    # slow for many genomes at the moment, especially since we need to assign
-    # taxonomy to exclude off-target hits.
-    old_metapackage_on_new_genomes_tempfiles = []
-    # Create regular files in a tempdir so that we don't need so many file handles
-    td = tempfile.TemporaryDirectory(prefix='supplement_metapackage_otu_table_genome_jsons')
-    param_sets = []
-    for i, chunk in enumerate(iterable_chunks(new_genome_fasta_files, 10)):
-        chunk2 = [c for c in chunk if c is not None]
-        tf = os.path.join(td.name, f"{i}.json")
-        old_metapackage_on_new_genomes_tempfiles.append(tf)
-        transcript_paths = [new_genome_transcripts_and_proteins[c].transcript_fasta for c in chunk2]
-        param_sets.append((transcript_paths, tf, old_metapackage_path, 1))
-    process_map(run_pipe, param_sets, max_workers=num_threads, desc="Running singlem pipe")
+            data2 = otu.data.copy()
+            data2[sample_name_field] = genome
+            data2[taxonomy_field] = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome)]
+            data2[read_name_field] = [read_name]
+            entry = OtuTableEntry()
+            entry.data = data2
+            new_genomes_otu_table.add([entry])
 
     # Create SDB for final metapackage
     logging.info("Creating sdb to include in metapackage ..")
     new_metapackage_sdb_path = os.path.join(working_directory, 'new_metapackage.sdb')
-    all_new_otu_tables = OtuTableCollection()
-    # Change the taxonomy to be correct
-    # old_metapackage_on_new_genomes_no_off_target_collection = StreamingOtuTableCollection(
-    # )  # Need streaming so each_sample_otus works
-    for tf in old_metapackage_on_new_genomes_tempfiles:
-        with open(tf) as g:
-            ar = ArchiveOtuTable.read(g)
-            # old_metapackage_on_new_genomes_no_off_target_collection.add_archive_otu_table_object(ar)
-
-            collection = OtuTableCollection()
-            collection.add_archive_otu_table_object(ar)
-            all_new_otu_tables.add_archive_otu_table_object(
-                collection.exclude_off_target_hits(old_metapackage.singlem_packages, return_archive_table=True))
-            # Set the source data's taxonomy
-            taxonomy_field = ArchiveOtuTable.TAXONOMY_FIELD_INDEX
-            sample_name_field = ArchiveOtuTable.SAMPLE_ID_FIELD_INDEX
-            for row in collection.archive_table_objects[0].data:
-                row[taxonomy_field] = genome_to_taxonomy[row[sample_name_field]]
 
     # Add old metapackage's OTUs.
     db_otu_table = SequenceDatabaseOtuTable(old_metapackage.nucleotide_sdb())
     all_new_and_old_otu_tables = OtuTableCollection()
-    all_new_and_old_otu_tables.add_otu_table_object(all_new_otu_tables)
+    all_new_and_old_otu_tables.add_otu_table_object(new_genomes_otu_table)
     all_new_and_old_otu_tables.add_otu_table_object(db_otu_table)
 
     SequenceDatabase().create_from_otu_table(
@@ -431,30 +420,10 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
         num_threads=num_threads,
     )
 
-    # Dump matched transcript sequences to a file for graftm graft
-    matched_transcript_path = os.path.join(working_directory, 'matched_transcripts.fasta')
-    # with open(matched_transcript_path, 'w') as matched_transcripts_fasta:
-    #     Summariser().dump_raw_sequences_from_archive_otu_table(
-    #         output_table_io=matched_transcripts_fasta,
-    #         table_collection=old_metapackage_on_new_genomes_no_off_target_collection,
-    #     )
-
-    sequence_to_genome = {}
-    with open(matched_transcript_path, 'w') as f:
-        for otu in all_new_otu_tables:
-            read_names = otu.read_names()
-            seqs = otu.read_unaligned_sequences()
-            for seq, read_name in zip(seqs, read_names):
-                new_read_name = otu.sample_name + '_' + read_name
-                if new_read_name in sequence_to_genome:
-                    raise Exception("Duplicate sequence name: {}".format(new_read_name))
-                sequence_to_genome[new_read_name] = otu.sample_name
-                f.write('>{}\n{}\n'.format(new_read_name, seq))
-
     new_metapackage_path = os.path.join(working_directory, 'new_metapackage.mpkg')
 
     # For each spkg in the old mpkg, create a new spkg
-    to_process = [(working_directory, spkg, matched_transcript_path, sequence_to_genome, genome_to_taxonomy)
+    to_process = [(working_directory, spkg, matched_transcripts_fna, sequence_to_genome, genome_to_taxonomy)
                   for spkg in old_metapackage.singlem_packages]
     if num_threads > 1:
         new_spkg_paths = Pool(num_threads).map(generate_new_singlem_package, to_process)
@@ -471,8 +440,6 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
                          prefilter_clustering_threshold=None,
                          taxon_genome_lengths=None)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
-
-    td.cleanup()
 
     return new_metapackage_path
 
@@ -560,7 +527,7 @@ class Supplementor:
         output_metapackage = kwargs.pop('output_metapackage')
         threads = kwargs.pop('threads')
         pplacer_threads = kwargs.pop('pplacer_threads')
-        working_directory = kwargs.pop('working_directory')
+        predefined_working_directory = kwargs.pop('working_directory')
         gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
         output_taxonomies = kwargs.pop('output_taxonomies')
         # checkm2_quality_file=args.checkm2_quality_file,
@@ -573,8 +540,8 @@ class Supplementor:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         with tempfile.TemporaryDirectory() as working_directory:
-            if working_directory:
-                working_directory = working_directory
+            if predefined_working_directory:
+                working_directory = predefined_working_directory
             if not os.path.exists(working_directory):
                 os.mkdir(working_directory)
 
@@ -586,7 +553,8 @@ class Supplementor:
             elif checkm2_quality_file:
                 logging.info("Quality filtering new genomes using checkm2 quality file: %s" % checkm2_quality_file)
                 checkm = CheckM2(checkm2_quality_file)
-                new_genome_fasta_files_without_file_extension = set(checkm.genomes_of_sufficient_quality(checkm2_min_completeness, checkm2_max_contamination))
+                new_genome_fasta_files_without_file_extension = set(
+                    checkm.genomes_of_sufficient_quality(checkm2_min_completeness, checkm2_max_contamination))
                 # Check the new genomes are in the checkm2 quality file
                 for g in new_genome_fasta_files:
                     if remove_extension(g) not in checkm:
@@ -598,11 +566,11 @@ class Supplementor:
                     else:
                         excluded_genomes.add(x)
                 new_genome_fasta_files = new_genome_fasta_files2
-                logging.info("Removed {} genomes of insufficient quality, leaving {} genomes to be added to the metapackage".format(
-                    num_before_quality_filter - len(new_genome_fasta_files), len(new_genome_fasta_files)))
+                logging.info(
+                    "Removed {} genomes of insufficient quality, leaving {} genomes to be added to the metapackage".
+                    format(num_before_quality_filter - len(new_genome_fasta_files), len(new_genome_fasta_files)))
             else:
                 raise Exception("Must provide either --no-quality-filter or --checkm2-quality-file")
-            
 
             # Generate faa and transcript fna files for the new genomes
             logging.info("Generating faa and transcript fna files for the new genomes ..")
