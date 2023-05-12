@@ -95,7 +95,7 @@ class Regenerator:
             extern.run("cat %s %s > %s" % (euk_taxonomy, input_taxonomy, final_taxonomy_path))
 
         # Add package prefix to sequences and taxonomy
-        if sequence_prefix != "":
+        if sequence_prefix != "" and sequence_prefix is not None:
             extern.run("sed -i 's/>/>{}/g' {}".format(sequence_prefix, final_sequences_path))
             extern.run("sed -i 's/^/{}/g' {}".format(sequence_prefix, final_taxonomy_path))
 

@@ -1,11 +1,6 @@
 import re
 import os
 import csv
-import logging
-import itertools
-import pkg_resources
-import extern
-import tempfile
 
 CREATE_MIN_ALIGNED_PERCENT = 10
 
