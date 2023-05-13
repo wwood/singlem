@@ -510,6 +510,8 @@ if __name__ == '__main__':
     supplement_parser.add_argument('--checkm2-min-completeness', help='minimum completeness for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
     current_default = 10
     supplement_parser.add_argument('--checkm2-max-contamination', help='maximum contamination for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
+    current_default = '1e-20'
+    supplement_parser.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -1240,6 +1242,7 @@ if __name__ == '__main__':
             no_quality_filter=args.no_quality_filter,
             checkm2_min_completeness=args.checkm2_min_completeness,
             checkm2_max_contamination=args.checkm2_max_contamination,
+            hmmsearch_evalue=args.hmmsearch_evalue,
         )
 
     else:

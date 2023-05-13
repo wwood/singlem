@@ -280,7 +280,7 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
-def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins):
+def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins, hmmsearch_evalue):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
@@ -290,34 +290,43 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
             with open(spkg.graftm_package().alignment_hmm_path()) as g:
                 f.write(g.read())
                 num_hmms += 1
-    logging.info("Concatenated {} HMMs".format(num_hmms))
+
+    logging.info("Running HMMSEARCH using a concatenated set of {} HMMs".format(num_hmms))
 
     # Take the best hitting HMM for each transcript
-    num_transcripts = 0
     # mkdir working_directory/hmmsearch_output
     os.mkdir(os.path.join(working_directory, 'hmmsearch_output'))
     # TODO: parallelise this per-genome, not with --cpu which doesn't scale well
     # Create a new file which is a concatenation of the transcripts we want to include
     matched_transcripts_fna = os.path.join(working_directory, 'matched_transcripts.fna')
+    total_num_transcripts = 0
+    failure_genomes = 0
+    num_transcriptomes = 0
+    num_found_transcripts = 0
     with open(matched_transcripts_fna, 'w') as f:
         for genome, tranp in new_genome_transcripts_and_proteins.items():
             hmmsearch_output = os.path.join(working_directory, 'hmmsearch_output',
                                             os.path.basename(genome) + '.hmmsearch')
             # hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', '>(sed "s/  */\t/g" >', hmmsearch_output, ') --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
             hmmsearch_cmd = [
-                'hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', hmmsearch_output, ' --cpu',
+                'hmmsearch', '-o /dev/null', '-E ', hmmsearch_evalue, '--tblout', hmmsearch_output, ' --cpu',
                 str(num_threads), concatenated_hmms, tranp.protein_fasta
             ]
             logging.debug("Running hmmsearch on {} ..".format(genome))
             extern.run(' '.join(hmmsearch_cmd))
             logging.debug("Ran hmmsearch on {} ..".format(genome))
-            num_transcripts += 1
+            num_transcriptomes += 1
 
             qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
             found_hits = []
             for qresult in qresults:
                 for hit in qresult.hits:
                     found_hits.append([qresult.id, hit.id, hit.bitscore])
+                    total_num_transcripts += 1
+            if len(found_hits) == 0:
+                logging.debug("No hits found for {}".format(genome))
+                failure_genomes += 1
+                continue
             df = pl.DataFrame(found_hits)
             df.columns = ['hmm', 'transcript', 'bitscore']
             # Take best hit for each transcript
@@ -345,14 +354,18 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
             if num_printed != len(matched_transcript_ids):
                 logging.error("Expected to print {} transcripts for {}, but only printed {}".format(
                     len(matched_transcript_ids), genome, num_printed))
+            num_found_transcripts += num_printed
 
-    logging.info("Ran hmmsearch on {} transcriptomes".format(num_transcripts))
+    logging.info("Ran hmmsearch on {} genomes, finding {} marker genes. {} were excluded based on 2+ copy number.".format(
+        num_transcriptomes, num_found_transcripts, total_num_transcripts - num_found_transcripts))
+    if failure_genomes > 0:
+        logging.warning("hmmsearch failed to find any marker genes for {} genomes".format(failure_genomes))
 
     return matched_transcripts_fna
 
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
-                             new_taxonomies_file, new_genome_transcripts_and_proteins):
+                             new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
@@ -370,7 +383,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
     logging.info("Gathering OTUs from new genomes ..")
 
     matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path,
-                                                       new_genome_transcripts_and_proteins)
+                                                       new_genome_transcripts_and_proteins, hmmsearch_evalue)
 
     # Run singlem pipe --forward on that, not assigning taxonomy - we know taxonomy from gtdbtk
     logging.info("Running singlem pipe --forward on gathered transcripts ..")
@@ -398,6 +411,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
             data2 = otu.data.copy()
             data2[sample_name_field] = genome
+            import IPython; IPython.embed()                                               
             data2[taxonomy_field] = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome)]
             data2[read_name_field] = [read_name]
             entry = OtuTableEntry()
@@ -536,6 +550,7 @@ class Supplementor:
         checkm2_min_completeness = kwargs.pop('checkm2_min_completeness')
         checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
         no_quality_filter = kwargs.pop('no_quality_filter')
+        hmmsearch_evalue = kwargs.pop('hmmsearch_evalue')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -595,7 +610,7 @@ class Supplementor:
             logging.info("Generating new SingleM packages and metapackage ..")
             new_metapackage = generate_new_metapackage(threads, working_directory, input_metapackage,
                                                        new_genome_fasta_files, taxonomy_file,
-                                                       genome_transcripts_and_proteins)
+                                                       genome_transcripts_and_proteins, hmmsearch_evalue)
 
             logging.info("Copying generated metapackage to {}".format(output_metapackage))
             shutil.copytree(new_metapackage, output_metapackage)
