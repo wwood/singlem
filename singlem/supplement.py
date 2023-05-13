@@ -135,7 +135,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                                     genome_name))
                             if output_taxonomies_file:
                                 output_taxonomies_fh.write(
-                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
+                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) +
+                                    '\n')
                         else:
                             raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
                                 tax_file, taxonomy))
@@ -280,7 +281,8 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
-def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins, hmmsearch_evalue):
+def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins,
+                             hmmsearch_evalue):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
@@ -356,12 +358,17 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
                     len(matched_transcript_ids), genome, num_printed))
             num_found_transcripts += num_printed
 
-    logging.info("Ran hmmsearch on {} genomes, finding {} marker genes. {} were excluded based on 2+ copy number.".format(
-        num_transcriptomes, num_found_transcripts, total_num_transcripts - num_found_transcripts))
+    logging.info(
+        "Ran hmmsearch on {} genomes, finding {} marker genes. {} were excluded based on 2+ copy number.".format(
+            num_transcriptomes, num_found_transcripts, total_num_transcripts - num_found_transcripts))
     if failure_genomes > 0:
         logging.warning("hmmsearch failed to find any marker genes for {} genomes".format(failure_genomes))
 
-    return matched_transcripts_fna
+    if num_found_transcripts == 0:
+        logging.error("Unable to find any marker genes from the provided genomes, so cannot generate a new metapackage")
+        return None
+    else:
+        return matched_transcripts_fna
 
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
@@ -384,6 +391,9 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path,
                                                        new_genome_transcripts_and_proteins, hmmsearch_evalue)
+    if matched_transcripts_fna is None:
+        # No transcripts were found, so no new OTUs to add
+        return None
 
     # Run singlem pipe --forward on that, not assigning taxonomy - we know taxonomy from gtdbtk
     logging.info("Running singlem pipe --forward on gathered transcripts ..")
@@ -411,7 +421,6 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
             data2 = otu.data.copy()
             data2[sample_name_field] = genome
-            import IPython; IPython.embed()                                               
             data2[taxonomy_field] = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome)]
             data2[read_name_field] = [read_name]
             entry = OtuTableEntry()
@@ -544,8 +553,6 @@ class Supplementor:
         predefined_working_directory = kwargs.pop('working_directory')
         gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
         output_taxonomies = kwargs.pop('output_taxonomies')
-        # checkm2_quality_file=args.checkm2_quality_file,
-        # no_quality_filter=args.no_quality_filter,
         checkm2_quality_file = kwargs.pop('checkm2_quality_file')
         checkm2_min_completeness = kwargs.pop('checkm2_min_completeness')
         checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
@@ -605,6 +612,10 @@ class Supplementor:
                     pplacer_threads=pplacer_threads,
                     output_taxonomies_file=output_taxonomies,
                     excluded_genomes=excluded_genomes)
+                # Remove genomes that were excluded by not being novel at the species level
+                genome_transcripts_and_proteins = {
+                    k: v for k, v in genome_transcripts_and_proteins.items() if k in new_genome_fasta_files
+                }
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
@@ -612,6 +623,7 @@ class Supplementor:
                                                        new_genome_fasta_files, taxonomy_file,
                                                        genome_transcripts_and_proteins, hmmsearch_evalue)
 
-            logging.info("Copying generated metapackage to {}".format(output_metapackage))
-            shutil.copytree(new_metapackage, output_metapackage)
-            logging.info("Finished suppplement.")
+            if new_metapackage is not None:
+                logging.info("Copying generated metapackage to {}".format(output_metapackage))
+                shutil.copytree(new_metapackage, output_metapackage)
+                logging.info("Finished suppplement.")
