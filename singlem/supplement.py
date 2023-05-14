@@ -258,9 +258,15 @@ def generate_new_singlem_package(myargs):
 
             with open(new_sequences_fasta, 'a') as new_sequences_fasta_fh:
                 for seq_name, seq in matched_sequences:
-                    genome = sequence_to_genome[orfm_utils.un_orfm_name(seq_name)]
-                    new_sequences_fasta_fh.write('>' + sequence_prefix + '~' + seq_name + '\n' + seq + '\n')
-                    f.write(sequence_prefix + '~' + seq_name + '\t' + genome_to_taxonomy[genome] + '\n')
+                    key = orfm_utils.un_orfm_name(seq_name)
+                    if key not in sequence_to_genome:
+                        logging.debug(
+                            "Skipping sequence {} because it is not in the sequence_to_genome map, interpreted to mean it matched the HMM but not the window specifically."
+                            .format(seq_name))
+                    else:
+                        genome = sequence_to_genome[orfm_utils.un_orfm_name(seq_name)]
+                        new_sequences_fasta_fh.write('>' + sequence_prefix + '~' + seq_name + '\n' + seq + '\n')
+                        f.write(sequence_prefix + '~' + seq_name + '\t' + genome_to_taxonomy[genome] + '\n')
 
         # Log how many of the genomes matched this marker
         logging.info("Added {} sequences from {} genomes".format(len(matched_sequences), len(genome_to_taxonomy)))
@@ -349,7 +355,8 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
             with open(tranp.transcript_fasta) as g:
                 for name, seq, _ in SeqReader().readfq(g):
                     if name in matched_transcript_ids:
-                        new_name = genome + '=' + name
+                        genome_basename = remove_extension(os.path.basename(genome))
+                        new_name = genome_basename + '=' + name
                         print('>' + new_name + '\n' + seq + '\n', file=f)
                         num_printed += 1
             logging.debug("Printed {} transcripts for {}".format(num_printed, genome))
