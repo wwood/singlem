@@ -147,6 +147,7 @@ class Prodigal(object):
 
                     stdout, stderr = proc.communicate()
                     #This extra step has been added for the issue 451 where Prodigal can return a free pointer error
+                    # https://github.com/Ecogenomics/GTDBTk/issues/451
                     if proc.returncode != 0:
                         self.logger.warning('Error running Prodigal on genome: '
                                             '{}'.format(genome_file))
@@ -154,6 +155,8 @@ class Prodigal(object):
                         for line in stderr.splitlines():
                             print(line)
                         self.logger.warning('This genome is skipped.')
+                        # self.logger.warning(' '.join(cmd))
+                        # os.system('cp %s %s' % (processed_prodigal_input, '/tmp/ppi.fna'))
 
                     # determine coding density
                     prodigalParser = ProdigalGeneFeatureParser(gff_file_tmp)
