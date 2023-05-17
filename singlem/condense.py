@@ -329,7 +329,7 @@ class Condenser:
                 # reduces noise. This cutoff also removes the very occasional
                 # situations that coverages are negative.
                 # if node.coverage < min_taxon_coverage:
-                if node.get_full_coverage() < min_taxon_coverage:
+                if node.get_full_coverage() < min_taxon_coverage or node.coverage < 0:
                     node.coverage = 0
 
         return CondensedCommunityProfile(sample, sample_summary_root_node)
