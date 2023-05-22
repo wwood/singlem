@@ -539,6 +539,8 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
 
     num_translation_table4 = sum([1 for x in transcripts_and_proteins if x.translation_table == 4])
     num_translation_table11 = sum([1 for x in transcripts_and_proteins if x.translation_table == 11])
+    for x in transcripts_and_proteins:
+        logging.debug("Translation table for {} was {}".format(x.protein_fasta, x.translation_table))
     logging.info("Prodigal finished. Found {} with translation table 4, {} with translation table 11".format(
         num_translation_table4, num_translation_table11))
 
