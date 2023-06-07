@@ -392,7 +392,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
             genome = FastaNameToSampleName.fasta_to_name(row[0])
             genome_to_taxonomy[os.path.basename(genome)] = row[1]
     if len(genome_to_taxonomy) != len(new_genome_fasta_files) or len(genome_to_taxonomy) == 0:
-        raise
+        raise Exception("Unexpected number of genomes with taxonomy vs. fasta files")
 
     logging.info("Gathering OTUs from new genomes ..")
 
