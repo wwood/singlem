@@ -80,6 +80,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 raise Exception("Specified genome does not appear to be a file: {}".format(genome_fasta))
             name = os.path.basename(genome_fasta)
             name_to_genome_fasta[name] = genome_fasta
+            name_to_genome_fasta[remove_file_extensions(name)] = genome_fasta
             batchfile.write(genome_fasta + '\t' + name + '\n')
         batchfile.flush()
 
@@ -550,6 +551,25 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
     return to_return
 
 
+def dereplicate_genomes_with_galah(**kwargs):
+    threads = kwargs.pop('threads')
+    genomes_to_dereplicate = kwargs.pop('genomes_to_dereplicate')
+    checkm2_quality_file = kwargs.pop('checkm2_quality_file')
+    if len(kwargs) > 0:
+        raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+    quality_arg = ""
+    if checkm2_quality_file is None:
+        logging.warning("Galah is being run without a checkm2 quality file. This is not recommended, because then galah may choose non-optimal genomes as representative.")
+    else:
+        quality_arg = "--checkm2-quality-report {}".format(checkm2_quality_file)
+    logging.info("Running galah to dereplicate {} genomes ..".format(len(genomes_to_dereplicate)))
+    new_genome_paths = extern.run("galah cluster {} --threads {} --genome-fasta-list /dev/stdin --ani 95 --output-representative-list /dev/stdout".format(
+        quality_arg, threads), stdin="\n".join(genomes_to_dereplicate)).splitlines()
+    logging.info("After dereplication, {} genomes remain".format(len(new_genome_paths)))
+    return new_genome_paths
+
+
 class Supplementor:
 
     def supplement(self, **kwargs):
@@ -567,6 +587,10 @@ class Supplementor:
         checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
         no_quality_filter = kwargs.pop('no_quality_filter')
         hmmsearch_evalue = kwargs.pop('hmmsearch_evalue')
+        # no_dereplication=args.no_dereplication,
+        # dereplicate_with_galah=args.dereplicate_with_galah,
+        no_dereplication = kwargs.pop('no_dereplication')
+        dereplicate_with_galah = kwargs.pop('dereplicate_with_galah')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -603,6 +627,16 @@ class Supplementor:
             else:
                 raise Exception("Must provide either --no-quality-filter or --checkm2-quality-file")
 
+            # Dereplicate the new genomes if required
+            if no_dereplication:
+                pass
+            elif dereplicate_with_galah:
+                logging.info("Dereplicating new genomes using GALAH ..")
+                new_genome_fasta_files = dereplicate_genomes_with_galah(
+                    threads=threads, genomes_to_dereplicate=new_genome_fasta_files, checkm2_quality_file=checkm2_quality_file)
+            else:
+                raise Exception("Must provide either --no-dereplication or --dereplicate-with-galah")
+
             # Generate faa and transcript fna files for the new genomes
             logging.info("Generating faa and transcript fna files for the new genomes ..")
             genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
@@ -635,4 +669,4 @@ class Supplementor:
             if new_metapackage is not None:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))
                 shutil.copytree(new_metapackage, output_metapackage)
-                logging.info("Finished suppplement.")
+                logging.info("Finished supplement.")
