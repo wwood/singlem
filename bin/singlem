@@ -504,8 +504,9 @@ if __name__ == '__main__':
     checkm_mut_group = supplement_parser.add_mutually_exclusive_group(required=True)
     checkm_mut_group.add_argument('--checkm2-quality-file', help='CheckM2 quality file of new genomes')
     checkm_mut_group.add_argument('--no-quality-filter', help='skip quality filtering', action='store_true')
-    # checkm2_min_completeness = kwargs.pop('checkm2_min_completeness')
-    # checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
+    dereplication_mut_group = supplement_parser.add_mutually_exclusive_group(required=True)
+    dereplication_mut_group.add_argument('--no-dereplication', help='Assume genome inputs are already dereplicated', action='store_true')
+    dereplication_mut_group.add_argument('--dereplicate-with-galah', help='Run galah to dereplicate genomes at species level', action='store_true')
     current_default = 70
     supplement_parser.add_argument('--checkm2-min-completeness', help='minimum completeness for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
     current_default = 10
@@ -1243,6 +1244,8 @@ if __name__ == '__main__':
             checkm2_min_completeness=args.checkm2_min_completeness,
             checkm2_max_contamination=args.checkm2_max_contamination,
             hmmsearch_evalue=args.hmmsearch_evalue,
+            no_dereplication=args.no_dereplication,
+            dereplicate_with_galah=args.dereplicate_with_galah,
         )
 
     else:
