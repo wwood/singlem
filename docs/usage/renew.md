@@ -3,19 +3,23 @@ title: SingleM renew
 ---
 # singlem renew
 
-# DESCRIPTION
+DESCRIPTION
+===========
 
 Reannotate an OTU table with an updated taxonomy
 
-# OPTIONS
+OPTIONS
+=======
 
-# INPUT
+INPUT
+=====
 
 **\--input-archive-otu-table** *INPUT_ARCHIVE_OTU_TABLE*
 
   Renew this table
 
-# COMMON ARGUMENTS IN SHARED WITH \'PIPE\'
+COMMON ARGUMENTS IN SHARED WITH \'PIPE\'
+========================================
 
 **-p**, **\--taxonomic-profile** FILE
 
@@ -57,7 +61,8 @@ Reannotate an OTU table with an updated taxonomy
     each OTU was generated from) in the output OTU table [default: not
     set]
 
-# LESS COMMON ARGUMENTS SHARED WITH \'PIPE\'
+LESS COMMON ARGUMENTS SHARED WITH \'PIPE\'
+==========================================
 
 **\--archive-otu-table** filename
 
@@ -109,7 +114,18 @@ Reannotate an OTU table with an updated taxonomy
   Ignore reads aligning in less than this many positions to each
     protein HMM [default: 24]
 
-# OTHER GENERAL OPTIONS
+**\--exclude-off-target-hits**
+
+  Exclude hits that are not in the target domain of each SingleM
+    package
+
+**\--min-taxon-coverage** FLOAT
+
+  Minimum coverage to report in a taxonomic profile. [default: 0.35
+    for reads, 0.1 for genomes]
+
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -131,7 +147,8 @@ Reannotate an OTU table with an updated taxonomy
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
