@@ -6,7 +6,6 @@ import sqlite3
 import glob
 import json
 import itertools
-import sys
 import csv
 import extern
 import numpy as np
@@ -16,7 +15,8 @@ from sqlalchemy import create_engine, select, distinct
 import Bio.Data.CodonTable
 
 from .otu_table import OtuTable
-from .singlem_database_models import *
+from .singlem_database_models import NucleotideSequence, NucleotidesProteins, ProteinSequence, Taxonomy, Otu, Marker
+from .otu_table_entry import OtuTableEntry
 
 DEFAULT_NUM_THREADS = 1
 
@@ -315,7 +315,7 @@ class SequenceDatabase:
         tmpdir=None,
         num_annoy_nucleotide_trees = 10, # ntrees are currently guesses
         num_annoy_protein_trees = 10,
-        sequence_database_methods = [SCANN_NAIVE_INDEX_FORMAT],
+        sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT],
         sequence_database_types = [NUCLEOTIDE_DATABASE_TYPE]):
 
         if num_threads is None:
@@ -850,10 +850,30 @@ class SequenceDatabase:
     @staticmethod
     def dump(db_path):
         """Dump the DB contents to STDOUT, requiring a version 5+ database"""
-        sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-        engine = create_engine(
-            "sqlite:///"+sqlite_db_path,
-            echo=logging.DEBUG >= logging.root.level)
+        db = SequenceDatabase.acquire(db_path)
+        table = SequenceDatabaseOtuTable(db)
+        
+        print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
+        # DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
+
+        for otu in table:
+            print("\t".join([
+                otu.marker,
+                otu.sample_name,
+                otu.sequence,
+                str(otu.count),
+                '%.2f' % otu.coverage,
+                otu.taxonomy
+            ]))
+
+
+class SequenceDatabaseOtuTable:
+
+    def __init__(self, db):
+        self.db = db
+
+    def __iter__(self):
+        engine = self.db.engine
 
         with engine.connect() as conn:
             # First cache the taxonomy
@@ -862,8 +882,6 @@ class SequenceDatabase:
             # And markers
             marker_entries = Marker.generate_python_index(conn)
         
-            print("\t".join(OtuTable.DEFAULT_OUTPUT_FIELDS))
-            # DEFAULT_OUTPUT_FIELDS = str.split('gene sample sequence num_hits coverage taxonomy')
             batch_size = 10000
             builder = select(
                 Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
@@ -871,14 +889,23 @@ class SequenceDatabase:
         
             for batch in conn.execute(builder).partitions(batch_size):
                 for row in batch:
-                    print("\t".join([
-                        marker_entries[row.marker_id],
-                        row.sample_name,
-                        row.sequence,
-                        str(row.num_hits),
-                        '%.2f' % row.coverage,
-                        taxonomy_entries[row.taxonomy_id]
-                    ]))
+                    entry = OtuTableEntry()
+                    # marker = None
+                    # sample_name = None
+                    # sequence = None
+                    # count = None
+                    # taxonomy = None
+                    # coverage = None
+                    # data = None
+                    # fields = None
+                    entry.marker = marker_entries[row.marker_id]
+                    entry.sample_name = row.sample_name
+                    entry.sequence = row.sequence
+                    entry.count = row.num_hits
+                    entry.coverage = row.coverage
+                    entry.taxonomy = taxonomy_entries[row.taxonomy_id]
+                    yield entry
+
 
 def _base_to_binary(x):
     if x == 'A':

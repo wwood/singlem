@@ -3,19 +3,23 @@ title: SingleM query
 ---
 # singlem query
 
-# DESCRIPTION
+DESCRIPTION
+===========
 
 Find closely related sequences in a database.
 
-# OPTIONS
+OPTIONS
+=======
 
-# REQUIRED ARGUMENTS
+REQUIRED ARGUMENTS
+==================
 
 **\--db** *DB*
 
   Output from \'makedb\' mode
 
-# DATABASE QUERYING BY OTU SEQUENCE
+DATABASE QUERYING BY OTU SEQUENCE
+=================================
 
 **\--query-otu-table**, **\--query-otu-tables** file [file \...]
 
@@ -83,7 +87,8 @@ Find closely related sequences in a database.
     but uses more memory and has a larger start-up time for each marker
     gene.
 
-# OTHER DATABASE EXTRACTION METHODS
+OTHER DATABASE EXTRACTION METHODS
+=================================
 
 **\--sample-names** name [name \...]
 
@@ -103,7 +108,13 @@ Find closely related sequences in a database.
 
   Print all OTUs in the DB
 
-# OTHER GENERAL OPTIONS
+**\--continue-on-missing-genes**
+
+  Continue if a gene is missing from the DB. Only works with
+    smafa/nuclotide search method.
+
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -125,7 +136,8 @@ Find closely related sequences in a database.
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

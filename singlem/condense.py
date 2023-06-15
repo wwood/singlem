@@ -39,10 +39,11 @@ class Condenser:
         metapackage = kwargs.pop('metapackage', None)
 
         if metapackage_path:
+            logging.info("Using the metapackage at {}".format(metapackage_path))
             metapackage = Metapackage.acquire(metapackage_path)
         elif not metapackage:
             # Neither were specified, so use the default set of packages
-            logging.info("Using default set of SingleM packages.")
+            logging.info("Using default SingleM metapackage")
             metapackage = Metapackage.acquire_default()
             
         if metapackage.version < 3:
@@ -319,7 +320,7 @@ class Condenser:
 
         # Stage 3: Correct the coverages by accounting for each node's descendants
         for node in sample_summary_root_node:
-            children_coverage = sum([c.get_full_coverage() for c in node.children.values()])
+            children_coverage = sum([c.coverage for c in node.children.values()])
             # print("Found cov {} and child coverage {} for {}".format(node.coverage, children_coverage, node.get_taxonomy()))
             if node.word != 'Root':
                 node.coverage = node.coverage - children_coverage
@@ -327,7 +328,8 @@ class Condenser:
                 # Apply a general cutoff, which is somewhat arbitrary, but
                 # reduces noise. This cutoff also removes the very occasional
                 # situations that coverages are negative.
-                if node.coverage < min_taxon_coverage:
+                # if node.coverage < min_taxon_coverage:
+                if node.get_full_coverage() < min_taxon_coverage or node.coverage < 0:
                     node.coverage = 0
 
         return CondensedCommunityProfile(sample, sample_summary_root_node)
@@ -349,9 +351,9 @@ class Condenser:
         num_assigned_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in sample_otus if otu.taxonomy_assignment_method() is not None])
         logging.info("Found {:.2f} assigned and {:.2f} unassigned OTU coverage units".format(num_assigned_otus, num_no_assignment_otus))
         if num_no_assignment_otus > num_assigned_otus*0.05:
-            logging.warning("Found an expectedly high number of OTUs that have no taxonomy assigned by query or diamond: {} unassigned OTUs and {} assigned, in sample {}".format(num_no_assignment_otus, num_assigned_otus, sample_otus[0].sample))
+            logging.warning("Found an expectedly high number of OTUs that have no taxonomy assigned by query or diamond: {} unassigned OTUs and {} assigned, in sample {}".format(num_no_assignment_otus, num_assigned_otus, list(sample_otus)[0].sample_name))
             if num_no_assignment_otus > num_assigned_otus*0.5:
-                raise Exception("Stopping: sample {} had too many unassigned OTUs".format(sample_otus[0].sample))
+                raise Exception("Stopping: sample {} had too many unassigned OTUs".format(list(sample_otus)[0].sample_name))
         table.data = [otu.data for otu in sample_otus if \
             self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers) and \
             otu.taxonomy_assignment_method() is not None]
@@ -397,15 +399,6 @@ class Condenser:
         demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, DIAMOND_ASSIGNMENT_METHOD)
         logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in demux_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
-
-        # In [6]: sample_otus.alignment_hmm_sha256s = 'na'
-        # In [7]: sample_otus.singlem_package_sha256s = 'na'
-        # In [8]: with open('/tmp/before','w') as f: sample_otus.write_to(f)
-        # import IPython; IPython.embed()
-        # demux_otus = self._demultiplex_otus(sample_otus, species_to_coverage, eq_classes, QUERY_BASED_ASSIGNMENT_METHOD)
-        # demux_otus.alignment_hmm_sha256s = 'na'
-        # demux_otus.singlem_package_sha256s = 'na'
-        # with open('/tmp/after','w') as f: demux_otus.write_to(f)
 
         logging.info("Finished genus expectation maximization")
         return demux_otus
@@ -908,6 +901,8 @@ class CondensedCommunityProfile:
                     last_taxon.children[tax] = wn
                     taxons_to_wordnode[tax] = wn
                 last_taxon = taxons_to_wordnode[tax]
+            if wn is None:
+                raise Exception("Unexpected processing of taxon {}".format(taxons_split))
             wn.coverage = float(coverage)
 
         if current_sample is not None:

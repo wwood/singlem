@@ -24,7 +24,8 @@ Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimmin
 
 The [examples section](/usage/pipe#examples) may be of use.
 
-# COMMON OPTIONS
+COMMON OPTIONS
+==============
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
@@ -84,7 +85,8 @@ The [examples section](/usage/pipe#examples) may be of use.
     each OTU was generated from) in the output OTU table [default: not
     set]
 
-# LESS COMMON OPTIONS
+LESS COMMON OPTIONS
+===================
 
 **\--archive-otu-table** filename
 
@@ -135,6 +137,16 @@ The [examples section](/usage/pipe#examples) may be of use.
 
   Ignore reads aligning in less than this many positions to each
     protein HMM [default: 24]
+
+**\--exclude-off-target-hits**
+
+  Exclude hits that are not in the target domain of each SingleM
+    package
+
+**\--min-taxon-coverage** FLOAT
+
+  Minimum coverage to report in a taxonomic profile. [default: 0.35
+    for reads, 0.1 for genomes]
 
 **\--working-directory** directory
 
@@ -213,7 +225,8 @@ The [examples section](/usage/pipe#examples) may be of use.
   Sleep for this many seconds after running os.mkfifo [default:
     None]
 
-# OTHER GENERAL OPTIONS
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -235,13 +248,15 @@ The [examples section](/usage/pipe#examples) may be of use.
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 
-# EXAMPLES
+EXAMPLES
+========
 
 Get a taxonomic profile from paired read input:
 

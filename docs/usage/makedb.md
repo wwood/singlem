@@ -16,7 +16,8 @@ singlem pipe -1 A.fq.gz --otu-table A.otu_table.csv
 singlem query --query-otu-table A.otu_table.csv --db BCD.sdb
 ```
 
-# REQUIRED ARGUMENTS
+REQUIRED ARGUMENTS
+==================
 
 **\--otu-tables**, **\--otu-table** *OTU_TABLES* [*OTU_TABLES* \...]
 
@@ -43,7 +44,8 @@ singlem query --query-otu-table A.otu_table.csv --db BCD.sdb
 
   Name of database to create e.g. tundra.sdb
 
-# OTHER ARGUMENTS
+OTHER ARGUMENTS
+===============
 
 **\--threads** *THREADS*
 
@@ -77,7 +79,8 @@ singlem query --query-otu-table A.otu_table.csv --db BCD.sdb
 
   [for internal usage] use this directory internally for working
 
-# OTHER GENERAL OPTIONS
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -99,7 +102,8 @@ singlem query --query-otu-table A.otu_table.csv --db BCD.sdb
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
