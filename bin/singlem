@@ -243,8 +243,8 @@ if __name__ == '__main__':
         help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
 
-    makedb_description = 'Create a searchable database from an OTU table'
-    makedb_parser = bird_argparser.new_subparser('makedb', makedb_description, parser_group='Tools')
+    makedb_description = 'Create a searchable OTU sequence database from an OTU table'
+    makedb_parser = bird_argparser.new_subparser('makedb', makedb_description)
 
     required_makedb_arguments = makedb_parser.add_argument_group('required arguments')
 
@@ -273,8 +273,8 @@ if __name__ == '__main__':
     makedb_other_args.add_argument('--num-annoy-protein-trees', help='make annoy protein sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_PROTEIN_NTREES),default=DEFAULT_ANNOY_PROTEIN_NTREES,type=int)
     makedb_other_args.add_argument('--tmpdir', help='[for internal usage] use this directory internally for working')
 
-    query_description = 'Find closely related sequences in a database.'
-    query_parser = bird_argparser.new_subparser('query', query_description, parser_group='Tools')
+    query_description = 'Find closely related sequences in a SingleM database.'
+    query_parser = bird_argparser.new_subparser('query', query_description)
     query_db_args = query_parser.add_argument_group('Required arguments')
     query_db_args.add_argument('--db', help="Output from 'makedb' mode", required=True)
     query_otu_args = query_parser.add_argument_group('Database querying by OTU sequence')
@@ -434,10 +434,10 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
 
-    chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
-    chance_parser = bird_argparser.new_subparser('chance', chance_description)
-    chance_parser.add_argument('--otu-tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
-    chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
+    # chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
+    # chance_parser = bird_argparser.new_subparser('chance', chance_description)
+    # chance_parser.add_argument('--otu-tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
+    # chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = bird_argparser.new_subparser('chainsaw', chainsaw_description)
@@ -481,7 +481,7 @@ if __name__ == '__main__':
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
 
     supplement_description = 'Create a new metapackage from a vanilla one plus new genomes'
-    supplement_parser = bird_argparser.new_subparser('supplement', supplement_description)
+    supplement_parser = bird_argparser.new_subparser('supplement', supplement_description, parser_group='Tools')
     supplement_parser.add_argument('--new-genome-fasta-files',
                                    help='FASTA files of new genomes',
                                    nargs='+',

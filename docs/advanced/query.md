@@ -6,7 +6,7 @@ title: SingleM query
 DESCRIPTION
 ===========
 
-Find closely related sequences in a database.
+Find closely related sequences in a SingleM database.
 
 OPTIONS
 =======
