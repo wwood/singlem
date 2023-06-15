@@ -21,6 +21,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
+import json
 import unittest
 import os.path
 import sys
@@ -268,7 +269,7 @@ minimal2	0.2
         self.assertEqualOtuTable(list([line.split("\t") for line in expected]), observed)
 
     def test_collapse_paired_with_unpaired(self):
-        cmd = '{} summarise --input-archive-otu-table {}/summarise/ERR1883421_paired.annotated.singlem.renew.renew_v4.json {}/summarise/ERR1883421_unpaired.annotated.singlem.renew.renew_v4.json --collapse-paired-with-unpaired /dev/stdout'.format(
+        cmd = '{} summarise --input-archive-otu-table {}/summarise/ERR1883421_paired.annotated.singlem.renew.renew_v4_renew.json {}/summarise/ERR1883421_unpaired.annotated.singlem.renew.renew_v4_renew.json --collapse-paired-with-unpaired /dev/stdout'.format(
             path_to_script,
             path_to_data,
             path_to_data)
@@ -289,6 +290,16 @@ minimal2	0.2
             """
         expected = '\n'.join([line.strip() for line in expected.split('\n') if line.strip()])+"\n"
         self.assertEqual(expected, res)
+
+    def test_collapse_to_sample_name(self):
+        with tempfile.NamedTemporaryFile() as tf:
+            extern.run(f'bin/singlem summarise --collapse-to-sample-name a1 --input-archive-otu-tables {path_to_data}/summarise/original1_for_merge.json  {path_to_data}/summarise/original2_for_merge.json --output-archive-otu-table {tf.name}')
+
+            with open(tf.name) as f:
+                observed = json.load(f)
+                with open(f'{path_to_data}/summarise/collapsed_to_sample_name.json') as f:
+                    expected = json.load(f)
+                    self.assertEqual(observed, expected)
         
 
 if __name__ == "__main__":

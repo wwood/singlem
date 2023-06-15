@@ -2,7 +2,6 @@ import logging
 import os
 import tempfile
 import extern
-import dendropy
 import pickle
 import shutil
 
@@ -11,24 +10,24 @@ from graftm.graftm_package import GraftMPackage
 from .graftm_result import GraftMResult
 from .singlem_package import SingleMPackageVersion4, SingleMPackage
 from .sequence_classes import SeqReader, Sequence
-from .dereplicator import Dereplicator
-from .sequence_extractor import SequenceExtractor
 from .metagenome_otu_finder import MetagenomeOtuFinder
 from .pipe_sequence_extractor import _align_proteins_to_hmm
+from .singlem import CREATE_MIN_ALIGNED_PERCENT
 
 
 class Regenerator:
+
     def regenerate(self, **kwargs):
         input_singlem_package = kwargs.pop('input_singlem_package')
         output_singlem_package = kwargs.pop('output_singlem_package')
         input_sequences = kwargs.pop('input_sequences')
         input_taxonomy = kwargs.pop('input_taxonomy')
-        euk_sequences = kwargs.pop('euk_sequences')
-        euk_taxonomy = kwargs.pop('euk_taxonomy')
-        window_position = kwargs.pop('window_position')
-        sequence_prefix = kwargs.pop('sequence_prefix')
-        min_aligned_percent = kwargs.pop('min_aligned_percent')
-        no_further_euks = kwargs.pop('no_further_euks')
+        euk_sequences = kwargs.pop('euk_sequences', None)
+        euk_taxonomy = kwargs.pop('euk_taxonomy', None)
+        window_position = kwargs.pop('window_position', None)
+        sequence_prefix = kwargs.pop('sequence_prefix', None)
+        min_aligned_percent = kwargs.pop('min_aligned_percent', CREATE_MIN_ALIGNED_PERCENT)
+        no_further_euks = kwargs.pop('no_further_euks', None)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -55,13 +54,9 @@ class Regenerator:
         working_directory = tmp.name
         logging.debug("Using working directory %s" % working_directory)
 
-
-
         # Concatenate euk and input taxonomy
-        final_taxonomy_path = os.path.join(working_directory,
-                                            "%s_final_taxonomy.csv" % basename)
-        final_sequences_path = os.path.join(working_directory,
-                                            "%s_final_sequences.faa" % basename)
+        final_taxonomy_path = os.path.join(working_directory, "%s_final_taxonomy.csv" % basename)
+        final_sequences_path = os.path.join(working_directory, "%s_final_sequences.faa" % basename)
 
         if no_further_euks:
             logging.info("Skipping eukaryotic search. Copying input files directly")
@@ -71,12 +66,9 @@ class Regenerator:
         else:
             # Run GraftM on the euk sequences with the original graftm package
             logging.info("Finding eukaryotic sequences via GraftM ..")
-            euk_graftm_output = os.path.join(working_directory,
-                                            "%s-euk_graftm" % basename)
+            euk_graftm_output = os.path.join(working_directory, "%s-euk_graftm" % basename)
             cmd = "graftM graft --graftm_package '%s' --search_and_align_only --forward '%s' --output %s --force" % (
-                original_pkg.graftm_package_path(),
-                euk_sequences,
-                euk_graftm_output)
+                original_pkg.graftm_package_path(), euk_sequences, euk_graftm_output)
             extern.run(cmd)
 
             # Extract hit sequences from that set
@@ -86,7 +78,7 @@ class Regenerator:
                 euk_taxonomy = ""
                 logging.info("Found no eukaryotic sequences that match")
             else:
-                euk_hits_path = next(iter(hit_paths.values())) #i.e. first
+                euk_hits_path = next(iter(hit_paths.values()))  #i.e. first
 
                 # Concatenate input (bacteria and archaea) and euk sequences
                 num_euk_hits = 0
@@ -98,26 +90,20 @@ class Regenerator:
                                 num_euk_hits += 1
                                 final_seqs_fp.write(">%s\n%s\n" % (name, seq))
                 logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
-                
+
             extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
-            extern.run("cat %s %s > %s" % (
-                euk_taxonomy, input_taxonomy, final_taxonomy_path))
-        
+            extern.run("cat %s %s > %s" % (euk_taxonomy, input_taxonomy, final_taxonomy_path))
+
         # Add package prefix to sequences and taxonomy
-        if sequence_prefix != "":
+        if sequence_prefix != "" and sequence_prefix is not None:
             extern.run("sed -i 's/>/>{}/g' {}".format(sequence_prefix, final_sequences_path))
-            extern.run("sed -i 's/^/{}/g' {}".format(sequence_prefix, final_taxonomy_path))       
+            extern.run("sed -i 's/^/{}/g' {}".format(sequence_prefix, final_taxonomy_path))
 
         # Run graftm create to get the output package
-        final_gpkg = os.path.join(working_directory,
-                                  "%s_final.gpkg" % basename)
+        final_gpkg = os.path.join(working_directory, "%s_final.gpkg" % basename)
         cmd = "graftM create --no-tree --force --min_aligned_percent %s --sequences %s --taxonomy %s --search_hmm_files %s --hmm %s --output %s" % (
-            min_aligned_percent,
-            final_sequences_path,
-            final_taxonomy_path,
-            ' '.join(original_hmm_search_paths),
-            original_hmm_path,
-            final_gpkg)
+            min_aligned_percent, final_sequences_path, final_taxonomy_path, ' '.join(original_hmm_search_paths),
+            original_hmm_path, final_gpkg)
 
         extern.run(cmd)
         output_gpkg = GraftMPackage.acquire(final_gpkg)
@@ -127,10 +113,11 @@ class Regenerator:
         unaligned_basename = os.path.basename(output_gpkg.unaligned_sequence_database_path())
         protein_sequences = SeqReader().readfq(open(os.path.join(final_gpkg, unaligned_basename)))
         tmp_alignment = _align_proteins_to_hmm(protein_sequences, output_gpkg.alignment_hmm_path())
+        logging.info("Found {} total sequences in alignment".format(len(tmp_alignment)))
         best_position = original_pkg.singlem_position()
         stretch_length = original_pkg.window_size() / 3
         trimmed_output = []
-        
+
         ignored_columns = MetagenomeOtuFinder()._find_lower_case_columns(tmp_alignment)
         logging.debug("Ignoring columns %s", str(ignored_columns))
         # Find start of window in aligned sequence
@@ -138,27 +125,28 @@ class Regenerator:
             best_position, ignored_columns)
         logging.debug("Using pre-defined best section of the alignment starting from %i" % (start_position + 1))
         # Find all positions in the window
-        chosen_positions = MetagenomeOtuFinder()._best_position_to_chosen_positions(
-            start_position, stretch_length, ignored_columns)
+        chosen_positions = MetagenomeOtuFinder()._best_position_to_chosen_positions(start_position, stretch_length,
+                                                                                    ignored_columns)
         logging.debug("Found chosen positions %s", chosen_positions)
-        
+
         for aligned_sequence in tmp_alignment:
-            windowed_residues = aligned_sequence.seq[min(chosen_positions):1+max(chosen_positions)].replace('-','')
-            residues_before_window = aligned_sequence.seq[0:min(chosen_positions)].replace('-','')
-            residues_after_window = aligned_sequence.seq[(max(chosen_positions)+1):].replace('-','')
-            
-            prepending_index = len(residues_before_window)-30
-            if prepending_index < 0: prepending_index = 0
+            windowed_residues = aligned_sequence.seq[min(chosen_positions):1 + max(chosen_positions)].replace('-', '')
+            residues_before_window = aligned_sequence.seq[0:min(chosen_positions)].replace('-', '')
+            residues_after_window = aligned_sequence.seq[(max(chosen_positions) + 1):].replace('-', '')
+
+            prepending_index = len(residues_before_window) - 30
+            if prepending_index < 0:
+                prepending_index = 0
             prepending_residues = residues_before_window[prepending_index:]
             final_index = 30
             if len(residues_after_window) < 30:
                 final_index = len(residues_after_window)
             appending_residues = residues_after_window[0:final_index]
-            
+
             final_sequence = prepending_residues + windowed_residues + appending_residues
-            
+
             trimmed_output.append(Sequence(aligned_sequence.name, final_sequence.upper()))
-        
+
         unaligned_graftm_file = os.path.join(final_gpkg, unaligned_basename)
         with open(unaligned_graftm_file, "w") as out:
             for entry in trimmed_output:
@@ -171,7 +159,7 @@ class Regenerator:
         logging.info("Adding makeidx to diamond database")
         cmd = "diamond makeidx -d %s" % output_gpkg.diamond_database_path()
         extern.run(cmd)
-        
+
         # Create taxonomy hash
         logging.debug("Creating taxonomy hash pickle")
         taxonomy_hash_path = os.path.join(working_directory, "taxonomy_hash.pickle")
@@ -186,13 +174,7 @@ class Regenerator:
 
         ##############################################################################
         # Run singlem create to put the final package together
-        SingleMPackageVersion4.compile(
-            output_singlem_package,
-            final_gpkg,
-            output_window_position,
-            original_pkg.window_size(),
-            original_pkg.target_domains(),
-            original_pkg.gene_description(),
-            taxonomy_hash_path)
+        SingleMPackageVersion4.compile(output_singlem_package, final_gpkg, output_window_position,
+                                       original_pkg.window_size(), original_pkg.target_domains(),
+                                       original_pkg.gene_description(), taxonomy_hash_path)
         logging.info("SingleM package generated.")
-

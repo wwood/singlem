@@ -12,15 +12,18 @@ Instead, it uses a SingleM taxonomic profile of the metagenome to "add up" the
 components of the community which are microbial, and assumes the remainder is
 non-microbial (e.g. host or phage).
 
-# OPTIONS
+OPTIONS
+=======
 
-# INPUT
+INPUT
+=====
 
 **-p**, **\--input-profile** *INPUT_PROFILE*
 
   Input taxonomic profile file [required]
 
-# READ INFORMATION [1+ ARGS REQUIRED]
+READ INFORMATION [1+ ARGS REQUIRED]
+=====================================
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
@@ -42,7 +45,8 @@ non-microbial (e.g. host or phage).
     \'pipe\'. These must be the same reads that were used to generate
     the input profile.
 
-# DATABASE
+DATABASE
+========
 
 **\--taxon-genome-lengths-file** *TAXON_GENOME_LENGTHS_FILE*
 
@@ -54,7 +58,8 @@ non-microbial (e.g. host or phage).
   Metapackage containing genome lengths [default: Use genome lengths
     from the default metapackage]
 
-# OTHER OPTIONS
+OTHER OPTIONS
+=============
 
 **\--accept-missing-samples**
 
@@ -70,7 +75,8 @@ non-microbial (e.g. host or phage).
   Output a fraction for each taxon to this TSV [default: D o not
     output anything]
 
-# OTHER GENERAL OPTIONS
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -92,7 +98,8 @@ non-microbial (e.g. host or phage).
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

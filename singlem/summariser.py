@@ -13,6 +13,7 @@ from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
+from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD
 
 class Summariser:
     @staticmethod
@@ -337,6 +338,7 @@ class Summariser:
     def write_collapsed_paired_with_unpaired_otu_table(**kwargs):
         archive_otu_tables = kwargs.pop('archive_otu_tables')
         output_table_io = kwargs.pop('output_table_io')
+        set_sample_name = kwargs.pop('set_sample_name', None)  # For merging OTU tables
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -347,12 +349,6 @@ class Summariser:
                 logging.debug("Reading archive table {} into RAM ..".format(a))
                 ar = ArchiveOtuTable.read(f)
             if df is None:
-                # json.dump({"version": self.version,
-                #     "alignment_hmm_sha256s": [s.alignment_hmm_sha256() for s in self.singlem_packages],
-                #     "singlem_package_sha256s": [s.singlem_package_sha256() for s in self.singlem_packages],
-                #     'fields': self.fields,
-                #     "otus": self.data},
-                #         output_io)
                 version = ar.version
                 fields = ar.fields
                 alignment_hmm_sha256s = ar.alignment_hmm_sha256s
@@ -371,38 +367,41 @@ class Summariser:
                 df2 = pandas.DataFrame(ar.data)
                 df2.columns = fields
                 df = pd.concat([df, df2], ignore_index=True)
-        
-        # Join the data together, making changes:
-        # 1) For each, remove the _1 suffix from the sample name
-        # 2) When there is an OTU present in both the paired and unpaired
-        #    sample, merge them, keeping the taxonomy of one that has the most
-        #    num_hits.
 
         # Remove suffixes
-        def remove_suffix(s):
-            if s.endswith('_1'):
-                return s[:-2]
-            else:
-                return s
-        df['sample'] = df['sample'].apply(remove_suffix)
+        if set_sample_name is None:
+            def remove_suffix(s):
+                if s.endswith('_1'):
+                    return s[:-2]
+                else:
+                    return s
+            df['sample'] = df['sample'].apply(remove_suffix)
 
         # Ensure that there is now only exactly 1 sample name
-        if len(df['sample'].unique()) != 1:
+        if set_sample_name is None and len(df['sample'].unique()) != 1:
             raise Exception("Multiple sample names found: {}".format(', '.join(df['sample'].unique())))
         if len(df['taxonomy_by_known?'].unique()) != 1:
             raise Exception("Multiple taxonomy_by_known found: {}".format(', '.join(df['taxonomy_by_known'].unique())))
 
-        # Join 
-        # grouped = df.groupby(['sequence'], as_index=False).count()
-        # ATAGTTGAAGACGATGGACTTTACATTAATGCTCTCTATGGATTTCCAGGACCATACTCT
-        # dft = df[df['sequence']=='ATAGTTGAAGACGATGGACTTTACATTAATGCTCTCTATGGATTTCCAGGACCATACTCT']
-
         def combine_rows(grouped1):
             grouped = grouped1.reset_index()
             max_row = grouped['num_hits'].idxmax()
+            if set_sample_name:
+                sample = set_sample_name
+            else:
+                sample = grouped.iloc[0]['sample']
+            tax_assignment_method = grouped.iloc[0]['taxonomy_assignment_method']
+            if tax_assignment_method == QUERY_BASED_ASSIGNMENT_METHOD:
+                equal_best_hit_taxonomies = grouped.iloc[0]['equal_best_hit_taxonomies']
+            elif tax_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
+                equal_best_hit_taxonomies = list(itertools.chain(*grouped['equal_best_hit_taxonomies']))
+            elif tax_assignment_method == None:
+                equal_best_hit_taxonomies = None
+            else:
+                raise Exception("Unexpected tax assignment method: {}".format(tax_assignment_method))
             return pd.DataFrame({
                 'gene':[grouped.iloc[0]['gene']],
-                'sample':[grouped.iloc[0]['sample']],
+                'sample':[sample],
                 'sequence':[grouped.iloc[0]['sequence']],
                 'num_hits':[sum(grouped['num_hits']),],
                 'coverage':[sum(grouped['coverage']),],
@@ -411,11 +410,11 @@ class Summariser:
                 'nucleotides_aligned':[list(itertools.chain(*grouped['nucleotides_aligned']))],
                 'taxonomy_by_known?':[grouped.iloc[0]['taxonomy_by_known?']],
                 'read_unaligned_sequences':[list(itertools.chain(*grouped['read_unaligned_sequences']))],
-                # This is slightly dodgy because within an OTU there might be different answers for the DIAMOND 
-                'equal_best_hit_taxonomies':[grouped.iloc[0]['equal_best_hit_taxonomies']],
-                'taxonomy_assignment_method':[grouped.iloc[0]['taxonomy_assignment_method']],
+                'equal_best_hit_taxonomies':[equal_best_hit_taxonomies],
+                'taxonomy_assignment_method':[tax_assignment_method],
             })
         transformed = df.groupby(['sequence','gene'], as_index=False).apply(combine_rows)[ArchiveOtuTable.FIELDS]
+        logging.info("Collapsed {} total OTUs into {} output OTUs".format(len(df), len(transformed)))
 
         logging.debug("Writing output table ..")
         ar.data = transformed.values.tolist()
