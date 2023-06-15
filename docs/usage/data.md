@@ -27,7 +27,8 @@ Then follow the instructions from the final line of above. Set the environment v
 export SINGLEM_METAPACKAGE_PATH='/tmp/dbs/S3.0.5.metapackage20220806.smpkg.zb/payload_directory'
 ```
 
-# OPTIONS
+OPTIONS
+=======
 
 **\--output-directory** *OUTPUT_DIRECTORY*
 
@@ -39,7 +40,8 @@ export SINGLEM_METAPACKAGE_PATH='/tmp/dbs/S3.0.5.metapackage20220806.smpkg.zb/pa
   Check that the data is up to date and each file has the correct
     checksum
 
-# OTHER GENERAL OPTIONS
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -61,7 +63,8 @@ export SINGLEM_METAPACKAGE_PATH='/tmp/dbs/S3.0.5.metapackage20220806.smpkg.zb/pa
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

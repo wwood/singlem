@@ -48,7 +48,8 @@ convertToEBD.py otu_table-S3.5.ribosomal_protein_S2_rpsB.unifrac \
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
 
-# INPUT
+INPUT
+=====
 
 **\--input-otu-tables**, **\--input-otu-table** *INPUT_OTU_TABLES* [*INPUT_OTU_TABLES* \...]
 
@@ -77,7 +78,13 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
     \--output-otu-table and transformation options do not work [expert
     option].
 
-# TRANSFORMATION
+**\--input-taxonomic-profiles** *INPUT_TAXONOMIC_PROFILES* [*INPUT_TAXONOMIC_PROFILES* \...]
+
+  Convert these taxonomic profiles to krona HTML, output specified by
+    \--output-taxonomic-profile-krona
+
+TRANSFORMATION
+==============
 
 **\--cluster**
 
@@ -104,6 +111,11 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
     [default: maximal number such that all samples have sufficient
     counts]
 
+**\--collapse-to-sample-name** *COLLAPSE_TO_SAMPLE_NAME*
+
+  Merge all OTUs into a single OTU table, using the given sample name.
+    Requires archive OTU table input and output.
+
 **\--collapse-coupled**
 
   Merge forward and reverse read OTU tables into a unified table.
@@ -117,9 +129,14 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
   For archive OTU tables that have both paired and unpaired
     components, merge these into a single output archive OTU table
 
-# OUTPUT
+OUTPUT
+======
 
 **\--output-otu-table** *OUTPUT_OTU_TABLE*
+
+  Output combined OTU table to this file
+
+**\--output-archive-otu-table** *OUTPUT_ARCHIVE_OTU_TABLE*
 
   Output combined OTU table to this file
 
@@ -181,7 +198,13 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
     first read in the original input sequence set, but instead to the
     order in the input archive OTU table.
 
-# OTHER GENERAL OPTIONS
+**\--output-taxonomic-profile-krona** *OUTPUT_TAXONOMIC_PROFILE_KRONA*
+
+  Output taxonomic profile to this file in Krona format. Requires
+    \--input-taxonomic-profiles
+
+OTHER GENERAL OPTIONS
+=====================
 
 **\--debug**
 
@@ -203,7 +226,8 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 
   print longer help message in ROFF (manpage) format
 
-# AUTHORS
+AUTHORS
+=======
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
