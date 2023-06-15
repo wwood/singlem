@@ -37,7 +37,7 @@ if __name__ == '__main__':
             cmd_stub = "bin/singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
             man_usage = extern.run(cmd_stub)
 
-            subcommand_prelude = 'docs/prelude/{}_prelude.md'.format(subdir, subcommand)
+            subcommand_prelude = 'docs/preludes/{}_prelude.md'.format(subcommand)
             if os.path.exists(subcommand_prelude):
                 # Remove everything before the options section
                 splitters = {
