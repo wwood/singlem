@@ -34,6 +34,7 @@ import csv
 import shutil
 from multiprocessing import Pool
 import tempfile
+import re
 import polars as pl
 from Bio import SearchIO
 
@@ -69,8 +70,23 @@ def generate_taxonomy_for_new_genomes(**kwargs):
     gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
     output_taxonomies_file = kwargs.pop('output_taxonomies_file')
     excluded_genomes = kwargs.pop('excluded_genomes')
+    old_metapackage = kwargs.pop('old_metapackage')
+    skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
     if len(kwargs) > 0:
         raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+    if not skip_taxonomy_check:
+        known_taxons = set()
+        for spkg in old_metapackage.singlem_packages:
+            for taxon in spkg.taxonomy_hash().values():
+                taxon_building = None
+                for t in taxon:
+                    if taxon_building is None:
+                        taxon_building = t
+                    else:
+                        taxon_building += ';' + t
+                    known_taxons.add(taxon_building)
+        logging.debug("Read in {} known taxons".format(len(known_taxons)))
 
     # Create batchfile, tab separated in 2 columns (FASTA file, genome ID)
     name_to_genome_fasta = {}
@@ -141,24 +157,32 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                         else:
                             raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
                                 tax_file, taxonomy))
-                    elif taxonomy[6] != 's__':
-                        logging.debug(
-                            "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
-                                genome_name, row['classification']))
-                        if output_taxonomies_file:
-                            output_taxonomies_fh.write(
-                                '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
                     else:
-                        placeholder_taxonomy = remove_file_extensions(genome_name)
+                        # Check that the taxonomy provided is a known taxonomy in the current metapackage.
+                        if not skip_taxonomy_check:
+                            taxonomy_to_check = re.sub(r';.__$', '', re.sub(r';.__;.*', '', row['classification']))
+                            if taxonomy_to_check not in known_taxons:
+                                raise Exception(
+                                    "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage".format(
+                                        taxonomy_to_check, genome_name, row['classification']))
+                        if taxonomy[6] != 's__':
+                            logging.debug(
+                                "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
+                                    genome_name, row['classification']))
+                            if output_taxonomies_file:
+                                output_taxonomies_fh.write(
+                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
+                        else:
+                            placeholder_taxonomy = remove_file_extensions(genome_name)
 
-                        for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
-                            if taxonomy[i] == prefix:
-                                taxonomy[i] = prefix + placeholder_taxonomy
-                        logging.debug("Adding new species-level genome {} with taxonomy {}".format(
-                            genome_name, taxonomy))
-                        new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
-                        if output_taxonomies_file:
-                            output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
+                            for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
+                                if taxonomy[i] == prefix:
+                                    taxonomy[i] = prefix + placeholder_taxonomy
+                            logging.debug("Adding new species-level genome {} with taxonomy {}".format(
+                                genome_name, taxonomy))
+                            new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
+                            if output_taxonomies_file:
+                                output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
         if num_genomes_without_fasta > 0:
             logging.warning(
                 "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these."
@@ -591,6 +615,7 @@ class Supplementor:
         # dereplicate_with_galah=args.dereplicate_with_galah,
         no_dereplication = kwargs.pop('no_dereplication')
         dereplicate_with_galah = kwargs.pop('dereplicate_with_galah')
+        skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -654,7 +679,9 @@ class Supplementor:
                     gtdbtk_output_directory=gtdbtk_output_directory,
                     pplacer_threads=pplacer_threads,
                     output_taxonomies_file=output_taxonomies,
-                    excluded_genomes=excluded_genomes)
+                    excluded_genomes=excluded_genomes,
+                    old_metapackage=Metapackage.acquire(input_metapackage),
+                    skip_taxonomy_check=skip_taxonomy_check)
                 # Remove genomes that were excluded by not being novel at the species level
                 genome_transcripts_and_proteins = {
                     k: v for k, v in genome_transcripts_and_proteins.items() if k in new_genome_fasta_files
