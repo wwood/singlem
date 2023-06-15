@@ -34,6 +34,7 @@ import csv
 import shutil
 from multiprocessing import Pool
 import tempfile
+import re
 import polars as pl
 from Bio import SearchIO
 
@@ -69,8 +70,24 @@ def generate_taxonomy_for_new_genomes(**kwargs):
     gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
     output_taxonomies_file = kwargs.pop('output_taxonomies_file')
     excluded_genomes = kwargs.pop('excluded_genomes')
+    old_metapackage = kwargs.pop('old_metapackage')
+    skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
     if len(kwargs) > 0:
         raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+    if not skip_taxonomy_check:
+        logging.info("Reading old taxonomies for checking concordance with new taxonomy strings ..")
+        known_taxons = set()
+        for spkg in old_metapackage.singlem_packages:
+            for taxon in spkg.taxonomy_hash().values():
+                taxon_building = None
+                for t in taxon:
+                    if taxon_building is None:
+                        taxon_building = t
+                    else:
+                        taxon_building += ';' + t
+                    known_taxons.add(taxon_building)
+        logging.debug("Read in {} known taxons".format(len(known_taxons)))
 
     # Create batchfile, tab separated in 2 columns (FASTA file, genome ID)
     name_to_genome_fasta = {}
@@ -80,6 +97,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 raise Exception("Specified genome does not appear to be a file: {}".format(genome_fasta))
             name = os.path.basename(genome_fasta)
             name_to_genome_fasta[name] = genome_fasta
+            name_to_genome_fasta[remove_file_extensions(name)] = genome_fasta
             batchfile.write(genome_fasta + '\t' + name + '\n')
         batchfile.flush()
 
@@ -140,24 +158,32 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                         else:
                             raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
                                 tax_file, taxonomy))
-                    elif taxonomy[6] != 's__':
-                        logging.debug(
-                            "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
-                                genome_name, row['classification']))
-                        if output_taxonomies_file:
-                            output_taxonomies_fh.write(
-                                '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
                     else:
-                        placeholder_taxonomy = remove_file_extensions(genome_name)
+                        # Check that the taxonomy provided is a known taxonomy in the current metapackage.
+                        if not skip_taxonomy_check:
+                            taxonomy_to_check = re.sub(r';.__$', '', re.sub(r';.__;.*', '', row['classification']))
+                            if taxonomy_to_check not in known_taxons:
+                                raise Exception(
+                                    "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage".format(
+                                        taxonomy_to_check, genome_name, row['classification']))
+                        if taxonomy[6] != 's__':
+                            logging.debug(
+                                "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
+                                    genome_name, row['classification']))
+                            if output_taxonomies_file:
+                                output_taxonomies_fh.write(
+                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
+                        else:
+                            placeholder_taxonomy = remove_file_extensions(genome_name)
 
-                        for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
-                            if taxonomy[i] == prefix:
-                                taxonomy[i] = prefix + placeholder_taxonomy
-                        logging.debug("Adding new species-level genome {} with taxonomy {}".format(
-                            genome_name, taxonomy))
-                        new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
-                        if output_taxonomies_file:
-                            output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
+                            for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
+                                if taxonomy[i] == prefix:
+                                    taxonomy[i] = prefix + placeholder_taxonomy
+                            logging.debug("Adding new species-level genome {} with taxonomy {}".format(
+                                genome_name, taxonomy))
+                            new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
+                            if output_taxonomies_file:
+                                output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
         if num_genomes_without_fasta > 0:
             logging.warning(
                 "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these."
@@ -287,14 +313,14 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
-def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins,
+def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, new_genome_transcripts_and_proteins,
                              hmmsearch_evalue):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
     num_hmms = 0
     with open(concatenated_hmms, 'w') as f:
-        for spkg in Metapackage.acquire(old_metapackage_path).singlem_packages:
+        for spkg in old_metapackage.singlem_packages:
             with open(spkg.graftm_package().alignment_hmm_path()) as g:
                 f.write(g.read())
                 num_hmms += 1
@@ -378,13 +404,12 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
         return matched_transcripts_fna
 
 
-def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
+def generate_new_metapackage(num_threads, working_directory, old_metapackage, new_genome_fasta_files,
                              new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
     # Taxonomy/seqinfo give the taxonomy of target and euk sequences
-    old_metapackage = Metapackage.acquire(old_metapackage_path)
 
     genome_to_taxonomy = {}
     with open(new_taxonomies_file) as f:
@@ -396,7 +421,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     logging.info("Gathering OTUs from new genomes ..")
 
-    matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path,
+    matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage,
                                                        new_genome_transcripts_and_proteins, hmmsearch_evalue)
     if matched_transcripts_fna is None:
         # No transcripts were found, so no new OTUs to add
@@ -550,6 +575,25 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
     return to_return
 
 
+def dereplicate_genomes_with_galah(**kwargs):
+    threads = kwargs.pop('threads')
+    genomes_to_dereplicate = kwargs.pop('genomes_to_dereplicate')
+    checkm2_quality_file = kwargs.pop('checkm2_quality_file')
+    if len(kwargs) > 0:
+        raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+    quality_arg = ""
+    if checkm2_quality_file is None:
+        logging.warning("Galah is being run without a checkm2 quality file. This is not recommended, because then galah may choose non-optimal genomes as representative.")
+    else:
+        quality_arg = "--checkm2-quality-report {}".format(checkm2_quality_file)
+    logging.info("Running galah to dereplicate {} genomes ..".format(len(genomes_to_dereplicate)))
+    new_genome_paths = extern.run("galah cluster {} --threads {} --genome-fasta-list /dev/stdin --ani 95 --output-representative-list /dev/stdout".format(
+        quality_arg, threads), stdin="\n".join(genomes_to_dereplicate)).splitlines()
+    logging.info("After dereplication, {} genomes remain".format(len(new_genome_paths)))
+    return new_genome_paths
+
+
 class Supplementor:
 
     def supplement(self, **kwargs):
@@ -567,6 +611,11 @@ class Supplementor:
         checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
         no_quality_filter = kwargs.pop('no_quality_filter')
         hmmsearch_evalue = kwargs.pop('hmmsearch_evalue')
+        # no_dereplication=args.no_dereplication,
+        # dereplicate_with_galah=args.dereplicate_with_galah,
+        no_dereplication = kwargs.pop('no_dereplication')
+        dereplicate_with_galah = kwargs.pop('dereplicate_with_galah')
+        skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -603,10 +652,22 @@ class Supplementor:
             else:
                 raise Exception("Must provide either --no-quality-filter or --checkm2-quality-file")
 
+            # Dereplicate the new genomes if required
+            if no_dereplication:
+                pass
+            elif dereplicate_with_galah:
+                logging.info("Dereplicating new genomes using GALAH ..")
+                new_genome_fasta_files = dereplicate_genomes_with_galah(
+                    threads=threads, genomes_to_dereplicate=new_genome_fasta_files, checkm2_quality_file=checkm2_quality_file)
+            else:
+                raise Exception("Must provide either --no-dereplication or --dereplicate-with-galah")
+
             # Generate faa and transcript fna files for the new genomes
             logging.info("Generating faa and transcript fna files for the new genomes ..")
             genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
                 working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
+
+            old_metapackage = Metapackage.acquire(input_metapackage)
 
             if new_taxonomies:
                 taxonomy_file = new_taxonomies
@@ -620,7 +681,9 @@ class Supplementor:
                     gtdbtk_output_directory=gtdbtk_output_directory,
                     pplacer_threads=pplacer_threads,
                     output_taxonomies_file=output_taxonomies,
-                    excluded_genomes=excluded_genomes)
+                    excluded_genomes=excluded_genomes,
+                    old_metapackage=old_metapackage,
+                    skip_taxonomy_check=skip_taxonomy_check)
                 # Remove genomes that were excluded by not being novel at the species level
                 genome_transcripts_and_proteins = {
                     k: v for k, v in genome_transcripts_and_proteins.items() if k in new_genome_fasta_files
@@ -628,11 +691,11 @@ class Supplementor:
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
-            new_metapackage = generate_new_metapackage(threads, working_directory, input_metapackage,
+            new_metapackage = generate_new_metapackage(threads, working_directory, old_metapackage,
                                                        new_genome_fasta_files, taxonomy_file,
                                                        genome_transcripts_and_proteins, hmmsearch_evalue)
 
             if new_metapackage is not None:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))
                 shutil.copytree(new_metapackage, output_metapackage)
-                logging.info("Finished suppplement.")
+                logging.info("Finished supplement.")
