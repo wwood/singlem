@@ -950,7 +950,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         # 2 ORFs found causing GraftM to do its "split" thing
         expected = [
             "\t".join(self.headers),
-            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus",
+            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus; s__Nitrosopumilus_piranensis",
             '']
         cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --assignment-method diamond".format(
             path_to_script,
