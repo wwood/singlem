@@ -434,11 +434,6 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
 
-    # chance_description = 'Is a lineage likely to be recovered through metagenome assembly / binning?'
-    # chance_parser = bird_argparser.new_subparser('chance', chance_description)
-    # chance_parser.add_argument('--otu-tables', nargs='+', help="output of 'pipe' run on metagenome reads", required=True)
-    # chance_parser.add_argument('--taxonomy', help="target taxonomy", required=True)
-
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = bird_argparser.new_subparser('chainsaw', chainsaw_description)
     chainsaw_parser.add_argument('--keep-tree', action='store_true', help="Stop tree info from being removed", default=False)
@@ -1056,20 +1051,6 @@ if __name__ == '__main__':
                 pkg.graftm_package_basename(),
                 os.path.abspath(
                     pkg.graftm_package().reference_package_tree_path())))
-
-    elif args.subparser_name == 'chance':
-        from singlem.otu_table_collection import OtuTableCollection
-        from singlem.chancer import Chancer
-        from singlem.taxonomy import TaxonomyUtils
-
-        chancer = Chancer()
-        metagenomes = OtuTableCollection()
-        for table in args.otu_tables:
-            with open(table) as f:
-                metagenomes.add_otu_table(f)
-        chancer.run_and_print(
-            metagenomes = metagenomes,
-            target_taxonomy = TaxonomyUtils.split_taxonomy(args.taxonomy))
 
     elif args.subparser_name == 'chainsaw':
         from singlem.chainsaw import Chainsaw
