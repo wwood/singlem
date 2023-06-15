@@ -76,6 +76,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
         raise Exception("Unexpected arguments detected: %s" % kwargs)
 
     if not skip_taxonomy_check:
+        logging.info("Reading old taxonomies for checking concordance with new taxonomy strings ..")
         known_taxons = set()
         for spkg in old_metapackage.singlem_packages:
             for taxon in spkg.taxonomy_hash().values():
@@ -312,14 +313,14 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
-def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path, new_genome_transcripts_and_proteins,
+def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, new_genome_transcripts_and_proteins,
                              hmmsearch_evalue):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
     num_hmms = 0
     with open(concatenated_hmms, 'w') as f:
-        for spkg in Metapackage.acquire(old_metapackage_path).singlem_packages:
+        for spkg in old_metapackage.singlem_packages:
             with open(spkg.graftm_package().alignment_hmm_path()) as g:
                 f.write(g.read())
                 num_hmms += 1
@@ -403,13 +404,12 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage_pat
         return matched_transcripts_fna
 
 
-def generate_new_metapackage(num_threads, working_directory, old_metapackage_path, new_genome_fasta_files,
+def generate_new_metapackage(num_threads, working_directory, old_metapackage, new_genome_fasta_files,
                              new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
     # Taxonomy/seqinfo give the taxonomy of target and euk sequences
-    old_metapackage = Metapackage.acquire(old_metapackage_path)
 
     genome_to_taxonomy = {}
     with open(new_taxonomies_file) as f:
@@ -421,7 +421,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage_pat
 
     logging.info("Gathering OTUs from new genomes ..")
 
-    matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage_path,
+    matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage,
                                                        new_genome_transcripts_and_proteins, hmmsearch_evalue)
     if matched_transcripts_fna is None:
         # No transcripts were found, so no new OTUs to add
@@ -667,6 +667,8 @@ class Supplementor:
             genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
                 working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
 
+            old_metapackage = Metapackage.acquire(input_metapackage)
+
             if new_taxonomies:
                 taxonomy_file = new_taxonomies
                 new_genome_fasta_files = new_genome_fasta_files
@@ -680,7 +682,7 @@ class Supplementor:
                     pplacer_threads=pplacer_threads,
                     output_taxonomies_file=output_taxonomies,
                     excluded_genomes=excluded_genomes,
-                    old_metapackage=Metapackage.acquire(input_metapackage),
+                    old_metapackage=old_metapackage,
                     skip_taxonomy_check=skip_taxonomy_check)
                 # Remove genomes that were excluded by not being novel at the species level
                 genome_transcripts_and_proteins = {
@@ -689,7 +691,7 @@ class Supplementor:
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
-            new_metapackage = generate_new_metapackage(threads, working_directory, input_metapackage,
+            new_metapackage = generate_new_metapackage(threads, working_directory, old_metapackage,
                                                        new_genome_fasta_files, taxonomy_file,
                                                        genome_transcripts_and_proteins, hmmsearch_evalue)
 
