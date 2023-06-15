@@ -3,19 +3,23 @@ Welcome.
 
 SingleM is a tool for profiling shotgun metagenomes. It shows good accuracy in estimating the relative abundances of microbial community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, computing ecological diversity metrics, and lineage-targeted MAG recovery.
 
-SingleM has been applied to >200,000 public metagenomes. The resulting data are available at a companion website [sandpiper](https://sandpiper.qut.edu.au).
+SingleM has been applied to ~250,000 public metagenomes. The resulting data are available at a companion website [Sandpiper](https://sandpiper.qut.edu.au).
 
 The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches (windows) within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated, at least for the most abundant members.
 
-There are several tools, after [installation](/Installation):
+There are several main sub-tools, after [installation](/Installation):
 
-* [singlem pipe](/usage/pipe) - the main workflow (`singlem pipe`) which generates OTU tables and [GTDB](https://gtdb.ecogenomic.org/) taxonomic profiles. 
-* [singlem appraise](/usage/appraise) - How much of a metagenome do the genomes or assembly represent?
-* [singlem read_fraction](/usage/read_fraction) - How much of a metagenome is prokaryotic?
-* [singlem makedb](/usage/makedb) & [query](/usage/query)- Create a database from an OTU table, for sequence similarity searching.
-* [single summarise](/usage/summarise) - Mechanical transformations of a `singlem pipe` results.
-* [singlem renew](/usage/renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
-* [singlem condense](/usage/condense) - Given an OTU table, summarise the results into a taxonomic profile.
+* [singlem pipe](/tools/pipe) - the main workflow (`singlem pipe`) which generates OTU tables and [GTDB](https://gtdb.ecogenomic.org/) taxonomic profiles. 
+* [single summarise](/tools/summarise) - Mechanical transformations of a `singlem pipe` results.
+* [singlem renew](/tools/renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
+* [singlem supplement](/tools/supplement) - Add new genomes to a reference metapackage.
+* [singlem read_fraction](/tools/read_fraction) - How much of a metagenome is prokaryotic?
+* [singlem appraise](/tools/appraise) - How much of a metagenome do the genomes or assembly represent?
+
+And more specialised / expert modes:
+
+* [singlem condense](/advanced/condense) - Given an OTU table, summarise the results into a taxonomic profile.
+* [singlem makedb](/advanced/makedb) & [query](/advanced/query)- Create a database from an OTU table, for sequence similarity searching.
 
 ## Help
 If you have any questions or comments, raise a [GitHib issue](https://github.com/wwood/singlem/issues) or just send us an [email](https://research.qut.edu.au/cmr/team/ben-woodcroft/).

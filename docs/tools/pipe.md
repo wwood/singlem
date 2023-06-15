@@ -22,7 +22,7 @@ singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p \
 ```
 Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for SingleM to use. Adapter trimming is unlikely to be detrimental, but is not needed.
 
-The [examples section](/usage/pipe#examples) may be of use.
+The [examples section](/tools/pipe#examples) may be of use.
 
 COMMON OPTIONS
 ==============

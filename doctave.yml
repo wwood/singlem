@@ -6,14 +6,19 @@ colors:
   main: "#888888"
 navigation:
   - path: docs/Installation.md
-  - path: docs/usage
-    children: # Manually specify so in same order as default help msg
-    - path: docs/usage/data.md
-    - path: docs/usage/pipe.md
-    - path: docs/usage/appraise.md
-    - path: docs/usage/read_fraction.md
-    - path: docs/usage/makedb.md
-    - path: docs/usage/query.md
-    - path: docs/usage/summarise.md
-    - path: docs/usage/renew.md
-    - path: docs/usage/condense.md
+    children:
+      - path: docs/tools/data.md
+  - path: docs/tools
+    children: # Manually specify so in order I want, though currently different to bin/singlem
+    - path: docs/tools/data.md
+    - path: docs/tools/pipe.md
+    - path: docs/tools/summarise.md
+    - path: docs/tools/renew.md
+    - path: docs/tools/supplement.md
+    - path: docs/tools/read_fraction.md
+    - path: docs/tools/appraise.md
+  - path: docs/advanced
+    children: 
+    - path: docs/advanced/query.md
+    - path: docs/advanced/makedb.md
+    - path: docs/advanced/condense.md
