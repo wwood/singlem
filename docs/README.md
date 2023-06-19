@@ -5,7 +5,7 @@ SingleM is a tool for profiling shotgun metagenomes. It shows good accuracy in e
 
 SingleM has been applied to ~250,000 public metagenomes. The resulting data are available at a companion website [Sandpiper](https://sandpiper.qut.edu.au).
 
-The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches (windows) within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated, at least for the most abundant members.
+The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches (windows) within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated.
 
 There are several main sub-tools, after [installation](/Installation):
 
@@ -26,7 +26,7 @@ If you have any questions or comments, raise a [GitHib issue](https://github.com
 
 ### Glossary
 
-* **OTU table** - A table containing window sequences per metagenome/contig and marker gene. It may be in default form (a TSV with 6 columns, like below), or an extended form with more detail in further columns. The extended form is generated with the `--output-extras` option to `singlem pipe`, `renew` and `summarise`. Columns:
+* **OTU table** - A table containing window sequences per metagenome/contig and marker gene. It may be in default form (a TSV with 6 columns, like below), or an extended form with more detail in further columns. Columns:
   1. marker name
   2. sample name
   3. sequence of the OTU
@@ -38,6 +38,9 @@ gene    sample  sequence        num_hits        coverage        taxonomy
 4.21.ribosomal_protein_S19_rpsS my_sequences  TGGTCGCGCCGTTCGACGGTCACTCCGGACTTCATCGGCCTACAGTTCGCCGTGCACATC    1       1.64    Root; d__Bacteria; p__Proteobacteria; c__Deltaproteobacteria; o__Desulfuromonadales
 4.21.ribosomal_protein_S19_rpsS my_sequences  TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGGCCGTTCACAAC    1       1.64    Root; d__Bacteria; p__Acidobacteria; c__Solibacteres; o__Solibacterales; f__Solibacteraceae; g__Candidatus_Solibacter; s__Candidatus_Solibacter_usitatus
 ```
+
+The extended OTU form generated with the `--output-extras` option to `singlem pipe`, `renew` and `summarise`, has further columns.
+
 * **Archive OTU table** - Similar to an OTU table with `--output-extras`, but in JSON form for machine readability.
 * **SingleM package** - Reference data for one particular marker gene.
 * **SingleM metapackage** - A collection of SingleM packages, with additional indices.

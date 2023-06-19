@@ -15,14 +15,6 @@ OPTIONS
 INPUT ARGUMENTS (1+ REQUIRED)
 =============================
 
-**\--input-otu-tables**, **\--input-otu-table** *INPUT_OTU_TABLES* [*INPUT_OTU_TABLES* \...]
-
-  Condense these table(s).
-
-**\--input-otu-tables-list** *INPUT_OTU_TABLES_LIST*
-
-  Condense the OTU table files newline separated in this file
-
 **\--input-archive-otu-tables**, **\--input-archive-otu-table** *INPUT_ARCHIVE_OTU_TABLES* [*INPUT_ARCHIVE_OTU_TABLES* \...]
 
   Condense from these archive tables
