@@ -550,6 +550,43 @@ class Tests(unittest.TestCase):
                           "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus', ''])])+"\n",
                          not_found_otu_table_io.getvalue())
 
+    def test_print_appraisal_archive_input_output(self):
+        metagenomes = '{"fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "version": 1, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "otus": [["4.11.ribosomal_protein_L10", "minimal", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 2, 4.878048780487805, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482", "HWI-ST1243:156:D1K83ACXX:7:1105:19152:28331"], [60, 60], false], ["4.12.ribosomal_protein_L11_rplK", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", 4, 9.75609756097561, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales", ["HWI-ST1243:156:D1K83ACXX:7:1109:18214:9910", "HWI-ST1243:156:D1K83ACXX:7:1103:21187:63124", "HWI-ST1243:156:D1K83ACXX:7:1108:10813:6928", "HWI-ST1243:156:D1K83ACXX:7:1105:12385:81842"], [60, 60, 60, 60], false]]}'
+
+        genomes = '{"fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "version": 1, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "otus": [["4.12.ribosomal_protein_L11_rplK", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", 4, 9.75609756097561, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales", ["HWI-ST1243:156:D1K83ACXX:7:1109:18214:9910", "HWI-ST1243:156:D1K83ACXX:7:1103:21187:63124", "HWI-ST1243:156:D1K83ACXX:7:1108:10813:6928", "HWI-ST1243:156:D1K83ACXX:7:1105:12385:81842"], [60, 60, 60, 60], false]]}'
+
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_archive_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_archive_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
+        self.assertEqual(1, len(app.appraisal_results))
+        res = sorted(app.appraisal_results)
+        a = res[0]
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(4/4)}, a.num_binned)
+        self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(2/4)}, a.num_not_found)
+
+        to_print = StringIO()
+        found_otu_table_io = StringIO()
+        not_found_otu_table_io = StringIO()
+        appraiser.print_appraisal(app, packages, True, to_print,
+                                  binned_otu_table_io=found_otu_table_io,
+                                  unaccounted_for_otu_table_io=not_found_otu_table_io,
+                                  output_style='archive'
+                                  )
+
+        expected_found = '{"fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "version": 1, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "otus": [["4.12.ribosomal_protein_L11_rplK", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", 4, 9.75609756097561, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales", ["HWI-ST1243:156:D1K83ACXX:7:1109:18214:9910", "HWI-ST1243:156:D1K83ACXX:7:1103:21187:63124", "HWI-ST1243:156:D1K83ACXX:7:1108:10813:6928", "HWI-ST1243:156:D1K83ACXX:7:1105:12385:81842"], [60, 60, 60, 60], false]]}'
+        expected_not_found = '{"fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "version": 1, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "otus": [["4.11.ribosomal_protein_L10", "minimal", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 2, 4.878048780487805, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482", "HWI-ST1243:156:D1K83ACXX:7:1105:19152:28331"], [60, 60], false]]}'
+
+        self.assertEqual(expected_found, found_otu_table_io.getvalue())
+        self.assertEqual(expected_not_found, not_found_otu_table_io.getvalue())
+
     def test_contamination(self):
         metagenome_otu_table = [
             self.headers,[
