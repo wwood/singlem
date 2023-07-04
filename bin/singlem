@@ -889,7 +889,7 @@ if __name__ == '__main__':
             pkgs = mpkg.singlem_packages
 
         o2 = OtuTableCollection()
-        o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
+        o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs, return_archive_table=bool(args.metagenome_archive_otu_tables)))
         metagenomes = o2
 
         if args.genome_otu_tables or args.genome_archive_otu_tables:
@@ -903,7 +903,7 @@ if __name__ == '__main__':
                     with open(table) as f:
                         genomes.add_archive_otu_table(f)
             o2 = OtuTableCollection()
-            o2.otu_table_objects.append(genomes.exclude_off_target_hits(pkgs))
+            o2.otu_table_objects.append(genomes.exclude_off_target_hits(pkgs, return_archive_table=bool(args.genome_archive_otu_tables)))
             genomes = o2
         else:
             genomes = None
@@ -918,7 +918,7 @@ if __name__ == '__main__':
                     with open(table) as f:
                         assemblies.add_archive_otu_table(f)
             o2 = OtuTableCollection()
-            o2.otu_table_objects.append(assemblies.exclude_off_target_hits(pkgs))
+            o2.otu_table_objects.append(assemblies.exclude_off_target_hits(pkgs, return_archive_table=bool(args.assembly_archive_otu_tables)))
             assemblies = o2
         else:
             assemblies = None
