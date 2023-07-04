@@ -13,6 +13,9 @@ from .sequence_database import SequenceDatabase
 from .sequence_database import SMAFA_NAIVE_INDEX_FORMAT
 from .condense import _tmean
 
+OTU_TABLE_OUTPUT_FORMAT = 'standard'
+ARCHIVE_TABLE_OUTPUT_FORMAT = 'archive'
+
 class Appraiser:
     def appraise(self, **kwargs):
         '''Given a collection of OTU tables derived from samples, and OTU
@@ -183,7 +186,7 @@ class Appraiser:
                         output_io=sys.stdout,
                         doing_assembly=False,
                         output_found_in=False,
-                        output_style='standard',
+                        output_style=OTU_TABLE_OUTPUT_FORMAT,
                         binned_otu_table_io=None,
                         unbinned_otu_table_io=None,
                         assembled_otu_table_io=None,
@@ -239,7 +242,7 @@ class Appraiser:
         def mean(l):
             return float(sum(l))/len(l) if len(l) > 0 else float('nan')
 
-        if output_style == 'standard':
+        if output_style == OTU_TABLE_OUTPUT_FORMAT:
             if binned_otu_table_io:
                 binned_table = OtuTable()
             if unbinned_otu_table_io:
@@ -248,7 +251,7 @@ class Appraiser:
                 assembled_table = OtuTable()
             if unaccounted_for_otu_table_io:
                 unaccounted_for_table = OtuTable()
-        elif output_style == 'archive':
+        elif output_style == ARCHIVE_TABLE_OUTPUT_FORMAT:
             if binned_otu_table_io:
                 binned_table = ArchiveOtuTable(singlem_packages=packages)
             if unbinned_otu_table_io:
