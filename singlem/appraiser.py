@@ -239,14 +239,24 @@ class Appraiser:
         def mean(l):
             return float(sum(l))/len(l) if len(l) > 0 else float('nan')
 
-        if binned_otu_table_io:
-            binned_table = OtuTable()
-        if unbinned_otu_table_io:
-            unbinned_table = OtuTable()
-        if assembled_otu_table_io:
-            assembled_table = OtuTable()
-        if unaccounted_for_otu_table_io:
-            unaccounted_for_table = OtuTable()
+        if output_style == 'standard':
+            if binned_otu_table_io:
+                binned_table = OtuTable()
+            if unbinned_otu_table_io:
+                unbinned_table = OtuTable()
+            if assembled_otu_table_io:
+                assembled_table = OtuTable()
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table = OtuTable()
+        elif output_style == 'archive':
+            if binned_otu_table_io:
+                binned_table = ArchiveOtuTable(singlem_packages=packages)
+            if unbinned_otu_table_io:
+                unbinned_table = ArchiveOtuTable(singlem_packages=packages)
+            if assembled_otu_table_io:
+                assembled_table = ArchiveOtuTable(singlem_packages=packages)
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table = ArchiveOtuTable(singlem_packages=packages)
 
         for appraisal_result in appraisal.appraisal_results:
             if doing_assembly:
@@ -325,24 +335,14 @@ class Appraiser:
                         mypercent_assembled=(mean(assembled_means)*100 if doing_assembly else None))
 
         if not output_found_in:
-            if output_style == 'standard':
-                if binned_otu_table_io:
-                    binned_table.write_to(binned_otu_table_io)
-                if unbinned_otu_table_io:
-                    unbinned_table.write_to(unbinned_otu_table_io)
-                if assembled_otu_table_io:
-                    assembled_table.write_to(assembled_otu_table_io)
-                if unaccounted_for_otu_table_io:
-                    unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
-            elif output_style == 'archive':
-                if binned_otu_table_io:
-                    binned_table.archive(packages).write_to(binned_otu_table_io)
-                if unbinned_otu_table_io:
-                    unbinned_table.archive(packages).write_to(unbinned_otu_table_io)
-                if assembled_otu_table_io:
-                    assembled_table.archive(packages).write_to(assembled_otu_table_io)
-                if unaccounted_for_otu_table_io:
-                    unaccounted_for_table.archive(packages).write_to(unaccounted_for_otu_table_io)
+            if binned_otu_table_io:
+                binned_table.write_to(binned_otu_table_io)
+            if unbinned_otu_table_io:
+                unbinned_table.write_to(unbinned_otu_table_io)
+            if assembled_otu_table_io:
+                assembled_table.write_to(assembled_otu_table_io)
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table.write_to(unaccounted_for_otu_table_io)
         else:
             if binned_otu_table_io:
                 binned_table.write_to(binned_otu_table_io, fields_to_print=binned_table.fields)
