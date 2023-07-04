@@ -5,6 +5,7 @@ import tempfile
 import numpy
 
 from .otu_table import OtuTable
+from .archive_otu_table import ArchiveOtuTable
 from .otu_table_collection import OtuTableCollection
 from .appraisal_result import Appraisal, AppraisalResult
 from .querier import Querier
@@ -133,14 +134,19 @@ class Appraiser:
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         found_genes = [table.marker for table in found_otu_collection]
-        metagenome_table = OtuTable()
+        if metagenome_otu_table_collection.archive_table_objects:
+            metagenome_table = ArchiveOtuTable()
+        else:
+            metagenome_table = OtuTable()
+
         for otu in metagenome_otu_table_collection:
             if otu.marker in found_genes:
                 metagenome_table.add([otu])
 
         metagenome_collection = OtuTableCollection()
         metagenome_collection.add_otu_table_object(metagenome_table)
-        metagenome_collection.sort_otu_tables_by_marker()
+        if not metagenome_otu_table_collection.archive_table_objects:
+            metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
         queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
