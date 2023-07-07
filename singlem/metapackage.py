@@ -334,6 +334,8 @@ class Metapackage:
                     len(seq_ids_to_write), total_seqs))
                 with open(pkg.graftm_package().unaligned_sequence_database_path()) as f:
                     for (name, seq, _) in SeqReader().readfq(f):
+                        if "X" in seq:
+                            continue
                         if name in seq_ids_to_write:
                             out.write(">{}\n{}\n".format(name, seq))
                             total_written_seqs += 1
