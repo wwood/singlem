@@ -24,6 +24,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 
 import singlem
 import singlem.pipe as pipe
+import singlem.appraiser as appraise
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
@@ -231,6 +232,8 @@ if __name__ == '__main__':
     appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
     appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
     appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
+    appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=appraise.OTU_TABLE_OUTPUT_FORMAT,
+                                          choices=[appraise.OTU_TABLE_OUTPUT_FORMAT, appraise.ARCHIVE_TABLE_OUTPUT_FORMAT])
 
     seqs_description = 'Find the best window for a SingleM package.'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -916,6 +919,9 @@ if __name__ == '__main__':
         if not args.metagenome_otu_tables and not args.metagenome_archive_otu_tables:
             raise Exception("Appraise requires metagenome OTU tables or archive tables")
 
+        if args.output_style == appraise.ARCHIVE_TABLE_OUTPUT_FORMAT and not args.metagenome_archive_otu_tables:
+            raise Exception("Appraise archive output format requires metagenome archive input")
+
         appraiser = Appraiser()
 
         metagenomes = OtuTableCollection()
@@ -936,7 +942,7 @@ if __name__ == '__main__':
             pkgs = mpkg.singlem_packages
 
         o2 = OtuTableCollection()
-        o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
+        o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs, return_archive_table=bool(args.metagenome_archive_otu_tables)))
         metagenomes = o2
 
         if args.genome_otu_tables or args.genome_archive_otu_tables:
@@ -950,7 +956,7 @@ if __name__ == '__main__':
                     with open(table) as f:
                         genomes.add_archive_otu_table(f)
             o2 = OtuTableCollection()
-            o2.otu_table_objects.append(genomes.exclude_off_target_hits(pkgs))
+            o2.otu_table_objects.append(genomes.exclude_off_target_hits(pkgs, return_archive_table=bool(args.genome_archive_otu_tables)))
             genomes = o2
         else:
             genomes = None
@@ -965,7 +971,7 @@ if __name__ == '__main__':
                     with open(table) as f:
                         assemblies.add_archive_otu_table(f)
             o2 = OtuTableCollection()
-            o2.otu_table_objects.append(assemblies.exclude_off_target_hits(pkgs))
+            o2.otu_table_objects.append(assemblies.exclude_off_target_hits(pkgs, return_archive_table=bool(args.assembly_archive_otu_tables)))
             assemblies = o2
         else:
             assemblies = None
@@ -1013,6 +1019,7 @@ if __name__ == '__main__':
             doing_binning = genomes is not None,
             doing_assembly = assemblies is not None,
             output_found_in = args.output_found_in,
+            output_style = args.output_style,
             binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
             unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
             assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,

@@ -5,12 +5,16 @@ import tempfile
 import numpy
 
 from .otu_table import OtuTable
+from .archive_otu_table import ArchiveOtuTable
 from .otu_table_collection import OtuTableCollection
 from .appraisal_result import Appraisal, AppraisalResult
 from .querier import Querier
 from .sequence_database import SequenceDatabase
 from .sequence_database import SMAFA_NAIVE_INDEX_FORMAT
 from .condense import _tmean
+
+OTU_TABLE_OUTPUT_FORMAT = 'standard'
+ARCHIVE_TABLE_OUTPUT_FORMAT = 'archive'
 
 class Appraiser:
     def appraise(self, **kwargs):
@@ -133,14 +137,19 @@ class Appraiser:
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         found_genes = [table.marker for table in found_otu_collection]
-        metagenome_table = OtuTable()
+        if metagenome_otu_table_collection.archive_table_objects:
+            metagenome_table = ArchiveOtuTable()
+        else:
+            metagenome_table = OtuTable()
+
         for otu in metagenome_otu_table_collection:
             if otu.marker in found_genes:
                 metagenome_table.add([otu])
 
         metagenome_collection = OtuTableCollection()
         metagenome_collection.add_otu_table_object(metagenome_table)
-        metagenome_collection.sort_otu_tables_by_marker()
+        if not metagenome_otu_table_collection.archive_table_objects:
+            metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
         queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
@@ -177,6 +186,7 @@ class Appraiser:
                         output_io=sys.stdout,
                         doing_assembly=False,
                         output_found_in=False,
+                        output_style=OTU_TABLE_OUTPUT_FORMAT,
                         binned_otu_table_io=None,
                         unbinned_otu_table_io=None,
                         assembled_otu_table_io=None,
@@ -232,14 +242,24 @@ class Appraiser:
         def mean(l):
             return float(sum(l))/len(l) if len(l) > 0 else float('nan')
 
-        if binned_otu_table_io:
-            binned_table = OtuTable()
-        if unbinned_otu_table_io:
-            unbinned_table = OtuTable()
-        if assembled_otu_table_io:
-            assembled_table = OtuTable()
-        if unaccounted_for_otu_table_io:
-            unaccounted_for_table = OtuTable()
+        if output_style == OTU_TABLE_OUTPUT_FORMAT:
+            if binned_otu_table_io:
+                binned_table = OtuTable()
+            if unbinned_otu_table_io:
+                unbinned_table = OtuTable()
+            if assembled_otu_table_io:
+                assembled_table = OtuTable()
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table = OtuTable()
+        elif output_style == ARCHIVE_TABLE_OUTPUT_FORMAT:
+            if binned_otu_table_io:
+                binned_table = ArchiveOtuTable(singlem_packages=packages)
+            if unbinned_otu_table_io:
+                unbinned_table = ArchiveOtuTable(singlem_packages=packages)
+            if assembled_otu_table_io:
+                assembled_table = ArchiveOtuTable(singlem_packages=packages)
+            if unaccounted_for_otu_table_io:
+                unaccounted_for_table = ArchiveOtuTable(singlem_packages=packages)
 
         for appraisal_result in appraisal.appraisal_results:
             if doing_assembly:
