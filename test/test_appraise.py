@@ -27,6 +27,8 @@ import os.path
 import sys
 from io import StringIO
 import tempfile
+import extern
+from bird_tool_utils import in_tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -82,6 +84,45 @@ class Tests(unittest.TestCase):
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
                          a.not_found_otus[0].sequence)
+
+    def test_hello_word_cmdline(self):
+        with in_tempdir():
+            cmd = (
+                "{} appraise "
+                "--metagenome-otu-tables {}/appraise_example3/reads.otu_table.tsv "
+                "--genome-otu-tables {}/appraise_example3/bins.otu_table.tsv "
+                "--metapackage {}/four_package.smpkg "
+                "--output-binned-otu-table binned.otu_table.tsv "
+                "--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+            ).format(
+                path_to_script,
+                path_to_data,
+                path_to_data,
+                path_to_data
+            )
+            extern.run(cmd)
+
+            expected_binned = [
+                self.headers,
+                ["4.12.ribosomal_protein_L11_rplK", "minimal", "GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC", "7", "17.07", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales"],
+                ""
+            ]
+            expected_binned = "\n".join(["\t".join(x) for x in expected_binned])
+
+            expected_unbinned = [
+                self.headers,
+                ["4.11.ribosomal_protein_L10", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", "4", "9.76", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus"],
+                ""
+            ]
+            expected_unbinned = "\n".join(["\t".join(x) for x in expected_unbinned])
+
+            with open('binned.otu_table.tsv') as f:
+                observed_binned = "".join(f.readlines())
+            with open('unbinned.otu_table.tsv') as f:
+                observed_unbinned = "".join(f.readlines())
+
+            self.assertEqual(expected_binned, observed_binned)
+            self.assertEqual(expected_unbinned, observed_unbinned)
 
     def test_multiple_samples(self):
         metagenome_otu_table = [self.headers,
