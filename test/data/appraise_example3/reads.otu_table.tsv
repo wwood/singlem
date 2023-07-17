@@ -1,0 +1,3 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+4.12.ribosomal_protein_L11_rplK	minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	17.07	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+4.11.ribosomal_protein_L10	minimal	CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus

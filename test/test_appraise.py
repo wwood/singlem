@@ -27,6 +27,8 @@ import os.path
 import sys
 from io import StringIO
 import tempfile
+import extern
+from bird_tool_utils import in_tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -82,6 +84,45 @@ class Tests(unittest.TestCase):
         self.assertEqual(1, len(a.not_found_otus))
         self.assertEqual('CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
                          a.not_found_otus[0].sequence)
+
+    def test_hello_word_cmdline(self):
+        with in_tempdir():
+            cmd = (
+                "{} appraise "
+                "--metagenome-otu-tables {}/appraise_example3/reads.otu_table.tsv "
+                "--genome-otu-tables {}/appraise_example3/bins.otu_table.tsv "
+                "--metapackage {}/four_package.smpkg "
+                "--output-binned-otu-table binned.otu_table.tsv "
+                "--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+            ).format(
+                path_to_script,
+                path_to_data,
+                path_to_data,
+                path_to_data
+            )
+            extern.run(cmd)
+
+            expected_binned = [
+                self.headers,
+                ["4.12.ribosomal_protein_L11_rplK", "minimal", "GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC", "7", "17.07", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales"],
+                ""
+            ]
+            expected_binned = "\n".join(["\t".join(x) for x in expected_binned])
+
+            expected_unbinned = [
+                self.headers,
+                ["4.11.ribosomal_protein_L10", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", "4", "9.76", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus"],
+                ""
+            ]
+            expected_unbinned = "\n".join(["\t".join(x) for x in expected_unbinned])
+
+            with open('binned.otu_table.tsv') as f:
+                observed_binned = "".join(f.readlines())
+            with open('unbinned.otu_table.tsv') as f:
+                observed_unbinned = "".join(f.readlines())
+
+            self.assertEqual(expected_binned, observed_binned)
+            self.assertEqual(expected_unbinned, observed_unbinned)
 
     def test_multiple_samples(self):
         metagenome_otu_table = [self.headers,
@@ -633,6 +674,61 @@ class Tests(unittest.TestCase):
 
         self.assertEqual(expected_found, found_otu_table_io.getvalue())
         self.assertEqual(expected_not_found, not_found_otu_table_io.getvalue())
+
+    def test_print_appraisal_archive_input_output_cli(self):
+        with in_tempdir():
+            cmd = (
+                "{} appraise "
+                "--metagenome-archive-otu-tables {}/appraise_example3/reads.otu_table.json "
+                "--genome-otu-tables {}/appraise_example3/bins.otu_table.tsv "
+                "--metapackage {}/four_package.smpkg "
+                "--output-binned-otu-table binned.otu_table.json "
+                "--output-unaccounted-for-otu-table unbinned.otu_table.json "
+                "--output-style archive "
+            ).format(
+                path_to_script,
+                path_to_data,
+                path_to_data,
+                path_to_data
+            )
+            extern.run(cmd)
+
+            version_4_fields = '"fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies", "taxonomy_assignment_method"]'
+            alignment_shas = '"alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"]'
+            package_shas = '"singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48", "e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"]'
+            binned_otu = '["4.12.ribosomal_protein_L11_rplK", "minimal", "GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC", 4, 9.75609756097561, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales", ["HWI-ST1243:156:D1K83ACXX:7:1109:18214:9910", "HWI-ST1243:156:D1K83ACXX:7:1103:21187:63124", "HWI-ST1243:156:D1K83ACXX:7:1108:10813:6928", "HWI-ST1243:156:D1K83ACXX:7:1105:12385:81842"], [60, 60, 60, 60], false, ["ATTAACAGTAGCTGAAGTTACTGACCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGCGTCGTGCAGCTGAA", "ATTAACAGTAGCTGAAGTTACTGACCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGCGTCGTGCAGCTGAA", "ATTAACAGTAGCTGAAGTTACTGACCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGCGTCGTGCAGCTGAA", "ATTAACAGTAGCTGAAGTTACTGACCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGCGTCGTGCAGCTGAA"], ["Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales"], "singlem_query_based"]'
+            unbinned_otu = '["4.11.ribosomal_protein_L10", "minimal", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 2, 4.878048780487805, "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482", "HWI-ST1243:156:D1K83ACXX:7:1105:19152:28331"], [60, 60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus"], "singlem_query_based"]'
+            expected_found = "".join([
+                '{',
+                ", ".join([
+                    '"version": 4',
+                    alignment_shas,
+                    package_shas,
+                    version_4_fields,
+                    "".join(['"otus": [', binned_otu, ']']),
+                ]),
+                '}',
+            ])
+
+            expected_not_found = "".join([
+                '{',
+                ", ".join([
+                    '"version": 4',
+                    alignment_shas,
+                    package_shas,
+                    version_4_fields,
+                    "".join(['"otus": [', unbinned_otu, ']']),
+                ]),
+                '}',
+            ])
+
+            with open('binned.otu_table.json') as f:
+                observed_found = "".join(f.readlines())
+            with open('unbinned.otu_table.json') as f:
+                observed_not_found = "".join(f.readlines())
+
+            self.assertEqual(expected_found, observed_found)
+            self.assertEqual(expected_not_found, observed_not_found)
 
     def test_contamination(self):
         metagenome_otu_table = [
