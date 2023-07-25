@@ -1,13 +1,21 @@
 import pandas as pd
 import logging
 import json
-import os, sys
+import os
+import sys
+from dataclasses import dataclass
 
 import extern
 
 from .condense import CondensedCommunityProfile
 from .metapackage import Metapackage
 from .singlem import FastaNameToSampleName
+
+@dataclass
+class GenomeSizeStruct:
+    mean: float
+    minimum: float
+    maximum: float
 
 class ReadFractionEstimator:
     def calculate_and_report_read_fraction(self, **kwargs):
@@ -49,8 +57,14 @@ class ReadFractionEstimator:
         if 'genome_size' not in taxonomic_genome_lengths_df.columns:
             raise Exception("Taxonomic genome lengths file must have a 'genome_size' column.")
         taxonomic_genome_lengths = {}
-        for index, row in taxonomic_genome_lengths_df.iterrows():
-            taxonomic_genome_lengths[row['rank']] = row['genome_size']
+        output_style = 'mean_min_max' if 'min_genome_size' in taxonomic_genome_lengths_df.columns and \
+            'max_genome_size' in taxonomic_genome_lengths_df.columns else 'mean'
+        for _, row in taxonomic_genome_lengths_df.iterrows():
+            if output_style == 'mean_min_max':
+                taxonomic_genome_lengths[row['rank']] = GenomeSizeStruct(
+                    row['genome_size'], row['min_genome_size'], row['max_genome_size'])
+            else:
+                taxonomic_genome_lengths[row['rank']] = GenomeSizeStruct(row['genome_size'], None, None)
         logging.info("Read taxonomic genome lengths for %i rank(s)." % len(taxonomic_genome_lengths))
 
         # Read in the metagenome sizes
@@ -63,7 +77,7 @@ class ReadFractionEstimator:
             if 'num_bases' not in metagenome_sizes_df.columns:
                 raise Exception("Metagenome sizes file must have a 'num_bases' column.")
             metagenome_sizes = {}
-            for index, row in metagenome_sizes_df.iterrows():
+            for _, row in metagenome_sizes_df.iterrows():
                 metagenome_sizes[row['sample']] = float(row['num_bases'])
             logging.info("Read metagenome sizes for %i sample(s)" % len(metagenome_sizes))
         else:
@@ -73,8 +87,12 @@ class ReadFractionEstimator:
             
 
         # Iterate through the input profile, calculating the read fraction for each sample
-        read_fractions = {}
-        print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction", file=output_fh)
+        if output_style == 'mean_min_max':
+            print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction\tmin_bases\tmin_read_fraction\tmax_bases\tmax_read_fraction", file=output_fh)
+        elif output_style == 'mean':
+            print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction", file=output_fh)
+        else:
+            raise Exception("Programming error")
         if output_per_taxon_read_fractions:
             print("sample\ttaxonomy\tbase_contribution", file=output_per_taxon_read_fractions_fh)
         num_samples = 0
@@ -91,19 +109,41 @@ class ReadFractionEstimator:
 
                 # Calculate the read fraction. This is the coverage of each taxon multiplied by its average genome size.
                 account = 0
+                account_min = 0
+                account_max = 0
                 for node in profile.breadth_first_iter():
                     taxonomy = node.word
                     if taxonomy == 'Root': continue # More likely false positive hits, I guess.
                     if taxonomy not in taxonomic_genome_lengths:
                         raise Exception("Taxonomy '%s' in profile not found in taxonomic genome lengths file." % taxonomy)
-                    contribution = node.coverage * taxonomic_genome_lengths[taxonomy]
+                    contribution = node.coverage * taxonomic_genome_lengths[taxonomy].mean
                     account += contribution
+                    if output_style == 'mean_min_max':
+                        account_min += node.coverage * taxonomic_genome_lengths[taxonomy].minimum
+                        account_max += node.coverage * taxonomic_genome_lengths[taxonomy].maximum
+
                     if contribution > 0 and output_per_taxon_read_fractions:
                         print("%s\t%s\t%s" % (sample, taxonomy, contribution),
                             file=output_per_taxon_read_fractions_fh)
                 
-                print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100),
-                      file=output_fh)
+                if output_style == 'mean_min_max':
+                    print("%s\t%s\t%s\t%0.2f%%\t%s\t%0.2f%%\t%s\t%0.2f%%" % (
+                        sample,
+                        round(account),
+                        metagenome_size,
+                        account / metagenome_size * 100,
+                        account_min,
+                        account_min / metagenome_size * 100,
+                        account_max,
+                        account_max / metagenome_size * 100
+                        ),
+                        file=output_fh)
+                elif output_style == 'mean':
+                    print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100),
+                        file=output_fh)
+                else:
+                    raise Exception("Programming error")
+
                 num_samples += 1
         logging.info("Calculated read fractions for %d samples." % num_samples)
 
