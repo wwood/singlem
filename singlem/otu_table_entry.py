@@ -34,6 +34,12 @@ class OtuTableEntry:
             except IndexError:
                 self.data.append(found_in)
 
+    def get_domain(self):
+        try:
+            return self.taxonomy_array()[1]
+        except IndexError:
+            return None
+
     def __str__(self):
         return "\t".join([self.marker, self.sample_name, self.sequence,
                           str(self.count), str(self.coverage), self.taxonomy])

@@ -118,17 +118,7 @@ class Appraiser:
         '''Given a metagenome sample collection and OTUs 'found' either by binning or
         assembly, return a AppraisalBuildingBlock representing the OTUs that
         have been found, using inexact matching.
-
         '''
-        if sequence_identity:
-            logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
-            sys.stdout.write("# Clustered using %0.2f%% ANI" % sequence_identity)
-            max_divergence = window_size * (1 - sequence_identity)
-            # max divergence must be a whole number, and we round down
-            max_divergence = int(max_divergence)
-        else:
-            max_divergence = 0
-        logging.debug("Using max divergence of %i for appraising" % max_divergence)
 
         tmp = tempfile.TemporaryDirectory()
         sdb_path = os.path.join(tmp.name, "tmp.sdb")
@@ -136,40 +126,57 @@ class Appraiser:
         sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
         sdb_tmp = sequence_database.acquire(sdb_path)
 
-        found_genes = [table.marker for table in found_otu_collection]
-        if metagenome_otu_table_collection.archive_table_objects:
-            metagenome_table = ArchiveOtuTable()
-        else:
-            metagenome_table = OtuTable()
-
-        for otu in metagenome_otu_table_collection:
-            if otu.marker in found_genes:
-                metagenome_table.add([otu])
-
-        metagenome_collection = OtuTableCollection()
-        metagenome_collection.add_otu_table_object(metagenome_table)
-        if not metagenome_otu_table_collection.archive_table_objects:
-            metagenome_collection.sort_otu_tables_by_marker()
-
-        querier = Querier()
-        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
+        found_gene_domains = []
+        for otu in found_otu_collection:
+            domain = otu.get_domain()
+            if domain and (otu.marker, domain) not in found_gene_domains:
+                found_gene_domains.append((otu.marker, domain))
 
         sample_to_building_block = {}
-        for hit in queries:
-            # hit has (query, subject, divergence)
-            # subject has .taxonomy
-            q = hit.query
-            if q.sample_name in sample_to_building_block:
-                appraisal = sample_to_building_block[q.sample_name]
+        for (gene, domain) in found_gene_domains:
+
+            if sequence_identity:
+                logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
+                sys.stdout.write("# Clustered using %0.2f%% ANI" % sequence_identity)
+                max_divergence = window_size * (1 - sequence_identity)
+                # max divergence must be a whole number, and we round down
+                max_divergence = int(max_divergence)
             else:
-                appraisal = AppraisalBuildingBlock(packages)
-                sample_to_building_block[q.sample_name] = appraisal
+                max_divergence = 0
+            logging.debug("Using max divergence of %i for appraising" % max_divergence)
 
-            if output_found_in:
-                q.add_found_data(hit.subject.sample_name)
+            if metagenome_otu_table_collection.archive_table_objects:
+                metagenome_table = ArchiveOtuTable()
+            else:
+                metagenome_table = OtuTable()
 
-            if q not in appraisal.found_otus:
-                appraisal.add_otu(q)
+            for otu in metagenome_otu_table_collection:
+                if otu.marker == gene and otu.get_domain() == domain:
+                    metagenome_table.add([otu])
+
+            metagenome_collection = OtuTableCollection()
+            metagenome_collection.add_otu_table_object(metagenome_table)
+            if not metagenome_otu_table_collection.archive_table_objects:
+                metagenome_collection.sort_otu_tables_by_marker()
+
+            querier = Querier()
+            queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
+
+            for hit in queries:
+                # hit has (query, subject, divergence)
+                # subject has .taxonomy
+                q = hit.query
+                if q.sample_name in sample_to_building_block:
+                    appraisal = sample_to_building_block[q.sample_name]
+                else:
+                    appraisal = AppraisalBuildingBlock(packages)
+                    sample_to_building_block[q.sample_name] = appraisal
+
+                if output_found_in:
+                    q.add_found_data(hit.subject.sample_name)
+
+                if q not in appraisal.found_otus:
+                    appraisal.add_otu(q)
 
         for otu in metagenome_otu_table_collection:
             if otu.sample_name not in sample_to_building_block:
