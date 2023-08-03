@@ -337,6 +337,74 @@ class Tests(unittest.TestCase):
         self.assertEqual('maximal',
                          a.not_found_otus[0].sample_name)
 
+
+    def test_clusterer_both_domains(self):
+        metagenome_otu_table = [self.headers,
+                    # one bp different from genome
+                    ['4.11.ribosomal_protein_L10','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    # 10 bp different from genome
+                    ['4.11.ribosomal_protein_L10','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGAAAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                    # one bp different from genome
+                    ['4.11.ribosomal_protein_L10','minimal','TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGCGCGCTCGTG','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                    # 10 bp different from genome
+                    ['4.11.ribosomal_protein_L10','minimal','TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGAAAAAAAAAA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                    # one bp different from genome
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCACGGCGTC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    # 10 bp different from genome
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAAAAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                    # one bp different from genome
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTCTATAAA','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                    # 10 bp different from genome
+                    ['4.12.ribosomal_protein_L11_rplK','minimal','ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCAAAAAAAAAAA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                    # one bp different from genome
+                    ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAGGGTTCGGGG','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    # 10 bp different from genome
+                    ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAAAAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                    # one bp different from genome
+                    ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCAGGTGCAGAC','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                    # 10 bp different from genome
+                    ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCAAAAAAAAAA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                    # one bp different from genome
+                    ['4.16.ribosomal_protein_S5','minimal','GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTCGC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                    # 10 bp different from genome
+                    ['4.16.ribosomal_protein_S5','minimal','GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCAAAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                    # one bp different from genome
+                    ['4.16.ribosomal_protein_S5','minimal','GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTAAG','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                    # 10 bp different from genome
+                    ['4.16.ribosomal_protein_S5','minimal','GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCAAAAAAAAAA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                    ]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+
+        genomes_otu_table = [self.headers,
+                    ['4.11.ribosomal_protein_L10','genome_1','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATT','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+                    ['4.11.ribosomal_protein_L10','genome_2','TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGCGCGCTCGTT','1','1.02','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei'],
+                    ['4.12.ribosomal_protein_L11_rplK','genome_1','CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCACGGCGTT','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+                    ['4.12.ribosomal_protein_L11_rplK','genome_2','ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTCTATAAT','1','1.02','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei'],
+                    ['4.14.ribosomal_protein_L16_L10E_rplP','genome_1','ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAGGGTTCGGGT','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+                    ['4.14.ribosomal_protein_L16_L10E_rplP','genome_2','AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCAGGTGCAGAT','1','1.02','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei'],
+                    ['4.16.ribosomal_protein_S5','genome_1','GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTCGT','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+                    ['4.16.ribosomal_protein_S5','genome_2','GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTAAT','1','1.02','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei'],
+                    ]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 sequence_identity=0.9,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
+        self.assertEqual(1, len(app.appraisal_results))
+        a = app.appraisal_results[0]
+        self.assertEqual('minimal', a.metagenome_sample_name)
+        self.assertEqual({'d__Archaea': 7, 'd__Bacteria': 7}, a.num_binned)
+        self.assertEqual({'d__Archaea': 4, 'd__Bacteria': 4}, a.num_not_found)
+
+
     def test_print_appraisal(self):
         metagenome_otu_table = [self.headers,
                     ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
