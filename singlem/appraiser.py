@@ -36,6 +36,7 @@ class Appraiser:
         assembly_otu_table_collection = kwargs.pop('assembly_otu_table_collection', None)
         packages = kwargs.pop('packages')
         imperfect = kwargs.pop('imperfect', False)
+        taxa_level_cutoffs = kwargs.pop('taxa_level_cutoffs', None)
         sequence_identity = kwargs.pop('sequence_identity', None)
         output_found_in = kwargs.pop('output_found_in', False)
         window_size = kwargs.pop('window_size')
@@ -63,6 +64,7 @@ class Appraiser:
                 metagenome_otu_table_collection,
                 filtered_genome_otus,
                 imperfect,
+                taxa_level_cutoffs,
                 sequence_identity,
                 output_found_in,
                 packages,
@@ -73,6 +75,7 @@ class Appraiser:
                 metagenome_otu_table_collection,
                 assembly_otu_table_collection,
                 imperfect,
+                taxa_level_cutoffs,
                 sequence_identity,
                 output_found_in,
                 packages,
@@ -115,6 +118,7 @@ class Appraiser:
     def _appraise_inexactly(self, metagenome_otu_table_collection,
                             found_otu_collection,
                             imperfect,
+                            taxa_level_cutoffs,
                             sequence_identity,
                             output_found_in,
                             packages,
@@ -139,12 +143,14 @@ class Appraiser:
         sample_to_building_block = {}
         for (gene, domain) in found_gene_domains:
 
-            if sequence_identity:
+            if imperfect and sequence_identity:
                 logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
                 sys.stdout.write("# Clustered using %0.2f%% ANI" % sequence_identity)
                 max_divergence = window_size * (1 - sequence_identity)
                 # max divergence must be a whole number, and we round down
                 max_divergence = int(max_divergence)
+            elif imperfect and taxa_level_cutoffs:
+                max_divergence = taxa_level_cutoffs.get_maxdivergence(gene, domain)
             else:
                 max_divergence = 0
             logging.debug("Using max divergence of %i for appraising" % max_divergence)
@@ -397,3 +403,10 @@ class AppraisalBuildingBlock:
         for domain in self.DOMAINS:
             out[domain] = round(_tmean([n[domain] for n in self.num_found.values() if domain in n], 0.1))
         return out
+
+class AppraiseMaxDivergenceCutoffs:
+    def __init__(self, cutoffs):
+        self.cutoffs = cutoffs
+
+    def get_maxdivergence(self, gene, domain):
+        return self.cutoffs[gene][domain]
