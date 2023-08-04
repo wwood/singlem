@@ -35,6 +35,7 @@ class Appraiser:
         metagenome_otu_table_collection = kwargs.pop('metagenome_otu_table_collection')
         assembly_otu_table_collection = kwargs.pop('assembly_otu_table_collection', None)
         packages = kwargs.pop('packages')
+        imperfect = kwargs.pop('imperfect', False)
         sequence_identity = kwargs.pop('sequence_identity', None)
         output_found_in = kwargs.pop('output_found_in', False)
         window_size = kwargs.pop('window_size')
@@ -61,6 +62,7 @@ class Appraiser:
             sample_to_binned = self._appraise_inexactly(
                 metagenome_otu_table_collection,
                 filtered_genome_otus,
+                imperfect,
                 sequence_identity,
                 output_found_in,
                 packages,
@@ -70,6 +72,7 @@ class Appraiser:
             sample_to_assembled = self._appraise_inexactly(
                 metagenome_otu_table_collection,
                 assembly_otu_table_collection,
+                imperfect,
                 sequence_identity,
                 output_found_in,
                 packages,
@@ -111,6 +114,7 @@ class Appraiser:
 
     def _appraise_inexactly(self, metagenome_otu_table_collection,
                             found_otu_collection,
+                            imperfect,
                             sequence_identity,
                             output_found_in,
                             packages,

@@ -197,6 +197,7 @@ class Tests(unittest.TestCase):
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
+                                 imperfect=True,
                                  sequence_identity=0.5,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
@@ -226,6 +227,7 @@ class Tests(unittest.TestCase):
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
+                                 imperfect=True,
                                  sequence_identity=0.7,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
@@ -255,6 +257,7 @@ class Tests(unittest.TestCase):
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
+                                 imperfect=True,
                                  sequence_identity=0.7,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
@@ -302,6 +305,7 @@ class Tests(unittest.TestCase):
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
+                                 imperfect=True,
                                  sequence_identity=0.7,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
@@ -395,6 +399,7 @@ class Tests(unittest.TestCase):
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
+                                 imperfect=True,
                                  sequence_identity=0.9,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
@@ -900,6 +905,7 @@ class Tests(unittest.TestCase):
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
+                                 imperfect=True,
                                  sequence_identity=0.9,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
@@ -1129,6 +1135,7 @@ class Tests(unittest.TestCase):
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
                                  metagenome_otu_table_collection=metagenome_collection,
                                  assembly_otu_table_collection=assembly_collection,
+                                 imperfect=True,
                                  sequence_identity=0.9,
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)

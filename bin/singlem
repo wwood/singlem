@@ -992,6 +992,7 @@ if __name__ == '__main__':
                                 metagenome_otu_table_collection=metagenomes,
                                 assembly_otu_table_collection=assemblies,
                                 output_found_in = args.output_found_in,
+                                imperfect = args.imperfect,
                                 sequence_identity=(args.sequence_identity if args.imperfect else None),
                                 packages=pkgs,
                                 window_size=DEFAULT_WINDOW_SIZE)
