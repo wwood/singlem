@@ -413,11 +413,13 @@ class Tests(unittest.TestCase):
 
     def test_clusterer_taxa_level(self):
         taxa_level_cutoffs = AppraiseMaxDivergenceCutoffs({
-            "4.11.ribosomal_protein_L10": {"d__Archaea": 6, "d__Bacteria": 8},
-            "4.12.ribosomal_protein_L11_rplK": {"d__Archaea": 6, "d__Bacteria": 8},
-            "4.14.ribosomal_protein_L16_L10E_rplP": {"d__Archaea": 4, "d__Bacteria": 2},
-            "4.16.ribosomal_protein_S5": {"d__Archaea": 4, "d__Bacteria": 2},
-        })
+            "4.11.ribosomal_protein_L10": {"d__Archaea": 0.89, "d__Bacteria": 0.86},
+            "4.12.ribosomal_protein_L11_rplK": {"d__Archaea": 0.89, "d__Bacteria": 0.86},
+            "4.14.ribosomal_protein_L16_L10E_rplP": {"d__Archaea": 0.93, "d__Bacteria": 0.96},
+            "4.16.ribosomal_protein_S5": {"d__Archaea": 0.93, "d__Bacteria": 0.96},
+            },
+            window_size=DEFAULT_WINDOW_SIZE
+            )
 
         metagenome_otu_table = [self.headers,
                     # one bp different from genome - binned

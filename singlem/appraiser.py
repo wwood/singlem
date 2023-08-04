@@ -405,8 +405,16 @@ class AppraisalBuildingBlock:
         return out
 
 class AppraiseMaxDivergenceCutoffs:
-    def __init__(self, cutoffs):
-        self.cutoffs = cutoffs
+    def __init__(self, cutoffs, window_size):
+        self.cutoffs = {
+            gene: {
+                domain:
+                    # max divergence must be a whole number, and we round down
+                    int(window_size * (1 - cutoffs[gene][domain]))
+                for domain in cutoffs[gene].keys()
+                }
+            for gene in cutoffs.keys()
+            }
 
     def get_maxdivergence(self, gene, domain):
         return self.cutoffs[gene][domain]
