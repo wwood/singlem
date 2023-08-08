@@ -38,7 +38,7 @@ def distance_comparison(singlem_package):
     for name, taxonomy in gg.items():
         if not taxonomy[0].strip("d__") in target_domains:
             off_target_seq.add(name)
-    logging.warn("Found %i off-target sequences, deleting" % len(off_target_seq))
+    logging.warning("Found %i off-target sequences, deleting" % len(off_target_seq))
     for name in off_target_seq:
         del gg[name]
     logging.info("After deleting off-target taxonomies now have %i taxes" % len(gg))
@@ -46,11 +46,12 @@ def distance_comparison(singlem_package):
     # Create recursive hash of taxonomy ending in sequences
     taxonomic_prefixes = 'd p c o f g s'.split(" ")
     class LineageOrLeaf:
-        def __init__(self, parent, name, rank):
+        def __init__(self, parent, name, rank, domain):
             self.parent = parent
             self.children = {} #taxon name to 
             self.name = name
             self.rank = rank
+            self.domain = domain
             self.known_to_have_sequence = False
             self.is_leaf = False
 
@@ -70,7 +71,7 @@ def distance_comparison(singlem_package):
             return rep
                                                                   
             
-    root = LineageOrLeaf(None, 'root', -1)
+    root = LineageOrLeaf(None, 'root', -1, None)
     for name, splits in gg.items():
         last = root
         count = 0
@@ -83,7 +84,8 @@ def distance_comparison(singlem_package):
                 if s in last.children:
                     last = last.children[s]
                 else:
-                    current = LineageOrLeaf(last, s, i)
+                    domain = s if s.startswith(taxonomic_prefixes[0]) else last.domain
+                    current = LineageOrLeaf(last, s, i, domain)
                     last.children[s] = current
                     last = current
             count += 1
@@ -157,6 +159,7 @@ def distance_comparison(singlem_package):
 
             print("\t".join([
                 singlem_package.graftm_package_basename(),
+                current.domain,
                 taxonomic_prefixes[current.rank],
                 current.name,
                 str(dist),
@@ -183,6 +186,6 @@ if __name__ == '__main__':
 
     metapackage = Metapackage.acquire(args.metapackage)
 
-    print("\t".join(["singlem_package", "rank", "taxon", "distance"]))
+    print("\t".join(["singlem_package", "domain", "rank", "taxon", "distance"]))
     for singlem_package in metapackage.singlem_packages:
         distance_comparison(singlem_package)
