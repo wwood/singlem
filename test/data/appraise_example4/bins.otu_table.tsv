@@ -1,0 +1,9 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+4.11.ribosomal_protein_L10	genome_1	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATT	1	1.02	Root; d__Bacteria; p__Firmicutes; c__Bacilli
+4.11.ribosomal_protein_L10	genome_2	TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGCGCGCTCGTT	1	1.02	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei
+4.12.ribosomal_protein_L11_rplK	genome_1	CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCACGGCGTT	1	1.02	Root; d__Bacteria; p__Firmicutes; c__Bacilli
+4.12.ribosomal_protein_L11_rplK	genome_2	ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTCTATAAT	1	1.02	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei
+4.14.ribosomal_protein_L16_L10E_rplP	genome_1	ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAGGGTTCGGGT	1	1.02	Root; d__Bacteria; p__Firmicutes; c__Bacilli
+4.14.ribosomal_protein_L16_L10E_rplP	genome_2	AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCAGGTGCAGAT	1	1.02	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei
+4.16.ribosomal_protein_S5	genome_1	GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTCGT	1	1.02	Root; d__Bacteria; p__Firmicutes; c__Bacilli
+4.16.ribosomal_protein_S5	genome_2	GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTAAT	1	1.02	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei

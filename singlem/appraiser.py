@@ -418,3 +418,20 @@ class AppraiseMaxDivergenceCutoffs:
 
     def get_maxdivergence(self, gene, domain):
         return self.cutoffs[gene][domain]
+
+    @classmethod
+    def from_polars(cls, df, taxa_level, window_size):
+        df = (
+            df
+            .select("singlem_package", "domain", cutoff = taxa_level + "_cutoff")
+            .iter_rows()
+        )
+
+        cutoffs = {}
+        for row in df:
+            if row[0] not in cutoffs:
+                cutoffs[row[0]] = {}
+
+            cutoffs[row[0]][row[1]] = row[2]
+
+        return cls(cutoffs, window_size)

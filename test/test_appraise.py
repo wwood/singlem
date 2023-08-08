@@ -488,6 +488,74 @@ class Tests(unittest.TestCase):
         self.assertEqual({'d__Archaea': round(sum([4, 4, 4, 0]) / 4), 'd__Bacteria': round(sum([4, 0, 4, 4]) / 4)}, a.num_not_found)
 
 
+    def test_clusterer_taxa_level_cli(self):
+        with in_tempdir():
+            cmd = (
+                f"{path_to_script} appraise "
+                f"--metagenome-otu-tables {path_to_data}/appraise_example4/reads.otu_table.tsv "
+                f"--genome-otu-tables {path_to_data}/appraise_example4/bins.otu_table.tsv "
+                f"--metapackage {path_to_data}/four_package.smpkg "
+                f"--imperfect "
+                f"--taxa-level-cutoff genus "
+                f"--taxa-level-json {path_to_data}/appraise_example4/package_domain_cutoffs.json "
+                f"--output-binned-otu-table binned.otu_table.tsv "
+                f"--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+            )
+            extern.run(cmd)
+
+            expected_binned = [
+                self.headers,
+                # one bp different from genome - binned
+                ['4.11.ribosomal_protein_L10','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                # one bp different from genome - binned
+                ['4.12.ribosomal_protein_L11_rplK','minimal','CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCACGGCGTC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                # 7 bp different from genome - binned
+                ['4.12.ribosomal_protein_L11_rplK','minimal','CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                # one bp different from genome - binned
+                ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAGGGTTCGGGG','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                # one bp different from genome - binned
+                ['4.16.ribosomal_protein_S5','minimal','GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTCGC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+                # one bp different from genome - binned
+                ['4.11.ribosomal_protein_L10','minimal','TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGCGCGCTCGTG','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                # one bp different from genome - binned
+                ['4.12.ribosomal_protein_L11_rplK','minimal','ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTCTATAAA','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                # one bp different from genome - binned
+                ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCAGGTGCAGAC','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                # one bp different from genome - binned
+                ['4.16.ribosomal_protein_S5','minimal','GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTAAG','7','17.07','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae'],
+                # 3 bp different from genome - binned
+                ['4.16.ribosomal_protein_S5','minimal','GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTGGA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                ""
+            ]
+            expected_binned = "\n".join(["\t".join(x) for x in expected_binned])
+
+            expected_unbinned = [
+                self.headers,
+                # 10 bp different from genome - unbinned
+                ['4.11.ribosomal_protein_L10','minimal','TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGAAAAAAAAAA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                # 7 bp different from genome - unbinned
+                ['4.12.ribosomal_protein_L11_rplK','minimal','ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTAAGAGGG','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                # 10 bp different from genome - unbinned
+                ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCGAAAAAGAGA','4','9.76','Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis'],
+                # 10 bp different from genome - unbinned
+                ['4.11.ribosomal_protein_L10','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGAAAAGGAGAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                # 10 bp different from genome - unbinned
+                ['4.14.ribosomal_protein_L16_L10E_rplP','minimal','ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAAAAAAAAAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                # 3 bp different from genome - unbinned
+                ['4.16.ribosomal_protein_S5','minimal','GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTAAA','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],
+                ""
+            ]
+            expected_unbinned = "\n".join(["\t".join(x) for x in expected_unbinned])
+
+            with open('binned.otu_table.tsv') as f:
+                observed_binned = "".join(f.readlines())
+            with open('unbinned.otu_table.tsv') as f:
+                observed_unbinned = "".join(f.readlines())
+
+            self.assertEqual(expected_binned, observed_binned)
+            self.assertEqual(expected_unbinned, observed_unbinned)
+
+
     def test_print_appraisal(self):
         metagenome_otu_table = [self.headers,
                     ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],

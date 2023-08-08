@@ -1,0 +1,17 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+4.11.ribosomal_protein_L10	minimal	TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGCGCGCTCGTG	7	17.07	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae
+4.11.ribosomal_protein_L10	minimal	TGCGGCGGCGCCAACGGCGAGGCCGGAGCGGTCCGCCTCGGCATCGCCCGAAAAAAAAAA	4	9.76	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis
+4.12.ribosomal_protein_L11_rplK	minimal	ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTCTATAAA	7	17.07	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae
+4.12.ribosomal_protein_L11_rplK	minimal	ATTCCACTGCCGACCAAGAAGAGTACATTCACGGTTGTAAAAAGCCCGCATGTAAGAGGG	4	9.76	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis
+4.14.ribosomal_protein_L16_L10E_rplP	minimal	AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCAGGTGCAGAC	7	17.07	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae
+4.14.ribosomal_protein_L16_L10E_rplP	minimal	AGAGTATATCCACACATTTTGTTAAGAGAGAACAAGATGATTGCAACAGCGAAAAAGAGA	4	9.76	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis
+4.16.ribosomal_protein_S5	minimal	GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTAAG	7	17.07	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae
+4.16.ribosomal_protein_S5	minimal	GGATTAGGTCTTGTAGCAGGAGAAAACATAAAAAATCTATTAAAGCTTGCTGGTATTGGA	4	9.76	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Sulfolobales; f__Sulfolobaceae; g__Metallosphaera; s__Metallosphaera_yellowstonensis
+4.11.ribosomal_protein_L10	minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC	7	17.07	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+4.11.ribosomal_protein_L10	minimal	GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGAAAAGGAGAA	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+4.12.ribosomal_protein_L11_rplK	minimal	CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCACGGCGTC	7	17.07	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+4.12.ribosomal_protein_L11_rplK	minimal	CCGGGAGGGAAAGTGAACCCCGCTCCTCCAATCGGGCCGGCGCTCGGCCAGCAAAAAAAA	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+4.14.ribosomal_protein_L16_L10E_rplP	minimal	ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAGGGTTCGGGG	7	17.07	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+4.14.ribosomal_protein_L16_L10E_rplP	minimal	ACGATCTTCCCGGACCGTCCGGTCACGAAGAAGCCGGCCGAGACCCGTCAAAAAAAAAAA	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus
+4.16.ribosomal_protein_S5	minimal	GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTCGC	7	17.07	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales
+4.16.ribosomal_protein_S5	minimal	GGTACCGGCGTGATCGCGGGTGGGGGCGTCCGCGCCGTGCTCGAGCTGGCCGGGATTAAA	4	9.76	Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus

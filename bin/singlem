@@ -221,7 +221,9 @@ if __name__ == '__main__':
     appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
-    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~species level divergence i.e. %s]" % SPECIES_LEVEL_AVERAGE_IDENTITY, default=SPECIES_LEVEL_AVERAGE_IDENTITY)
+    appraise_inexact_options.add_argument('--taxa-level-cutoff', help="Appraise at specified taxa level [default: species]", default="genus")
+    appraise_inexact_options.add_argument('--taxa-level-json', help="Json file containing Appraise cutoffs at each taxa level")
+    appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: unset]", default=None)
     appraise_plot_group = appraise_parser.add_argument_group("Plotting-related options")
     appraise_plot_group.add_argument('--plot', help='Output plot SVG filename (marker chosen automatically unless --plot-marker is also specified)', default=None)
     appraise_plot_group.add_argument('--plot-marker', help='Marker gene to plot OTUs from', default=None)
@@ -913,8 +915,9 @@ if __name__ == '__main__':
                                 force = args.force)
     elif args.subparser_name == 'appraise':
         from singlem.otu_table_collection import OtuTableCollection
-        from singlem.appraiser import Appraiser
+        from singlem.appraiser import Appraiser, AppraiseMaxDivergenceCutoffs
         from singlem.metapackage import Metapackage
+        import polars as pl
 
         if not args.metagenome_otu_tables and not args.metagenome_archive_otu_tables:
             raise Exception("Appraise requires metagenome OTU tables or archive tables")
@@ -923,6 +926,18 @@ if __name__ == '__main__':
             raise Exception("Appraise archive output format requires metagenome archive input")
 
         appraiser = Appraiser()
+
+        if args.imperfect and not args.sequence_identity:
+            if not args.taxa_level_cutoff:
+                raise Exception("Appraise imperfect requires either taxa-level-cutoff or sequence-identity input")
+
+            taxa_level_cutoffs = AppraiseMaxDivergenceCutoffs.from_polars(
+                pl.read_json(args.taxa_level_json),
+                taxa_level = args.taxa_level_cutoff,
+                window_size = DEFAULT_WINDOW_SIZE
+                )
+        else:
+            taxa_level_cutoffs = None
 
         metagenomes = OtuTableCollection()
         if args.metagenome_otu_tables:
@@ -993,6 +1008,7 @@ if __name__ == '__main__':
                                 assembly_otu_table_collection=assemblies,
                                 output_found_in = args.output_found_in,
                                 imperfect = args.imperfect,
+                                taxa_level_cutoffs = taxa_level_cutoffs,
                                 sequence_identity=(args.sequence_identity if args.imperfect else None),
                                 packages=pkgs,
                                 window_size=DEFAULT_WINDOW_SIZE)
