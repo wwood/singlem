@@ -21,7 +21,7 @@ There are several tools (subcommands) which can be used after [installation](/In
 And more specialised / expert modes:
 
 * [singlem condense](/advanced/condense) - Given an OTU table, summarise the results into a taxonomic profile.
-* [singlem makedb](/advanced/makedb) & [query](/advanced/query)- Create a database from an OTU table, for sequence similarity searching.
+* [singlem makedb](/advanced/makedb) & [query](/advanced/query)- Create a database of OTU sequences and query it using various sequence similarity methods e.g. [smafa](https://github.com/wwood/smafa).
 
 ## Help
 If you have any questions or comments, raise a [GitHib issue](https://github.com/wwood/singlem/issues) or just send us an [email](https://research.qut.edu.au/cmr/team/ben-woodcroft/).
