@@ -9,7 +9,7 @@ The main idea of SingleM is to profile metagenomes by targeting short 20 amino a
 
 There are several main sub-tools, after [installation](/Installation):
 
-* [singlem pipe](/tools/pipe) - the main workflow (`singlem pipe`) which generates OTU tables and [GTDB](https://gtdb.ecogenomic.org/) taxonomic profiles. 
+* [singlem pipe](/tools/pipe) - the main workflow which generates OTU tables and [GTDB](https://gtdb.ecogenomic.org/) taxonomic profiles. 
 * [single summarise](/tools/summarise) - Mechanical transformations of a `singlem pipe` results.
 * [singlem renew](/tools/renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
 * [singlem supplement](/tools/supplement) - Add new genomes to a reference metapackage.
@@ -26,7 +26,25 @@ If you have any questions or comments, raise a [GitHib issue](https://github.com
 
 ### Glossary
 
-* **OTU table** - A table containing window sequences per metagenome/contig and marker gene. It may be in default form (a TSV with 6 columns, like below), or an extended form with more detail in further columns. Columns:
+* **Taxonomic profile** - A tab-separated table containing the estimated abundances of GTDB taxons in a metagenome. It is in TSV format with 3 columns, with each row corresponding to a taxon. A taxonomic profile may also be called a **condensed profile**, since it is the output of the `condense` algorithm within the main `pipe` workflow. Columns:
+  1. sample name
+  2. coverage of that taxon. This is an approximation of the total read coverage of all genomes from this taxon. However, note that this coverage does not include the coverage of sub-taxons. For instance, the coverage of a species is not included in the coverage shown for its genus.
+  3. taxonomy string of the taxon
+```
+sample	coverage	taxonomy
+ERR1914274	0	Root
+ERR1914274	3.16	Root; d__Bacteria
+ERR1914274	0	Root; d__Bacteria; p__Pseudomonadota
+ERR1914274	0.06	Root; d__Bacteria; p__Pseudomonadota; c__Gammaproteobacteria
+ERR1914274	0	Root; d__Bacteria; p__Bacillota_A
+ERR1914274	0.61	Root; d__Bacteria; p__Bacillota_A; c__Clostridia
+ERR1914274	0	Root; d__Bacteria; p__Bacteroidota
+ERR1914274	0.39	Root; d__Bacteria; p__Bacteroidota; c__Bacteroidia
+ERR1914274	0	Root; d__Bacteria; p__Bacillota
+...
+```
+
+* **OTU table** - A table containing window sequences per metagenome/contig and marker gene. It may be in default form (a TSV with 6 columns, like below), or an extended form with more detail in further columns. The default OTU table output from `singlem pipe`, `renew` and `summarise` has 6 columns, with one sequence per row. Columns:
   1. marker name
   2. sample name
   3. sequence of the OTU
@@ -39,12 +57,18 @@ gene    sample  sequence        num_hits        coverage        taxonomy
 4.21.ribosomal_protein_S19_rpsS my_sequences  TGGTCGCGGCGCTCAACCATTCTGCCCGAGTTCGTCGGCCACACCGTGGCCGTTCACAAC    1       1.64    Root; d__Bacteria; p__Acidobacteria; c__Solibacteres; o__Solibacterales; f__Solibacteraceae; g__Candidatus_Solibacter; s__Candidatus_Solibacter_usitatus
 ```
 
-The extended OTU form generated with the `--output-extras` option to `singlem pipe`, `renew` and `summarise`, has further columns.
+The extended OTU form generated with the `--output-extras` option to `singlem pipe`, `renew` and `summarise`, has further columns:
 
-* **Archive OTU table** - Similar to an OTU table with `--output-extras`, but in JSON form for machine readability.
-* **SingleM package** - Reference data for one particular marker gene.
+  7. read_names - the names of the reads which encode the OTU sequence
+  8. nucleotides_aligned - the number of nucleotides which aligned to the window (usually 60, but can be more or less if there are gaps or inserts)
+  9. taxonomy_by_known? - whether the taxonomy of the OTU was determined by known genomes (TRUE) or by the reads themselves (FALSE). Currenrly this is a disused column and is always marked FALSE.
+  10. read_unaligned_sequences - the raw sequences of the reads which encode the OTU sequence
+  11. equal_best_hit_taxonomies - the taxonomies of the best hits to the OTU sequence, if there are multiple equally good hits. This is a JSON array of strings.
+
+* **Archive OTU table** - Similar to an OTU table with `--output-extras`, but in JSON form for machine readability and with formatting version recorded. The `renew` subcommand which re-analyses a dataset requires this format of OTU table rather than the default tab-separated OTU table format.
+* **SingleM package** - Reference data for one particular marker gene and its window position.
 * **SingleM metapackage** - A collection of SingleM packages, with additional indices.
-* **SingleM database** - An OTU table which has been converted to SQLite3 format and sequence similarity search indexes.
+* **SingleM database** - An OTU table which has been converted to SQLite3 format and sequence similarity search indexes. Canonically SingleM databases are named with the `.sdb` extension, but this is not enforced. SingleM databases are created with the `makedb` subcommand, and queried with the `query` subcommand.
 
 ### FAQ
 #### Can you target the 16S rRNA gene instead of the default set of single copy marker genes with SingleM?
