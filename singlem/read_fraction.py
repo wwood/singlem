@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
-from queue import PriorityQueue
+from heapq import heappush, heappushpop
 
 import extern
 
@@ -131,7 +131,8 @@ class ReadFractionEstimator:
                 class PrioritizedTaxon:
                     priority: float # Negative of relabund to make it a max queue
                     taxon: str
-                highest_unknown_taxon_names = PriorityQueue(maxsize=num_unknown_taxa_accounted_for)
+                highest_unknown_taxon_names = []
+                min_unknown_taxon_priority = 0 # To bound the size of the heapq
                 for node in profile.breadth_first_iter():
                     taxonomy = node.word
                     if taxonomy == 'Root': continue # More likely false positive hits, I guess.
@@ -145,18 +146,25 @@ class ReadFractionEstimator:
                         if '__' not in taxonomy or node.calculate_level() > 7:
                             raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for read_fraction, since read_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
                         if 's__' not in taxonomy:
-                            highest_unknown_taxon_names.put(PrioritizedTaxon(-node.coverage, taxonomy))
+                            if node.coverage > min_unknown_taxon_priority:
+                                if len(highest_unknown_taxon_names) < num_unknown_taxa_accounted_for:
+                                    # At start when queue is not full, don't remove anything
+                                    heappush(highest_unknown_taxon_names, PrioritizedTaxon(-node.coverage, taxonomy))
+                                else:
+                                    heappushpop(highest_unknown_taxon_names, PrioritizedTaxon(-node.coverage, taxonomy))
+                                    # minus minus since we want to remove the lowest priority
+                                    min_unknown_taxon_priority = -highest_unknown_taxon_names[-1].priority
+
                     if contribution > 0 and output_per_taxon_read_fractions:
                         print("%s\t%s\t%s" % (sample, taxonomy, contribution),
                             file=output_per_taxon_read_fractions_fh)
                 
                 if output_style == 'mean_min_max':
-
-                    highest_unknown_taxa = list(highest_unknown_taxon_names.queue)
+                    highest_unknown_taxa = highest_unknown_taxon_names
                     highest_unknown_taxa_sum = sum([-x.priority * taxonomic_genome_lengths[x.taxon].mean for x in highest_unknown_taxa])
                     doubled_account = account + highest_unknown_taxa_sum
                     halved_account = account - (highest_unknown_taxa_sum / 2)
-                    if doubled_account / account > 0.1 or \
+                    if doubled_account / account > 1.1 or \
                         halved_account / account < 0.9:
                         warning = "WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate."
                     else:
@@ -174,7 +182,7 @@ class ReadFractionEstimator:
                         # "highest_unknown_taxons_doubled",
                         doubled_account / metagenome_size * 100,
                         # "highest_unknown_taxons_doubled_change",
-                        doubled_account / account * 100,
+                        (doubled_account / account - 1) * 100,
                         # "highest_unknown_taxons_halved",
                         halved_account / metagenome_size * 100,
                         # "highest_unknown_taxons_halved_change",
