@@ -4,6 +4,7 @@ import json
 import os
 import sys
 from dataclasses import dataclass
+from queue import PriorityQueue
 
 import extern
 
@@ -85,10 +86,23 @@ class ReadFractionEstimator:
                 raise Exception("Must specify either a metagenome sizes file or read files.")
             metagenome_sizes = self._get_stems_and_read_files(forward_read_files, reverse_read_files)
             
-
         # Iterate through the input profile, calculating the read fraction for each sample
         if output_style == 'mean_min_max':
-            print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction\tmin_bases\tmin_read_fraction\tmax_bases\tmax_read_fraction", file=output_fh)
+            print("\t".join([
+                "sample",
+                "bacterial_archaeal_bases",
+                "metagenome_size",
+                "read_fraction",
+                "min_bases",
+                "min_read_fraction",
+                "max_bases",
+                "max_read_fraction",
+                "highest_unknown_taxons_doubled",
+                "highest_unknown_taxons_doubled_change",
+                "highest_unknown_taxons_halved",
+                "highest_unknown_taxons_halved_change",
+                "warning"]),
+                file=output_fh)
         elif output_style == 'mean':
             print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction", file=output_fh)
         else:
@@ -111,6 +125,13 @@ class ReadFractionEstimator:
                 account = 0
                 account_min = 0
                 account_max = 0
+                # Priority queue with highest abundances first
+                num_unknown_taxa_accounted_for = 3
+                @dataclass(order=True)
+                class PrioritizedTaxon:
+                    priority: float # Negative of relabund to make it a max queue
+                    taxon: str
+                highest_unknown_taxon_names = PriorityQueue(maxsize=num_unknown_taxa_accounted_for)
                 for node in profile.breadth_first_iter():
                     taxonomy = node.word
                     if taxonomy == 'Root': continue # More likely false positive hits, I guess.
@@ -121,13 +142,27 @@ class ReadFractionEstimator:
                     if output_style == 'mean_min_max':
                         account_min += node.coverage * taxonomic_genome_lengths[taxonomy].minimum
                         account_max += node.coverage * taxonomic_genome_lengths[taxonomy].maximum
-
+                        if '__' not in taxonomy or node.calculate_level() > 7:
+                            raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for read_fraction, since read_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
+                        if 's__' not in taxonomy:
+                            highest_unknown_taxon_names.put(PrioritizedTaxon(-node.coverage, taxonomy))
                     if contribution > 0 and output_per_taxon_read_fractions:
                         print("%s\t%s\t%s" % (sample, taxonomy, contribution),
                             file=output_per_taxon_read_fractions_fh)
                 
                 if output_style == 'mean_min_max':
-                    print("%s\t%s\t%s\t%0.2f%%\t%s\t%0.2f%%\t%s\t%0.2f%%" % (
+
+                    highest_unknown_taxa = list(highest_unknown_taxon_names.queue)
+                    highest_unknown_taxa_sum = sum([-x.priority * taxonomic_genome_lengths[x.taxon].mean for x in highest_unknown_taxa])
+                    doubled_account = account + highest_unknown_taxa_sum
+                    halved_account = account - (highest_unknown_taxa_sum / 2)
+                    if doubled_account / account > 0.1 or \
+                        halved_account / account < 0.9:
+                        warning = "WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate."
+                    else:
+                        warning = ""
+
+                    print("%s\t%s\t%s\t%0.2f%%\t%s\t%0.2f%%\t%s\t%0.2f%%\t%0.2f%%\t%0.2f%%\t%0.2f%%\t%0.2f%%\t%s" % (
                         sample,
                         round(account),
                         metagenome_size,
@@ -135,8 +170,16 @@ class ReadFractionEstimator:
                         account_min,
                         account_min / metagenome_size * 100,
                         account_max,
-                        account_max / metagenome_size * 100
-                        ),
+                        account_max / metagenome_size * 100,
+                        # "highest_unknown_taxons_doubled",
+                        doubled_account / metagenome_size * 100,
+                        # "highest_unknown_taxons_doubled_change",
+                        doubled_account / account * 100,
+                        # "highest_unknown_taxons_halved",
+                        halved_account / metagenome_size * 100,
+                        # "highest_unknown_taxons_halved_change",
+                        (1 - halved_account / account) * 100,
+                        warning),
                         file=output_fh)
                 elif output_style == 'mean':
                     print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100),
