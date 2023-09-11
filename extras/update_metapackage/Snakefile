@@ -17,6 +17,7 @@ hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
+checkm2_output_dirs = '/work/microbiome/msingle/mess/118_read_fraction_underrepresentation/gtdb_rep_checkms' # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
 
 print("Finding genomes...")
 genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
@@ -293,7 +294,20 @@ rule create_SingleM_metapackage:
 #######################################
 ### Mean genome size table creation ###
 #######################################
+rule checkm2_gather: # In future presumably this data will be available form the GTDB metadata
+    input:
+        checkm2_output_dirs = checkm2_output_dirs,
+    output:
+        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv"
+        done = touch(output_dir + "/checkm2_gather.done")
+    log:
+        logs_dir + "/checkm2_gather.log"
+    shell:
+        "grep -hv Completeness {input.checkm2_output_dirs}/*.checkm2/quality_report.tsv > {output.gtdb_checkm2_grepped} 2> {log}"
+
 rule calculate_mean_genome_size:
+    input:
+        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv"
     output:
         output_dir + "/gtdb_mean_genome_sizes.tsv"
     params:
@@ -306,7 +320,7 @@ rule calculate_mean_genome_size:
         "envs/calculate_mean_genome_size.yml"
     shell:
         """
-        Rscript scripts/genome_size_from_gtdb.R {params.gtdb_bac_metadata} {params.gtdb_arc_metadata} {output_dir}
+        scripts/genome_size_from_gtdb.py --checkm2-grep {input.gtdb_checkm2_grepped} --gtdb-bac-metadata {params.gtdb_bac_metadata} --gtdb-ar-metadata {params.gtdb_arc_metadata} > {output} 2> {log}
         """
 
 ###########################
