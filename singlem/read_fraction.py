@@ -15,8 +15,6 @@ from .singlem import FastaNameToSampleName
 @dataclass
 class GenomeSizeStruct:
     mean: float
-    minimum: float
-    maximum: float
 
 class ReadFractionEstimator:
     def calculate_and_report_read_fraction(self, **kwargs):
@@ -58,14 +56,8 @@ class ReadFractionEstimator:
         if 'genome_size' not in taxonomic_genome_lengths_df.columns:
             raise Exception("Taxonomic genome lengths file must have a 'genome_size' column.")
         taxonomic_genome_lengths = {}
-        output_style = 'mean_min_max' if 'min_genome_size' in taxonomic_genome_lengths_df.columns and \
-            'max_genome_size' in taxonomic_genome_lengths_df.columns else 'mean'
         for _, row in taxonomic_genome_lengths_df.iterrows():
-            if output_style == 'mean_min_max':
-                taxonomic_genome_lengths[row['rank']] = GenomeSizeStruct(
-                    row['genome_size'], row['min_genome_size'], row['max_genome_size'])
-            else:
-                taxonomic_genome_lengths[row['rank']] = GenomeSizeStruct(row['genome_size'], None, None)
+            taxonomic_genome_lengths[row['rank']] = GenomeSizeStruct(row['genome_size'])
         logging.info("Read taxonomic genome lengths for %i rank(s)." % len(taxonomic_genome_lengths))
 
         # Read in the metagenome sizes
@@ -87,26 +79,14 @@ class ReadFractionEstimator:
             metagenome_sizes = self._get_stems_and_read_files(forward_read_files, reverse_read_files)
             
         # Iterate through the input profile, calculating the read fraction for each sample
-        if output_style == 'mean_min_max':
-            print("\t".join([
-                "sample",
-                "bacterial_archaeal_bases",
-                "metagenome_size",
-                "read_fraction",
-                "min_bases",
-                "min_read_fraction",
-                "max_bases",
-                "max_read_fraction",
-                "highest_unknown_taxons_doubled",
-                "highest_unknown_taxons_doubled_change",
-                "highest_unknown_taxons_halved",
-                "highest_unknown_taxons_halved_change",
-                "warning"]),
-                file=output_fh)
-        elif output_style == 'mean':
-            print("sample\tbacterial_archaeal_bases\tmetagenome_size\tread_fraction", file=output_fh)
-        else:
-            raise Exception("Programming error")
+        print("\t".join([
+            "sample",
+            "bacterial_archaeal_bases",
+            "metagenome_size",
+            "read_fraction",
+            "warning"]),
+            file=output_fh)
+
         if output_per_taxon_read_fractions:
             print("sample\ttaxonomy\tbase_contribution", file=output_per_taxon_read_fractions_fh)
         num_samples = 0
@@ -123,77 +103,59 @@ class ReadFractionEstimator:
 
                 # Calculate the read fraction. This is the coverage of each taxon multiplied by its average genome size.
                 account = 0
-                account_min = 0
-                account_max = 0
                 # Priority queue with highest abundances first
                 num_unknown_taxa_accounted_for = 3
                 @dataclass(order=True)
                 class PrioritizedTaxon:
-                    priority: float # Negative of relabund to make it a max queue
+                    priority: float  # Negative of relabund to make it a max queue
                     taxon: str
+
                 highest_unknown_taxon_names = []
-                min_unknown_taxon_priority = 0 # To bound the size of the heapq
+                min_unknown_taxon_priority = 0  # To bound the size of the heapq
+
                 for node in profile.breadth_first_iter():
                     taxonomy = node.word
-                    if taxonomy == 'Root': continue # More likely false positive hits, I guess.
+                    if taxonomy == 'Root':
+                        continue  # More likely false positive hits, I guess.
                     if taxonomy not in taxonomic_genome_lengths:
                         raise Exception("Taxonomy '%s' in profile not found in taxonomic genome lengths file." % taxonomy)
                     contribution = node.coverage * taxonomic_genome_lengths[taxonomy].mean
                     account += contribution
-                    if output_style == 'mean_min_max':
-                        account_min += node.coverage * taxonomic_genome_lengths[taxonomy].minimum
-                        account_max += node.coverage * taxonomic_genome_lengths[taxonomy].maximum
-                        if '__' not in taxonomy or node.calculate_level() > 7:
-                            raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for read_fraction, since read_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
-                        if 's__' not in taxonomy:
-                            if node.coverage > min_unknown_taxon_priority:
-                                if len(highest_unknown_taxon_names) < num_unknown_taxa_accounted_for:
-                                    # At start when queue is not full, don't remove anything
-                                    heappush(highest_unknown_taxon_names, PrioritizedTaxon(-node.coverage, taxonomy))
-                                else:
-                                    heappushpop(highest_unknown_taxon_names, PrioritizedTaxon(-node.coverage, taxonomy))
-                                    # minus minus since we want to remove the lowest priority
-                                    min_unknown_taxon_priority = -highest_unknown_taxon_names[-1].priority
+
+                    if '__' not in taxonomy or node.calculate_level() > 7:
+                        raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for read_fraction, since read_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
+                    if 's__' not in taxonomy:
+                        if node.coverage > min_unknown_taxon_priority:
+                            if len(highest_unknown_taxon_names) < num_unknown_taxa_accounted_for:
+                                # At start when queue is not full, don't remove anything
+                                heappush(highest_unknown_taxon_names, PrioritizedTaxon(-node.coverage, taxonomy))
+                            else:
+                                heappushpop(highest_unknown_taxon_names, PrioritizedTaxon(-node.coverage, taxonomy))
+                                # minus minus since we want to remove the lowest priority
+                                min_unknown_taxon_priority = -highest_unknown_taxon_names[-1].priority
 
                     if contribution > 0 and output_per_taxon_read_fractions:
                         print("%s\t%s\t%s" % (sample, taxonomy, contribution),
                             file=output_per_taxon_read_fractions_fh)
                 
-                if output_style == 'mean_min_max':
                     highest_unknown_taxa = highest_unknown_taxon_names
                     highest_unknown_taxa_sum = sum([-x.priority * taxonomic_genome_lengths[x.taxon].mean for x in highest_unknown_taxa])
                     doubled_account = account + highest_unknown_taxa_sum
                     halved_account = account - (highest_unknown_taxa_sum / 2)
-                    if doubled_account / account > 1.1 or \
-                        halved_account / account < 0.9:
+                    warning_threshold = 0.03
+                    if (doubled_account / metagenome_size - account / metagenome_size) > warning_threshold or \
+                        (account / metagenome_size - halved_account / metagenome_size) > warning_threshold:
                         warning = "WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate."
                     else:
                         warning = ""
 
-                    print("%s\t%s\t%s\t%0.2f%%\t%s\t%0.2f%%\t%s\t%0.2f%%\t%0.2f%%\t%0.2f%%\t%0.2f%%\t%0.2f%%\t%s" % (
-                        sample,
-                        round(account),
-                        metagenome_size,
-                        account / metagenome_size * 100,
-                        account_min,
-                        account_min / metagenome_size * 100,
-                        account_max,
-                        account_max / metagenome_size * 100,
-                        # "highest_unknown_taxons_doubled",
-                        doubled_account / metagenome_size * 100,
-                        # "highest_unknown_taxons_doubled_change",
-                        (doubled_account / account - 1) * 100,
-                        # "highest_unknown_taxons_halved",
-                        halved_account / metagenome_size * 100,
-                        # "highest_unknown_taxons_halved_change",
-                        (1 - halved_account / account) * 100,
-                        warning),
-                        file=output_fh)
-                elif output_style == 'mean':
-                    print("%s\t%s\t%s\t%0.2f%%" % (sample, account, metagenome_size, account / metagenome_size * 100),
-                        file=output_fh)
-                else:
-                    raise Exception("Programming error")
+                print("%s\t%s\t%s\t%0.2f%%\t%s" % (
+                    sample,
+                    account,
+                    metagenome_size,
+                    account / metagenome_size * 100,
+                    warning),
+                    file=output_fh)
 
                 num_samples += 1
         logging.info("Calculated read fractions for %d samples." % num_samples)
