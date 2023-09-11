@@ -149,11 +149,15 @@ class ReadFractionEstimator:
                     else:
                         warning = ""
 
+                final_estimate = account / metagenome_size * 100
+                if final_estimate > 100:
+                    final_estimate = 100
+
                 print("%s\t%s\t%s\t%0.2f%%\t%s" % (
                     sample,
-                    account,
+                    round(account),
                     metagenome_size,
-                    account / metagenome_size * 100,
+                    final_estimate,
                     warning),
                     file=output_fh)
 
