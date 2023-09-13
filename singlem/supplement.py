@@ -752,7 +752,10 @@ class Supplementor:
             genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
                 working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
 
-            old_metapackage = Metapackage.acquire(input_metapackage)
+            if input_metapackage is None:
+                old_metapackage = Metapackage.acquire_default()
+            else:
+                old_metapackage = Metapackage.acquire(input_metapackage)
 
             if new_taxonomies:
                 taxonomy_file = new_taxonomies

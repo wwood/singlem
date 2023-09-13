@@ -39,7 +39,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 singlem_base_directory = os.path.join(os.path.dirname(__file__), '..')
 # TODO: Once GTDBtk can be included in conda env (as of diamond 2.1.7 likely), remove the added PATH entry
 singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
-run = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
+run_supplement = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
 singlem = f"{singlem_bin_directory}/singlem"
 
 class Tests(unittest.TestCase):
@@ -85,7 +85,8 @@ class Tests(unittest.TestCase):
     @pytest.mark.skipif(os.environ.get("SINGLEM_METAPACKAGE_PATH") is None, reason="Appear to be running in CI")
     def test_supplement_with_extra_taxon_genome_lengths(self):
         with in_tempdir():
-            cmd = f"{path_to_script} --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
+            # TODO: Once galah 0.4 is released, remove the --no-dereplication flag
+            cmd = f"{run_supplement} --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --new-taxonomies {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
             extern.run(cmd)
 
             cmd2 = f'{singlem} pipe --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'

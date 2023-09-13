@@ -398,4 +398,6 @@ class Metapackage:
         except AttributeError:
             # Happens when version < 3 or metapackage created from spkgs directly
             return None
+        if tsv is None:
+            return None
         return pd.read_csv(tsv, sep='\t')
