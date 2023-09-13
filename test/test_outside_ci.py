@@ -36,6 +36,7 @@ from bird_tool_utils import in_tempdir
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
+singlem_base_directory = os.path.join(os.path.dirname(__file__), '..')
 # TODO: Once GTDBtk can be included in conda env (as of diamond 2.1.7 likely), remove the added PATH entry
 singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
 run = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
