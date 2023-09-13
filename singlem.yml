@@ -36,6 +36,7 @@ dependencies:
   - prodigal
   - tqdm
   - pyarrow
+  # - galah >= 0.4.0 # 0.4.0 is the first version with checkm2 quality inputs, but not yet released 
   - pytest # For testing only
   - ipython # For testing only
   # - python-annoy optional

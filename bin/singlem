@@ -486,7 +486,7 @@ if __name__ == '__main__':
         '--new-taxonomies',
         help='newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
     )
-    supplement_parser.add_argument('--input-metapackage', help='metapackage to build upon', required=True)
+    supplement_parser.add_argument('--input-metapackage', help='metapackage to build upon [default: Use default package]')
     supplement_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
     supplement_parser.add_argument('--threads', help='parallelisation', type=int, default=1)
     supplement_parser.add_argument('--pplacer-threads', help='for GTDBtk classify_wf', type=int)
