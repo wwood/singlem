@@ -57,6 +57,7 @@ from .pipe import SearchPipe
 from .sequence_database import SequenceDatabaseOtuTable, SequenceDatabase
 from .checkm2 import CheckM2
 from .otu_table_entry import OtuTableEntry
+from .genome_size import GenomeSizes
 
 taxonomy_prefixes = ['d__', 'p__', 'c__', 'o__', 'f__', 'g__', 's__']
 genome_file_suffixes = ['.fna', '.fa', '.fasta', '.fna.gz', '.fa.gz', '.fasta.gz']
@@ -405,7 +406,8 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
 
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage, new_genome_fasta_files,
-                             new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue):
+                             new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue,
+                             checkm2_quality_file, no_taxon_genome_lengths):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
@@ -419,8 +421,18 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
     if len(genome_to_taxonomy) != len(new_genome_fasta_files) or len(genome_to_taxonomy) == 0:
         raise Exception("Unexpected number of genomes with taxonomy vs. fasta files")
 
-    logging.info("Gathering OTUs from new genomes ..")
+    # Recalculate genome sizes for each species and higher level taxon
+    if not no_taxon_genome_lengths:
+        logging.info("Recalculating genome sizes for each species and higher level taxon ..")
+        new_genome_sizes = recalculate_genome_sizes(
+            old_metapackage,
+            genome_to_taxonomy,
+            checkm2_quality_file,
+            new_genome_fasta_files)
+        taxon_genome_lengths_tmpfile = tempfile.NamedTemporaryFile(mode='w')
+        new_genome_sizes.write_csv(taxon_genome_lengths_tmpfile.name, separator='\t')
 
+    logging.info("Gathering OTUs from new genomes ..")
     matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage,
                                                        new_genome_transcripts_and_proteins, hmmsearch_evalue)
     if matched_transcripts_fna is None:
@@ -479,7 +491,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
 
     # For each spkg in the old mpkg, create a new spkg
     to_process = [(working_directory, spkg, matched_transcripts_fna, sequence_to_genome, genome_to_taxonomy)
-                  for spkg in old_metapackage.singlem_packages]
+                for spkg in old_metapackage.singlem_packages]
     if num_threads > 1:
         new_spkg_paths = Pool(num_threads).map(generate_new_singlem_package, to_process)
     else:
@@ -488,13 +500,16 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
     # Create a new metapackage from the singlem packages
     logging.info("Creating new metapackage ..")
     Metapackage.generate(singlem_packages=new_spkg_paths,
-                         nucleotide_sdb=new_metapackage_sdb_path,
-                         prefilter_diamond_db=old_metapackage.prefilter_db_path(),
-                         output_path=new_metapackage_path,
-                         threads=num_threads,
-                         prefilter_clustering_threshold=None,
-                         taxon_genome_lengths=None)
+                        nucleotide_sdb=new_metapackage_sdb_path,
+                        prefilter_diamond_db=old_metapackage.prefilter_db_path(),
+                        output_path=new_metapackage_path,
+                        threads=num_threads,
+                        prefilter_clustering_threshold=None,
+                        taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
+
+    if not no_taxon_genome_lengths:
+        taxon_genome_lengths_tmpfile.close()
 
     return new_metapackage_path
 
@@ -505,6 +520,75 @@ class TranscriptsAndProteins:
         self.transcript_fasta = None
         self.protein_fasta = None
         self.translation_table = None
+
+
+def recalculate_genome_sizes(
+        old_metapackage,
+        genome_to_taxonomy,
+        checkm2_quality_file,
+        new_genome_fasta_files):
+
+    # Read old taxon lengths, just recording the species-level ones
+    old_taxon_lengths = {}
+    old_metapackage_taxon_lengths = old_metapackage.taxon_genome_lengths()
+    if old_metapackage_taxon_lengths is None:
+        raise Exception("Supplement mode requires an input metapackage which has included taxon genome lengths")
+
+    for row in pl.DataFrame(old_metapackage_taxon_lengths).rows(named=True):
+        # rank    genome_size
+        rank = row['rank']
+        if rank.startswith('s__'):
+            old_taxon_lengths[row['rank']] = row['genome_size']
+    logging.info("Read {} species-level taxon lengths from old metapackage".format(len(old_taxon_lengths)))
+    
+    # Map previous rank IDs, which are in the form of "s__xxx", to fully defined taxons
+    old_taxonomies = old_metapackage.get_all_taxonomy_strings()
+    logging.debug("Read {} full taxonomy strings from old metapackage".format(len(old_taxonomies)))
+    species_to_full = {}
+    for taxonomy in old_taxonomies:
+        species_to_full[taxonomy.split(';')[-1]] = taxonomy
+    gc = pl.DataFrame(
+        {'species': old_taxon_lengths.keys()}
+    )
+    gc = gc.with_columns(pl.lit([species_to_full[s] for s in gc['species']]).alias('gtdb_taxonomy'))
+    gc = gc.with_columns(pl.lit([old_taxon_lengths[s] for s in gc['species']]).alias('genome_size'))
+
+    # Add new genomes to the species-level taxon lengths
+    # First read checkm2 estimate
+    checkm2 = CheckM2(checkm2_quality_file)
+
+    new_taxon_lengths = {}
+    for genome_fasta in new_genome_fasta_files:
+        observed_length = calculate_genome_length(genome_fasta)
+        checkm_stats = checkm2.get_stats(FastaNameToSampleName.fasta_to_name(genome_fasta))
+        
+        corrected_length = GenomeSizes.corrected_genome_size(observed_length, checkm_stats.completeness, checkm_stats.contamination)
+        taxonomy = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome_fasta)]
+
+        new_taxon_lengths[taxonomy] = corrected_length
+
+    news = pl.DataFrame(
+        {'gtdb_taxonomy': new_taxon_lengths.keys()}
+    )
+    news = news.with_columns(pl.lit([new_taxon_lengths[n] for n in news['gtdb_taxonomy']]).alias('genome_size'))
+
+    gc = pl.concat([
+        gc.select(['gtdb_taxonomy', 'genome_size']),
+        news
+    ])
+
+    # Calculate the genome lengths for each taxon level
+    all_rank_genome_sizes = GenomeSizes.calculate_rank_genome_sizes(gc['gtdb_taxonomy'], gc['genome_size'])
+
+    # Return dataframe of taxon lengths in same shape as metapackage.generate expects
+    return all_rank_genome_sizes.select(['rank', 'genome_size'])
+
+def calculate_genome_length(fasta_path):
+    with open(fasta_path) as f:
+        total_length = 0
+        for name, seq, _ in SeqReader().readfq(f):
+            total_length += len(seq)
+        return total_length
 
 
 def run_prodigal_on_one_genome(params):
@@ -616,6 +700,7 @@ class Supplementor:
         no_dereplication = kwargs.pop('no_dereplication')
         dereplicate_with_galah = kwargs.pop('dereplicate_with_galah')
         skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
+        no_taxon_genome_lengths = kwargs.pop('no_taxon_genome_lengths')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -656,7 +741,7 @@ class Supplementor:
             if no_dereplication:
                 pass
             elif dereplicate_with_galah:
-                logging.info("Dereplicating new genomes using GALAH ..")
+                logging.info("Dereplicating new genomes using Galah ..")
                 new_genome_fasta_files = dereplicate_genomes_with_galah(
                     threads=threads, genomes_to_dereplicate=new_genome_fasta_files, checkm2_quality_file=checkm2_quality_file)
             else:
@@ -693,7 +778,8 @@ class Supplementor:
             logging.info("Generating new SingleM packages and metapackage ..")
             new_metapackage = generate_new_metapackage(threads, working_directory, old_metapackage,
                                                        new_genome_fasta_files, taxonomy_file,
-                                                       genome_transcripts_and_proteins, hmmsearch_evalue)
+                                                       genome_transcripts_and_proteins, hmmsearch_evalue,
+                                                       checkm2_quality_file, no_taxon_genome_lengths)
 
             if new_metapackage is not None:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))

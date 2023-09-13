@@ -70,6 +70,12 @@ class MetapackageReadNameStore:
             raise Exception("Not all read names found in metapackage sqlite3 database")
         return to_return
 
+    def get_all_taxonomy_strings(self):
+        '''Return a list of all taxonomy strings recorded in the database'''
+        stmt = select(ReadNameTaxonomy.taxonomy).distinct()
+        with self.engine.connect() as conn:
+            return list([res.taxonomy for res in conn.execute(stmt)])
+
 class ReadNameTaxonomy(Base):
     __tablename__ = "read_name_taxonomy"
 
