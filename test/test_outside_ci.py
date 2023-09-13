@@ -36,6 +36,11 @@ from bird_tool_utils import in_tempdir
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
+# TODO: Once GTDBtk can be included in conda env (as of diamond 2.1.7 likely), remove the added PATH entry
+singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
+run = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
+singlem = f"{singlem_bin_directory}/singlem"
+
 class Tests(unittest.TestCase):
     '''Tests which require a full metapackage installation to run, so can't be run through GitHub actions.'''
     maxDiff = None
@@ -66,8 +71,7 @@ class Tests(unittest.TestCase):
         '''Test the condense CLI.'''
         with in_tempdir():
             cmd1 = "{} pipe --genome-fasta-files {}/methanobacteria/transcriptomes/GB_GCA_000309865.1_protein.fna --archive-otu-table {}".format(
-                path_to_script,path_to_data,'mbac.json')
-            # import IPython; IPython.embed()
+                path_to_script, path_to_data, 'mbac.json')
             extern.run(cmd1)
             cmd = "{} condense --input-archive-otu-table mbac.json -p /dev/stdout".format(path_to_script)
             observed = extern.run(cmd)
@@ -75,7 +79,25 @@ class Tests(unittest.TestCase):
                 ['sample  coverage        taxonomy',
                 'GB_GCA_000309865.1_protein      1.12    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n'])
             self.assert_equal_taxonomic_profile(observed, expected)
-        
+
+    # This test takes a long time - like 1+ hours.
+    @pytest.mark.skipif(os.environ.get("SINGLEM_METAPACKAGE_PATH") is None, reason="Appear to be running in CI")
+    def test_supplement_with_extra_taxon_genome_lengths(self):
+        with in_tempdir():
+            cmd = f"{path_to_script} --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
+            extern.run(cmd)
+
+            cmd2 = f'{singlem} pipe --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
+            output = extern.run(cmd2)
+            expected = [
+                "\t".join(self.headers),
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
+            ]
+            self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
+            import IPython; IPython.embed()
+
+
 if __name__ == "__main__":
     import logging
     # logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')

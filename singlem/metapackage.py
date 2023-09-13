@@ -373,6 +373,10 @@ class Metapackage:
         store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
         return store.get_taxonomy_of_reads(read_names)
 
+    def get_all_taxonomy_strings(self):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_all_taxonomy_strings()
+
     def nucleotide_sdb(self):
         # import here so that we avoid tensorflow dependency if not needed
         from .sequence_database import SequenceDatabase

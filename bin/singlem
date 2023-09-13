@@ -497,9 +497,9 @@ if __name__ == '__main__':
     supplement_parser.add_argument(
         '--output-taxonomies',
         help='TSV output file of taxonomies of new genomes, whether they are novel species or not.')
-    checkm_mut_group = supplement_parser.add_mutually_exclusive_group(required=True)
-    checkm_mut_group.add_argument('--checkm2-quality-file', help='CheckM2 quality file of new genomes')
-    checkm_mut_group.add_argument('--no-quality-filter', help='skip quality filtering', action='store_true')
+    supplement_parser.add_argument('--checkm2-quality-file', help='CheckM2 quality file of new genomes')
+    supplement_parser.add_argument('--no-quality-filter', help='skip quality filtering', action='store_true')
+    supplement_parser.add_argument('--no-taxon-genome-lengths', help='Do not include taxon genome lengths in updated metapackage', action='store_true')
     dereplication_mut_group = supplement_parser.add_mutually_exclusive_group(required=True)
     dereplication_mut_group.add_argument('--no-dereplication', help='Assume genome inputs are already dereplicated', action='store_true')
     dereplication_mut_group.add_argument('--dereplicate-with-galah', help='Run galah to dereplicate genomes at species level', action='store_true')
@@ -1225,6 +1225,11 @@ if __name__ == '__main__':
 
     elif args.subparser_name == 'supplement':
         from singlem.supplement import Supplementor
+        if not args.no_taxon_genome_lengths and not args.checkm2_quality_file:
+            raise Exception("Either --no-taxon-genome-lengths or --checkm2-quality-file must be specified")
+        if not args.checkm2_quality_file and not args.no_quality_filter:
+            raise Exception("Either --no-quality-filter or --checkm2-quality-file must be specified")
+
         Supplementor().supplement(
             new_genome_fasta_files=args.new_genome_fasta_files,
             new_taxonomies=args.new_taxonomies,
@@ -1243,6 +1248,7 @@ if __name__ == '__main__':
             no_dereplication=args.no_dereplication,
             dereplicate_with_galah=args.dereplicate_with_galah,
             skip_taxonomy_check=args.skip_taxonomy_check,
+            no_taxon_genome_lengths=args.no_taxon_genome_lengths,
         )
 
     else:
