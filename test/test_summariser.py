@@ -28,6 +28,7 @@ import sys
 from io import StringIO
 import tempfile
 import extern
+import re
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -300,6 +301,34 @@ minimal2	0.2
                 with open(f'{path_to_data}/summarise/collapsed_to_sample_name.json') as f:
                     expected = json.load(f)
                     self.assertEqual(observed, expected)
+
+    def test_species_by_site_relative(self):
+        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+            --output-species-by-site-relative-abundance /dev/stdout \
+            --output-species-by-site-level phylum')
+        self.assertEqual(stdout, """taxonomy\tmarine0.1
+unassigned\t50.77
+Root; d__Archaea; p__Thermoproteota\t7.81
+Root; d__Bacteria; p__Desulfobacterota\t11.16
+Root; d__Bacteria; p__Proteobacteria\t30.26
+""")
+
+    def test_species_by_site_2_samples(self):
+        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+             {path_to_data}/summarise/land.profile \
+            --output-species-by-site-relative-abundance /dev/stdout \
+            --output-species-by-site-level phylum')
+
+        expected = re.compile(r'  +').sub('\t', """taxonomy        marine0.1       land0.1
+unassigned      50.77   0.0
+Root; d__Archaea; p__Thermoproteota     7.81    0.0
+Root; d__Bacteria; p__Desulfobacterota  11.16   0.0
+Root; d__Bacteria; p__Proteobacteria    30.26   14.58
+Root; d__Bacteria; p__Firmicutes        0.0     75.61
+Root; d__Bacteria; p__Firmicutes_A      0.0     6.98
+Root; d__Bacteria; p__Actinobacteriota  0.0     2.83
+""")
+        self.assertEqual(expected, stdout)
         
 
 if __name__ == "__main__":

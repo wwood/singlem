@@ -348,6 +348,8 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--unaligned-sequences-dump-file',
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads. ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
     summarise_output_args.add_argument('--output-taxonomic-profile-krona', help="Output taxonomic profile to this file in Krona format. Requires --input-taxonomic-profiles")
+    summarise_output_args.add_argument('--output-species-by-site-relative-abundance', help="Output site by species relative abundance to this file")
+    summarise_output_args.add_argument('--output-species-by-site-level', help="Output site by species level to this file", choices=['species','genus','family','order','class','phylum','domain'], default='species')
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage.'
     read_fraction_parser = bird_argparser.new_subparser('read_fraction', read_fraction_description, parser_group='Tools')
@@ -722,6 +724,7 @@ if __name__ == '__main__':
         if args.collapse_paired_with_unpaired_archive_otu_table: num_output_types += 1
         if args.unaligned_sequences_dump_file: num_output_types += 1
         if args.output_taxonomic_profile_krona: num_output_types += 1
+        if args.output_species_by_site_relative_abundance: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list and not args.input_taxonomic_profiles:
@@ -739,10 +742,12 @@ if __name__ == '__main__':
                 raise Exception("--collapse-paired-with-unpaired-archive-otu-table currently only works with archive tables")
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse-paired-with-unpaired-archive-otu-table requires exactly two archive tables")
-        if (args.input_taxonomic_profiles and not args.output_taxonomic_profile_krona) or (args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles):
+        if args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles:
             raise Exception("--input-taxonomic-profiles and --output-taxonomic-profile-krona require each other to be defined")
         if args.output_archive_otu_table and not args.collapse_to_sample_name:
             raise Exception("--output-archive-otu-table requires --collapse-to-sample-name to be defined. Some other transfomations have output archive tables, but they are specified separately.")
+        if args.output_species_by_site_relative_abundance and not args.input_taxonomic_profiles:
+            raise Exception("--output-species-by-site-relative-abundance requires --input-taxonomic-profiles to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -887,16 +892,24 @@ if __name__ == '__main__':
                     output_table_io = f)
         elif args.input_taxonomic_profiles:
             from singlem.condense import CondensedCommunityProfile, CondensedCommunityProfileKronaWriter
-            profiles = []
-            logging.info("Reading taxonomic profiles ..")
-            for p in args.input_taxonomic_profiles:
-                with open(p) as f:
-                    for sample_profile in CondensedCommunityProfile.each_sample_wise(f):
-                        profiles.append(sample_profile)
-            logging.info("Writing krona to %s" % args.output_taxonomic_profile_krona)
-            CondensedCommunityProfileKronaWriter.write_krona(
-                profiles, args.output_taxonomic_profile_krona
-            )
+            if args.output_taxonomic_profile_krona:
+                profiles = []
+                logging.info("Reading taxonomic profiles ..")
+                for p in args.input_taxonomic_profiles:
+                    with open(p) as f:
+                        for sample_profile in CondensedCommunityProfile.each_sample_wise(f):
+                            profiles.append(sample_profile)
+                logging.info("Writing krona to %s" % args.output_taxonomic_profile_krona)
+                CondensedCommunityProfileKronaWriter.write_krona(
+                    profiles, args.output_taxonomic_profile_krona
+                )
+            elif args.output_species_by_site_relative_abundance:
+                Summariser.write_species_by_site_table(
+                    input_taxonomic_profiles = args.input_taxonomic_profiles,
+                    output_species_by_site_relative_abundance_table = args.output_species_by_site_relative_abundance,
+                    level = args.output_species_by_site_level)
+            else:
+                raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance to be defined, since --input-taxonomic-profiles was defined")
 
         else: raise Exception("Programming error")
         logging.info("Finished")
