@@ -5,15 +5,15 @@ from collections import OrderedDict
 import logging
 import pandas
 import Bio
-import re
 import pandas as pd
-import json
+import polars as pl
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD
+from .condense import CondensedCommunityProfile
 
 class Summariser:
     @staticmethod
@@ -449,3 +449,56 @@ class Summariser:
                     output_table_io.write(">{}~{}\n{}\n".format(read_name, seq_name_counters[read_name], read_seq))
                     seq_name_counters[read_name] += 1
         logging.info("Wrote {} reads from {} OTUs in {} samples".format(num_reads, num_otus, num_samples))
+
+    @staticmethod
+    def write_species_by_site_table(**kwargs):
+        input_taxonomic_profiles = kwargs.pop('input_taxonomic_profiles')
+        output_species_by_site_relative_abundance_table = kwargs.pop('output_species_by_site_relative_abundance_table')
+        level = kwargs.pop('level')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Writing site by species table")
+        levels = ['root','domain','phylum','class','order','family','genus','species']
+        if level not in levels:
+            raise Exception("Unexpected level: %s" % level)
+        level_index = levels.index(level)
+
+        # Read the taxonomic profile
+        all_profiles = []
+        for profile_file in input_taxonomic_profiles:
+            with open(profile_file) as f:
+                for profile in CondensedCommunityProfile.each_sample_wise(f):
+                    unassigned = 0.
+                    name_to_coverage = {}
+                    for node in profile.breadth_first_iter():
+                        node_level = node.calculate_level()
+                        if node_level < level_index:
+                            unassigned += node.coverage
+                        elif node_level == level_index:
+                            name_to_coverage['; '.join(node.get_taxonomy())] = node.get_full_coverage()
+                        else:
+                            # node_level > level_index
+                            # This coveage already included 
+                            pass
+                    # TODO: Sort keys? Later down I guess
+                    keys = list(name_to_coverage.keys()) # not 100% confident that iterations will be in same order
+                    current_sample = pl.DataFrame({
+                        'taxonomy': keys,
+                        'coverage': [name_to_coverage[k] for k in keys]
+                    })
+                    current_sample.columns = ['taxonomy','coverage']
+                    current_sample = pl.concat([
+                        pl.DataFrame([{'taxonomy':'unassigned','coverage':unassigned}]),
+                        current_sample
+                    ])
+                    current_sample = current_sample.with_columns(pl.lit(profile.sample).alias('sample'))
+                    # Make into a relabund
+                    total_coverage = current_sample['coverage'].sum()
+                    current_sample = current_sample.with_columns((pl.col('coverage') / total_coverage * 100).round(2).alias('relative_abundance'))
+                    all_profiles.append(current_sample)
+
+        # Concatenate all profiles
+        all_profiles = pl.concat(all_profiles)
+        all_profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
+        logging.info("Wrote site by species table for {} samples".format(len(all_profiles['sample'].unique())))
