@@ -373,7 +373,7 @@ class AppraisalBuildingBlock:
         if otu.marker in self.num_found:
             try:
                 domain = otu.taxonomy.split("; ")[1]
-                self.num_found[otu.marker][domain] += otu.count
+                self.num_found[otu.marker][domain] += otu.coverage
             except (IndexError, KeyError):
                 # If the taxonomy is not defined, or the domain is not in target_domain
                 pass
