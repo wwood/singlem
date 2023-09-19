@@ -29,14 +29,14 @@ import shutil
 
 from bird_tool_utils import in_tempdir
 
-path_to_script = os.path.join(os.path.dirname(__file__), '..', 'bin', 'singlem')
-path_to_data = os.path.join(os.path.dirname(__file__), 'data', 'supplement')
+path_to_script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bin', 'singlem'))
+path_to_data = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'supplement'))
 
-singlem_base_directory = os.path.join(os.path.dirname(__file__), '..')
+singlem_base_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
 
 # TODO: Once GTDBtk can be included in conda env (as of diamond 2.1.7 likely), remove the added PATH entry
-run = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
+run = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} singlem supplement"
 singlem = f"{singlem_bin_directory}/singlem"
 
 

@@ -32,7 +32,7 @@ dependencies:
   - zenodo_backpack
   - smafa>=0.7.0
   - pyranges
-  - polars
+  - polars>=0.19.3 # supplement with taxon genome length requires this, for strip_chars
   - prodigal
   - tqdm
   - pyarrow
