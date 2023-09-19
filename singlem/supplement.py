@@ -429,7 +429,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
             genome_to_taxonomy,
             checkm2_quality_file,
             new_genome_fasta_files)
-        taxon_genome_lengths_tmpfile = tempfile.NamedTemporaryFile(mode='w')
+        taxon_genome_lengths_tmpfile = tempfile.NamedTemporaryFile(mode='w', prefix='taxon_genome_lengths_', suffix='.tsv')
         new_genome_sizes.write_csv(taxon_genome_lengths_tmpfile.name, separator='\t')
 
     logging.info("Gathering OTUs from new genomes ..")
@@ -546,7 +546,7 @@ def recalculate_genome_sizes(
     logging.debug("Read {} full taxonomy strings from old metapackage".format(len(old_taxonomies)))
     species_to_full = {}
     for taxonomy in old_taxonomies:
-        species_to_full[taxonomy.split(';')[-1]] = taxonomy
+        species_to_full[list([s.strip() for s in taxonomy.split(';')])[-1]] = taxonomy
     gc = pl.DataFrame(
         {'species': old_taxon_lengths.keys()}
     )
@@ -582,6 +582,7 @@ def recalculate_genome_sizes(
 
     # Return dataframe of taxon lengths in same shape as metapackage.generate expects
     return all_rank_genome_sizes.select(['rank', 'genome_size'])
+
 
 def calculate_genome_length(fasta_path):
     with open(fasta_path) as f:
