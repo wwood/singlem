@@ -129,6 +129,10 @@ OUTPUT SUMMARY OTU TABLES
 
   Output sample name (genome or assembly) the hit was found in
 
+**\--output-style** {standard,archive}
+
+  Style of output OTU tables
+
 OTHER GENERAL OPTIONS
 =====================
 
