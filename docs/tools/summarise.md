@@ -88,11 +88,13 @@ TRANSFORMATION
 
 **\--cluster**
 
-  Apply sequence clustering to the OTU table
+  Apply sequence clustering to the OTU table. Any dashes in OTU
+    sequences will be replaced by N.
 
 **\--cluster-id** *CLUSTER_ID*
 
-  Sequence clustering identity cutoff if \--cluster is used
+  Sequence clustering identity cutoff if \--cluster is used [default:
+    0.95 i.e. 95.0%]
 
 **\--taxonomy** *TAXONOMY*
 
@@ -202,6 +204,14 @@ OUTPUT
 
   Output taxonomic profile to this file in Krona format. Requires
     \--input-taxonomic-profiles
+
+**\--output-species-by-site-relative-abundance** *OUTPUT_SPECIES_BY_SITE_RELATIVE_ABUNDANCE*
+
+  Output site by species relative abundance to this file
+
+**\--output-species-by-site-level** {species,genus,family,order,class,phylum,domain}
+
+  Output site by species level to this file
 
 OTHER GENERAL OPTIONS
 =====================

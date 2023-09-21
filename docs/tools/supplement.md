@@ -24,7 +24,7 @@ OPTIONS
 
 **\--input-metapackage** *INPUT_METAPACKAGE*
 
-  metapackage to build upon
+  metapackage to build upon [default: Use default package]
 
 **\--output-metapackage** *OUTPUT_METAPACKAGE*
 
@@ -59,6 +59,10 @@ OPTIONS
 **\--no-quality-filter**
 
   skip quality filtering
+
+**\--no-taxon-genome-lengths**
+
+  Do not include taxon genome lengths in updated metapackage
 
 **\--no-dereplication**
 
