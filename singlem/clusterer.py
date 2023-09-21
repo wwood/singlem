@@ -54,11 +54,13 @@ class Clusterer:
                         "Currently, for clustering, OTU tables must only "
                         "contain OTUs that are all equal in length")
                 f.write(">%i\n" % i)
-                f.write(u.sequence+"\n")
-                if u.sequence in sequence_to_indexes:
-                    sequence_to_indexes[u.sequence].append(i)
+                # smafa converts dashes to Ns, so we replicate that here to keep track
+                otu_sequence = u.sequence.replace("-", "N")
+                f.write(otu_sequence+"\n")
+                if otu_sequence in sequence_to_indexes:
+                    sequence_to_indexes[otu_sequence].append(i)
                 else:
-                    sequence_to_indexes[u.sequence] = [i]
+                    sequence_to_indexes[otu_sequence] = [i]
                 f.flush()
             # Use streaming technique from
             # https://stackoverflow.com/questions/2715847/python-read-streaming-input-from-subprocess-communicate#17698359
