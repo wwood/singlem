@@ -235,14 +235,14 @@ if __name__ == '__main__':
     appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=appraise.OTU_TABLE_OUTPUT_FORMAT,
                                           choices=[appraise.OTU_TABLE_OUTPUT_FORMAT, appraise.ARCHIVE_TABLE_OUTPUT_FORMAT])
 
-    seqs_description = 'Find the best window for a SingleM package.'
+    seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
 
-    seqs_arguments = seqs_parser.add_argument_group('seqs-specific arguments')
+    # seqs_arguments = seqs_parser.add_argument_group('seqs-specific arguments')
 
-    seqs_arguments.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
-    seqs_arguments.add_argument('--alignment-type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
-    seqs_arguments.add_argument('--window-size', metavar='INT',
+    seqs_parser.add_argument('--alignment', metavar='aligned_fasta', help="Protein sequences hmmaligned and converted to fasta format with seqmagick", required=True)
+    seqs_parser.add_argument('--alignment-type', metavar='type', help="alignment is 'aa' or 'dna'", required=True)
+    seqs_parser.add_argument('--window-size', metavar='INT',
         help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
 
