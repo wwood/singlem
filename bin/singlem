@@ -385,16 +385,16 @@ if __name__ == '__main__':
     create_description = 'Create a SingleM package.'
     create_parser = bird_argparser.new_subparser('create', create_description)
 
-    create_parser.add_argument('--input-graftm-package', metavar="PATH", help="input package", required=True)
-    create_parser.add_argument('--input-taxonomy', metavar="PATH", help="input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
-    create_parser.add_argument('--output-singlem-package', metavar="PATH", help="output package", required=True)
-    create_parser.add_argument('--hmm-position', metavar="INTEGER", help="position in the GraftM alignment HMM where the SingleM window starts", required=True, type=int)
+    create_parser.add_argument('--input-graftm-package', metavar="PATH", help="Input GraftM package underlying the new SingleM package. The GraftM package is usually made with 'graftM create --no_tree --hmm <your.hmm>' where <your.hmm> is the one provided to 'singlem seqs'.", required=True)
+    create_parser.add_argument('--input-taxonomy', metavar="PATH", help="Input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
+    create_parser.add_argument('--output-singlem-package', metavar="PATH", help="Output package path", required=True)
+    create_parser.add_argument('--hmm-position', metavar="INTEGER", help="Position in the GraftM alignment HMM where the SingleM window starts. To choose the best position, use 'singlem seqs'.", required=True, type=int)
     create_parser.add_argument('--window-size', metavar="INTEGER",
-        help="length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
+        help="Length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
-    create_parser.add_argument('--target_domains', nargs='+', help="input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
-    create_parser.add_argument('--gene-description', metavar="STRING", help="input long description of this marker package", required=True, type=str)
-    create_parser.add_argument('--force', action='store_true', help='overwrite output path if it already exists [default: false]')
+    create_parser.add_argument('--target_domains', nargs='+', help="Input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
+    create_parser.add_argument('--gene-description', metavar="STRING", help="Input free form text description of this marker package, for use with 'singlem metapackage --describe'.", required=True, type=str)
+    create_parser.add_argument('--force', action='store_true', help='Overwrite output path if it already exists [default: false]')
 
     get_tree_description = 'Extract path to Newick tree file in a SingleM package.'
     get_tree_parser = bird_argparser.new_subparser('get_tree', get_tree_description)
