@@ -11,9 +11,6 @@ Create a SingleM package.
 OPTIONS
 =======
 
-CREATE-SPECIFIC ARGUMENTS
-=========================
-
 **\--input-graftm-package** PATH
 
   input package
