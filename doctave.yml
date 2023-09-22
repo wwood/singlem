@@ -22,3 +22,5 @@ navigation:
     - path: docs/advanced/query.md
     - path: docs/advanced/makedb.md
     - path: docs/advanced/condense.md
+    - path: docs/advanced/seqs.md
+    - path: docs/advanced/create.md
