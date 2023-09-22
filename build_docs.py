@@ -29,7 +29,7 @@ if __name__ == '__main__':
 
     subdir_and_commands = [
         ['tools', ['data','pipe','appraise','summarise','renew','supplement','read_fraction']],
-        ['advanced', ['makedb','query','condense']]
+        ['advanced', ['makedb','query','condense','seqs','create']]
     ]
 
     for subdir, commands in subdir_and_commands:
@@ -47,6 +47,7 @@ if __name__ == '__main__':
                     'summarise': 'INPUT',
                     'makedb': 'REQUIRED ARGUMENTS',
                     'appraise': 'INPUT OTU TABLE OPTIONS',
+                    'seqs': 'OPTIONS',
                 }
                 logging.info("For ROFF for command {}, removing everything before '{}'".format(
                     subcommand, splitters[subcommand]))
