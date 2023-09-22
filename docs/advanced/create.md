@@ -13,39 +13,44 @@ OPTIONS
 
 **\--input-graftm-package** PATH
 
-  input package
+  Input GraftM package underlying the new SingleM package. The GraftM
+    package is usually made with \'graftM create \--no_tree \--hmm
+    \<your.hmm\>\' where \<your.hmm\> is the one provided to \'singlem
+    seqs\'.
 
 **\--input-taxonomy** PATH
 
-  input taxonomy file in GreenGenes format (2 column tab separated, ID
+  Input taxonomy file in GreenGenes format (2 column tab separated, ID
     then taxonomy with taxonomy separated by \';\' or \'; \'.
 
 **\--output-singlem-package** PATH
 
-  output package
+  Output package path
 
 **\--hmm-position** INTEGER
 
-  position in the GraftM alignment HMM where the SingleM window starts
+  Position in the GraftM alignment HMM where the SingleM window
+    starts. To choose the best position, use \'singlem seqs\'.
 
 **\--window-size** INTEGER
 
-  length of NUCLEOTIDE residues in the window, counting only those
+  Length of NUCLEOTIDE residues in the window, counting only those
     that match the HMM [default: 60]
 
 **\--target_domains** *TARGET_DOMAINS* [*TARGET_DOMAINS* \...]
 
-  input domains targeted by this package e.g. \'Archaea\',
+  Input domains targeted by this package e.g. \'Archaea\',
     \'Bacteria\', \'Eukaryota\' or \'Viruses\'. Input with multiple
     domains must be space separated.
 
 **\--gene-description** STRING
 
-  input long description of this marker package
+  Input free form text description of this marker package, for use
+    with \'singlem metapackage \--describe\'.
 
 **\--force**
 
-  overwrite output path if it already exists [default: false]
+  Overwrite output path if it already exists [default: false]
 
 OTHER GENERAL OPTIONS
 =====================
