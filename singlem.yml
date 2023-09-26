@@ -17,7 +17,6 @@ dependencies:
   - ncbi-ngs-sdk
   - sqlite
   - squarify
-  - nose
   - mafft
   - seqmagick
   - expressbetadiversity
