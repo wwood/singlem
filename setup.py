@@ -30,7 +30,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 34 - beta',
+        'Development Status :: 4 - Beta',
         # Indicate who your project is intended for
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
@@ -52,7 +52,6 @@ setup(
                       'squarify >= 0.3.0',
                       'matplotlib >= 2.0.2',
                       'sqlalchemy',
-                      'pandas',
                       'bird_tool_utils >= 0.4.1',
                       'zenodo_backpack',
                       'pyranges',
