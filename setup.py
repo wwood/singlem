@@ -1,31 +1,25 @@
 from setuptools import setup, find_packages
-import sys, os, shutil
-import subprocess
-import itertools
+from os.path import dirname, join
+import io
 
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
-exec(open('singlem/version.py').read()) # loads __version__
 
-def recursive_find(directory):
-    """List the files in a directory recursively, sort of like Unix 'find'"""
-    file_list = []
-    for root, _, files in os.walk(directory):
-        for f in files:
-            file_list.append(os.path.join(root,f))
-            if len(file_list) > 300:
-                raise Exception("Too many files added to the recursive list")
-    return file_list
+def get_version(relpath):
+    """Read version info from a file without importing it"""
+    for line in io.open(join(dirname(__file__), relpath), encoding="cp437"):
+        if "__version__" in line:
+            if '"' in line:
+                return line.split('"')[1]
+            elif "'" in line:
+                return line.split("'")[1]
 
-# See https://stackoverflow.com/questions/20298729/pip-installing-data-files-to-the-wrong-place
-# for details on how to get them working.
-spkg_data_files = list([f.replace('singlem/data/','') for f in recursive_find('singlem/data')])
 
 setup(
     name='singlem',
-    version=__version__,
-    description='Find de-novo operational taxonomic units (OTUs) from metagenome data',
+    version=get_version("singlem/version.py"),
+    description='Novelty-inclusive microbial community profiling of shotgun metagenomes',
     long_description=readme,
     long_description_content_type='text/markdown',
     url="https://github.com/wwood/SingleM",
@@ -36,7 +30,7 @@ setup(
         #   3 - Alpha
         #   4 - Beta
         #   5 - Production/Stable
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 34 - beta',
         # Indicate who your project is intended for
         'Topic :: Scientific/Engineering',
         'Topic :: Scientific/Engineering :: Bio-Informatics',
@@ -48,15 +42,23 @@ setup(
     ],
     keywords="metagenomics bioinformatics",
     # Exclude test (and test data) since they takes up too much space.
-    packages=find_packages(exclude=['contrib','docs','test', '*.test', '*.test.*']),
+    packages=['singlem','singlem.biolib_lite'],
+    data_files=[(".", ["README.md", "LICENCE.txt"])],
+    include_package_data=True,
     install_requires=('graftm >= 0.14.0',
                       'extern >= 0.0.4',
                       'biopython >= 1.64',
                       'pandas >= 0.19.2',
                       'squarify >= 0.3.0',
-                      'matplotlib >= 2.0.2'
+                      'matplotlib >= 2.0.2',
+                      'sqlalchemy',
+                      'pandas',
+                      'bird_tool_utils >= 0.4.1',
+                      'zenodo_backpack',
+                      'pyranges',
+                      'polars >= 0.19.3',
+                      'tqdm',
+                      'pyarrow',
     ),
-    setup_requires=['nose >= 1.0'],
-    test_suite='nose.collector',
     scripts=['bin/singlem']
 )
