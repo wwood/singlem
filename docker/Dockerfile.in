@@ -3,7 +3,7 @@ FROM mambaorg/micromamba:1.1.0
 # This dockerfile uses cached mounts, so to build use e.g.
 # $ DOCKER_BUILDKIT=1 docker build .
 
-WORKDIR /tmp
+WORKDIR /
 
 # Install man-db. We cannot use conda because man-db doesn't appear to be
 # available in any conda repo
@@ -23,19 +23,19 @@ RUN git clone https://github.com/wwood/singlem && cd singlem && git checkout vSI
 RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png
 
 # Download default metapackage
-RUN mkdir -p singlem/db && cd singlem/db && /tmp/singlem/bin/singlem data --output-directory .
+RUN mkdir -p singlem/db && cd singlem/db && /singlem/bin/singlem data --output-directory .
 
 ######### UPDATE ME !!!!!!!!!! #########
-ENV SINGLEM_METAPACKAGE_PATH=/tmp/singlem/db/SINGLEM_DB_BASENAME
+ENV SINGLEM_METAPACKAGE_PATH=/singlem/db/SINGLEM_DB_BASENAME
 # Checks whether the metapackage is up to date
-RUN /tmp/singlem/bin/singlem data --verify
+RUN /singlem/bin/singlem data --verify
 
 # Run some tests
-RUN /tmp/singlem/bin/singlem --version
-RUN /tmp/singlem/bin/singlem pipe --full-help 
+RUN /singlem/bin/singlem --version
+RUN /singlem/bin/singlem pipe --full-help 
 # RUN cd singlem && python test/test_makedb_and_query.py
 
 WORKDIR /data
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","/tmp/singlem/bin/singlem"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","/singlem/bin/singlem"]
 
 # CMD /bin/bash
