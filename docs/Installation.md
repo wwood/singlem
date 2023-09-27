@@ -8,7 +8,7 @@ SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/single
 ```
 conda create -c bioconda --name singlem singlem
 ``` 
-After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](usage/data).
+After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
 
 
 ## Installation via DockerHub
