@@ -164,7 +164,8 @@ if __name__ == '__main__':
         argument_group.add_argument('--translation-table',
                                     metavar='number',
                                     type=int,
-                                    help='codon table for translation (see http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes for details) [default: %i]' % SearchPipe.DEFAULT_TRANSLATION_TABLE)
+                                    help='codon table for translation (see http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes for details) [default: %i]' % SearchPipe.DEFAULT_TRANSLATION_TABLE,
+                                    default=SearchPipe.DEFAULT_TRANSLATION_TABLE)
         argument_group.add_argument('--filter-minimum-protein',
                                     metavar='length',
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
