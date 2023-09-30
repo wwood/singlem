@@ -10,7 +10,7 @@ dependencies:
   - orfm
   - mfqe
   - extern
-  - graftm>=0.14.0
+  - graftm #>=0.15.0 version needed for --translation-table
   - krona
   - pplacer
   - sra-tools
