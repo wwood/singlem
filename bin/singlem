@@ -161,6 +161,10 @@ if __name__ == '__main__':
                                     metavar='length',
                                     help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
                                     type=int)
+        argument_group.add_argument('--translation-table',
+                                    metavar='number',
+                                    type=int,
+                                    help='codon table for translation (see http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes for details) [default: %i]' % SearchPipe.DEFAULT_TRANSLATION_TABLE)
         argument_group.add_argument('--filter-minimum-protein',
                                     metavar='length',
                                     help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
@@ -650,6 +654,7 @@ if __name__ == '__main__':
             output_jplace = args.output_jplace,
             evalue = args.evalue,
             min_orf_length = get_min_orf_length(args),
+            translation_table = args.translation_table,
             restrict_read_length = args.restrict_read_length,
             filter_minimum_protein = args.filter_minimum_protein,
             filter_minimum_nucleotide = args.filter_minimum_nucleotide,
