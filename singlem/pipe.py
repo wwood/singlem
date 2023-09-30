@@ -35,6 +35,7 @@ DEFAULT_THREADS = 1
 class SearchPipe:
     DEFAULT_MIN_ORF_LENGTH = 72
     DEFAULT_GENOME_MIN_ORF_LENGTH = 300
+    DEFAULT_TRANSLATION_TABLE = 11
     DEFAULT_FILTER_MINIMUM_PROTEIN = 24
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 72
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
@@ -145,6 +146,7 @@ class SearchPipe:
         evalue = kwargs.pop('evalue', None)
         min_orf_length = kwargs.pop('min_orf_length', SearchPipe.DEFAULT_MIN_ORF_LENGTH)
         restrict_read_length = kwargs.pop('restrict_read_length', None)
+        translation_table = kwargs.pop('translation_table', SearchPipe.DEFAULT_TRANSLATION_TABLE)
         filter_minimum_protein = kwargs.pop('filter_minimum_protein', SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
         filter_minimum_nucleotide = kwargs.pop('filter_minimum_nucleotide', SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
         include_inserts = kwargs.pop('include_inserts', False)
@@ -171,6 +173,7 @@ class SearchPipe:
         self._evalue = evalue
         self._min_orf_length = min_orf_length
         self._restrict_read_length = restrict_read_length
+        self._translation_table = translation_table
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
 
@@ -263,7 +266,7 @@ class SearchPipe:
             for fasta in genome_fasta_files:
                 # Make a tempfile with delete=False because it is in a tmpdir already, and useful for debug to keep around with --working-directory
                 transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-{}'.format(os.path.basename(fasta)), suffix='.fasta', delete=False)
-                extern.run('orfm -m {} -t {} {} >/dev/null'.format(self._min_orf_length, transcripts_path.name, fasta))
+                extern.run('orfm -c {} -m {} -t {} {} >/dev/null'.format(self._translation_table, self._min_orf_length, transcripts_path.name, fasta))
                 transcript_tempfiles.append(transcripts_path)
                 forward_read_files.append(transcripts_path.name)
                 transcript_tempfile_name_to_desired_name[FastaNameToSampleName().fasta_to_name(transcripts_path.name)] = FastaNameToSampleName().fasta_to_name(fasta)
@@ -294,9 +297,11 @@ class SearchPipe:
 
         if diamond_prefilter:
             # Set the min ORF length in DIAMOND, as this saves CPU time and
-            # means absence doesn't crash hmmsearch later.
-            diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
-                diamond_prefilter_performance_parameters, int(min_orf_length / 3))
+            # means absence doesn't crash hmmsearch later. However, DIAMOND assumes table 11 I believe, so disable this when that isn't the case
+            if self._translation_table == 11:
+                logging.warning("Setting --min-orf in diamond since translation table is 11")
+                diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
+                    diamond_prefilter_performance_parameters, int(min_orf_length / 3))
 
             if input_sra_files:
                 # Create a named pipe which is called the same as the .sra file
@@ -407,7 +412,7 @@ class SearchPipe:
             extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
                 self._num_threads, hmms,
                 diamond_forward_search_results, diamond_reverse_search_results,
-                analysing_pairs, include_inserts, min_orf_length)
+                analysing_pairs, include_inserts, min_orf_length, translation_table)
             del diamond_forward_search_results
             del diamond_reverse_search_results
             if extracted_reads.empty():
@@ -1056,11 +1061,13 @@ class SearchPipe:
                   "--threads %i "\
                   "--forward %s "\
                   "--search_only "\
+                  "--translation_table %i "\
                   "--search_hmm_files %s "\
                   "--output_directory %s "\
                   "--aln_hmm_file %s " % (
                       self._num_threads,
                       ' '.join(forward_read_files),
+                      self._translation_table,
                       ' '.join(hmm_paths),
                       output_directory,
                       hmm_paths[0])
@@ -1107,9 +1114,11 @@ class SearchPipe:
         def command(singlem_package, hit_files, is_protein, analysing_pairs):
             cmd = self._graftm_command_prefix(is_protein) + \
                 "--threads %i "\
+                "--translation_table %i "\
                 "--graftm_package %s --output_directory %s/%s "\
                 "--search_only" % (
                     1, #use 1 thread since most likely better to parallelise processes with extern
+                    self._translation_table,
                     singlem_package.graftm_package_path(),
                     graftm_separate_directory_base,
                     os.path.basename(singlem_package.graftm_package_path()))

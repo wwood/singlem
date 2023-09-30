@@ -38,6 +38,7 @@ dependencies:
   # - galah >= 0.4.0 # 0.4.0 is the first version with checkm2 quality inputs, but not yet released 
   - pytest # For testing only
   - ipython # For testing only
+  - sqlparse # Don't understand why, but this isn't being installed before tests are run on GH actions. Required indirectly (by taxtastic).
   # - python-annoy optional
   # - nmslib # optional
   # - pip:

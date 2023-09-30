@@ -157,7 +157,8 @@ def _align_proteins_to_hmm(protein_sequences, hmm_file):
 def _filter_sequences_through_hmmsearch(
     singlem_package,
     prefilter_result,
-    min_orf_length):
+    min_orf_length,
+    translation_table):
     """Return a generator of Sequence objects that match one or more of the
     search HMMs in the graftm_package. To save RAM, the full set of sequences is
     never read in.
@@ -182,7 +183,7 @@ def _filter_sequences_through_hmmsearch(
         # With some hoop jumping it should be possible to stream this, but eh
         # for now.
         searcher.hmmsearch(
-            'orfm -m {} {}'.format(min_orf_length, input_tf.name),
+            'orfm -c {} -m {} {}'.format(translation_table, min_orf_length, input_tf.name),
             graftm_package.search_hmm_paths(),
             list([tf.name for tf in output_tempfiles]))
 
@@ -221,7 +222,7 @@ def _generate_package_specific_fasta_input(
 
 
 def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
-    sample_name, min_orf_length, include_inserts):
+    sample_name, min_orf_length, include_inserts, translation_table):
 
     # Happens when there is no hits
     if len(prefilter_result.best_hits) == 0:
@@ -237,7 +238,8 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     sequences = list(_filter_sequences_through_hmmsearch(
         spkg,
         prefilter_result,
-        min_orf_length))
+        min_orf_length,
+        translation_table))
 
     # Run orfm |hmmalign
     #
@@ -250,8 +252,8 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     # For each chunk
     for i in range(0, len(sequences), chunk_size):
         chunk_sequences = sequences[i:i + chunk_size]
-        cmd = "orfm -m {} | hmmalign '{}' /dev/stdin".format(
-            min_orf_length, spkg.graftm_package().alignment_hmm_path()
+        cmd = "orfm -c {} -m {} | hmmalign '{}' /dev/stdin".format(
+            translation_table, min_orf_length, spkg.graftm_package().alignment_hmm_path()
         )
         stdin = '\n'.join(
             [">{}\n{}".format(s.name, s.seq) for s in chunk_sequences])
@@ -331,7 +333,7 @@ class PipeSequenceExtractor:
     def extract_relevant_reads_from_diamond_prefilter(self,
         num_threads, singlem_package_database,
         diamond_forward_search_results, diamond_reverse_search_results,
-        analysing_pairs, include_inserts, min_orf_length):
+        analysing_pairs, include_inserts, min_orf_length, translation_table):
         '''Return an ExtractedReads object built by running hmmalign on
         sequences, aligning to each HMM only sequences that
         have a best hit to sequences from that singlem package
@@ -352,7 +354,7 @@ class PipeSequenceExtractor:
         forward_extraction_process_lists_per_sample = []
         for diamond_search_result in diamond_forward_search_results:
             extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-                pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length
+                pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length, translation_table
             )
             forward_extraction_process_lists_per_sample.append(extraction_processes)
 
@@ -361,7 +363,7 @@ class PipeSequenceExtractor:
         if analysing_pairs:
             for diamond_search_result in diamond_reverse_search_results:
                 extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-                    pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length
+                    pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length, translation_table
                 )
                 reverse_extraction_process_lists_per_sample.append(extraction_processes)
 
@@ -387,7 +389,7 @@ class PipeSequenceExtractor:
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-            self, pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length):
+            self, pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length, translation_table):
         '''Return results for one search result (sample). If pool is a
         multiprocessing pool, run individual extractions with that, otherwise it
         should be None, which means just run each extraction serially without
@@ -407,12 +409,12 @@ class PipeSequenceExtractor:
             if pool is None:
                 extraction_of_read_set_processes.append(
                     _extract_reads_by_diamond_for_package_and_sample(
-                        diamond_search_result, spkg, sample_name, min_orf_length, include_inserts))
+                        diamond_search_result, spkg, sample_name, min_orf_length, include_inserts, translation_table))
             else:
                 extraction_of_read_set_processes.append(
                     pool.apply_async(
                         _extract_reads_by_diamond_for_package_and_sample, args=(
-                    diamond_search_result, spkg, sample_name, min_orf_length, include_inserts)))
+                    diamond_search_result, spkg, sample_name, min_orf_length, include_inserts, translation_table)))
 
         return extraction_of_read_set_processes
 
