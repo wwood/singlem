@@ -215,6 +215,9 @@ class SearchPipe:
         if not assign_taxonomy:
             singlem_assignment_method = NO_ASSIGNMENT_METHOD
 
+        if diamond_prefilter and translation_table != 11:
+            raise Exception("DIAMOND prefilter is only known to work with translation table 11. The code runs but DIAMOND appears not to detect many hits with other tables. See https://github.com/bbuchfink/diamond/issues/742 and test/test_pipe.py#test_translation_table4 in the singlem repo for an example.\n\nTo run with non-11 translation tables, use --no-diamond-prefilter.")
+
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
             if working_directory_dev_shm is True:
