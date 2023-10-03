@@ -133,6 +133,12 @@ LESS COMMON OPTIONS
   Only use this many base pairs at the start of each sequence searched
     [default: no restriction]
 
+**\--translation-table** number
+
+  codon table for translation (see
+    http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes
+    for details) [default: 11]
+
 **\--filter-minimum-protein** length
 
   Ignore reads aligning in less than this many positions to each
