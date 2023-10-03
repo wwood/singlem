@@ -52,6 +52,7 @@ def seqs(args):
         args.window_size,
         is_protein_alignment)
     logging.info("Found best start position %i" % best_position)
+    print(best_position)
 
 
 if __name__ == '__main__':
@@ -397,7 +398,7 @@ if __name__ == '__main__':
     create_parser.add_argument('--window-size', metavar="INTEGER",
         help="Length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
-    create_parser.add_argument('--target_domains', nargs='+', help="Input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
+    create_parser.add_argument('--target-domains', nargs='+', help="Input domains targeted by this package e.g. 'Archaea', 'Bacteria', 'Eukaryota' or 'Viruses'. Input with multiple domains must be space separated.", required=True)
     create_parser.add_argument('--gene-description', metavar="STRING", help="Input free form text description of this marker package, for use with 'singlem metapackage --describe'.", required=True, type=str)
     create_parser.add_argument('--force', action='store_true', help='Overwrite output path if it already exists [default: false]')
 
