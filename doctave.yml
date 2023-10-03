@@ -24,3 +24,4 @@ navigation:
     - path: docs/advanced/condense.md
     - path: docs/advanced/seqs.md
     - path: docs/advanced/create.md
+    - path: docs/advanced/metapackage.md
