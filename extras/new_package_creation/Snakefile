@@ -1,0 +1,119 @@
+
+metapackage = config['metapackage_path']
+spkgs = config['singlem_packages']
+
+output_directory = 'singlem_new_metapackage_working_directory' #FIXME
+threads = 10
+
+rule create_metapackage:
+    input:
+        spkgs = [os.path.join(output_directory, "spkgs", f"{name}.spkg") for name in spkgs.keys()],
+        # sdb = os.path.join(output_directory, "a.sdb") #TODO
+    output:
+        metapackage = directory(metapackage),
+        done = touch(os.path.join(output_directory, "done", "create_metapackage.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "create_metapackage.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "create_metapackage.benchmark")
+    conda:
+        "envs/singlem.yml"
+    shell:
+        # "singlem metapackage --singlem-package {input.spkg} --nucleotide-sdb {input.sdb} --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
+        "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
+
+rule create_gpkg:
+    output:
+        gpkg = directory(os.path.join(output_directory, "gpkgs", "{name}.gpkg")),
+        done = touch(os.path.join(output_directory, "done", "{name}.gpkg.done")),
+    log:
+        log = os.path.join(output_directory, "logs", "{name}.gpkg.log")
+    threads: threads
+    benchmark: os.path.join(output_directory, "benchmarks", "{name}.gpkg.benchmark")
+    params:
+        taxonomy_file = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
+        aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
+        hmm_file = lambda wildcards: spkgs[wildcards.name]['hmm_file'],
+    conda:
+        "envs/singlem.yml"
+    shell:
+        "graftM create --sequences {params.aa_sequences_file} --hmm {params.hmm_file} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
+
+rule create_alignment:
+    output:
+        alignment = os.path.join(output_directory, "alns", "{name}.aln"),
+        done = touch(os.path.join(output_directory, "done", "{name}.alignment.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "{name}.alignment.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "{name}.alignment.benchmark")
+    params:
+        aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
+        hmm_file = lambda wildcards: spkgs[wildcards.name]['hmm_file'],
+    conda:
+        "envs/singlem.yml"
+    shell:
+        "bash -c 'hmmalign --amino {params.hmm_file} {params.aa_sequences_file} |seqmagick convert --input-format stockholm --output-format fasta - {output.alignment}' 2> {log}"
+
+rule singlem_seqs:
+    input:
+        alignment = os.path.join(output_directory, "alns", "{name}.aln"),
+    output:
+        window_position_file = os.path.join(output_directory, "{name}.window_position.txt"),
+        done = touch(os.path.join(output_directory, "done", "{name}.singlem_seqs.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "{name}.singlem_seqs.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "{name}.singlem_seqs.benchmark")
+    params:
+        aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
+    conda:
+        "envs/singlem.yml"
+    shell: # Use HEAD of singlem (beyond 0.14.0) so seqs prints the best_position to stdout
+        "~/git/singlem/bin/singlem seqs --alignment {input.alignment} --alignment-type aa >{output.window_position_file} 2> {log}"
+
+rule singlem_create:
+    input:
+        gpkg = os.path.join(output_directory, "gpkgs", "{name}.gpkg"),
+        window_position_file = os.path.join(output_directory, "{name}.window_position.txt"),
+    output:
+        spkg = directory(os.path.join(output_directory, "spkgs", "{name}.spkg")),
+        done = touch(os.path.join(output_directory, "done", "{name}.singlem_create.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "{name}.singlem_create.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "{name}.singlem_create.benchmark")
+    params:
+        taxonomy_file = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
+        gene_description = lambda wildcards: spkgs[wildcards.name]['gene_description'],
+        target_domains = lambda wildcards: spkgs[wildcards.name]['target_domains'],
+    conda:
+        "envs/singlem.yml"
+    shell: # Use HEAD so target_domains -> target-domains
+        "~/git/singlem/bin/singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description {params.gene_description} --force --input-taxonomy {params.taxonomy_file} 2> {log}"
+
+# # rule singlem_pipe_to_get_otu_seqs:
+# #     input:
+# #         spkg = os.path.join(output_directory, "a.spkg"),
+# #         na_sequences_file = na_sequences_file
+# #     output:
+# #         otu_sequences_file = os.path.join(output_directory, "otu_sequences.fasta"),
+# #         done = touch(os.path.join(output_directory, "done", "singlem_pipe_to_get_otu_seqs.done"))
+# #     log:
+# #         log = os.path.join(output_directory, "logs", "singlem_pipe_to_get_otu_seqs.log")
+# #     benchmark: os.path.join(output_directory, "benchmarks", "singlem_pipe_to_get_otu_seqs.benchmark")
+# #     conda:
+# #         "envs/singlem.yml"
+# #     shell:
+# #         "singlem pipe --known-sequence-taxonomy {input.taxonomy_file} --sequences {input.na_sequences_file} --singlem-package {input.spkg} --output {output.unannotated_otu_table} --threads {threads} --output-extras 2> {log}"
+
+# # rule singlem_makedb:
+# #     input:
+# #         otu_table = os.path.join(output_directory, "otu_table.tsv"),
+# #     output:
+# #         sdb = os.path.join(output_directory, "a.sdb"),
+# #         done = touch(os.path.join(output_directory, "done", "singlem_makedb.done"))
+# #     log:
+# #         log = os.path.join(output_directory, "logs", "singlem_makedb.log")
+# #     benchmark: os.path.join(output_directory, "benchmarks", "singlem_makedb.benchmark")
+# #     conda:
+# #         "envs/singlem.yml"
+# #     shell:
+# #         "singlem makedb --otu-table {input.otu_table} --db {output.sdb} --threads {threads} 2> {log}"
+
