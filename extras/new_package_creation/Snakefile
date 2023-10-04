@@ -118,7 +118,7 @@ rule singlem_create:
     conda:
         "envs/singlem.yml"
     shell: # Use HEAD so target_domains -> target-domains, and so dmnd makeidx is run
-        "~/git/singlem/bin/singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description {params.gene_description} --force --input-taxonomy {params.taxonomy_file} 2> {log}"
+        "~/git/singlem/bin/singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
 
 # # rule singlem_pipe_to_get_otu_seqs:
 # #     input:
