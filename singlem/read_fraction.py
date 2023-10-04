@@ -142,7 +142,7 @@ class ReadFractionEstimator:
                     highest_unknown_taxa_sum = sum([-x.priority * taxonomic_genome_lengths[x.taxon].mean for x in highest_unknown_taxa])
                     doubled_account = account + highest_unknown_taxa_sum
                     halved_account = account - (highest_unknown_taxa_sum / 2)
-                    warning_threshold = 0.03
+                    warning_threshold = 0.02
                     if (doubled_account / metagenome_size - account / metagenome_size) > warning_threshold or \
                         (account / metagenome_size - halved_account / metagenome_size) > warning_threshold:
                         warning = "WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate."
