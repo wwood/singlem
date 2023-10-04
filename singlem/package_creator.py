@@ -4,7 +4,7 @@ import logging
 import tempfile
 from Bio import SeqIO
 import extern
-from .singlem_package import SingleMPackageVersion4
+from .singlem_package import SingleMPackageVersion4, SingleMPackage
 import shutil
 import os
 import pickle
@@ -151,6 +151,13 @@ class PackageCreator:
             if is_protein_package:
                 filtered_aligned_tempfile.close()
                 dmnd_tf.close()
+
+            if is_protein_package:
+                # Create target-indexed dmnd db
+                logging.info("Adding makeidx to diamond database")
+                spkg = SingleMPackage.acquire(output_singlem_package_path)
+                cmd = "diamond makeidx -d %s" % spkg.graftm_package().diamond_database_path()
+                extern.run(cmd)
 
             logging.info("SingleM-compatible package creation finished")
 
