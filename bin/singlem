@@ -51,6 +51,9 @@ def seqs(args):
         protein_alignment,
         args.window_size,
         is_protein_alignment)
+    # Report the best position as a 1-based index
+    best_position += 1
+
     logging.info("Found best start position %i" % best_position)
     print(best_position)
 
