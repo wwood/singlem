@@ -29,6 +29,7 @@ rule create_metapackage:
     log:
         log = os.path.join(output_directory, "logs", "create_metapackage.log")
     benchmark: os.path.join(output_directory, "benchmarks", "create_metapackage.benchmark")
+    threads: workflow.cores
     conda:
         "envs/singlem.yml"
     shell:
