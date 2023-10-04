@@ -3,7 +3,6 @@ spkgs = config['singlem_packages']
 test_file = config['test_file']
 
 output_directory = 'singlem_new_metapackage_working_directory' #FIXME
-threads = 10
 
 rule test_metapackage:
     input:
@@ -17,7 +16,6 @@ rule test_metapackage:
     benchmark: os.path.join(output_directory, "benchmarks", "test_metapackage.benchmark")
     conda:
         "envs/singlem.yml"
-    threads: threads
     shell: #--diamond-prefilter-performance-parameters ' ' --diamond-taxonomy-assignment-performance-parameters ' '
         "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug  2> {log}"
 
@@ -50,7 +48,7 @@ rule create_gpkg:
         done = touch(os.path.join(output_directory, "done", "{name}.gpkg.done")),
     log:
         log = os.path.join(output_directory, "logs", "{name}.gpkg.log")
-    threads: threads
+    threads: 4
     benchmark: os.path.join(output_directory, "benchmarks", "{name}.gpkg.benchmark")
     params:
         taxonomy_file = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
