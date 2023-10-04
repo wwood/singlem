@@ -1,9 +1,25 @@
-
 metapackage = config['metapackage_path']
 spkgs = config['singlem_packages']
+test_file = config['test_file']
 
 output_directory = 'singlem_new_metapackage_working_directory' #FIXME
 threads = 10
+
+rule test_metapackage:
+    input:
+        metapackage = metapackage,
+        test_file = test_file
+    output:
+        otu_table = os.path.join(output_directory, "otu_table.tsv"),
+        done = touch(os.path.join(output_directory, "done", "test_metapackage.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "test_metapackage.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "test_metapackage.benchmark")
+    conda:
+        "envs/singlem.yml"
+    threads: threads
+    shell: #--diamond-prefilter-performance-parameters ' ' --diamond-taxonomy-assignment-performance-parameters ' '
+        "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug  2> {log}"
 
 rule create_metapackage:
     input:
@@ -21,6 +37,13 @@ rule create_metapackage:
         # "singlem metapackage --singlem-package {input.spkg} --nucleotide-sdb {input.sdb} --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
         "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
 
+# Definition of HMM path is optional
+def graftm_create_hmm_arg(spkg_def):
+    if 'hmm_file' in spkg_def:
+        return f"--hmm {spkg_def['hmm_file']}"
+    else:
+        return ""
+
 rule create_gpkg:
     output:
         gpkg = directory(os.path.join(output_directory, "gpkgs", "{name}.gpkg")),
@@ -32,13 +55,22 @@ rule create_gpkg:
     params:
         taxonomy_file = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
         aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
-        hmm_file = lambda wildcards: spkgs[wildcards.name]['hmm_file'],
+        hmm_arg = lambda wildcards: graftm_create_hmm_arg(spkgs[wildcards.name]),
     conda:
         "envs/singlem.yml"
     shell:
-        "graftM create --sequences {params.aa_sequences_file} --hmm {params.hmm_file} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
+        "graftM create --force --sequences {params.aa_sequences_file} {params.hmm_arg} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
+    
+def get_final_hmm_file(spkg_def, gpkg):
+    if 'hmm_file' in spkg_def:
+        return spkg_def['hmm_file']
+    else:
+        return os.path.join(gpkg, '*_align.hmm')
 
 rule create_alignment:
+    input:
+        # Only required when hmm_file is not defined, but unsure how to make this conditional
+        gpkg = os.path.join(output_directory, "gpkgs", "{name}.gpkg"),
     output:
         alignment = os.path.join(output_directory, "alns", "{name}.aln"),
         done = touch(os.path.join(output_directory, "done", "{name}.alignment.done"))
@@ -47,7 +79,7 @@ rule create_alignment:
     benchmark: os.path.join(output_directory, "benchmarks", "{name}.alignment.benchmark")
     params:
         aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
-        hmm_file = lambda wildcards: spkgs[wildcards.name]['hmm_file'],
+        hmm_file = lambda wildcards, input: get_final_hmm_file(spkgs[wildcards.name], input.gpkg),
     conda:
         "envs/singlem.yml"
     shell:
@@ -85,7 +117,7 @@ rule singlem_create:
         target_domains = lambda wildcards: spkgs[wildcards.name]['target_domains'],
     conda:
         "envs/singlem.yml"
-    shell: # Use HEAD so target_domains -> target-domains
+    shell: # Use HEAD so target_domains -> target-domains, and so dmnd makeidx is run
         "~/git/singlem/bin/singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description {params.gene_description} --force --input-taxonomy {params.taxonomy_file} 2> {log}"
 
 # # rule singlem_pipe_to_get_otu_seqs:
