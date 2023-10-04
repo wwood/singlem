@@ -59,12 +59,12 @@ TATGGAGGAACACCAGTGGC
                 cmd = "%s seqs --debug --alignment %s --alignment-type dna"\
                       " --window-size 20 2>%s" % (
                           path_to_script, a.name, stderr.name)
-                self.assertEqual('', extern.run(cmd))
                 # This includes ignored columns at the front, which were messing things up.
                 with open(stderr.name) as stde:
                     self.assertTrue(
                         'Found best section of the alignment starting from 14\n' in \
                         stde.read())
+                self.assertEqual('14', extern.run(cmd))
 
 if __name__ == "__main__":
     unittest.main()
