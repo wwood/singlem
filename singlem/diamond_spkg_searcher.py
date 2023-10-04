@@ -86,7 +86,7 @@ class DiamondSpkgSearcher:
                       file,
                       diamond_database,
                       fasta_path)
-            logging.warning(cmd)
+            logging.debug(cmd)
 
             # Originially, we ran here via os.system rather than normal extern
             # so reads can be piped in to singlem. However, this meant that

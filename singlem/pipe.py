@@ -215,9 +215,6 @@ class SearchPipe:
         if not assign_taxonomy:
             singlem_assignment_method = NO_ASSIGNMENT_METHOD
 
-        if diamond_prefilter and translation_table != 11:
-            raise Exception("DIAMOND prefilter is only known to work with translation table 11. The code runs but DIAMOND appears not to detect many hits with other tables. See https://github.com/bbuchfink/diamond/issues/742 and test/test_pipe.py#test_translation_table4 in the singlem repo for an example.\n\nTo run with non-11 translation tables, use --no-diamond-prefilter.")
-
         using_temporary_working_directory = working_directory is None
         if using_temporary_working_directory:
             if working_directory_dev_shm is True:
@@ -300,11 +297,12 @@ class SearchPipe:
 
         if diamond_prefilter:
             # Set the min ORF length in DIAMOND, as this saves CPU time and
-            # means absence doesn't crash hmmsearch later. However, DIAMOND assumes table 11 I believe, so disable this when that isn't the case
-            if self._translation_table == 11:
-                logging.warning("Setting --min-orf in diamond since translation table is 11")
-                diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
-                    diamond_prefilter_performance_parameters, int(min_orf_length / 3))
+            # means absence doesn't crash hmmsearch later.
+            diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
+                diamond_prefilter_performance_parameters, int(min_orf_length / 3))
+
+            diamond_prefilter_performance_parameters += " --query-gencode %i" % (
+                self._translation_table)
 
             if input_sra_files:
                 # Create a named pipe which is called the same as the .sra file
@@ -1410,8 +1408,10 @@ class SearchPipe:
                         "--top 1 " \
                         "--evalue 0.01 " \
                         "--threads %i " \
+                        "--query-gencode %i " \
                         "%s " % (
                             self._num_threads,
+                            self._translation_table,
                             diamond_taxonomy_assignment_performance_parameters)
                     # Run serially for the moment, coz lazy
                     if extracted_reads.analysing_pairs:

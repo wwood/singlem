@@ -1169,10 +1169,18 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             extern.run(cmd),
             no_assign_taxonomy=True)
 
-    def test_translation_table4(self):
+    def test_translation_table4_no_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root'
+            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-1000'
         cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --no-diamond-prefilter --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
+        self.assertEqualOtuTable(
+            expected,
+            extern.run(cmd))
+
+    def test_translation_table4_diamond_prefilter(self):
+        expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
+            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-1000'
+        cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
         self.assertEqualOtuTable(
             expected,
             extern.run(cmd))
