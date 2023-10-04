@@ -170,7 +170,7 @@ class MetagenomeOtuFinder:
         logging.info("Found best section of the alignment starting from %i" % (
             start_position_without_gaps+1))
 
-        return start_position_without_gaps+1
+        return start_position_without_gaps
 
     def _best_position_to_chosen_positions(self, best_position, stretch_length, ignored_columns):
         '''Given a position to start from, and the number of positions to index,
