@@ -10,7 +10,7 @@ dependencies:
   - orfm
   - mfqe
   - extern
-  - graftm>=0.15.0 # As of writing not released on PyPI. Needed for --translation-table
+  - graftm>=0.15.0 # Version needed for --translation-table
   - krona
   - pplacer
   - sra-tools
