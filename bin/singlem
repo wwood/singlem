@@ -706,6 +706,7 @@ if __name__ == '__main__':
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
             exclude_off_target_hits = args.exclude_off_target_hits,
+            translation_table = args.translation_table,
             )
 
     elif args.subparser_name == 'summarise':
