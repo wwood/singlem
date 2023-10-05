@@ -23,6 +23,7 @@ class Renew:
         evalue = kwargs.pop('evalue')
         min_orf_length = kwargs.pop('min_orf_length')
         restrict_read_length = kwargs.pop('restrict_read_length')
+        translation_table = kwargs.pop('translation_table')
         filter_minimum_protein = kwargs.pop('filter_minimum_protein')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile')
@@ -136,6 +137,7 @@ class Renew:
             pipe._min_orf_length = min_orf_length
             pipe._num_threads = threads
             pipe._filter_minimum_protein = filter_minimum_protein
+            pipe._translation_table = translation_table
 
             logging.info("Running taxonomy assignment and post-processing ..")
             otu_table_object = pipe.assign_taxonomy_and_process(
