@@ -1159,7 +1159,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
             '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.13'
         # ~/git/singlem/bin/singlem pipe --genome-fasta-files genomes/GCA_000309865.1_genomic.fna --singlem-package ../4.12.22seqs.spkg/ --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96
-        cmd = '{} pipe --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
+        cmd = '{} pipe --translation-table 11 --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
             path_to_script,
             os.path.join(path_to_data, 'methanobacteria/genomes/GCA_000309865.1_genomic.fna'),
             os.path.join(path_to_data, '4.12.22seqs.spkg'),
