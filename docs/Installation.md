@@ -16,12 +16,20 @@ A docker image generated from the conda package is available on DockerHub. After
 ```
 docker pull wwood/singlem:[RELEASE_TAG]
 ```
-If the sequence data to be analyzed is in the current working directory, SingleM can be used like so:
+
+Test if it works by running
+```
+docker run wwood/singlem:[RELEASE_TAG] -h
+```
+
+If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
 docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 14
 ```
-The default SingleM reference data is included in the docker image, so [singlem data](/tools/data) is not necessary for this installation method.
+Two things to note:
 
+1. The default SingleM reference data is included in the docker image, so running [singlem data](/tools/data) is not necessary for this installation method - you can jump straight to using `pipe`.
+2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `docker run wwood/singlem:[RELEASE_TAG] pipe -h`.
 
 ## Installation via PyPI
 To install the Python libraries required:
