@@ -3,13 +3,27 @@
 import extern
 import logging
 import argparse
+import io
+from os.path import dirname, join
 import os
+
 
 def remove_before(marker, string_to_process):
     splitter = '\n' + marker + '\n'
     if splitter not in string_to_process:
         raise Exception("Marker '{}' not found in string".format(marker))
-    return splitter+string_to_process.split(splitter)[1]
+    return splitter + string_to_process.split(splitter)[1]
+
+
+def get_version(relpath):
+    """Read version info from a file without importing it"""
+    for line in io.open(join(dirname(__file__), relpath), encoding="cp437"):
+        if "__version__" in line:
+            if '"' in line:
+                return line.split('"')[1]
+            elif "'" in line:
+                return line.split("'")[1]
+
 
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -26,6 +40,16 @@ if __name__ == '__main__':
     else:
         loglevel = logging.DEBUG
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+    # Update [RELEASE_TAG] in installation.md
+    version = get_version('singlem/version.py')
+    logging.info("Updating [RELEASE_TAG] in Installation.md to {}".format(version))
+    with open('docs/Installation.md.in') as f:
+        installation = f.read()
+    installation = installation.replace('[RELEASE_TAG]', version)
+    with open('docs/Installation.md', 'w') as f:
+        f.write(installation)
+    logging.info("Done updating [RELEASE_TAG] in Installation.md to {}".format(version))
 
     subdir_and_commands = [
         ['tools', ['data','pipe','appraise','summarise','renew','supplement','read_fraction']],
