@@ -30,7 +30,8 @@ docker run wwood/singlem:0.15.0 -h
 
 If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
-docker run -v `pwd`:`pwd` wwood/singlem:0.15.0 pipe --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
+docker run -v `pwd`:`pwd` wwood/singlem:0.15.0 pipe --sequences \
+    `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 Two things to note:
 
@@ -51,7 +52,8 @@ singularity run singlem_0.15.0.sif -h
 
 If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
-singularity run -B `pwd`:`pwd` singlem_0.15.0.sif pipe --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
+singularity run -B `pwd`:`pwd` singlem_0.15.0.sif pipe --sequences \
+    `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 Two things to note:
 
@@ -73,7 +75,7 @@ SingleM also has several non-Python dependencies, which are documented in the `s
 SingleM can be installed from source together with its conda dependencies as follows.
 
 ```
-git clone https://github.com/wwood/singlem # Or download some specific release
+git clone https://github.com/wwood/singlem
 cd singlem
 conda env create -n singlem -f singlem.yml
 conda activate singlem
