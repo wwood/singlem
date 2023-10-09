@@ -135,9 +135,15 @@ LESS COMMON OPTIONS
 
 **\--translation-table** number
 
-  codon table for translation (see
+  Codon table for translation. By default, translation table 4 is
+    used, which is the same as translation table 11 (the usual
+    bacterial/archaeal one), except that the TGA codon is translated as
+    tryptophan, not as a stop codon. Using table 4 means that the
+    minority of organisms which use table 4 are not biased against,
+    without a significant effect on the majority of bacteria and archaea
+    that use table 11. See
     http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes
-    for details) [default: 11]
+    for details on specific tables. [default: 4]
 
 **\--filter-minimum-protein** length
 
