@@ -37,7 +37,7 @@ OPTIONS
   Length of NUCLEOTIDE residues in the window, counting only those
     that match the HMM [default: 60]
 
-**\--target_domains** *TARGET_DOMAINS* [*TARGET_DOMAINS* \...]
+**\--target-domains** *TARGET_DOMAINS* [*TARGET_DOMAINS* \...]
 
   Input domains targeted by this package e.g. \'Archaea\',
     \'Bacteria\', \'Eukaryota\' or \'Viruses\'. Input with multiple
