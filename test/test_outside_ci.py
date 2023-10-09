@@ -122,14 +122,15 @@ class Tests(unittest.TestCase):
             self.assertEqual(len(old_taxon_lengths.filter(pl.col('rank')=='s__NEW_SPECIES')), 0)
             self.assertEqual(len(old_taxon_lengths)+1, len(new_lengths))
 
-            self.assertEqual(
+            self.assertAlmostEqual(
                 old_taxon_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0],
-                new_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0]) 
+                new_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0],
+                places=3) 
 
             self.assertTrue(
                 old_taxon_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0]) 
             self.assertTrue(
-                new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.6e6)
+                new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.8e6)
 
 
 if __name__ == "__main__":

@@ -13,7 +13,7 @@ from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
-DATA_DEFAULT_VERSION = '3.2.0'
+DATA_DEFAULT_VERSION = '3.2.1'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
 DATA_DOI = '10.5281/zenodo.5739611'
 
