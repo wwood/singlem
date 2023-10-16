@@ -950,18 +950,17 @@ class Tests(unittest.TestCase):
         self.assertEqual('CAAAAAAAAAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG',
                          a.not_found_otus[0].sequence)
 
-    @unittest.skip("SRA otu tables have SingleM packages not in four_package.smpkg")
     def test_appraise_plot_real_data(self):
         """Not a real test, just developing the code"""
         appraiser = Appraiser()
         metagenome_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.reads.long_sample_names.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.reads.long_sample_names.otu_table.csv')) as f:
             metagenome_collection.add_otu_table(f)
         genome_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.binned.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.binned.otu_table.csv')) as f:
             genome_collection.add_otu_table(f)
         assembly_collection = OtuTableCollection()
-        with open(os.path.join(path_to_data, 'appraise_example2', 'SRR5040536.assembly.otu_table.csv')) as f:
+        with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.assembly.otu_table.csv')) as f:
             assembly_collection.add_otu_table(f)
         packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         app = appraiser.appraise(genome_otu_table_collection=genome_collection,
@@ -972,7 +971,7 @@ class Tests(unittest.TestCase):
 
         with tempfile.NamedTemporaryFile(mode='w',suffix='.svg',prefix='single_test_appraisal.') as f:
             app.plot(
-                output_svg_base='/tmp/a.svg',#f.name,
+                output_svg_base=f.name,
                 cluster_identity = 0.89,
                 doing_assembly=True,
                 doing_binning=True
