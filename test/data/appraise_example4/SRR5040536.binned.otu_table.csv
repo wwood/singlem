@@ -1,0 +1,39 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+4.11.ribosomal_protein_L10	bin.1	CTGCGCGCCCAGGCGCGCAGCAAGGGCGTGCATCTGCAGGTTCTGAAAAATACGCTGGCC	1	1.02	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales; f__[Thiomonas]; g__Thiomonas
+4.16.ribosomal_protein_S5	bin.1	GGTACCGGCATCATCGCTGGTGGTCCGATGCGGGCGGTGTTCGAGGTGGCGGGTGTGACC	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Rhodocyclales; f__Rhodocyclaceae
+4.14.ribosomal_protein_L16_L10E_rplP	bin.1	CGTATCTTCCCGGACAAACCGGTTTCCAAGAAGCCGGCTGAGGTACGCATGGGCAACGGC	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Rhodocyclales; f__Rhodocyclaceae
+4.12.ribosomal_protein_L11_rplK	bin.1	CCGGCCGGCAAGGCCAACCCGTCCCCGCCCATCGGCCCGGCGCTCGGCCAGCGCGGCCTG	1	1.02	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales; f__[Thiomonas]; g__Thiomonas
+4.11.ribosomal_protein_L10	bin.2	TTACGCCGTGCTTGTTTTGATAAACAAGTAGAAATGAAAGTGGCTAAAAACACTTTGATT	1	1.00	Root; d__Bacteria; p__Bacteroidetes; c__Sphingobacteriia; o__Sphingobacteriales
+4.16.ribosomal_protein_S5	bin.2	GGTGCCGGTGTAATTGCGGGTGGCAGCATGCGTGCTGTTTTGGAAAGCGCAGGCATTACC	1	1.00	Root; d__Bacteria; p__Bacteroidetes; c__Sphingobacteriia; o__Sphingobacteriales
+4.14.ribosomal_protein_L16_L10E_rplP	bin.2	CGCATATTTCCTGATAAGATCATTACACGCAAGCCTTTGGAAGTGAGAATGGGTAAAGGT	1	1.00	Root; d__Bacteria; p__Bacteroidetes; c__Sphingobacteriia; o__Sphingobacteriales
+4.12.ribosomal_protein_L11_rplK	bin.2	AAAGGCGGTCAAGCCAATCCTGCTCCTCCGGTAGGCCCAGCACTCGGTTCCAAGGGTGTG	1	1.02	Root; d__Bacteria; p__Bacteroidetes; c__Sphingobacteriia; o__Sphingobacteriales
+4.11.ribosomal_protein_L10	bin.4	CTGCGCAACAAGCTCGCGGCCGAGGGCGCCGAGTTCCACGTCGTCAAAAACAGCTCCCTG	1	1.00	Root; d__Bacteria; p__Verrucomicrobia; c__Opitutae
+4.16.ribosomal_protein_S5	bin.4	GGTACCGGCCTGATCGCCGGCGGCGGCGTGCGTGCCGTGCTCGAGGCGGCCGGCGTCAAG	1	1.00	Root; d__Bacteria; p__Verrucomicrobia; c__Opitutae; o__[Opitutaceae]; f__Opitutaceae
+4.14.ribosomal_protein_L16_L10E_rplP	bin.4	AGGCGG---GAGGAAAAGAGCGTCATGGCGTGGCCTTCGAGCGGTCGCCGCGGCCCTGGG	1	1.00	Root
+4.14.ribosomal_protein_L16_L10E_rplP	bin.4	CGCATCTTCCCGCACAAGCCGATCACCAAGAAGCCTGCCGAAGTCCGAATGGGCCAAGGC	1	1.00	Root; d__Bacteria; p__Verrucomicrobia; c__Opitutae; o__[Opitutaceae]; f__Opitutaceae
+4.12.ribosomal_protein_L11_rplK	bin.4	CCCGCTGGTGCGGCCAACCCTGCTCCTCCTGTCGGCCCCGCGCTGGGCGCCCAGGGCGTC	1	1.00	Root; d__Bacteria; p__Verrucomicrobia; c__Opitutae; o__[Opitutaceae]; f__Opitutaceae
+4.11.ribosomal_protein_L10	bin.5	GTGCGCGTGGCCCTGCTGGAGGCTGATGTTGCCCTCTCGGTGGTCAAGGACTTCATCGCC	1	1.00	Root; d__Bacteria; p__Cyanobacteria; c__[Oscillatoriales]; o__Oscillatoriales
+4.16.ribosomal_protein_S5	bin.5	GGTACCGGCATCATCGCCGGCGGCCCGATGCGCGCCGTCTTCGAAACCATGGGTGTGCAG	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhodospirillales; f__Rhodospirillaceae
+4.14.ribosomal_protein_L16_L10E_rplP	bin.5	CGGATTTTCCCGGATCTGCCGGTGTCGACCAAGCCTGCCGAAGTCCGCATGGGCTCCGGT	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Alphaproteobacteria; o__Rhodospirillales; f__Rhodospirillaceae; g__Magnetospirillum
+4.11.ribosomal_protein_L10	bin.7	CTGCGGCGCGCGCTCAGCGGC---AACGCAACCTACGCCGTGGTGAAGAACACGCTGACC	1	1.01	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales; f__Cellulomonadaceae; g__Cellulomonas
+4.16.ribosomal_protein_S5	bin.7	GGTACCGGTGTCATCGCCGGCGGTCCGGTGCGCGCCGTGCTGGAGTGCGCCGGGATCCAC	1	1.01	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales; f__Cellulomonadaceae; g__Cellulomonas
+4.14.ribosomal_protein_L16_L10E_rplP	bin.7	AACATCTACCCCGACCGACCGCTCACCAAGAAGCCTGCCGAGACCCGCATGGGTTCCGGC	1	1.01	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales; f__Cellulomonadaceae; g__Cellulomonas
+4.12.ribosomal_protein_L11_rplK	bin.7	AAGGCTGGGCTCGCCACACCGGCGCCGCCGATCGGTCCCGCACTGGGCCAGCACGGCGTC	1	1.01	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Actinomycetales; f__Cellulomonadaceae; g__Cellulomonas
+4.11.ribosomal_protein_L10	bin.8	CTGCGCGCGAACGCGCGCAGTCAAGGCGTCCATCTGCAGGTTCTGAAGAACACGCTGGCC	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales; f__[Thiomonas]; g__Thiomonas
+4.16.ribosomal_protein_S5	bin.8	GGTACCGGCATCATCGCCGGCGGCCCGATGCGCGCGATCTTCGAAGTCGTCGGCATCACC	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales; f__[Thiomonas]; g__Thiomonas
+4.14.ribosomal_protein_L16_L10E_rplP	bin.8	CGCGTGTTCCCGGACAAGCCGATCTCGATCAAGCCAGCCGAAGTCCGCATGGGCAACGGC	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales; f__[Thiomonas]; g__Thiomonas
+4.12.ribosomal_protein_L11_rplK	bin.8	CCGGCCGGCAAGGCCAACCCGTCGCCGCCGATCGGCCCGGCGCTGGGCCAGCGCGGCCTG	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales; f__Comamonadaceae; g__Variovorax
+4.11.ribosomal_protein_L10	bin.9	TTGCGTGCCAACGCGCGCAAGAACGGTGTTTATTTGCATGTGTTGAAAAACACGCTGGCA	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.11.ribosomal_protein_L10	bin.9	TTGCGTGCCAATGCGCGTAACTCTGGTGTGTATTTCCGCGTGGTTAAAAACACGTTGGCA	1	1.02	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.16.ribosomal_protein_S5	bin.9	GGTACTGGCATTATCGCGGGCGGCGCCATGCGTGCGGTTTTCGAAGCGGCCGGTGTGCGT	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.14.ribosomal_protein_L16_L10E_rplP	bin.9	CGCATTTTCCCGGATAAACCGATTTCCAAGAAACCGGCCGAAGTTCGCATGGGTAACGGC	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.14.ribosomal_protein_L16_L10E_rplP	bin.9	CGTATTTTCCCGGACAAGCCGATTTCCAAGAAGCCAGCCGAAGTGCGTATGGGTAATGGT	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.12.ribosomal_protein_L11_rplK	bin.9	CCGGCCGGCAAGGCCAACCCAAGTCCTCCTATCGGTCCGGCACTCGGCCAGCGCGGCCTG	1	1.02	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.12.ribosomal_protein_L11_rplK	bin.9	CCGGCCGGTAAGGCCAATCCCAGTCCTCCCATCGGCCCGGCACTCGGTCAGCGCGGCCTG	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Gallionellales; f__Gallionellaceae
+4.11.ribosomal_protein_L10	bin.12	CTGCGCGCCAATGCGCGCGCTGCCGGTGTGTACCTGCGCGTGTTGAAGAATACCCTGGTT	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Burkholderiales
+4.12.ribosomal_protein_L11_rplK	bin.12	CCGGCAGGCAAGGCCAATCCCTCGCCTCCGATCGGCCCCGCGCTTGGTCAGCGCGGCCTC	1	1.01	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria
+4.11.ribosomal_protein_L10	bin.13	GTGCGTATGGCCTTGCTTGAGGCTGACGTTGCACTGCCTGTTGTTAAAGATTTTATCGCA	1	1.00	Root; d__Bacteria; p__Cyanobacteria; c__[Oscillatoriales]; o__Oscillatoriales
+4.11.ribosomal_protein_L10	bin.13	TTGCGTGCAGATGCTCGAAGTTCTGGTGTGTACTTACGTGTATTGAAAAATACTTTAGTG	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Methylophilales; f__Methylophilaceae; g__Methylotenera
+4.16.ribosomal_protein_S5	bin.13	GGTACTGGAATCATTGCTGGCGGTGCTATGCGTGCTATTTTTGAAGTAATGGGTGTTACT	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Methylophilales; f__Methylophilaceae; g__Methylotenera
+4.14.ribosomal_protein_L16_L10E_rplP	bin.13	CGTATTTTCCCAGATCAGCCAATTTCTAAAAAACCAGCTGAAGTGCGTATGGGTAACGGT	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Methylophilales; f__Methylophilaceae
+4.12.ribosomal_protein_L11_rplK	bin.13	CCTGCAGGTAAAGCCAACCCAAGCCCACCAATCGGTCCAGCATTGGGTCAACGTGGTTTG	1	1.00	Root; d__Bacteria; p__Proteobacteria; c__Betaproteobacteria; o__Methylophilales; f__Methylophilaceae; g__Methylotenera
