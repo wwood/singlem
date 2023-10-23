@@ -951,7 +951,6 @@ class Tests(unittest.TestCase):
                          a.not_found_otus[0].sequence)
 
     def test_appraise_plot_real_data(self):
-        """Not a real test, just developing the code"""
         appraiser = Appraiser()
         metagenome_collection = OtuTableCollection()
         with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.reads.long_sample_names.otu_table.csv')) as f:
@@ -969,13 +968,19 @@ class Tests(unittest.TestCase):
                                  packages=packages,
                                  window_size=DEFAULT_WINDOW_SIZE)
 
-        with tempfile.NamedTemporaryFile(mode='w',suffix='.svg',prefix='single_test_appraisal.') as f:
-            app.plot(
-                output_svg_base=f.name,
-                cluster_identity = 0.89,
-                doing_assembly=True,
-                doing_binning=True
-            )
+        with self.assertLogs() as captured:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.svg',prefix='single_test_appraisal.') as f:
+                app.plot(
+                    output_svg_base=f.name,
+                    cluster_identity = 0.89,
+                    doing_assembly=True,
+                    doing_binning=True
+                )
+
+        self.assertTrue("4.11.ribosomal_protein_L10" in captured.records[0].getMessage())
+        self.assertTrue("4.12.ribosomal_protein_L11_rplK" in captured.records[0].getMessage())
+        self.assertTrue("4.14.ribosomal_protein_L16_L10E_rplP" in captured.records[0].getMessage())
+        self.assertTrue("4.16.ribosomal_protein_S5" in captured.records[0].getMessage())
 
     def test_appraise_assembly_imperfectly(self):
         metagenome_otu_table = [
