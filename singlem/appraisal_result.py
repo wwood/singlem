@@ -68,7 +68,7 @@ class Appraisal:
                     raise Exception("No instances of the marker '%s' found "
                                     "in any OTU tables for plotting." % target_gene)
             else:
-                genes_to_plot = [self._pick_representative_marker(doing_assembly, doing_binning)]
+                genes_to_plot = [self._pick_first_marker(doing_assembly, doing_binning)]
         else:
             genes_to_plot = genes
 
@@ -84,6 +84,18 @@ class Appraisal:
                 gene,
                 doing_assembly,
                 doing_binning)
+
+    def _pick_first_marker(self, doing_assembly, doing_binning):
+        '''Pick to first marker in the list. Should be S3.1 for standard metapackage'''
+        markers = set()
+        for result in self.appraisal_results:
+            if doing_binning:
+                for otu in result.binned_otus: markers.add(otu.marker)
+            if doing_assembly:
+                for otu in result.assembled_not_binned_otus(): markers.add(otu.marker)
+            for otu in result.not_found_otus: markers.add(otu.marker)
+
+        return sorted(list(markers))[0]
 
     def _pick_representative_marker(self, doing_assembly, doing_binning):
         '''Pick the marker which has least euclidean distance to the mean

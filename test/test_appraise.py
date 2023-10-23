@@ -982,6 +982,35 @@ class Tests(unittest.TestCase):
         self.assertTrue("4.14.ribosomal_protein_L16_L10E_rplP" in captured.records[0].getMessage())
         self.assertTrue("4.16.ribosomal_protein_S5" in captured.records[0].getMessage())
 
+    def test_appraise_plot_single_gene(self):
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.reads.long_sample_names.otu_table.csv')) as f:
+            metagenome_collection.add_otu_table(f)
+        genome_collection = OtuTableCollection()
+        with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.binned.otu_table.csv')) as f:
+            genome_collection.add_otu_table(f)
+        assembly_collection = OtuTableCollection()
+        with open(os.path.join(path_to_data, 'appraise_example4', 'SRR5040536.assembly.otu_table.csv')) as f:
+            assembly_collection.add_otu_table(f)
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 assembly_otu_table_collection=assembly_collection,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
+
+        with self.assertLogs() as captured:
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.svg',prefix='single_test_appraisal.') as f:
+                app.plot(
+                    output_svg=f.name,
+                    cluster_identity = 0.89,
+                    doing_assembly=True,
+                    doing_binning=True
+                )
+
+        self.assertEqual("Generating plot for marker: 4.11.ribosomal_protein_L10", captured.records[0].getMessage())
+
     def test_appraise_assembly_imperfectly(self):
         metagenome_otu_table = [
             self.headers,[
