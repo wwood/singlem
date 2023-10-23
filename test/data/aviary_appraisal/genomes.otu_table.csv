@@ -1,0 +1,3 @@
+gene	sample	sequence	num_hits	coverage	taxonomy
+4.11.ribosomal_protein_L10	concoct_bins.tsv.006_sub	GAGTTTCAGCCCGGAAAAGGCGCTCAAATTGTTAAATCTGCCGGTTCTGCGGCTTTTATT	1	1.09	Root; d__Bacteria; p__Patescibacteria; c__Microgenomatia; o__UBA12405; f__UBA12405; g__UBA12158; s__UBA12158 sp000989305
+4.11.ribosomal_protein_L10	maxbin_bins.tsv.002	GAAGTCAGCCCGGGCAAGGGCGCCCAGATGGTTCGCGCCGCTGGTACCAAAGCTCAGCTG	1	1.07	Root; d__Bacteria; p__Patescibacteria; c__Saccharimonadia; o__Saccharimonadales; f__UBA1020; g__UBA1020; s__UBA1020 sp000503915
