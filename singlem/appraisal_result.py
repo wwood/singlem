@@ -361,7 +361,7 @@ class Appraisal:
         normalised = squarify.normalize_sizes(to_normalise, 10, 10)
         ylim = [0.,10.]
         sides = list([math.sqrt(normalised[i]) for i, value in enumerate(scale_values)])
-        overlap = (ylim[1]-ylim[0]-sum(sides))/(len(sides)-1)
+        overlap = (ylim[1]-ylim[0]-sum(sides))/(max(len(sides)-1, 1))
         next_bottom = ylim[0]
         xoffset = ylim[1]-ylim[0]-sides[0]
         fp = matplotlib.font_manager.FontProperties(size=6)
