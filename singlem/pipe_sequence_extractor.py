@@ -242,7 +242,12 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
         min_orf_length,
         translation_table))
     # On very rare occasions, the same sequence can be returned twice, causing
-    # hmmalign to give unexpected format output. So dedup.
+    # hmmalign to give unexpected format output. So dedup. For instance using
+    # S3.2.1 and
+    # /home/woodcrob/m/abisko/data/flat20230929_all/201607_SubstrateInc_9to19.G_F_S_T50.1.fq.gz
+    # &
+    # /home/woodcrob/m/abisko/data/flat20230929_all/201607_SubstrateInc_9to19.G_F_S_T50.2.fq.gz
+    # causes the eventual bug.
     sequences = list(set(sequences))
 
     # Run orfm |hmmalign
