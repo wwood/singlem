@@ -100,7 +100,7 @@ class DiamondSpkgSearcher:
                 except ValueError:
                     raise Exception("Unexpected line format for DIAMOND output line '{}'".format(line))
                 if qseqid in best_hits and best_hits[qseqid] != sseqid:
-                    raise Exception("Multiple DIAMOND best hits? for '{}'".format(qseqid))
+                    raise Exception("Multiple DIAMOND best hits detected for '{}'. This likely indicates that the input reads have non-unique names, possibly due to the same read appearing twice in a single input file".format(qseqid))
                 best_hits[qseqid] = sseqid
 
             diamond_results.append(DiamondSearchResult(fasta_path, best_hits))
