@@ -261,7 +261,7 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     # For each chunk
     for i in range(0, len(sequences), chunk_size):
         chunk_sequences = sequences[i:i + chunk_size]
-        cmd = "orfm -c {} -m {} | hmmalign --trim '{}' /dev/stdin".format(
+        cmd = "orfm -c {} -m {} | hmmalign '{}' /dev/stdin".format(
             translation_table, min_orf_length, spkg.graftm_package().alignment_hmm_path()
         )
         stdin = '\n'.join(
