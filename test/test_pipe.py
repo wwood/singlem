@@ -343,16 +343,16 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
         cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (path_to_script, path_to_data, path_to_data)
-
+        
         self.assertEqual(exp, sorted(extern.run(cmd).split("\n")))
         
-    def test_minimal_prefilter(self):
+    def test_minimal_no_prefilter(self):
         expected = [
             self.headers,
             ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg --no-diamond-prefilter" % (
             path_to_script,
             path_to_data,
             path_to_data)
