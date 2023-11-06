@@ -14,6 +14,16 @@ class Sequence:
     def fasta(self):
         return ">{}\n{}\n".format(self.name, self.seq)
 
+    def __eq__(self, other):
+        """Overrides the default implementation"""
+        if isinstance(other, Sequence):
+            return self.name == other.name and self.seq == other.seq
+        return False
+
+    def __hash__(self):
+        return hash((self.name, self.seq))
+
+
 class AlignedProteinSequence(Sequence):
     def un_orfm_name(self):
         return OrfMUtils().un_orfm_name(self.name)
