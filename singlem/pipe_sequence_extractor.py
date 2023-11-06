@@ -15,6 +15,7 @@ from . import sequence_extractor as singlem_sequence_extractor
 from .streaming_hmm_search_result import StreamingHMMSearchResult
 from .singlem import OrfMUtils
 
+
 # Must be defined outside a class so that it is pickle-able, so multiprocessing can work
 def _run_individual_extraction(sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy):
     if singlem_package.is_protein_package():
@@ -240,6 +241,9 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
         prefilter_result,
         min_orf_length,
         translation_table))
+    # On very rare occasions, the same sequence can be returned twice, causing
+    # hmmalign to give unexpected format output. So dedup.
+    sequences = list(set(sequences))
 
     # Run orfm |hmmalign
     #
@@ -252,7 +256,7 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     # For each chunk
     for i in range(0, len(sequences), chunk_size):
         chunk_sequences = sequences[i:i + chunk_size]
-        cmd = "orfm -c {} -m {} | hmmalign '{}' /dev/stdin".format(
+        cmd = "orfm -c {} -m {} | hmmalign --trim '{}' /dev/stdin".format(
             translation_table, min_orf_length, spkg.graftm_package().alignment_hmm_path()
         )
         stdin = '\n'.join(

@@ -66,6 +66,7 @@ class MetagenomeOtuFinder:
                         # On rare occasions, the dummy sequence is aligned to
                         # the HMM in the right place, ignore it.
                         continue
+                    
                     nuc = nucleotide_sequences[name]
                     aligned_nucleotides = s.orfm_nucleotides(nuc)
                 else:
