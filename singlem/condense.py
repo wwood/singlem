@@ -365,6 +365,8 @@ class Condenser:
     def _is_targeted_by_marker(self, otu, tax_split, markers):
         '''return True if the OTU (i.e. domain of the taxonomy) is targeted by
         the marker, else False'''
+        if tax_split is None:
+            raise Exception("OTU table must contain taxonomy information for condense mode. Was --no-assign-taxonomy specified? It cannot be if the result is to be passed to condense.")
         if tax_split[0] != 'Root':
             raise Exception("OTU tables to condense must contain 'Root' as the first taxon in the taxonomy")
         # ensure OTU is assigned to the domain level or higher
