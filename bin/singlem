@@ -527,6 +527,8 @@ if __name__ == '__main__':
             raise Exception("Can only specify a metapackage or a singlem package set, not both")
         if args.output_extras and not args.otu_table:
             raise Exception("Can't use --output-extras without --otu-table")
+        if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
+            raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
         if subparser == 'pipe':
             if args.include_inserts and not args.otu_table and not args.archive_otu_table:
                 raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
