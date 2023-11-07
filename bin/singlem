@@ -156,10 +156,10 @@ if __name__ == '__main__':
         argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
                                     help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
                                     default=SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
-        argument_group.add_argument('--evalue', help='GraftM e-value cutoff [default: the GraftM default]')
+        argument_group.add_argument('--evalue', help='GraftM e-value cutoff to use for sequence gathering when --no-diamond-prefilter is specified.[default: the GraftM default i.e. 1e-5]')
         argument_group.add_argument('--min-orf-length',
                                     metavar='length',
-                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i for reads, %i for genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH,SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
+                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i when input is reads, %i when input is genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH,SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
                                     type=int)
         argument_group.add_argument('--restrict-read-length',
                                     metavar='length',
@@ -172,7 +172,7 @@ if __name__ == '__main__':
                                     default=SearchPipe.DEFAULT_TRANSLATION_TABLE)
         argument_group.add_argument('--filter-minimum-protein',
                                     metavar='length',
-                                    help='Ignore reads aligning in less than this many positions to each protein HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
+                                    help='Ignore reads aligning in less than this many positions to each protein HMM when using --no-diamond-prefilter [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
         argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
         argument_group.add_argument('--min-taxon-coverage',
