@@ -42,6 +42,7 @@ class SearchPipe:
     DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_ASSIGNMENT_THREADS = 1
     DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
+    DEFAULT_HMMSEARCH_EVALUE = 1e-5
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -143,7 +144,7 @@ class SearchPipe:
         singlem_assignment_method = kwargs.pop('assignment_method', SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_METHOD)
         assignment_threads = kwargs.pop('assignment_threads', DEFAULT_THREADS)
         output_jplace = kwargs.pop('output_jplace', None)
-        evalue = kwargs.pop('evalue', None)
+        evalue = kwargs.pop('evalue', SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
         min_orf_length = kwargs.pop('min_orf_length', SearchPipe.DEFAULT_MIN_ORF_LENGTH)
         restrict_read_length = kwargs.pop('restrict_read_length', None)
         translation_table = kwargs.pop('translation_table', SearchPipe.DEFAULT_TRANSLATION_TABLE)
@@ -413,7 +414,8 @@ class SearchPipe:
             extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
                 self._num_threads, hmms,
                 diamond_forward_search_results, diamond_reverse_search_results,
-                analysing_pairs, include_inserts, min_orf_length, translation_table)
+                analysing_pairs, include_inserts, min_orf_length,
+                translation_table, self._evalue)
             del diamond_forward_search_results
             del diamond_reverse_search_results
             if extracted_reads.empty():
