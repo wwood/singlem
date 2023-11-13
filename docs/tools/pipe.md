@@ -121,12 +121,14 @@ LESS COMMON OPTIONS
 
 **\--evalue** *EVALUE*
 
-  GraftM e-value cutoff [default: the GraftM default]
+  HMMSEARCH e-value cutoff to use for sequence gathering [default:
+    1e-05]
 
 **\--min-orf-length** length
 
   When predicting ORFs require this many base pairs uninterrupted by a
-    stop codon [default: 72 for reads, 300 for genomes]
+    stop codon [default: 72 when input is reads, 300 when input is
+    genomes]
 
 **\--restrict-read-length** length
 
@@ -148,7 +150,7 @@ LESS COMMON OPTIONS
 **\--filter-minimum-protein** length
 
   Ignore reads aligning in less than this many positions to each
-    protein HMM [default: 24]
+    protein HMM when using \--no-diamond-prefilter [default: 24]
 
 **\--exclude-off-target-hits**
 
