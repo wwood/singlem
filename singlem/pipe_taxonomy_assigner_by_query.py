@@ -64,7 +64,7 @@ class PipeTaxonomyAssignerByQuery:
 
         return window_to_read_names, spkg_to_queries, aligned_seqs_to_package_and_sample_name
 
-    def assign_taxonomy(self, extracted_reads, assignment_singlem_db, method):
+    def assign_taxonomy(self, extracted_reads, assignment_singlem_db, method, max_species_divergence):
         # query_by_sequence_similarity_with_annoy
         # def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
         
@@ -99,7 +99,7 @@ class PipeTaxonomyAssignerByQuery:
             last_hits = []
 
             if len(queries) > 0:
-                for hit in querier.query_with_queries(queries, sdb, 3, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
+                for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
                     # hit has (query, subject, divergence)
                     # subject has .taxonomy
                     if last_query != hit.query.name:
