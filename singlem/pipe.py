@@ -43,6 +43,7 @@ class SearchPipe:
     DEFAULT_ASSIGNMENT_THREADS = 1
     DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
     DEFAULT_HMMSEARCH_EVALUE = 1e-5
+    DEFAULT_MAX_SPECIES_DIVERGENCE = 3
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -163,6 +164,7 @@ class SearchPipe:
         diamond_prefilter_db = kwargs.pop('diamond_prefilter_db', None)
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
+        max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -177,6 +179,7 @@ class SearchPipe:
         self._translation_table = translation_table
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
+        self._max_species_divergence = max_species_divergence
 
         if metapackage_object:
             hmms = metapackage_object
@@ -1207,7 +1210,7 @@ class SearchPipe:
             else:
                 raise Exception("Programming error")
             query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy(
-                extracted_reads, assignment_singlem_db, method)
+                extracted_reads, assignment_singlem_db, method, self._max_species_divergence)
             if assignment_method == ANNOY_ASSIGNMENT_METHOD:
                 logging.info("Finished running taxonomic assignment")
                 return query_based_assignment_result
