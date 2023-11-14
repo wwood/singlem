@@ -29,6 +29,7 @@ class Renew:
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile')
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona')
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits')
+        max_species_divergence = kwargs.pop('max_species_divergence')
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -138,6 +139,7 @@ class Renew:
             pipe._num_threads = threads
             pipe._filter_minimum_protein = filter_minimum_protein
             pipe._translation_table = translation_table
+            pipe._max_species_divergence = max_species_divergence
 
             logging.info("Running taxonomy assignment and post-processing ..")
             otu_table_object = pipe.assign_taxonomy_and_process(

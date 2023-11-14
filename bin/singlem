@@ -177,7 +177,8 @@ if __name__ == '__main__':
                                     help='Ignore reads aligning in less than this many positions to each protein HMM when using --no-diamond-prefilter [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
         argument_group.add_argument('--max-species-divergence', metavar='INT',
-                                    help='Maximum number of different bases acids to allow between a sequence and the best hit in the database so that it is assigned to the species level. [default: %i]' % SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
+                                    help='Maximum number of different bases acids to allow between a sequence and the best hit in the database so that it is assigned to the species level. [default: %i]' % SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE,
+                                    type=int, default=SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
         argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
         argument_group.add_argument('--min-taxon-coverage',
                                     metavar='FLOAT',
