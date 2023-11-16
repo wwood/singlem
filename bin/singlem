@@ -505,7 +505,10 @@ if __name__ == '__main__':
     supplement_parser.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
     supplement_parser.add_argument(
         '--gtdbtk-output-directory',
-        help='use this GTDBtk result. Not used if --new-taxonomies is used [default: run GTDBtk]')
+        help='use this GTDBtk result. Not used if --new-taxonomies is used [default: not set, run GTDBtk]')
+    supplement_parser.add_argument(
+        '--taxonomy-file',
+        help='A 2 column tab-separated file containing each genome\'s taxonomy as output by GTDBtk [default: not set, run GTDBtk]')
     supplement_parser.add_argument(
         '--output-taxonomies',
         help='TSV output file of taxonomies of new genomes, whether they are novel species or not.')
@@ -1258,6 +1261,8 @@ if __name__ == '__main__':
             raise Exception("Either --no-taxon-genome-lengths or --checkm2-quality-file must be specified")
         if not args.checkm2_quality_file and not args.no_quality_filter:
             raise Exception("Either --no-quality-filter or --checkm2-quality-file must be specified")
+        if args.gtdbtk_output_directory and args.taxonomy_file:
+            raise Exception("Options --gtdbtk-output-directory and --taxonomy-file cannot both be specified")
 
         Supplementor().supplement(
             new_genome_fasta_files=args.new_genome_fasta_files,
@@ -1268,6 +1273,7 @@ if __name__ == '__main__':
             pplacer_threads=args.pplacer_threads,
             working_directory=args.working_directory,
             gtdbtk_output_directory=args.gtdbtk_output_directory,
+            taxonomy_file=args.taxonomy_file,
             output_taxonomies=args.output_taxonomies,
             checkm2_quality_file=args.checkm2_quality_file,
             no_quality_filter=args.no_quality_filter,

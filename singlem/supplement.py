@@ -69,6 +69,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
     pplacer_threads = kwargs.pop('pplacer_threads')
     working_directory = kwargs.pop('working_directory')
     gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
+    taxonomy_file = kwargs.pop('taxonomy_file')
     output_taxonomies_file = kwargs.pop('output_taxonomies_file')
     excluded_genomes = kwargs.pop('excluded_genomes')
     old_metapackage = kwargs.pop('old_metapackage')
@@ -92,130 +93,152 @@ def generate_taxonomy_for_new_genomes(**kwargs):
 
     # Create batchfile, tab separated in 2 columns (FASTA file, genome ID)
     name_to_genome_fasta = {}
-    with tempfile.NamedTemporaryFile(mode='w') as batchfile:
-        for genome_fasta in new_genome_fasta_files:
-            if not os.path.isfile(genome_fasta):
-                raise Exception("Specified genome does not appear to be a file: {}".format(genome_fasta))
-            name = os.path.basename(genome_fasta)
-            name_to_genome_fasta[name] = genome_fasta
-            name_to_genome_fasta[remove_file_extensions(name)] = genome_fasta
-            batchfile.write(genome_fasta + '\t' + name + '\n')
-        batchfile.flush()
+    for genome_fasta in new_genome_fasta_files:
+        if not os.path.isfile(genome_fasta):
+            raise Exception("Specified genome does not appear to be a file: {}".format(genome_fasta))
+        name = os.path.basename(genome_fasta)
+        name_to_genome_fasta[name] = genome_fasta
+        name_to_genome_fasta[remove_file_extensions(name)] = genome_fasta
 
-        if gtdbtk_output_directory:
-            logging.info("Using pre-existing GTDBtk output directory: {}".format(gtdbtk_output_directory))
-            gtdbtk_output = gtdbtk_output_directory
+    taxonomies_to_process = []
+    if taxonomy_file:
+        logging.info("Using pre-existing taxonomy file: {}".format(taxonomy_file))
+        # Read in taxonomy file as 2col TSV
+        with open(taxonomy_file) as f:
+            for row in csv.reader(f, delimiter='\t'):
+                if len(row) != 2:
+                    raise Exception("Unexpected number of columns (expected 2) in taxonomy file: {}".format(row))
+                taxonomies_to_process.append((row[0], row[1]))
+
+    else:
+        with tempfile.NamedTemporaryFile(mode='w') as batchfile:
+            for genome_fasta in new_genome_fasta_files:
+                name = os.path.basename(genome_fasta)
+                batchfile.write(genome_fasta + '\t' + name + '\n')
+            batchfile.flush()
+
+            if gtdbtk_output_directory:
+                logging.info("Using pre-existing GTDBtk output directory: {}".format(gtdbtk_output_directory))
+                gtdbtk_output = gtdbtk_output_directory
+            else:
+                # run gtdbtk to temporary output directory
+                gtdbtk_output = os.path.join(working_directory, 'gtdbtk_output')
+                logging.info("Running GTDBtk to generate taxonomy for new genomes ..")
+                # logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
+                cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db {working_directory}/gtdbtk_mash.msh'
+                if pplacer_threads:
+                    cmd += f' --pplacer_cpus {pplacer_threads}'
+                extern.run(cmd)
+                logging.info("GTDBtk finished")
+
+            # read in assigned taxonomy from gtdbtk output
+            if not os.path.exists(gtdbtk_output):
+                raise Exception("GTDBtk output directory not found: {}".format(gtdbtk_output))
+            bacteria_taxonomy_path = os.path.join(gtdbtk_output, 'gtdbtk.bac120.summary.tsv')
+            archaea_taxonomy_path = os.path.join(gtdbtk_output, 'gtdbtk.ar53.summary.tsv')
+
+            for tax_file in [bacteria_taxonomy_path, archaea_taxonomy_path]:
+                if os.path.exists(tax_file):
+                    logging.info("Reading taxonomy from {}".format(tax_file))
+
+                    df = pl.read_csv(tax_file, separator='\t')
+                    for row in df.rows(named=True):
+                        genome_name = row['user_genome']
+                        taxonomies_to_process.append((genome_name, row['classification']))
+
+    # For loop setup
+    excluded_genome_basenames = set([os.path.basename(x) for x in excluded_genomes])
+    new_taxonomies = {}
+    num_genomes_without_fasta = 0
+    if output_taxonomies_file:
+        logging.info("Writing new genome taxonomies to {}".format(output_taxonomies_file))
+        output_taxonomies_fh = open(output_taxonomies_file, 'w')
+        output_taxonomies_fh.write('genome\ttaxonomy\n')
+        
+    # For loop
+    for genome_name, taxonomy_str in taxonomies_to_process:
+        taxonomy = list([s.strip() for s in taxonomy_str.split(';')])
+
+        if genome_name in excluded_genome_basenames:
+            logging.debug(
+                "Ignoring genome {} because it is in the excluded_genomes list".format(genome_name))
+            continue
+        if genome_name not in name_to_genome_fasta:
+            logging.debug(
+                "Genome {} was not found in the list of genomes to be included".format(genome_name))
+            num_genomes_without_fasta += 1
+            continue
+        
+        if len(taxonomy) != 7:
+            if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
+                logging.warning(
+                    "The genome {} was not given any classification, perhaps it is poor quality?".format(
+                        genome_name))
+                if output_taxonomies_file:
+                    output_taxonomies_fh.write(
+                        '\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) +
+                        '\n')
+            else:
+                raise Exception("Unexpected taxonomy length found: {}".format(
+                    taxonomy))
         else:
-            # run gtdbtk to temporary output directory
-            gtdbtk_output = os.path.join(working_directory, 'gtdbtk_output')
-            logging.info("Running GTDBtk to generate taxonomy for new genomes ..")
-            # logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
-            cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db {working_directory}/gtdbtk_mash.msh'
-            if pplacer_threads:
-                cmd += f' --pplacer_cpus {pplacer_threads}'
-            extern.run(cmd)
-            logging.info("GTDBtk finished")
+            # Check that the taxonomy provided is a known taxonomy in the current metapackage.
+            if not skip_taxonomy_check:
+                taxonomy_to_check = re.sub(r';.__$', '', re.sub(r';.__;.*', '', ';'.join(taxonomy)))
+                if taxonomy_to_check not in known_taxons:
+                    raise Exception(
+                        "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage".format(
+                            taxonomy_to_check, genome_name, taxonomy_str))
+            if taxonomy[6] != 's__':
+                logging.debug(
+                    "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
+                        genome_name, taxonomy))
+                if output_taxonomies_file:
+                    output_taxonomies_fh.write(
+                        '\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
+            else:
+                placeholder_taxonomy = remove_file_extensions(genome_name)
 
-        # read in assigned taxonomy from gtdbtk output
-        if not os.path.exists(gtdbtk_output):
-            raise Exception("GTDBtk output directory not found: {}".format(gtdbtk_output))
-        bacteria_taxonomy_path = os.path.join(gtdbtk_output, 'gtdbtk.bac120.summary.tsv')
-        archaea_taxonomy_path = os.path.join(gtdbtk_output, 'gtdbtk.ar53.summary.tsv')
+                for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
+                    if taxonomy[i] == prefix:
+                        taxonomy[i] = prefix + placeholder_taxonomy
+                logging.debug("Adding new species-level genome {} with taxonomy {}".format(
+                    genome_name, taxonomy))
+                new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
+                if output_taxonomies_file:
+                    output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
 
-        if output_taxonomies_file:
-            logging.info("Writing new genome taxonomies to {}".format(output_taxonomies_file))
-            output_taxonomies_fh = open(output_taxonomies_file, 'w')
-            output_taxonomies_fh.write('genome\ttaxonomy\n')
+    if num_genomes_without_fasta > 0:
+        logging.warning(
+            "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these."
+            .format(num_genomes_without_fasta))
 
-        new_taxonomies = {}
-        excluded_genome_basenames = set([os.path.basename(x) for x in excluded_genomes])
-        num_genomes_without_fasta = 0
-        for tax_file in [bacteria_taxonomy_path, archaea_taxonomy_path]:
-            if os.path.exists(tax_file):
-                logging.info("Reading taxonomy from {}".format(tax_file))
+    if output_taxonomies_file:
+        output_taxonomies_fh.close()
 
-                df = pl.read_csv(tax_file, separator='\t')
-                for row in df.rows(named=True):
-                    genome_name = row['user_genome']
-                    taxonomy = row['classification'].split(';')
-                    if genome_name in excluded_genome_basenames:
-                        logging.debug(
-                            "Ignoring genome {} because it is in the excluded_genomes list".format(genome_name))
-                        continue
-                    if genome_name not in name_to_genome_fasta:
-                        logging.debug(
-                            "Genome {} was not found in the list of genomes to be included".format(genome_name))
-                        num_genomes_without_fasta += 1
-                        continue
-                    if len(taxonomy) != 7:
-                        if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
-                            logging.warning(
-                                "The genome {} was not given any classification, perhaps it is poor quality?".format(
-                                    genome_name))
-                            if output_taxonomies_file:
-                                output_taxonomies_fh.write(
-                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) +
-                                    '\n')
-                        else:
-                            raise Exception("Unexpected taxonomy length found in GTDBtk output file {}: {}".format(
-                                tax_file, taxonomy))
-                    else:
-                        # Check that the taxonomy provided is a known taxonomy in the current metapackage.
-                        if not skip_taxonomy_check:
-                            taxonomy_to_check = re.sub(r';.__$', '', re.sub(r';.__;.*', '', row['classification']))
-                            if taxonomy_to_check not in known_taxons:
-                                raise Exception(
-                                    "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage".format(
-                                        taxonomy_to_check, genome_name, row['classification']))
-                        if taxonomy[6] != 's__':
-                            logging.debug(
-                                "Ignoring genome {} because it already has a species-level taxonomic assignment: {}".format(
-                                    genome_name, row['classification']))
-                            if output_taxonomies_file:
-                                output_taxonomies_fh.write(
-                                    '\t'.join([genome_name, 'Root; ' + '; '.join(row['classification'].split(';'))]) + '\n')
-                        else:
-                            placeholder_taxonomy = remove_file_extensions(genome_name)
+    if len(new_taxonomies) == 0:
+        raise Exception(
+            "No new species-level genomes found in GTDBtk output, so there are no genomes to add to the metapackage."
+        )
 
-                            for i, prefix in zip(range(len(taxonomy)), taxonomy_prefixes):
-                                if taxonomy[i] == prefix:
-                                    taxonomy[i] = prefix + placeholder_taxonomy
-                            logging.debug("Adding new species-level genome {} with taxonomy {}".format(
-                                genome_name, taxonomy))
-                            new_taxonomies[name_to_genome_fasta[genome_name]] = taxonomy
-                            if output_taxonomies_file:
-                                output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
-        if num_genomes_without_fasta > 0:
-            logging.warning(
-                "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these."
-                .format(num_genomes_without_fasta))
+    # Create taxonomy file
+    logging.info("Creating taxonomy file for new genomes")
+    taxonomy_path = os.path.join(working_directory, 'new_genomes_taxonomy.tsv')
+    with open(taxonomy_path, 'w') as taxonomy_file:
+        writer = csv.writer(taxonomy_file, delimiter='\t')
+        for genome_fasta, taxonomy in new_taxonomies.items():
+            writer.writerow([genome_fasta] + ['; '.join(taxonomy)])
+    logging.debug("New genomes taxonomy file written to {}".format(taxonomy_path))
 
-        if output_taxonomies_file:
-            output_taxonomies_fh.close()
+    # Remove fasta files where the species is not new
+    initial_count = len(new_genome_fasta_files)
+    new_genome_fasta_files = list([g for g in new_genome_fasta_files if g in new_taxonomies])
+    logging.info(
+        "Removed {} genomes from new genomes list because they already had a species-level taxonomic assignment".
+        format(initial_count - len(new_genome_fasta_files)))
+    logging.info("Number of new genomes to add to metapackage: {}".format(len(new_genome_fasta_files)))
 
-        if len(new_taxonomies) == 0:
-            raise Exception(
-                "No new species-level genomes found in GTDBtk output, so there are no genomes to add to the metapackage."
-            )
-
-        # Create taxonomy file
-        logging.info("Creating taxonomy file for new genomes")
-        taxonomy_path = os.path.join(working_directory, 'new_genomes_taxonomy.tsv')
-        with open(taxonomy_path, 'w') as taxonomy_file:
-            writer = csv.writer(taxonomy_file, delimiter='\t')
-            for genome_fasta, taxonomy in new_taxonomies.items():
-                writer.writerow([genome_fasta] + ['; '.join(taxonomy)])
-        logging.debug("New genomes taxonomy file written to {}".format(taxonomy_path))
-
-        # Remove fasta files where the species is not new
-        initial_count = len(new_genome_fasta_files)
-        new_genome_fasta_files = list([g for g in new_genome_fasta_files if g in new_taxonomies])
-        logging.info(
-            "Removed {} genomes from new genomes list because they already had a species-level taxonomic assignment".
-            format(initial_count - len(new_genome_fasta_files)))
-        logging.info("Number of new genomes to add to metapackage: {}".format(len(new_genome_fasta_files)))
-
-        return taxonomy_path, new_genome_fasta_files
+    return taxonomy_path, new_genome_fasta_files
 
 
 def remove_file_extensions(filename):
@@ -690,6 +713,7 @@ class Supplementor:
         pplacer_threads = kwargs.pop('pplacer_threads')
         predefined_working_directory = kwargs.pop('working_directory')
         gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
+        taxonomy_file = kwargs.pop('taxonomy_file')
         output_taxonomies = kwargs.pop('output_taxonomies')
         checkm2_quality_file = kwargs.pop('checkm2_quality_file')
         checkm2_min_completeness = kwargs.pop('checkm2_min_completeness')
@@ -768,6 +792,7 @@ class Supplementor:
                     threads=threads,
                     new_genome_fasta_files=new_genome_fasta_files,
                     gtdbtk_output_directory=gtdbtk_output_directory,
+                    taxonomy_file=taxonomy_file,
                     pplacer_threads=pplacer_threads,
                     output_taxonomies_file=output_taxonomies,
                     excluded_genomes=excluded_genomes,
