@@ -132,7 +132,7 @@ class Tests(unittest.TestCase):
     def test_checkm2_quality_filter(self):
         with in_tempdir():
             # Modify the gtdbtk output so genome isn't assigned to species level, otherwise checkm filter removes the only novel genome
-            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --gtdbtk-output-directory {path_to_data}/GCA_011373445.1_genomic_and_mutated93.manually_added_nongaps.gtdbtk_output.manually_no_species --output-taxonomies out.taxonomy.tsv --checkm2-quality-file {path_to_data}/checkm2.output/quality_report.tsv"
+            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --gtdbtk-output-directory {path_to_data}/GCA_011373445.1_genomic_and_mutated93.manually_added_nongaps.gtdbtk_output.manually_no_species --output-taxonomies out.taxonomy.tsv --checkm2-quality-file {path_to_data}/checkm2.output/quality_report.tsv --skip-taxonomy-check"
             extern.run(cmd)
 
             cmd2 = f'{singlem} pipe --translation-table 11 --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
@@ -154,6 +154,38 @@ class Tests(unittest.TestCase):
                 taxonomy = f.read()
             expected = "genome	taxonomy\n" \
                 "GCA_011373445.1_genomic.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic\n"
+            self.assertEqual(expected, taxonomy)
+
+    def test_taxonomy_file_with_not_all_new_fast(self):
+        with in_tempdir():
+            with open('new_taxonomies', 'w') as f:
+                f.write('\t'.join(['GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna',
+                    'd__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__\n']))
+                f.write('\t'.join(['GCA_011373445.1_genomic.fna',
+                    'd__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__DRVV01 sp011373445\n']))
+            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --taxonomy-file new_taxonomies --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.fna {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --output-taxonomies out.taxonomy.tsv --skip-taxonomy-check"
+            extern.run(cmd)
+
+            cmd2 = f'{singlem} pipe --translation-table 11 --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
+            output = extern.run(cmd2)
+            expected = [
+                "\t".join(self.headers),
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
+                # The row below should really be to species level, but there's
+                # differences in the alignment from transcripts and genome
+                # input, where an AA moves from one side of the gap to another.
+                # To fix this could shunt the gaps to the back, but not
+                # implemented at the moment as low priority.
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
+            ]
+            self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
+            # Assert taxonomy file is correct
+            with open('out.taxonomy.tsv') as f:
+                taxonomy = f.read()
+            expected = "genome	taxonomy\n" \
+                "GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps\n" \
+                "GCA_011373445.1_genomic.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__DRVV01 sp011373445\n"
             self.assertEqual(expected, taxonomy)
 
 
