@@ -365,7 +365,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--output-species-by-site-level', help="Output site by species level to this file", choices=['species','genus','family','order','class','phylum','domain'], default='species')
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage.'
-    read_fraction_parser = bird_argparser.new_subparser('read_fraction', read_fraction_description, parser_group='Tools')
+    read_fraction_parser = bird_argparser.new_subparser('microbial_fraction', read_fraction_description, parser_group='Tools')
     read_fraction_io_args = read_fraction_parser.add_argument_group('input')
     read_fraction_io_args.add_argument('-p', '--input-profile', help="Input taxonomic profile file [required]", required=True)
     read_fraction_sequence_input_group1 = read_fraction_parser.add_argument_group('Read information [1+ args required]')
@@ -1243,7 +1243,7 @@ if __name__ == '__main__':
                 output_directory = args.output_directory,
             )
 
-    elif args.subparser_name=='read_fraction':
+    elif args.subparser_name=='microbial_fraction':
         from singlem.read_fraction import ReadFractionEstimator
         ReadFractionEstimator().calculate_and_report_read_fraction(
             input_profile = args.input_profile,
