@@ -32,7 +32,7 @@ import sys
 import os
 import csv
 import shutil
-from multiprocessing import Pool
+from multiprocessing import Pool, Manager
 import tempfile
 import re
 import polars as pl
@@ -341,6 +341,72 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
+def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms):
+    total_num_transcripts = 0
+    failure_genomes = 0
+    num_transcriptomes = 0
+    num_found_transcripts = 0
+
+    (genome, tranp) = data
+
+    hmmsearch_output = os.path.join(working_directory, 'hmmsearch_output',
+                                    os.path.basename(genome) + '.hmmsearch')
+    # hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', '>(sed "s/  */\t/g" >', hmmsearch_output, ') --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
+    hmmsearch_cmd = [
+        'hmmsearch', '-o /dev/null', '-E ', hmmsearch_evalue, '--tblout', hmmsearch_output, concatenated_hmms, tranp.protein_fasta
+    ]
+    logging.debug("Running hmmsearch on {} ..".format(genome))
+    extern.run(' '.join(hmmsearch_cmd))
+    logging.debug("Ran hmmsearch on {} ..".format(genome))
+    num_transcriptomes += 1
+
+    qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
+    found_hits = []
+    for qresult in qresults:
+        for hit in qresult.hits:
+            found_hits.append([qresult.id, hit.id, hit.bitscore])
+            total_num_transcripts += 1
+
+    if len(found_hits) == 0:
+        logging.debug("No hits found for {}".format(genome))
+        failure_genomes += 1
+        return (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts)
+
+    df = pl.DataFrame(found_hits)
+    df.columns = ['hmm', 'transcript', 'bitscore']
+    # Take best hit for each transcript
+    df2 = df.sort('bitscore', descending=True).groupby('transcript').first()
+    # Remove genes where there is >1 hit
+    # If any HMM is associated with multiple genes, remove it as being potentially dubious
+    ok_genes = list(df2.groupby('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
+    df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
+    logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
+
+    # Create a set of the transcripts which hit. Lazily assumes that the
+    # best hit in the hmmsearch output is the best hit by singlem pipe
+    matched_transcript_ids = set(df3['transcript'])
+
+    # Extract the transcripts belonging to these hits
+    # Rename the transcripts, with genome and original ID separated by a ~
+    num_printed = 0
+    with open(tranp.transcript_fasta) as g:
+        with lock:
+            with open(matched_transcripts_fna, 'a') as f:
+                for name, seq, _ in SeqReader().readfq(g):
+                    if name in matched_transcript_ids:
+                        genome_basename = remove_extension(os.path.basename(genome))
+                        new_name = genome_basename + '=' + name
+                        print('>' + new_name + '\n' + seq + '\n', file=f)
+                        num_printed += 1
+    logging.debug("Printed {} transcripts for {}".format(num_printed, genome))
+    if num_printed != len(matched_transcript_ids):
+        logging.error("Expected to print {} transcripts for {}, but only printed {}".format(
+            len(matched_transcript_ids), genome, num_printed))
+    num_found_transcripts += num_printed
+
+    return (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts)
+
+
 def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, new_genome_transcripts_and_proteins,
                              hmmsearch_evalue):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
@@ -358,66 +424,29 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
     # Take the best hitting HMM for each transcript
     # mkdir working_directory/hmmsearch_output
     os.mkdir(os.path.join(working_directory, 'hmmsearch_output'))
-    # TODO: parallelise this per-genome, not with --cpu which doesn't scale well
+
     # Create a new file which is a concatenation of the transcripts we want to include
+    # Use a lock to prevent race conditions since each worker writes this this
     matched_transcripts_fna = os.path.join(working_directory, 'matched_transcripts.fna')
+    
     total_num_transcripts = 0
     failure_genomes = 0
     num_transcriptomes = 0
     num_found_transcripts = 0
-    with open(matched_transcripts_fna, 'w') as f:
-        for genome, tranp in new_genome_transcripts_and_proteins.items():
-            hmmsearch_output = os.path.join(working_directory, 'hmmsearch_output',
-                                            os.path.basename(genome) + '.hmmsearch')
-            # hmmsearch_cmd = ['hmmsearch', '-o /dev/null', '-E 1e-20', '--tblout', '>(sed "s/  */\t/g" >', hmmsearch_output, ') --cpu', str(num_threads), concatenated_hmms, tranp.protein_fasta]
-            hmmsearch_cmd = [
-                'hmmsearch', '-o /dev/null', '-E ', hmmsearch_evalue, '--tblout', hmmsearch_output, ' --cpu',
-                str(num_threads), concatenated_hmms, tranp.protein_fasta
-            ]
-            logging.debug("Running hmmsearch on {} ..".format(genome))
-            extern.run(' '.join(hmmsearch_cmd))
-            logging.debug("Ran hmmsearch on {} ..".format(genome))
-            num_transcriptomes += 1
 
-            qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
-            found_hits = []
-            for qresult in qresults:
-                for hit in qresult.hits:
-                    found_hits.append([qresult.id, hit.id, hit.bitscore])
-                    total_num_transcripts += 1
-            if len(found_hits) == 0:
-                logging.debug("No hits found for {}".format(genome))
-                failure_genomes += 1
-                continue
-            df = pl.DataFrame(found_hits)
-            df.columns = ['hmm', 'transcript', 'bitscore']
-            # Take best hit for each transcript
-            df2 = df.sort('bitscore', descending=True).groupby('transcript').first()
-            # Remove genes where there is >1 hit
-            # If any HMM is associated with multiple genes, remove it as being potentially dubious
-            ok_genes = list(df2.groupby('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
-            df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
-            logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
+    with Manager() as manager:
+        lock = manager.Lock()
+    
+        with Pool(num_threads) as pool:
+            map_result = pool.starmap(
+                run_hmmsearch_on_one_genome, 
+                [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()])
 
-            # Create a set of the transcripts which hit. Lazily assumes that the
-            # best hit in the hmmsearch output is the best hit by singlem pipe
-            matched_transcript_ids = set(df3['transcript'])
-
-            # Extract the transcripts belonging to these hits
-            # Rename the transcripts, with genome and original ID separated by a ~
-            num_printed = 0
-            with open(tranp.transcript_fasta) as g:
-                for name, seq, _ in SeqReader().readfq(g):
-                    if name in matched_transcript_ids:
-                        genome_basename = remove_extension(os.path.basename(genome))
-                        new_name = genome_basename + '=' + name
-                        print('>' + new_name + '\n' + seq + '\n', file=f)
-                        num_printed += 1
-            logging.debug("Printed {} transcripts for {}".format(num_printed, genome))
-            if num_printed != len(matched_transcript_ids):
-                logging.error("Expected to print {} transcripts for {}, but only printed {}".format(
-                    len(matched_transcript_ids), genome, num_printed))
-            num_found_transcripts += num_printed
+            for (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in map_result:
+                total_num_transcripts += total_num_transcripts
+                failure_genomes += failure_genomes
+                num_transcriptomes += num_transcriptomes
+                num_found_transcripts += num_found_transcripts
 
     logging.info(
         "Ran hmmsearch on {} genomes, finding {} marker genes. {} were excluded based on 2+ copy number.".format(
@@ -527,12 +556,12 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
     # Create a new metapackage from the singlem packages
     logging.info("Creating new metapackage ..")
     Metapackage.generate(singlem_packages=new_spkg_paths,
-                        nucleotide_sdb=new_metapackage_sdb_path,
-                        prefilter_diamond_db=old_metapackage.prefilter_db_path(),
-                        output_path=new_metapackage_path,
-                        threads=num_threads,
-                        prefilter_clustering_threshold=None,
-                        taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None)
+                         nucleotide_sdb=new_metapackage_sdb_path,
+                         prefilter_diamond_db=old_metapackage.prefilter_db_path(),
+                         output_path=new_metapackage_path,
+                         threads=num_threads,
+                         prefilter_clustering_threshold=None,
+                         taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     if not no_taxon_genome_lengths:
