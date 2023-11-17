@@ -1,4 +1,4 @@
-The 'read_fraction' subcommand can be used to estimate the fraction of reads
+The 'microbial_fraction' subcommand can be used to estimate the fraction of reads
 from a metagenome that are assigned to Bacteria and Archaea compared to e.g.
 phages or eukaryotes.
 
