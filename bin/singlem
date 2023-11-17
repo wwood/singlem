@@ -65,6 +65,7 @@ if __name__ == '__main__':
         authors=[
             BEN_NAME_AND_CENTRE,
             "Samuel Aroney, "+CMR,
+            "Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark",
             "Rossen Zhao, "+CMR],
         version=singlem.__version__,
         raw_format=True,
