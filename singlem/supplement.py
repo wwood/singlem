@@ -209,9 +209,13 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     output_taxonomies_fh.write('\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
 
     if num_genomes_without_fasta > 0:
+        if taxonomy_file:
+            source = 'taxonomy file'
+        else:
+            source = 'GTDBtk output'
         logging.warning(
-            "There were {} genomes in the GTDBtk output that were not found in the list of genomes to be included. Ignoring these."
-            .format(num_genomes_without_fasta))
+            "There were {} genomes in the {} that were not found in the list of genomes to be included. Ignoring these."
+            .format(num_genomes_without_fasta, source))
 
     if output_taxonomies_file:
         output_taxonomies_fh.close()
