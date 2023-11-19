@@ -162,7 +162,7 @@ if __name__ == '__main__':
                                     help='HMMSEARCH e-value cutoff to use for sequence gathering [default: %s]' % SearchPipe.DEFAULT_HMMSEARCH_EVALUE, default=SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
         argument_group.add_argument('--min-orf-length',
                                     metavar='length',
-                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i when input is reads, %i when input is genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH,SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
+                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i when input is reads, %i when input is genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH, SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
                                     type=int)
         argument_group.add_argument('--restrict-read-length',
                                     metavar='length',

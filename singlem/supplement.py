@@ -32,7 +32,7 @@ import sys
 import os
 import csv
 import shutil
-from multiprocessing import Pool, Manager
+from multiprocessing import Pool, Manager, get_context
 import tempfile
 import re
 import polars as pl
@@ -154,7 +154,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
         logging.info("Writing new genome taxonomies to {}".format(output_taxonomies_file))
         output_taxonomies_fh = open(output_taxonomies_file, 'w')
         output_taxonomies_fh.write('genome\ttaxonomy\n')
-        
+
     # For loop
     for genome_name, taxonomy_str in taxonomies_to_process:
         taxonomy = list([s.strip() for s in taxonomy_str.split(';')])
@@ -168,7 +168,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 "Genome {} was not found in the list of genomes to be included".format(genome_name))
             num_genomes_without_fasta += 1
             continue
-        
+
         if len(taxonomy) != 7:
             if taxonomy == ['Unclassified Bacteria'] or taxonomy == ['Unclassified Archaea']:
                 logging.warning(
@@ -428,7 +428,7 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
     # Create a new file which is a concatenation of the transcripts we want to include
     # Use a lock to prevent race conditions since each worker writes this this
     matched_transcripts_fna = os.path.join(working_directory, 'matched_transcripts.fna')
-    
+
     total_num_transcripts = 0
     failure_genomes = 0
     num_transcriptomes = 0
@@ -436,11 +436,15 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
 
     with Manager() as manager:
         lock = manager.Lock()
-    
-        with Pool(num_threads) as pool:
+
+        # Since the multispawned function uses polars, we must use spawn
+        # context, otherwise we get deadlock. See
+        # https://pola-rs.github.io/polars/user-guide/misc/multiprocessing/#example
+        with get_context('spawn').Pool(num_threads) as pool:
             map_result = pool.starmap(
-                run_hmmsearch_on_one_genome, 
-                [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()])
+                run_hmmsearch_on_one_genome,
+                [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()],
+                chunksize=1)
 
             for (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in map_result:
                 total_num_transcripts += total_num_transcripts
@@ -547,7 +551,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
 
     # For each spkg in the old mpkg, create a new spkg
     to_process = [(working_directory, spkg, matched_transcripts_fna, sequence_to_genome, genome_to_taxonomy)
-                for spkg in old_metapackage.singlem_packages]
+                  for spkg in old_metapackage.singlem_packages]
     if num_threads > 1:
         new_spkg_paths = Pool(num_threads).map(generate_new_singlem_package, to_process)
     else:
@@ -596,7 +600,7 @@ def recalculate_genome_sizes(
         if rank.startswith('s__'):
             old_taxon_lengths[row['rank']] = row['genome_size']
     logging.info("Read {} species-level taxon lengths from old metapackage".format(len(old_taxon_lengths)))
-    
+
     # Map previous rank IDs, which are in the form of "s__xxx", to fully defined taxons
     old_taxonomies = old_metapackage.get_all_taxonomy_strings()
     logging.debug("Read {} full taxonomy strings from old metapackage".format(len(old_taxonomies)))
@@ -617,7 +621,7 @@ def recalculate_genome_sizes(
     for genome_fasta in new_genome_fasta_files:
         observed_length = calculate_genome_length(genome_fasta)
         checkm_stats = checkm2.get_stats(FastaNameToSampleName.fasta_to_name(genome_fasta))
-        
+
         corrected_length = GenomeSizes.corrected_genome_size(observed_length, checkm_stats.completeness, checkm_stats.contamination)
         taxonomy = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome_fasta)]
 
