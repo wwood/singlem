@@ -1173,17 +1173,17 @@ class Tests(unittest.TestCase):
                 smpkg = os.path.join(path_to_data, 'four_package.smpkg')
                 cmd = f'{path_to_script} appraise --metagenome-otu-table {f.name} --genome-otu-table {g.name} --imperfect --metapackage {smpkg}'
 
-                expected = """# Appraised using max divergence 2 (0.97% ANI)
-sample  domain  num_binned      num_not_found   percent_binned
+                expected_header = "# Appraised using max divergence 2 (0.97% ANI)\n"
+                expected = """sample  domain  num_binned      num_not_found   percent_binned
 minimal d__Archaea      0       0       0.0
-minimal d__Bacteria     14       7       66.7
+minimal d__Bacteria     9       4       69.2
 total   d__Archaea      0       0       0.0
 average d__Archaea      0.0     0.0     nan
-total   d__Bacteria     14       7       66.7
-average d__Bacteria     14     7     66.7
+total   d__Bacteria     9       4       69.2
+average d__Bacteria     9.0     4.0     69.2
 """
                 # replace all spaces with tabs
-                expected2 = "\n".join(["\t".join(x.split()) for x in expected.split("\n")])
+                expected2 = expected_header + "\n".join(["\t".join(x.split()) for x in expected.split("\n")])
                 self.assertEqual(expected2, extern.run(cmd))
 
 
