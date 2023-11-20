@@ -743,6 +743,7 @@ class Supplementor:
 
     def supplement(self, **kwargs):
         new_genome_fasta_files = kwargs.pop('new_genome_fasta_files')
+        new_genome_fasta_files_list = kwargs.pop('new_genome_fasta_files_list')
         new_taxonomies = kwargs.pop('new_taxonomies')
         input_metapackage = kwargs.pop('input_metapackage')
         output_metapackage = kwargs.pop('output_metapackage')
@@ -765,6 +766,15 @@ class Supplementor:
         no_taxon_genome_lengths = kwargs.pop('no_taxon_genome_lengths')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if new_genome_fasta_files is None and new_genome_fasta_files_list is None:
+            raise Exception("Must provide either --new-genome-fasta-files or --new-genome-fasta-files-list")
+        elif new_genome_fasta_files is not None and new_genome_fasta_files_list is not None:
+            raise Exception("Must provide either --new-genome-fasta-files or --new-genome-fasta-files-list, not both")
+        elif new_genome_fasta_files_list is not None:
+            for file_list in new_genome_fasta_files_list:
+                with open(file_list) as f:
+                    new_genome_fasta_files = [x.strip() for x in f.readlines()]
 
         with tempfile.TemporaryDirectory() as working_directory:
             if predefined_working_directory:
