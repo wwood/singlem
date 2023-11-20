@@ -1173,7 +1173,7 @@ class Tests(unittest.TestCase):
                 smpkg = os.path.join(path_to_data, 'four_package.smpkg')
                 cmd = f'{path_to_script} appraise --metagenome-otu-table {f.name} --genome-otu-table {g.name} --imperfect --metapackage {smpkg}'
 
-                expected_header = "# Appraised using max divergence 2 (0.97% ANI)\n"
+                expected_header = "# Appraised using max divergence 2 (97% ANI)\n"
                 expected = """sample  domain  num_binned      num_not_found   percent_binned
 minimal d__Archaea      0       0       0.0
 minimal d__Bacteria     9       4       69.2
