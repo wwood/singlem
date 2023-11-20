@@ -493,8 +493,10 @@ if __name__ == '__main__':
     supplement_parser = bird_argparser.new_subparser('supplement', supplement_description, parser_group='Tools')
     supplement_parser.add_argument('--new-genome-fasta-files',
                                    help='FASTA files of new genomes',
-                                   nargs='+',
-                                   required=True)
+                                   nargs='+')
+    supplement_parser.add_argument('--new-genome-fasta-files-list',
+                                   help='File containing FASTA file paths of new genomes',
+                                   nargs='+')
     supplement_parser.add_argument(
         '--new-taxonomies',
         help='newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
@@ -1267,6 +1269,7 @@ if __name__ == '__main__':
 
         Supplementor().supplement(
             new_genome_fasta_files=args.new_genome_fasta_files,
+            new_genome_fasta_files_list=args.new_genome_fasta_files_list,
             new_taxonomies=args.new_taxonomies,
             input_metapackage=args.input_metapackage,
             output_metapackage=args.output_metapackage,
