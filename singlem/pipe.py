@@ -43,7 +43,7 @@ class SearchPipe:
     DEFAULT_ASSIGNMENT_THREADS = 1
     DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
     DEFAULT_HMMSEARCH_EVALUE = 1e-5
-    DEFAULT_MAX_SPECIES_DIVERGENCE = 3
+    DEFAULT_MAX_SPECIES_DIVERGENCE = 2
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
