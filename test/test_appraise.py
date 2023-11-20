@@ -1138,6 +1138,54 @@ class Tests(unittest.TestCase):
         self.assertEqual({'d__Archaea': 0, 'd__Bacteria': round(17.07/4)}, a.num_assembled)
         self.assertEqual({'d__Archaea': 0, 'd__Bacteria': 0}, a.num_not_found)
 
+    def test_appraise_default_cutoff(self):
+        metagenome_otu_table = [
+            self.headers,[
+                '4.12.ribosomal_protein_L11_rplK',
+                'minimal',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                '7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            [
+                '4.12.ribosomal_protein_L11_rplK',
+                'minimal',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACAAA', # 2bp diff
+                '7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            [
+                '4.12.ribosomal_protein_L11_rplK',
+                'minimal',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACTAA', # 3bp diff
+                '7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales']]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+        genomes_otu_table = [
+            self.headers,[
+                '4.12.ribosomal_protein_L11_rplK',
+                'genome',
+                'GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC',
+                '1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.csv',prefix='single_test_appraisal.') as f:
+            f.write(metagenomes)
+            f.flush()
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.csv',prefix='single_test_appraisal.') as g:
+                g.write(genomes)
+                g.flush()
+                smpkg = os.path.join(path_to_data, 'four_package.smpkg')
+                cmd = f'{path_to_script} appraise --metagenome-otu-table {f.name} --genome-otu-table {g.name} --imperfect --metapackage {smpkg}'
+
+                expected = """# Appraised using max divergence 2 (0.97% ANI)
+sample  domain  num_binned      num_not_found   percent_binned
+minimal d__Archaea      0       0       0.0
+minimal d__Bacteria     14       7       66.7
+total   d__Archaea      0       0       0.0
+average d__Archaea      0.0     0.0     nan
+total   d__Bacteria     14       7       66.7
+average d__Bacteria     14     7     66.7
+"""
+                # replace all spaces with tabs
+                expected2 = "\n".join(["\t".join(x.split()) for x in expected.split("\n")])
+                self.assertEqual(expected2, extern.run(cmd))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -122,13 +122,14 @@ class Appraiser:
         '''
         if sequence_identity:
             logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
-            sys.stdout.write("# Clustered using %0.2f%% ANI" % sequence_identity)
             max_divergence = window_size * (1 - sequence_identity)
-            # max divergence must be a whole number, and we round down
-            max_divergence = int(max_divergence)
+            # max divergence must be a whole number. Round using round() not
+            # int() otherwise default threshold fails to meet expectation.
+            max_divergence = round(max_divergence)
+            sys.stdout.write("# Appraised using max divergence %i (%0.2f%% ANI)\n" % (max_divergence, sequence_identity))
         else:
             max_divergence = 0
-        logging.debug("Using max divergence of %i for appraising" % max_divergence)
+        logging.info("Using max divergence of %i for appraising" % max_divergence)
 
         tmp = tempfile.TemporaryDirectory()
         sdb_path = os.path.join(tmp.name, "tmp.sdb")
