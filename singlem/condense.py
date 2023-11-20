@@ -114,13 +114,13 @@ class Condenser:
             output_after_em_otu_table):
 
         # Remove off-target OTUs genes
-        logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
-        logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        logging.debug("Total OTU coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.debug("Total OTU coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
         logging.info("Removing off-target OTUs from {}".format(sample))
         sample_otus = self._remove_off_target_otus(sample_otus, markers)
         # logging.debug("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
-        logging.info("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
-        logging.info("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
+        logging.info("Total OTU coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
+        logging.info("Total OTU coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
         # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if apply_query_expectation_maximisation:
@@ -134,19 +134,21 @@ class Condenser:
             # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
             # import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
             sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains)
-            logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
+            logging.debug("Total OTU coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if output_after_em_otu_table:
             sample_otus.alignment_hmm_sha256s = 'na'
             sample_otus.singlem_package_sha256s = 'na'
-            with open(output_after_em_otu_table,'w') as f:
+            with open(output_after_em_otu_table, 'w') as f:
                 sample_otus.write_to(f)
 
         # Condense via trimmed mean from domain to species
         condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
+        logging.info("Total profile coverage after condense domain to species: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
         # Attribute genus-level down to species level to account for sequencing error
         self._push_down_genus_to_species(condensed_otus, 0.1)
+        logging.info("Total profile coverage after push down: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
         self._report_taxonomic_level_assignment_stats(condensed_otus)
 
@@ -330,6 +332,19 @@ class Condenser:
                 # situations that coverages are negative.
                 # if node.coverage < min_taxon_coverage:
                 if node.get_full_coverage() < min_taxon_coverage or node.coverage < 0:
+                    # While this node's coverage is set to zero, its parent
+                    # should be increased because we don't want to lose coverage.
+                    
+                    # Each parent node has already been visited, so no need to
+                    # calculate the full coverage. Instead, just add this node's
+                    # coverage to the most immediate ancestor with non-zero
+                    # coverage.
+                    parent = node.parent
+                    while parent is not None: # This should never be None since it runs into Root, but just in case
+                        if parent.coverage > 0 or parent.word == 'Root':
+                            parent.coverage += node.coverage
+                            break
+                        parent = parent.parent
                     node.coverage = 0
 
         return CondensedCommunityProfile(sample, sample_summary_root_node)
