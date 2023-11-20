@@ -126,7 +126,7 @@ class Appraiser:
             # max divergence must be a whole number. Round using round() not
             # int() otherwise default threshold fails to meet expectation.
             max_divergence = round(max_divergence)
-            sys.stdout.write("# Appraised using max divergence %i (%0.2f%% ANI)\n" % (max_divergence, sequence_identity))
+            sys.stdout.write("# Appraised using max divergence %i (%i%% ANI)\n" % (max_divergence, round(100 * sequence_identity)))
         else:
             max_divergence = 0
         logging.info("Using max divergence of %i for appraising" % max_divergence)
