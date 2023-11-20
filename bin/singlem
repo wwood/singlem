@@ -8,14 +8,12 @@ __maintainer__ = "Ben Woodcroft"
 __email__ = "benjwoodcroft near gmail.com"
 __status__ = "Development"
 
-import argparse
 import logging
 import sys
 import os
 import gzip
 import tempfile
 import json
-from threading import currentThread
 
 from bird_tool_utils import *
 from bird_tool_utils.people import *
@@ -29,8 +27,8 @@ from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
 
-DEFAULT_WINDOW_SIZE=60
-SPECIES_LEVEL_AVERAGE_IDENTITY = 0.95
+DEFAULT_WINDOW_SIZE = 60
+SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
 
 
 def seqs(args):
