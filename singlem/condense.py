@@ -327,11 +327,13 @@ class Condenser:
             if node.word != 'Root':
                 node.coverage = node.coverage - children_coverage
 
+                # Remove the very occasional situations that coverages are
+                # negative.
+                if node.coverage < 0:
+                    node.coverage = 0
                 # Apply a general cutoff, which is somewhat arbitrary, but
-                # reduces noise. This cutoff also removes the very occasional
-                # situations that coverages are negative.
-                # if node.coverage < min_taxon_coverage:
-                if node.get_full_coverage() < min_taxon_coverage or node.coverage < 0:
+                # reduces noise. But don't lose that coverage.
+                elif node.get_full_coverage() < min_taxon_coverage:
                     # While this node's coverage is set to zero, its parent
                     # should be increased because we don't want to lose coverage.
                     
@@ -340,9 +342,11 @@ class Condenser:
                     # coverage to the most immediate ancestor with non-zero
                     # coverage.
                     parent = node.parent
-                    while parent is not None: # This should never be None since it runs into Root, but just in case
-                        if parent.coverage > 0 or parent.word == 'Root':
-                            parent.coverage += node.coverage
+                    while parent is not None:  # This should never be None since it runs into Root, but just in case
+                        if parent.coverage != 0 or parent.word == 'Root':
+                            if parent.word != 'Root':
+                                # Never add coverage to the Root node
+                                parent.coverage += node.coverage
                             break
                         parent = parent.parent
                     node.coverage = 0
