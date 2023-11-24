@@ -15,7 +15,7 @@ navigation:
     - path: docs/tools/summarise.md
     - path: docs/tools/renew.md
     - path: docs/tools/supplement.md
-    - path: docs/tools/read_fraction.md
+    - path: docs/tools/microbial_fraction.md
     - path: docs/tools/appraise.md
   - path: docs/advanced
     children: 

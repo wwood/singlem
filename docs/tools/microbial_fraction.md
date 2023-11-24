@@ -1,8 +1,8 @@
 ---
-title: SingleM read_fraction
+title: SingleM microbial_fraction
 ---
-# singlem read_fraction
-The 'read_fraction' subcommand can be used to estimate the fraction of reads
+# singlem microbial_fraction
+The 'microbial_fraction' subcommand can be used to estimate the fraction of reads
 from a metagenome that are assigned to Bacteria and Archaea compared to e.g.
 phages or eukaryotes.
 

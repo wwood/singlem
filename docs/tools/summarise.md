@@ -94,7 +94,7 @@ TRANSFORMATION
 **\--cluster-id** *CLUSTER_ID*
 
   Sequence clustering identity cutoff if \--cluster is used [default:
-    0.95 i.e. 95.0%]
+    0.9666666666666667 i.e. 96.66666666666667%]
 
 **\--taxonomy** *TAXONOMY*
 
