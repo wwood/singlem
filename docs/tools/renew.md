@@ -128,6 +128,12 @@ LESS COMMON ARGUMENTS SHARED WITH \'PIPE\'
   Ignore reads aligning in less than this many positions to each
     protein HMM when using \--no-diamond-prefilter [default: 24]
 
+**\--max-species-divergence** INT
+
+  Maximum number of different bases acids to allow between a sequence
+    and the best hit in the database so that it is assigned to the
+    species level. [default: 2]
+
 **\--exclude-off-target-hits**
 
   Exclude hits that are not in the target domain of each SingleM

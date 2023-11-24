@@ -87,7 +87,7 @@ INEXACT APPRAISAL OPTIONS
 **\--sequence-identity** *SEQUENCE_IDENTITY*
 
   sequence identity cutoff to use if \--imperfect is specified
-    [default: \~species level divergence i.e. 0.95]
+    [default: \~species level divergence i.e. 0.9666666666666667]
 
 PLOTTING-RELATED OPTIONS
 ========================
