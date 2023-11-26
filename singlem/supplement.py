@@ -176,8 +176,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                         genome_name))
                 if output_taxonomies_file:
                     output_taxonomies_fh.write(
-                        '\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) +
-                        '\n')
+                        '\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
             else:
                 raise Exception("Unexpected taxonomy length found: {}".format(
                     taxonomy))
@@ -720,6 +719,28 @@ def generate_faa_and_transcript_fna_files_for_new_genomes(**kwargs):
     return to_return
 
 
+def read_gene_definitions(gene_definitions):
+    df = pl.read_csv(gene_definitions, separator='\t')
+    if df.columns != ['genome_fasta', 'transcript_fasta', 'protein_fasta']:
+        raise Exception("Gene definitions file must have headings 'genome_fasta', 'transcript_fasta', 'protein_fasta'. Found: {}".format(df.columns))
+
+    to_return = {}
+    for row in df.rows(named=True):
+        genome = os.path.abspath(row['genome_fasta'])
+        to_return[genome] = TranscriptsAndProteins()
+        to_return[genome].transcript_fasta = os.path.abspath(row['transcript_fasta'])
+        to_return[genome].protein_fasta = os.path.abspath(row['protein_fasta'])
+        # Test they exist here, because otherwise they silently fail later
+        if not os.path.exists(to_return[genome].transcript_fasta):
+            raise Exception("Transcript fasta file {} does not exist".format(to_return[genome].transcript_fasta))
+        if not os.path.exists(to_return[genome].protein_fasta):
+            raise Exception("Protein fasta file {} does not exist".format(to_return[genome].protein_fasta))
+        if not os.path.exists(genome):
+            raise Exception("Genome fasta file {} does not exist".format(genome))
+    logging.info("Read {} gene definitions from {}".format(len(to_return), gene_definitions))
+    return to_return
+
+
 def dereplicate_genomes_with_galah(**kwargs):
     threads = kwargs.pop('threads')
     genomes_to_dereplicate = kwargs.pop('genomes_to_dereplicate')
@@ -764,6 +785,7 @@ class Supplementor:
         dereplicate_with_galah = kwargs.pop('dereplicate_with_galah')
         skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
         no_taxon_genome_lengths = kwargs.pop('no_taxon_genome_lengths')
+        gene_definitions = kwargs.pop('gene_definitions')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -820,9 +842,13 @@ class Supplementor:
                 raise Exception("Must provide either --no-dereplication or --dereplicate-with-galah")
 
             # Generate faa and transcript fna files for the new genomes
-            logging.info("Generating faa and transcript fna files for the new genomes ..")
-            genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
-                working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
+            if gene_definitions:
+                logging.info("Reading transcript and protein files from gene definitions file ..")
+                genome_transcripts_and_proteins = read_gene_definitions(gene_definitions)
+            else:
+                logging.info("Generating faa and transcript fna files for the new genomes ..")
+                genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
+                    working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
 
             if input_metapackage is None:
                 old_metapackage = Metapackage.acquire_default()
@@ -846,9 +872,14 @@ class Supplementor:
                     old_metapackage=old_metapackage,
                     skip_taxonomy_check=skip_taxonomy_check)
                 # Remove genomes that were excluded by not being novel at the species level
-                genome_transcripts_and_proteins = {
-                    k: v for k, v in genome_transcripts_and_proteins.items() if k in new_genome_fasta_files
-                }
+                # and check that we have all the genomes we expect in the gene calls
+                genome_transcripts_and_proteins1 = {}
+                for ng in new_genome_fasta_files:
+                    if ng in genome_transcripts_and_proteins:
+                        genome_transcripts_and_proteins1[ng] = genome_transcripts_and_proteins[ng]
+                    else:
+                        raise Exception("Transcript and protein sequences not found for genome {} ".format(ng))
+                genome_transcripts_and_proteins = genome_transcripts_and_proteins1
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")

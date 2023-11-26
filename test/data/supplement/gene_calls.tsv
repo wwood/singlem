@@ -1,0 +1,3 @@
+genome_fasta	transcript_fasta	protein_fasta
+test/data/supplement/GCA_011373445.1_genomic.fna	test/data/supplement/GCA_011373445.1_genomic.fna.ffn	test/data/supplement/GCA_011373445.1_genomic.fna.faa
+test/data/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna	test/data/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.ffn	test/data/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.faa
