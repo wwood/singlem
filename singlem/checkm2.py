@@ -23,6 +23,10 @@ class CheckM2:
     def __contains__(self, item):
         return self.qualities.filter(pl.col("Name") == item).shape[0] > 0
 
+    def names(self):
+        '''Return a list of all genome names read in'''
+        return list(self.qualities['Name'].to_list())
+
     def get_stats(self, genome_name):
         found = self.qualities.filter(pl.col("Name") == genome_name)
         if found.shape[0] != 1:
