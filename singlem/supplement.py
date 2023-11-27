@@ -814,9 +814,10 @@ class Supplementor:
                 checkm = CheckM2(checkm2_quality_file)
                 new_genome_fasta_files_without_file_extension = set(
                     checkm.genomes_of_sufficient_quality(checkm2_min_completeness, checkm2_max_contamination))
-                # Check the new genomes are in the checkm2 quality file
+                # Check the new genomes are in the checkm2 quality file. Cache the names as a set for fast lookup
+                checkm_names = set(checkm.names())
                 for g in new_genome_fasta_files:
-                    if remove_extension(g) not in checkm:
+                    if remove_extension(g) not in checkm_names:
                         raise Exception("Genome %s not found in checkm2 quality file" % g)
                 new_genome_fasta_files2 = []
                 for x in new_genome_fasta_files:
