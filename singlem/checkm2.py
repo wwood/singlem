@@ -37,3 +37,12 @@ class CheckM2:
                 completeness=row['Completeness'] / 100.,
                 contamination=row['Contamination'] / 100.
             )
+
+    def get_all_stats(self):
+        stats = {}
+        for row in self.qualities.rows(named=True):
+            stats[row['Name']] = CheckM2Stats(
+                completeness=row['Completeness'] / 100.,
+                contamination=row['Contamination'] / 100.
+            )
+        return stats
