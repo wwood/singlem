@@ -617,9 +617,10 @@ def recalculate_genome_sizes(
     checkm2 = CheckM2(checkm2_quality_file)
 
     new_taxon_lengths = {}
+    all_stats = checkm2.get_all_stats()
     for genome_fasta in new_genome_fasta_files:
         observed_length = calculate_genome_length(genome_fasta)
-        checkm_stats = checkm2.get_stats(FastaNameToSampleName.fasta_to_name(genome_fasta))
+        checkm_stats = all_stats[FastaNameToSampleName.fasta_to_name(genome_fasta)]
 
         corrected_length = GenomeSizes.corrected_genome_size(observed_length, checkm_stats.completeness, checkm_stats.contamination)
         taxonomy = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome_fasta)]
