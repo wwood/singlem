@@ -29,8 +29,8 @@ class Chainsaw:
             raise Exception("Only works with protein packages.")
 
         # Ensure v2 or v3
-        if not input_spkg.version in [2, 3, 4]:
-            raise Exception("Only works with v2 and above packages for the moment.")
+        if not input_spkg.version in [4]:
+            raise Exception("Only works with v4 packages for the moment.")
         
         # mkdir output package folder
         os.mkdir(output_singlem_package_path)
@@ -104,6 +104,10 @@ class Chainsaw:
 
         for f in input_spkg.graftm_package().search_hmm_paths():
             shutil.copyfile(f, os.path.join(graftm_path, os.path.basename(f)))
+
+        shutil.copyfile(
+            input_spkg.taxonomy_hash_path(),
+            os.path.join(output_singlem_package_path, os.path.basename(input_spkg.taxonomy_hash_path())))
 
         # Change the sequences adding the prefix
         unaligned_basename = os.path.basename(input_spkg.graftm_package().unaligned_sequence_database_path())
