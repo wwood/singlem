@@ -456,7 +456,7 @@ if __name__ == '__main__':
     required_chainsaw_arguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
 
-    condense_description = 'Combine OTU tables across different markers into a single taxonomic profile.'
+    condense_description = 'Combine OTU tables across different markers into a single taxonomic profile. Note that while this mode can be run independently, it is often more straightforward to invoke its methodology by specifying -p / --taxonomic-profile when running pipe mode.'
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
 
     input_condense_arguments = condense_parser.add_argument_group("Input arguments (1+ required)")
