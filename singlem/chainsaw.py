@@ -159,4 +159,8 @@ class Chainsaw:
         new_graftm = GraftMPackage.acquire(graftm_path)
         new_graftm.create_diamond_db()
 
+        logging.info("Making DIAMOND db index")
+        diamond_db_path = new_graftm.diamond_database_path()
+        extern.run('diamond makeidx -d {}'.format(diamond_db_path))
+
         logging.info("Chainsaw stopping.")
