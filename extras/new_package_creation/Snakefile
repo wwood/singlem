@@ -16,12 +16,12 @@ rule test_metapackage:
     benchmark: os.path.join(output_directory, "benchmarks", "test_metapackage.benchmark")
     conda:
         "envs/singlem.yml"
-    shell: #--diamond-prefilter-performance-parameters ' ' --diamond-taxonomy-assignment-performance-parameters ' '
+    shell:
         "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug  2> {log}"
 
 rule create_metapackage:
     input:
-        spkgs = [os.path.join(output_directory, "spkgs", f"{name}.spkg") for name in spkgs.keys()],
+        spkgs = [os.path.join(output_directory, "chainsaw", f"{name}.spkg") for name in spkgs.keys()],
         # sdb = os.path.join(output_directory, "a.sdb") #TODO
     output:
         metapackage = directory(metapackage),
@@ -118,6 +118,23 @@ rule singlem_create:
         "envs/singlem.yml"
     shell:
         "singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
+
+rule chainsaw:
+    input:
+        spkg = os.path.join(output_directory, "spkgs", "{name}.spkg"),
+        done = os.path.join(output_directory, "done", "{name}.singlem_create.done")
+    output:
+        spkg = directory(os.path.join(output_directory, "chainsaw", "{name}.spkg")),
+        done = touch(os.path.join(output_directory, "done", "{name}.chainsaw.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "{name}.chainsaw.log")
+    conda:
+        # "envs/singlem.yml"
+        "singlem-dev" # There's an unreleased fix post 0.16.0
+    shell:
+        "~/git/singlem/bin/singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output.spkg} 2> {log}"
+
+
 
 # # rule singlem_pipe_to_get_otu_seqs:
 # #     input:
