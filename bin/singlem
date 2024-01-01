@@ -361,6 +361,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--output-taxonomic-profile-krona', help="Output taxonomic profile to this file in Krona format. Requires --input-taxonomic-profiles")
     summarise_output_args.add_argument('--output-species-by-site-relative-abundance', help="Output site by species relative abundance to this file")
     summarise_output_args.add_argument('--output-species-by-site-level', help="Output site by species level to this file", choices=['species','genus','family','order','class','phylum','domain'], default='species')
+    summarise_output_args.add_argument('--output-taxonomic-level-coverage', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file")
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage.'
     read_fraction_parser = bird_argparser.new_subparser('microbial_fraction', read_fraction_description, parser_group='Tools')
@@ -746,6 +747,7 @@ if __name__ == '__main__':
         if args.unaligned_sequences_dump_file: num_output_types += 1
         if args.output_taxonomic_profile_krona: num_output_types += 1
         if args.output_species_by_site_relative_abundance: num_output_types += 1
+        if args.output_taxonomic_level_coverage: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list and not args.input_taxonomic_profiles:
@@ -764,11 +766,13 @@ if __name__ == '__main__':
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse-paired-with-unpaired-archive-otu-table requires exactly two archive tables")
         if args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles:
-            raise Exception("--input-taxonomic-profiles and --output-taxonomic-profile-krona require each other to be defined")
+            raise Exception("--output-taxonomic-profile-krona requires --input-taxonomic-profiles to be defined")
         if args.output_archive_otu_table and not args.collapse_to_sample_name:
             raise Exception("--output-archive-otu-table requires --collapse-to-sample-name to be defined. Some other transfomations have output archive tables, but they are specified separately.")
         if args.output_species_by_site_relative_abundance and not args.input_taxonomic_profiles:
             raise Exception("--output-species-by-site-relative-abundance requires --input-taxonomic-profiles to be defined")
+        if args.output_taxonomic_level_coverage and not args.input_taxonomic_profiles:
+            raise Exception("--output-taxonomic-level-coverage requires --input-taxonomic-profiles to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -929,8 +933,12 @@ if __name__ == '__main__':
                     input_taxonomic_profiles = args.input_taxonomic_profiles,
                     output_species_by_site_relative_abundance_table = args.output_species_by_site_relative_abundance,
                     level = args.output_species_by_site_level)
+            elif args.output_taxonomic_level_coverage:
+                Summariser.write_taxonomic_level_coverage_table(
+                    input_taxonomic_profiles = args.input_taxonomic_profiles,
+                    output_taxonomic_level_coverage_table = args.output_taxonomic_level_coverage)
             else:
-                raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance to be defined, since --input-taxonomic-profiles was defined")
+                raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance or --output-taxonomic-level-coverage to be defined, since --input-taxonomic-profiles was defined")
 
         else: raise Exception("Programming error")
         logging.info("Finished")

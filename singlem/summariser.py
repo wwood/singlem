@@ -502,3 +502,47 @@ class Summariser:
         all_profiles = pl.concat(all_profiles)
         all_profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
         logging.info("Wrote site by species table for {} samples".format(len(all_profiles['sample'].unique())))
+
+    @staticmethod
+    def write_taxonomic_level_coverage_table(**kwargs):
+        input_taxonomic_profiles = kwargs.pop('input_taxonomic_profiles')
+        output_taxonomic_level_coverage_table = kwargs.pop('output_taxonomic_level_coverage_table')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Writing taxonomic level coverage table")
+        # Read the taxonomic profile
+        all_profiles = []
+        for profile_file in input_taxonomic_profiles:
+            with open(profile_file) as f:
+                for profile in CondensedCommunityProfile.each_sample_wise(f):
+                    name_to_coverage = {}
+                    for node in profile.breadth_first_iter():
+                        node_level = node.calculate_level()
+                        if node_level == 0:
+                            continue
+                        if node_level not in name_to_coverage:
+                            name_to_coverage[node_level] = 0.
+                        name_to_coverage[node_level] += node.coverage
+                    all_profiles.append(pl.DataFrame({
+                        'level': list(name_to_coverage.keys()),
+                        'coverage': list(name_to_coverage.values())
+                    }).with_columns(pl.lit(profile.sample).alias('sample')).with_columns(
+                        ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
+                    ))
+        # Concatenate all profiles
+        all_profiles = pl.concat(all_profiles)
+
+        if len(all_profiles.select(pl.col('level')).groupby('level').count()) in [7, 8]:
+            # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
+            levels = ['root','domain','phylum','class','order','family','genus','species']
+            all_profiles = all_profiles.with_columns(pl.lit([levels[l] for l in all_profiles['level']]).alias('level'))
+
+        all_profiles = all_profiles.select([
+            'sample',
+            'level',
+            pl.col('coverage').round(2),
+            pl.col('relative_abundance').alias('relative abundance (%)'),
+        ])
+
+        all_profiles.write_csv(output_taxonomic_level_coverage_table, separator='\t')
