@@ -552,6 +552,8 @@ class Condenser:
         return key.split('~')
 
     def _apply_species_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain, min_genes_for_whitelist=10, proximity_cutoff=0.1):
+        # If any genome is assigned >70% of markers, then whitelist?
+
         # Set up initial conditions. The coverage of each species is set to 1
         species_to_coverage = {}
         best_hit_taxonomy_sets = set()
@@ -577,7 +579,7 @@ class Condenser:
 
         species_whitelist = set([sp for (sp, genes) in species_genes.items() if len(genes) >= min_genes_for_whitelist])
         logging.info("Found {} species uniquely hitting >= {} marker genes".format(len(species_whitelist), min_genes_for_whitelist))
-        logging.debug("Species whitelist: {}".format(species_whitelist))
+        logging.info("Species whitelist: {}".format('\n'.join(sorted(species_whitelist))))
 
         num_steps = 0
         # The fraction of each undecided OTU is the ratio of that class's
@@ -615,25 +617,27 @@ class Condenser:
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
                 next_species_to_coverage[tax] = trimmed_mean
 
+            # Has any species changed in abundance by a large enough amount? If not, we're done
+            need_another_iteration = False
+            for tax, next_coverage in next_species_to_coverage.items():
+                if abs(next_coverage - species_to_coverage[tax]) > 0.001:
+                    need_another_iteration = True
+                    break
+
             # Remove species that appear to be noise based upon having low
             # coverage and proximity to higher coverage species
+            logging.info("Removing species with low coverage and proximity to higher coverage species ..")
             failed_species = self._find_species_with_low_coverage_and_proximity_to_higher_coverage_species(
                 next_species_to_coverage, species_whitelist, proximity_cutoff)
             for failed_s in failed_species:
                 logging.debug("Removing species {} due to low coverage and proximity to higher coverage species".format(failed_species))
+                if 'sp900551275' in failed_s:
+                    logging.info("Removing {}".format(failed_s))
                 del next_species_to_coverage[failed_s]
-
-            # Has any species changed in abundance by a large enough amount? If not, we're done
             if len(failed_species) > 0:
                 # Always iterate again if we removed any species, because
                 # otherwise their coverage contributions will be lost.
                 need_another_iteration = True
-            else:
-                need_another_iteration = False
-                for tax, next_coverage in next_species_to_coverage.items():
-                    if abs(next_coverage - species_to_coverage[tax]) > 0.001:
-                        need_another_iteration = True
-                        break
 
             species_to_coverage = next_species_to_coverage
             if not need_another_iteration:
@@ -668,6 +672,8 @@ class Condenser:
         for tax, coverage in species_to_coverage.items():
             genus = tax.split(';')[6].strip()
             if tax not in species_whitelist and coverage < genus_to_coverage[genus] * proximity_cutoff:
+                if 'sp900551275' in tax:
+                    logging.info("Failing {} with coverage {} and genus coverage {}".format(tax, coverage, genus_to_coverage[genus]))
                 failed_species.append(tax)
         return failed_species
 
