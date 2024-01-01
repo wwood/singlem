@@ -490,6 +490,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
             new_genome_fasta_files)
         taxon_genome_lengths_tmpfile = tempfile.NamedTemporaryFile(mode='w', prefix='taxon_genome_lengths_', suffix='.tsv')
         new_genome_sizes.write_csv(taxon_genome_lengths_tmpfile.name, separator='\t')
+        logging.info("Finished recalculating genome sizes")
 
     logging.info("Gathering OTUs from new genomes ..")
     matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage,
@@ -616,6 +617,7 @@ def recalculate_genome_sizes(
     # First read checkm2 estimate
     checkm2 = CheckM2(checkm2_quality_file)
 
+    logging.info("Reading genome FASTA files to calculate genome lengths ..")
     new_taxon_lengths = {}
     all_stats = checkm2.get_all_stats()
     for genome_fasta in new_genome_fasta_files:
@@ -638,6 +640,7 @@ def recalculate_genome_sizes(
     ])
 
     # Calculate the genome lengths for each taxon level
+    logging.info("Calculating inferred genome lengths for each taxon level ..")
     all_rank_genome_sizes = GenomeSizes.calculate_rank_genome_sizes(gc['gtdb_taxonomy'], gc['genome_size'])
 
     # Return dataframe of taxon lengths in same shape as metapackage.generate expects
