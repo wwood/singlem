@@ -1,5 +1,4 @@
 import logging
-import os
 
 from .querier import Querier, QueryInputSequence
 from .sequence_database import *
