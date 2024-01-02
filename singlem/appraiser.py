@@ -2,7 +2,6 @@ import logging
 import os
 import sys
 import tempfile
-import numpy
 
 from .otu_table import OtuTable
 from .archive_otu_table import ArchiveOtuTable
@@ -13,8 +12,7 @@ from .sequence_database import SequenceDatabase
 from .sequence_database import SMAFA_NAIVE_INDEX_FORMAT
 from .condense import _tmean
 
-OTU_TABLE_OUTPUT_FORMAT = 'standard'
-ARCHIVE_TABLE_OUTPUT_FORMAT = 'archive'
+from .singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
 class Appraiser:
     def appraise(self, **kwargs):

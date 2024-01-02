@@ -22,10 +22,10 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 
 import singlem
 import singlem.pipe as pipe
-import singlem.appraiser as appraise
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
+from singlem.singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
 DEFAULT_WINDOW_SIZE = 60
 SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
@@ -245,8 +245,8 @@ if __name__ == '__main__':
     appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
     appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
     appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
-    appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=appraise.OTU_TABLE_OUTPUT_FORMAT,
-                                          choices=[appraise.OTU_TABLE_OUTPUT_FORMAT, appraise.ARCHIVE_TABLE_OUTPUT_FORMAT])
+    appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=OTU_TABLE_OUTPUT_FORMAT,
+                                          choices=[OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT])
 
     seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -961,7 +961,7 @@ if __name__ == '__main__':
         if not args.metagenome_otu_tables and not args.metagenome_archive_otu_tables:
             raise Exception("Appraise requires metagenome OTU tables or archive tables")
 
-        if args.output_style == appraise.ARCHIVE_TABLE_OUTPUT_FORMAT and not args.metagenome_archive_otu_tables:
+        if args.output_style == ARCHIVE_TABLE_OUTPUT_FORMAT and not args.metagenome_archive_otu_tables:
             raise Exception("Appraise archive output format requires metagenome archive input")
 
         appraiser = Appraiser()

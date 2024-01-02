@@ -5,7 +5,6 @@ from Bio import SeqIO
 from io import StringIO
 import multiprocessing
 import tempfile
-import pyranges as pr
 
 from graftm.hmmsearcher import HmmSearcher
 
@@ -519,6 +518,9 @@ class ExtractedReadSet:
         '''When OrfM is run on a genome, then sometimes the same stretch of the
         genome will be in 2 transcripts, so is inappropriately included twice.
         Remove these cases.'''
+
+        # Do not import at the top level because it isn't compatible with newest Python.
+        import pyranges as pr
         
         logging.debug("Before duplicate removal for {}, have {} sequences".format(
             self.singlem_package.graftm_package_basename(), len(self.unknown_sequences)))
