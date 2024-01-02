@@ -4,6 +4,9 @@ import csv
 
 CREATE_MIN_ALIGNED_PERCENT = 10
 
+OTU_TABLE_OUTPUT_FORMAT = 'standard'
+ARCHIVE_TABLE_OUTPUT_FORMAT = 'archive'
+
 class OrfMUtils:
     def un_orfm_name(self, name):
         return re.sub(r'_\d+_\d+_\d+$', '', name)
