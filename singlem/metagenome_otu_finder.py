@@ -144,11 +144,13 @@ class MetagenomeOtuFinder:
         # Find the number of aligned bases at each position
         current_best_position = 0
         current_max_num_aligned_bases = 0
+        current_min_sequence_length_covered = 0
         for i in range(0, len(binary_alignment[0])-stretch_length+1):
             if i in ignored_columns: continue #don't start from ignored columns
             positions = self._best_position_to_chosen_positions(i, stretch_length, ignored_columns)
             logging.debug("Testing positions %s" % str(positions))
             num_bases_covered_here = 0
+            num_sequence_length_covered_here = 0 # Amount of aligned sequence covered - we want to minimise this so that smaller windows are preferred
             end_index = positions[-1]
             #if ignored char is within stretch length of end of aln
             if end_index >= len(binary_alignment[0]): continue
@@ -156,12 +158,23 @@ class MetagenomeOtuFinder:
                 if not s[i] or not s[end_index]: continue #ignore reads that don't cover the entirety
                 for pos in positions:
                     if s[pos]: num_bases_covered_here += 1
-            logging.debug("Found %i aligned bases at position %i" % (num_bases_covered_here, i))
-            if num_bases_covered_here > current_max_num_aligned_bases:
+                # Count the number of bases including unaligned bases. This is
+                # the total number of bases which are between the first and last
+                # aligned positions that are True in the arrays
+                for j in range(i, end_index + 1):
+                    if s[j]: num_sequence_length_covered_here += 1
+            logging.debug("Found %i aligned bases and %i total bases at position %i" % (
+                num_bases_covered_here, num_sequence_length_covered_here, i))
+            if num_bases_covered_here > current_max_num_aligned_bases or (
+                    num_bases_covered_here == current_max_num_aligned_bases and num_sequence_length_covered_here < current_min_sequence_length_covered):
+
+                # logging.debug("Found %i aligned bases and %i total bases at position %i" % (
+                #     num_bases_covered_here, num_sequence_length_covered_here, i))
                 current_best_position = i
                 current_max_num_aligned_bases = num_bases_covered_here
-        logging.info("Found a window starting at position %i with %i bases aligned" % (
-            current_best_position, current_max_num_aligned_bases))
+                current_min_sequence_length_covered = num_sequence_length_covered_here
+        logging.info("Found a window starting at position %i with %i bases aligned and %i total bases" % (
+            current_best_position, current_max_num_aligned_bases, current_min_sequence_length_covered))
 
         # Convert the best position to the best position not including ignored columns
         start_position_without_gaps = current_best_position
