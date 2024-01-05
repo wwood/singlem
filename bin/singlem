@@ -402,7 +402,7 @@ if __name__ == '__main__':
     create_parser.add_argument('--input-graftm-package', metavar="PATH", help="Input GraftM package underlying the new SingleM package. The GraftM package is usually made with 'graftM create --no_tree --hmm <your.hmm>' where <your.hmm> is the one provided to 'singlem seqs'.", required=True)
     create_parser.add_argument('--input-taxonomy', metavar="PATH", help="Input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
     create_parser.add_argument('--output-singlem-package', metavar="PATH", help="Output package path", required=True)
-    create_parser.add_argument('--hmm-position', metavar="INTEGER", help="Position in the GraftM alignment HMM where the SingleM window starts. To choose the best position, use 'singlem seqs'.", required=True, type=int)
+    create_parser.add_argument('--hmm-position', metavar="INTEGER", help="Position in the GraftM alignment HMM where the SingleM window starts. To choose the best position, use 'singlem seqs'. Note that this position (both the one output by 'seqs' and the one specified here) is a 1-based index, but this positions stored within the SingleM package as a 0-based index.", required=True, type=int)
     create_parser.add_argument('--window-size', metavar="INTEGER",
         help="Length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
