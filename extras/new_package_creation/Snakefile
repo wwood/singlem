@@ -4,6 +4,32 @@ test_file = config['test_file']
 
 output_directory = 'singlem_new_metapackage_working_directory' #FIXME
 
+rule verify_tested_metapackage:
+    input:
+        otu_table = os.path.join(output_directory, "otu_table.tsv"),
+        done = os.path.join(output_directory, "done", "test_metapackage.done"),
+        test_file = test_file
+    output:
+        done = touch(os.path.join(output_directory, "done", "verify_tested_metapackage.done"))
+    # log:
+    #     log = os.path.join(output_directory, "logs", "verify_tested_metapackage.log")
+    run:
+        # Calculate number of sequences in test file
+        import extern
+        stdout = extern.run(f"grep -c '>' {input.test_file}")
+        num_seqs = int(stdout.strip())
+        # Calculate number of sequences in otu table
+        import polars as pl
+        df = pl.read_csv(input.otu_table, separator='\t')
+        all_seqs = []
+        for row in df.rows(named=True):
+            for n in row['read_names'].split(' '):
+                all_seqs.append(n)
+        print("Number of sequences in otu table:", len(all_seqs))
+        print("Number of sequences in test file:", num_seqs)
+        if len(all_seqs) != num_seqs:
+            raise Exception(f"Number of sequences in otu table ({len(all_seqs)}) does not match number of sequences in test file ({num_seqs})")
+
 rule test_metapackage:
     input:
         metapackage = metapackage,
@@ -17,7 +43,7 @@ rule test_metapackage:
     conda:
         "envs/singlem.yml"
     shell:
-        "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug  2> {log}"
+        "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug --output-extras 2> {log}"
 
 rule create_metapackage:
     input:
@@ -98,7 +124,8 @@ rule singlem_seqs:
     conda:
         "envs/singlem.yml"
     shell:
-        "singlem seqs --alignment {input.alignment} --alignment-type aa >{output.window_position_file} 2> {log}"
+        # There's an unreleased fix post 0.16.0
+        "~/git/singlem/bin/singlem seqs --alignment {input.alignment} --alignment-type aa >{output.window_position_file} 2> {log}"
 
 rule singlem_create:
     input:
@@ -117,7 +144,8 @@ rule singlem_create:
     conda:
         "envs/singlem.yml"
     shell:
-        "singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
+        # There's an unreleased fix post 0.16.0
+        "~/git/singlem/bin/singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
 
 rule chainsaw:
     input:
@@ -129,9 +157,9 @@ rule chainsaw:
     log:
         log = os.path.join(output_directory, "logs", "{name}.chainsaw.log")
     conda:
-        # "envs/singlem.yml"
-        "singlem-dev" # There's an unreleased fix post 0.16.0
+        "envs/singlem.yml"
     shell:
+        # There's an unreleased fix post 0.16.0
         "~/git/singlem/bin/singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output.spkg} 2> {log}"
 
 
