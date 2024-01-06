@@ -113,6 +113,8 @@ rule create_alignment:
 rule singlem_seqs:
     input:
         alignment = os.path.join(output_directory, "alns", "{name}.aln"),
+        # Only required when hmm_file is not defined, but unsure how to make this conditional
+        gpkg = os.path.join(output_directory, "gpkgs", "{name}.gpkg"),
     output:
         window_position_file = os.path.join(output_directory, "{name}.window_position.txt"),
         done = touch(os.path.join(output_directory, "done", "{name}.singlem_seqs.done"))
@@ -121,11 +123,12 @@ rule singlem_seqs:
     benchmark: os.path.join(output_directory, "benchmarks", "{name}.singlem_seqs.benchmark")
     params:
         aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
+        hmm_file = lambda wildcards, input: get_final_hmm_file(spkgs[wildcards.name], input.gpkg),
     conda:
         "envs/singlem.yml"
     shell:
         # There's an unreleased fix post 0.16.0
-        "~/git/singlem/bin/singlem seqs --alignment {input.alignment} --alignment-type aa >{output.window_position_file} 2> {log}"
+        "~/git/singlem/bin/singlem seqs --alignment {input.alignment} --alignment-type aa --hmm {params.hmm_file} >{output.window_position_file} 2> {log}"
 
 rule singlem_create:
     input:

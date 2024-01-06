@@ -49,7 +49,8 @@ def seqs(args):
     best_position = MetagenomeOtuFinder().find_best_window(
         protein_alignment,
         args.window_size,
-        is_protein_alignment)
+        is_protein_alignment,
+        args.hmm)
     # Report the best position as a 1-based index
     best_position += 1
 
@@ -256,6 +257,7 @@ if __name__ == '__main__':
     seqs_parser.add_argument('--window-size', metavar='INT',
         help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
+    seqs_parser.add_argument('--hmm', help="HMM file used to generate alignment, used here to rank windows according to their information content.")
 
     makedb_description = 'Create a searchable OTU sequence database from an OTU table'
     makedb_parser = bird_argparser.new_subparser('makedb', makedb_description)
