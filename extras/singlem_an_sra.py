@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.6
+#!/usr/bin/env python3
 
 ###############################################################################
 #
@@ -43,8 +43,9 @@ if __name__ == '__main__':
     parser.add_argument('--quiet', help='only output errors', action="store_true")
 
     parser.add_argument('--sra-identifier',required=True)
-    parser.add_argument('--sra-download-methods',required=True)
     parser.add_argument('--metapackage',required=True)
+
+    parser.add_argument('--sra-download-methods', default='aws-http prefetch --guess-aws-location')
 
     args = parser.parse_args()
 
@@ -58,7 +59,7 @@ if __name__ == '__main__':
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     def run_singlem(sequence_input_arg, output_file_basename, use_sra):
-        cmd = f'singlem pipe {sequence_input_arg} --archive_otu_table >(gzip >{output_file_basename}.annotated.singlem.json.gz) --threads 1 --singlem-metapackage {args.metapackage}'
+        cmd = f'singlem pipe {sequence_input_arg} --no-assign-taxonomy --archive-otu-table >(gzip >{output_file_basename}.json.gz) --threads 1 --metapackage {args.metapackage}'
 
         try:
             logging.info(f"Attempting SingleM command: {cmd}")
@@ -66,10 +67,10 @@ if __name__ == '__main__':
             return True
         except extern.ExternCalledProcessError as e:
             if use_sra:
-                logging.debug(e)
+                logging.warning(e)
                 return False
             else:
-                logging.debug(e)
+                logging.error(e)
                 raise(e)
 
     def analyse(run, use_sra):
@@ -127,8 +128,9 @@ if __name__ == '__main__':
     # Delete files for cleanliness
     for f in [f'{run}.sra',f'{run}_1.fastq.gz',f'{run}_2.fastq.gz',f'{run}.fastq.gz']:
         try:
-            os.remove(f)
-        except FileNotFoundException:
+            if os.path.exists(f):
+                os.remove(f)
+        except:
             logging.debug(f'File {f} not found when deleting')
             pass
 
