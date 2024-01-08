@@ -291,7 +291,6 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
         logging.debug("First sequence: {} / {}".format(protein_alignment[0].name, protein_alignment[0].seq))
         # Window sequences must be found for each chunk, otherwise the
         # alignments won't line up re insert characters, between chunks.
-        import IPython; IPython.embed()
         window_seqs.extend(MetagenomeOtuFinder().find_windowed_sequences(
             protein_alignment,
             nucleotide_sequence_hash,
