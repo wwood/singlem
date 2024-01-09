@@ -60,6 +60,8 @@ if __name__ == '__main__':
 
     def run_singlem(sequence_input_arg, output_file_basename, use_sra):
         cmd = f'singlem pipe {sequence_input_arg} --no-assign-taxonomy --archive-otu-table >(gzip >{output_file_basename}.json.gz) --threads 1 --metapackage {args.metapackage}'
+        if args.debug:
+            cmd += ' --debug'
 
         try:
             logging.info(f"Attempting SingleM command: {cmd}")
@@ -112,17 +114,21 @@ if __name__ == '__main__':
     run = args.sra_identifier
     try:
         extern.run(f'kingfisher get -r {run} --output-format-possibilities sra --hide-download-progress -m {args.sra_download_methods}')
+        logging.info("Kingfisher get of .sra format worked")
         sra_download_worked = analyse(run,True) # Analyse too in case download works but singlem fails
-    except extern.ExternCalledProcessError:
+    except extern.ExternCalledProcessError as e:
+        logging.warning(e)
         pass
 
     try:
         if not sra_download_worked:
             logging.info("Failed .sra format download, trying ENA ..")
             extern.run(f'kingfisher get -r {run} --output-format-possibilities fastq.gz --hide-download-progress -m ena-ftp')
+            logging.info("Kingfisher get of FASTQ.GZ from ENA format worked")
             analyse(run,False)
             ena_download_worked = True
-    except extern.ExternCalledProcessError:
+    except extern.ExternCalledProcessError as e:
+        logging.error(e)
         pass
 
     # Delete files for cleanliness
