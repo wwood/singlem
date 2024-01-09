@@ -24,7 +24,6 @@ from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
-from .summariser import Summariser
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -65,6 +64,11 @@ class SearchPipe:
 
         if outputting_taxonomic_profile and metapackage.version < 3:
             raise Exception("Taxonomic profile output is only available for metapackages version 3 or higher")
+
+        if output_otu_table:
+            # Do not import summariser until we know we need it, as it implies
+            # polars is installed, which is annoying for SRA docker image.
+            from .summariser import Summariser
 
         otu_table_object = self.run_to_otu_table(**kwargs)
         if otu_table_object is not None:
