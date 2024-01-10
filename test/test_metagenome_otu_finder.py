@@ -73,7 +73,7 @@ class Tests(unittest.TestCase):
                          [o.aligned_sequence for o in obs])
 
         # now without a known window
-        best_position = m.find_best_window(s2, 5, False)
+        best_position = m.find_best_window(s2, 5, False, None)
         obs = m.find_windowed_sequences(
             s2,
             unaligned,
@@ -82,6 +82,33 @@ class Tests(unittest.TestCase):
             False,
             best_position)
         self.assertEqual(['AAAAA','TATGG','TATGG','TATGG','TATGG'],
+                         [o.aligned_sequence for o in obs])
+
+
+    def test_find_best_window_with_minimising_sequences(self):
+        m = MetagenomeOtuFinder()
+        seqs = [
+            'gaAAAAAAAAAAAAAA-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
+            'ga-------------TaATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGtaACTGACGCTGATGTG',
+            'ca---------GAGATaATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGtaACTGACGCTGA----',
+            'ga-------------TaATGGAGGAACACCAGTGGCGAAGGCGACTTTCTGGTCTGtaACTGGGCTGATGTG-',
+            '-g----------AGATaATGGA---------------------------------------------------']
+        s2 = [Sequence('seq%i' % i, seq) for i, seq in enumerate(seqs)]
+        unaligned = {}
+        for i, seq in enumerate(seqs):
+            name = 'seq%i' % i
+            unaligned[name] = seq.replace('-','')
+
+        # without a known window
+        best_position = m.find_best_window(s2, 5, False, None)
+        obs = m.find_windowed_sequences(
+            s2,
+            unaligned,
+            5,
+            False,
+            False,
+            best_position)
+        self.assertEqual(['AAAAA','ATGGA','ATGGA','ATGGA','ATGGA'],
                          [o.aligned_sequence for o in obs])
 
 

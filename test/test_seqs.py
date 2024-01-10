@@ -67,5 +67,10 @@ TATGGAGGAACACCAGTGGC
                         stde.read())
                 self.assertEqual('14\n', stdout)
 
+    def test_info_content(self):
+        self.assertEqual(
+            '849\n',
+            extern.run(f'{path_to_script} seqs --alignment {path_to_data}/seqs/rdrp.aln --alignment-type aa --hmm {path_to_data}/seqs/graftmljiaceib_align.hmm'))
+
 if __name__ == "__main__":
     unittest.main()

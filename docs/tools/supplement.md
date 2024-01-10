@@ -15,6 +15,10 @@ OPTIONS
 
   FASTA files of new genomes
 
+**\--new-genome-fasta-files-list** *NEW_GENOME_FASTA_FILES_LIST* [*NEW_GENOME_FASTA_FILES_LIST* \...]
+
+  File containing FASTA file paths of new genomes
+
 **\--new-taxonomies** *NEW_TAXONOMIES*
 
   newline separated file containing taxonomies of new genomes
@@ -45,7 +49,12 @@ OPTIONS
 **\--gtdbtk-output-directory** *GTDBTK_OUTPUT_DIRECTORY*
 
   use this GTDBtk result. Not used if \--new-taxonomies is used
-    [default: run GTDBtk]
+    [default: not set, run GTDBtk]
+
+**\--taxonomy-file** *TAXONOMY_FILE*
+
+  A 2 column tab-separated file containing each genome\'s taxonomy as
+    output by GTDBtk [default: not set, run GTDBtk]
 
 **\--output-taxonomies** *OUTPUT_TAXONOMIES*
 

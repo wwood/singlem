@@ -5,7 +5,6 @@ from Bio import SeqIO
 from io import StringIO
 import multiprocessing
 import tempfile
-import pyranges as pr
 
 from graftm.hmmsearcher import HmmSearcher
 
@@ -331,13 +330,17 @@ class PipeSequenceExtractor:
                         sample_name, singlem_package):
                     to_iterate.append((sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy))
 
-        # Multiprocess across all instances
-        pool = multiprocessing.Pool(num_threads)
-        extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
-        for readset_possibly_paired_process in extraction_processes:
-            extracted_reads.add(readset_possibly_paired_process.get())
-        pool.close()
-        pool.join()
+        # Multiprocess across all instances if num_threads > 1
+        if num_threads > 1:
+            pool = multiprocessing.Pool(num_threads)
+            extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
+            for readset_possibly_paired_process in extraction_processes:
+                extracted_reads.add(readset_possibly_paired_process.get())
+            pool.close()
+            pool.join()
+        else:
+            for myargs in to_iterate:
+                extracted_reads.add(_run_individual_extraction(*myargs))
 
         return extracted_reads
 
@@ -515,6 +518,9 @@ class ExtractedReadSet:
         '''When OrfM is run on a genome, then sometimes the same stretch of the
         genome will be in 2 transcripts, so is inappropriately included twice.
         Remove these cases.'''
+
+        # Do not import at the top level because it isn't compatible with newest Python.
+        import pyranges as pr
         
         logging.debug("Before duplicate removal for {}, have {} sequences".format(
             self.singlem_package.graftm_package_basename(), len(self.unknown_sequences)))

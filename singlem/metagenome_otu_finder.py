@@ -1,7 +1,10 @@
 import logging
 import re
-from .sequence_classes import UnalignedAlignedNucleotideSequence
 import itertools
+
+from .sequence_classes import UnalignedAlignedNucleotideSequence
+from .hmm_logo import HmmLogo
+
 
 class MetagenomeOtuFinder:
     def find_windowed_sequences(self,
@@ -96,7 +99,7 @@ class MetagenomeOtuFinder:
                     lower_cases[i] = True
         return [i for i, is_lower in enumerate(lower_cases) if is_lower]
 
-    def find_best_window(self, alignment, stretch_length, is_protein_alignment):
+    def find_best_window(self, alignment, stretch_length, is_protein_alignment, hmm_path):
         '''Return the position in the alignment that has the most bases aligned only
         counting sequences that overlap the entirety of the stretch. Columns
         including gap columns are ignored and not in the index returned i.e. it
@@ -110,6 +113,8 @@ class MetagenomeOtuFinder:
             window size, measured in nucleotides (ie 60 not 20)
         is_protein_alignment: boolean
             True for a protein alignment, False for a nucleotide one
+        hmm_path: str or None
+            path to the HMM file. Used for finding the information content of each position in the HMM. If None, the information content is not used.
 
         Returns
         -------
@@ -117,7 +122,7 @@ class MetagenomeOtuFinder:
             the best position
 
         '''
-         # Internally stretch_length is the length of the alignment
+        # Internally stretch_length is the length of the alignment
         if is_protein_alignment:
             if stretch_length % 3 != 0:
                 raise Exception(
@@ -128,6 +133,20 @@ class MetagenomeOtuFinder:
             raise Exception("stretch_length must be positive")
 
         ignored_columns = self._find_lower_case_columns(alignment)
+
+        # Gather information content of each position in the HMM
+        if hmm_path is not None:
+            info_content = HmmLogo.hmm_information_content(hmm_path)
+            # Convert the info content to be the same length as the alignment
+            # inclusive of ignored columns. Add 0 for ignored columns
+            info_content_stretched = []
+            next_hmm_position = 0
+            for i in range(len(alignment[0].seq)):
+                if i in ignored_columns:
+                    info_content_stretched.append(0)
+                else:
+                    info_content_stretched.append(info_content[next_hmm_position])
+                    next_hmm_position += 1
 
         # Convert the alignment into a True/False matrix for ease,
         # True meaning that there is something aligned, else False
@@ -144,11 +163,14 @@ class MetagenomeOtuFinder:
         # Find the number of aligned bases at each position
         current_best_position = 0
         current_max_num_aligned_bases = 0
+        current_min_sequence_length_covered = 0
+        current_best_info_content = 0
         for i in range(0, len(binary_alignment[0])-stretch_length+1):
             if i in ignored_columns: continue #don't start from ignored columns
             positions = self._best_position_to_chosen_positions(i, stretch_length, ignored_columns)
             logging.debug("Testing positions %s" % str(positions))
             num_bases_covered_here = 0
+            num_sequence_length_covered_here = 0 # Amount of aligned sequence covered - we want to minimise this so that smaller windows are preferred
             end_index = positions[-1]
             #if ignored char is within stretch length of end of aln
             if end_index >= len(binary_alignment[0]): continue
@@ -156,12 +178,50 @@ class MetagenomeOtuFinder:
                 if not s[i] or not s[end_index]: continue #ignore reads that don't cover the entirety
                 for pos in positions:
                     if s[pos]: num_bases_covered_here += 1
-            logging.debug("Found %i aligned bases at position %i" % (num_bases_covered_here, i))
-            if num_bases_covered_here > current_max_num_aligned_bases:
+                # Count the number of bases including unaligned bases. This is
+                # the total number of bases which are between the first and last
+                # aligned positions that are True in the arrays
+                for j in range(i, end_index + 1):
+                    if s[j]: num_sequence_length_covered_here += 1
+            if hmm_path is not None:
+                # Add up the information content of each position in the stretch
+                info_content_here = sum(info_content_stretched[i] for i in positions)
+            # if hmm_path is not None:
+            #     debug_msg = "Found %i aligned bases and %i total bases at position %i and %f info content" % (
+            #         num_bases_covered_here, num_sequence_length_covered_here, i, info_content_here)
+            # else:
+            #     debug_msg = "Found %i aligned bases and %i total bases at position %i" % (
+            #         num_bases_covered_here, num_sequence_length_covered_here, i)
+            # logging.debug(debug_msg)
+            
+            if hmm_path is not None:
+                found_better = num_bases_covered_here > current_max_num_aligned_bases or (
+                    num_bases_covered_here == current_max_num_aligned_bases and num_sequence_length_covered_here < current_min_sequence_length_covered) or (
+                    num_bases_covered_here == current_max_num_aligned_bases and num_sequence_length_covered_here == current_min_sequence_length_covered and info_content_here > current_best_info_content)
+            else:
+                found_better = num_bases_covered_here > current_max_num_aligned_bases or (
+                    num_bases_covered_here == current_max_num_aligned_bases and num_sequence_length_covered_here < current_min_sequence_length_covered)
+            if found_better:
+                if hmm_path is not None:
+                    debug_msg = "Found %i aligned bases and %i total bases at position %i and %f info content" % (
+                        num_bases_covered_here, num_sequence_length_covered_here, i, info_content_here)
+                else:
+                    debug_msg = "Found %i aligned bases and %i total bases at position %i" % (
+                        num_bases_covered_here, num_sequence_length_covered_here, i)
+                logging.debug(debug_msg)
                 current_best_position = i
                 current_max_num_aligned_bases = num_bases_covered_here
-        logging.info("Found a window starting at position %i with %i bases aligned" % (
-            current_best_position, current_max_num_aligned_bases))
+                current_min_sequence_length_covered = num_sequence_length_covered_here
+                if hmm_path is not None:
+                    current_best_info_content = info_content_here
+
+        if hmm_path is not None:
+            debug_msg = "Found a window starting at position %i with %i bases aligned and %i total bases and %f info content" % (
+                current_best_position, current_max_num_aligned_bases, current_min_sequence_length_covered, current_best_info_content)
+        else:
+            debug_msg = "Found a window starting at position %i with %i bases aligned and %i total bases" % (
+                current_best_position, current_max_num_aligned_bases, current_min_sequence_length_covered)
+        logging.info(debug_msg)
 
         # Convert the best position to the best position not including ignored columns
         start_position_without_gaps = current_best_position

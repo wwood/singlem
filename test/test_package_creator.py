@@ -54,7 +54,7 @@ class Tests(unittest.TestCase):
             self.assertTrue(os.path.isdir('protein.spkg'))
             with open('protein.spkg/CONTENTS.json') as f:
                 j = json.load(f)
-            self.assertEqual(76, j['singlem_hmm_position'])
+            self.assertEqual(75, j['singlem_hmm_position'])
             self.assertEqual(63, j['singlem_window_size'])
             self.assertTrue(j['taxonomy_hash'].startswith("taxonomy"))
 
@@ -80,7 +80,7 @@ class Tests(unittest.TestCase):
             self.assertTrue(os.path.isdir('nuc.spkg'))
             with open('nuc.spkg/CONTENTS.json') as f:
                 j = json.load(f)
-            self.assertEqual(888, j['singlem_hmm_position'])
+            self.assertEqual(887, j['singlem_hmm_position'])
             self.assertEqual(57, j['singlem_window_size'])
             self.assertTrue(j['taxonomy_hash'].startswith("taxonomy"))
 
