@@ -15,7 +15,7 @@ There are several tools (subcommands) which can be used after [installation](/In
 * [single summarise](/tools/summarise) - Mechanical transformations of `singlem pipe` results.
 * [singlem renew](/tools/renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
 * [singlem supplement](/tools/supplement) - Add new genomes to a reference metapackage.
-* [singlem read_fraction](/tools/read_fraction) - How much of a metagenome is prokaryotic?
+* [singlem microbial_fraction](/tools/microbial_fraction) - How much of a metagenome is prokaryotic?
 * [singlem appraise](/tools/appraise) - How much of a metagenome do the genomes or assembly represent?
 
 And more specialised / expert modes:

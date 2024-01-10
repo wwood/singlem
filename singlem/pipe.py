@@ -24,7 +24,6 @@ from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
-from .summariser import Summariser
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -115,6 +114,7 @@ class SearchPipe:
             exclude_off_target_hits):
         otu_table_object.fields = ArchiveOtuTable.FIELDS
         if output_otu_table:
+            from .summariser import Summariser
             with open(output_otu_table, 'w') as f:
                 if exclude_off_target_hits:
                     collection = OtuTableCollection()
@@ -1171,7 +1171,7 @@ class SearchPipe:
         def generate_tempfile_for_readset(readset):
             tmp = tempfile.NamedTemporaryFile(
                 mode='w',
-                prefix='singlem.%s' % readset.sample_name, suffix=".fasta",
+                prefix='singlem-readset.%s' % readset.sample_name, suffix=".fasta",
                 delete=False)
             # Record basename (remove .fasta) so that the graftm output
             # file is recorded for later on in pipe.
@@ -1224,6 +1224,7 @@ class SearchPipe:
         # fewer open files are needed, so that the open file count limit is
         # eased.
         diamond_results = []
+        all_tmp_files = []
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
@@ -1316,9 +1317,9 @@ class SearchPipe:
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
 
-
-
             if len(tmp_files) > 0:
+                all_tmp_files.extend(tmp_files)
+
                 if assignment_method in (
                     DIAMOND_ASSIGNMENT_METHOD,
                     DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
@@ -1471,6 +1472,17 @@ class SearchPipe:
 
         extern.run_many(commands, num_threads=assignment_threads)
         logging.info("Finished running taxonomic assignment")
+
+        # Remove tmpfiles
+        for li in all_tmp_files:
+            if len(li) == 2:
+                # single-ended
+                os.remove(li[1].name)
+            elif len(li) == 3:
+                # paired
+                os.remove(li[1].name)
+                os.remove(li[2].name)
+
         if assignment_method == DIAMOND_ASSIGNMENT_METHOD:
             return DiamondTaxonomicAssignmentResult(diamond_results, extracted_reads.analysing_pairs)
         elif assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:

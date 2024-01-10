@@ -52,7 +52,7 @@ if __name__ == '__main__':
     logging.info("Done updating [RELEASE_TAG] in Installation.md to {}".format(version))
 
     subdir_and_commands = [
-        ['tools', ['data','pipe','appraise','summarise','renew','supplement','read_fraction']],
+        ['tools', ['data','pipe','appraise','summarise','renew','supplement','microbial_fraction']],
         ['advanced', ['makedb','query','condense','seqs','create','metapackage']]
     ]
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
                 # Remove everything before the options section
                 splitters = {
                     'pipe': 'COMMON OPTIONS',
-                    'read_fraction': 'OPTIONS',
+                    'microbial_fraction': 'OPTIONS',
                     'data': 'OPTIONS',
                     'summarise': 'INPUT',
                     'makedb': 'REQUIRED ARGUMENTS',

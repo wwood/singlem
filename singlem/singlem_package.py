@@ -383,6 +383,9 @@ class SingleMPackageVersion4(SingleMPackageVersion3):
         taxonomy_path = os.path.join(self._base_directory, self._contents_hash[SingleMPackage.TAXONOMY_HASH_KEY])
         with open(taxonomy_path, 'rb') as file:
             return pickle.load(file)
+
+    def taxonomy_hash_path(self):
+        return os.path.join(self._base_directory, self._contents_hash[SingleMPackage.TAXONOMY_HASH_KEY])
     
     @staticmethod
     def compile(output_package_path, graftm_package_path, singlem_position, window_size, target_domains, gene_description, taxonomy_hash_path):

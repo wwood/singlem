@@ -22,10 +22,10 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 
 import singlem
 import singlem.pipe as pipe
-import singlem.appraiser as appraise
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
+from singlem.singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
 DEFAULT_WINDOW_SIZE = 60
 SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
@@ -49,7 +49,8 @@ def seqs(args):
     best_position = MetagenomeOtuFinder().find_best_window(
         protein_alignment,
         args.window_size,
-        is_protein_alignment)
+        is_protein_alignment,
+        args.hmm)
     # Report the best position as a 1-based index
     best_position += 1
 
@@ -245,8 +246,8 @@ if __name__ == '__main__':
     appraise_otu_table_group.add_argument('--output-assembled-otu-table', help="output OTU table of all assembled populations", default=None)
     appraise_otu_table_group.add_argument('--output-unaccounted-for-otu-table', help="Output OTU table of populations not accounted for", default=None)
     appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
-    appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=appraise.OTU_TABLE_OUTPUT_FORMAT,
-                                          choices=[appraise.OTU_TABLE_OUTPUT_FORMAT, appraise.ARCHIVE_TABLE_OUTPUT_FORMAT])
+    appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=OTU_TABLE_OUTPUT_FORMAT,
+                                          choices=[OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT])
 
     seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -256,6 +257,7 @@ if __name__ == '__main__':
     seqs_parser.add_argument('--window-size', metavar='INT',
         help='Number of nucleotides to use in continuous window [default: {}]'.format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
+    seqs_parser.add_argument('--hmm', help="HMM file used to generate alignment, used here to rank windows according to their information content.")
 
     makedb_description = 'Create a searchable OTU sequence database from an OTU table'
     makedb_parser = bird_argparser.new_subparser('makedb', makedb_description)
@@ -361,6 +363,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--output-taxonomic-profile-krona', help="Output taxonomic profile to this file in Krona format. Requires --input-taxonomic-profiles")
     summarise_output_args.add_argument('--output-species-by-site-relative-abundance', help="Output site by species relative abundance to this file")
     summarise_output_args.add_argument('--output-species-by-site-level', help="Output site by species level to this file", choices=['species','genus','family','order','class','phylum','domain'], default='species')
+    summarise_output_args.add_argument('--output-taxonomic-level-coverage', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file")
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage.'
     read_fraction_parser = bird_argparser.new_subparser('microbial_fraction', read_fraction_description, parser_group='Tools')
@@ -401,7 +404,7 @@ if __name__ == '__main__':
     create_parser.add_argument('--input-graftm-package', metavar="PATH", help="Input GraftM package underlying the new SingleM package. The GraftM package is usually made with 'graftM create --no_tree --hmm <your.hmm>' where <your.hmm> is the one provided to 'singlem seqs'.", required=True)
     create_parser.add_argument('--input-taxonomy', metavar="PATH", help="Input taxonomy file in GreenGenes format (2 column tab separated, ID then taxonomy with taxonomy separated by ';' or '; '.", required=True)
     create_parser.add_argument('--output-singlem-package', metavar="PATH", help="Output package path", required=True)
-    create_parser.add_argument('--hmm-position', metavar="INTEGER", help="Position in the GraftM alignment HMM where the SingleM window starts. To choose the best position, use 'singlem seqs'.", required=True, type=int)
+    create_parser.add_argument('--hmm-position', metavar="INTEGER", help="Position in the GraftM alignment HMM where the SingleM window starts. To choose the best position, use 'singlem seqs'. Note that this position (both the one output by 'seqs' and the one specified here) is a 1-based index, but this positions stored within the SingleM package as a 0-based index.", required=True, type=int)
     create_parser.add_argument('--window-size', metavar="INTEGER",
         help="Length of NUCLEOTIDE residues in the window, counting only those that match the HMM [default: {}]".format(DEFAULT_WINDOW_SIZE),
         default=DEFAULT_WINDOW_SIZE, type=int)
@@ -456,7 +459,7 @@ if __name__ == '__main__':
     required_chainsaw_arguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
     required_chainsaw_arguments.add_argument('--sequence-prefix', default="", help="Rename the sequences by adding this at the front [default: '']")
 
-    condense_description = 'Combine OTU tables across different markers into a single taxonomic profile.'
+    condense_description = 'Combine OTU tables across different markers into a single taxonomic profile. Note that while this mode can be run independently, it is often more straightforward to invoke its methodology by specifying -p / --taxonomic-profile when running pipe mode.'
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
 
     input_condense_arguments = condense_parser.add_argument_group("Input arguments (1+ required)")
@@ -526,6 +529,7 @@ if __name__ == '__main__':
     current_default = '1e-20'
     supplement_parser.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
     supplement_parser.add_argument('--skip-taxonomy-check', help='skip check which ensures that GTDBtk assigned taxonomies are concordant with the old metapackage\'s', action='store_true')
+    supplement_parser.add_argument('--gene-definitions', help='Tab-separated file of genome_fasta<TAB>transcript_fasta<TAB>protein_fasta [default: undefined, call genes using Prodigal]')
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -745,6 +749,7 @@ if __name__ == '__main__':
         if args.unaligned_sequences_dump_file: num_output_types += 1
         if args.output_taxonomic_profile_krona: num_output_types += 1
         if args.output_species_by_site_relative_abundance: num_output_types += 1
+        if args.output_taxonomic_level_coverage: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list and not args.input_taxonomic_profiles:
@@ -763,11 +768,13 @@ if __name__ == '__main__':
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse-paired-with-unpaired-archive-otu-table requires exactly two archive tables")
         if args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles:
-            raise Exception("--input-taxonomic-profiles and --output-taxonomic-profile-krona require each other to be defined")
+            raise Exception("--output-taxonomic-profile-krona requires --input-taxonomic-profiles to be defined")
         if args.output_archive_otu_table and not args.collapse_to_sample_name:
             raise Exception("--output-archive-otu-table requires --collapse-to-sample-name to be defined. Some other transfomations have output archive tables, but they are specified separately.")
         if args.output_species_by_site_relative_abundance and not args.input_taxonomic_profiles:
             raise Exception("--output-species-by-site-relative-abundance requires --input-taxonomic-profiles to be defined")
+        if args.output_taxonomic_level_coverage and not args.input_taxonomic_profiles:
+            raise Exception("--output-taxonomic-level-coverage requires --input-taxonomic-profiles to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -928,8 +935,12 @@ if __name__ == '__main__':
                     input_taxonomic_profiles = args.input_taxonomic_profiles,
                     output_species_by_site_relative_abundance_table = args.output_species_by_site_relative_abundance,
                     level = args.output_species_by_site_level)
+            elif args.output_taxonomic_level_coverage:
+                Summariser.write_taxonomic_level_coverage_table(
+                    input_taxonomic_profiles = args.input_taxonomic_profiles,
+                    output_taxonomic_level_coverage_table = args.output_taxonomic_level_coverage)
             else:
-                raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance to be defined, since --input-taxonomic-profiles was defined")
+                raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance or --output-taxonomic-level-coverage to be defined, since --input-taxonomic-profiles was defined")
 
         else: raise Exception("Programming error")
         logging.info("Finished")
@@ -952,7 +963,7 @@ if __name__ == '__main__':
         if not args.metagenome_otu_tables and not args.metagenome_archive_otu_tables:
             raise Exception("Appraise requires metagenome OTU tables or archive tables")
 
-        if args.output_style == appraise.ARCHIVE_TABLE_OUTPUT_FORMAT and not args.metagenome_archive_otu_tables:
+        if args.output_style == ARCHIVE_TABLE_OUTPUT_FORMAT and not args.metagenome_archive_otu_tables:
             raise Exception("Appraise archive output format requires metagenome archive input")
 
         appraiser = Appraiser()
@@ -1286,6 +1297,7 @@ if __name__ == '__main__':
             dereplicate_with_galah=args.dereplicate_with_galah,
             skip_taxonomy_check=args.skip_taxonomy_check,
             no_taxon_genome_lengths=args.no_taxon_genome_lengths,
+            gene_definitions=args.gene_definitions,
         )
 
     else:

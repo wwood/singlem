@@ -14,6 +14,7 @@ class PackageCreator:
         input_graftm_package_path = kwargs.pop('input_graftm_package')
         input_taxonomy = kwargs.pop('input_taxonomy')
         output_singlem_package_path = kwargs.pop('output_singlem_package')
+        # The HMM position is 1-indexed, this is changed within this method to be 0-indexed
         hmm_position = kwargs.pop('hmm_position')
         window_size = kwargs.pop('window_size')
         target_domains = kwargs.pop('target_domains')
@@ -143,7 +144,12 @@ class PackageCreator:
             logging.debug("Finished creating GraftM package for conversion to SingleM package")
             
             SingleMPackageVersion4.compile(output_singlem_package_path,
-                                            gpkg_name, hmm_position, window_size, 
+                                            gpkg_name,
+                                            # The HMM position is 1-indexed, but
+                                            # the SingleM package expects it to
+                                            # be 0-indexed, so minus 1.
+                                            hmm_position-1,
+                                            window_size,
                                             target_domains, gene_description,
                                             taxonomy_hash_path)
 

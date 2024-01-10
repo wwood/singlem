@@ -1,5 +1,4 @@
 import logging
-import sys
 import math
 import re
 from textwrap import wrap
