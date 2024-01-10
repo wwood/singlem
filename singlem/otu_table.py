@@ -92,6 +92,15 @@ class OtuTable:
             if extra_field not in self.fields:
                 self.fields.append(extra_field)
 
+    def add_extras_no_data(self, extra_entries):
+        '''Add extra entries to empty OTU table.'''
+        if self.data:
+            raise Exception("Cannot add extra entries to an OTU table that already has data")
+
+        for extra_field in extra_entries:
+            if extra_field not in self.fields:
+                self.fields.append(extra_field)
+
     def sort_by_marker(self):
         '''Sort the OTU table by marker gene.
         '''

@@ -300,6 +300,17 @@ class Appraiser:
                 if unaccounted_for_otu_table_io:
                     unaccounted_for_table.add_with_extras(appraisal_result.not_found_otus, ['found_in'])
 
+        if len(appraisal.appraisal_results) == 0:
+            if output_found_in:
+                if binned_otu_table_io:
+                    binned_table.add_extras_no_data(['found_in'])
+                if unbinned_otu_table_io:
+                    unbinned_table.add_extras_no_data(['found_in'])
+                if assembled_otu_table_io:
+                    assembled_table.add_extras_no_data(['found_in'])
+                if unaccounted_for_otu_table_io:
+                    unaccounted_for_table.add_extras_no_data(['found_in'])
+
         for domain in AppraisalBuildingBlock.DOMAINS:
             print_sample(domain, 
                         sum(binned[domain]) if doing_binning else None,

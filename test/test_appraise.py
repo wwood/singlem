@@ -591,6 +591,43 @@ class Tests(unittest.TestCase):
                           "\t".join(['4.11.ribosomal_protein_L10','another','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus', ''])])+"\n",
                          not_found_otu_table_io.getvalue())
 
+    def test_print_appraisal_output_found_in_empty(self):
+        metagenome_otu_table = [self.headers]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+
+        genomes_otu_table = [self.headers,['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+                    ]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+
+        appraiser = Appraiser()
+        metagenome_collection = OtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
+        app = appraiser.appraise(genome_otu_table_collection=genome_collection,
+                                 metagenome_otu_table_collection=metagenome_collection,
+                                 output_found_in=True,
+                                 packages=packages,
+                                 window_size=DEFAULT_WINDOW_SIZE)
+        self.assertEqual(0, len(app.appraisal_results))
+
+        to_print = StringIO()
+        found_otu_table_io = StringIO()
+        not_found_otu_table_io = StringIO()
+        appraiser.print_appraisal(app, packages, True, to_print,
+                                  binned_otu_table_io=found_otu_table_io,
+                                  unaccounted_for_otu_table_io=not_found_otu_table_io,
+                                  output_found_in=True)
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers + ['found_in']),
+                          ])+"\n",
+                         found_otu_table_io.getvalue())
+        self.assertEqual("\n".join([
+                          "\t".join(self.headers + ['found_in']),
+                          ])+"\n",
+                         not_found_otu_table_io.getvalue())
+
     def test_print_appraisal_archive_input_output(self):
         version_4_fields = '"fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies", "taxonomy_assignment_method"]'
         alignment_shas = '"alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9", "4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"]'
