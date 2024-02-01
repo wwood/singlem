@@ -103,3 +103,6 @@ Where `L` is the length of a read and `k` is the length of the OTU sequence incl
 SingleM is developed by the [Woodcroft lab](https://research.qut.edu.au/cmr/team/ben-woodcroft/) at the [Centre for Microbiome Research](https://research.qut.edu.au/cmr), School of Biomedical Sciences, QUT, with contributions several including [Samuel Aroney](https://github.com/AroneyS) and [Rossen Zhao](https://github.com/rzhao-2) and many others. It is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
 
 The source code is available at [https://github.com/wwood/singlem](https://github.com/wwood/singlem).
+
+## Citation
+SingleM and Sandpiper: Robust microbial taxonomic profiles from metagenomic data. Ben J Woodcroft, Samuel T. N. Aroney, Rossen Zhao, Mitchell Cunningham, Joshua A. M. Mitchell, Linda Blackall, Gene W Tyson. bioRxiv 2024.01.30.578060; doi: https://doi.org/10.1101/2024.01.30.578060
