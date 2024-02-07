@@ -1,4 +1,4 @@
-FROM mambaorg/micromamba:1.1.0
+FROM mambaorg/micromamba:1.5.6
 
 # This dockerfile uses cached mounts, so to build use e.g.
 # $ DOCKER_BUILDKIT=1 docker build .
@@ -20,12 +20,14 @@ ARG MAMBA_DOCKERFILE_ACTIVATE=1
 RUN git clone https://github.com/wwood/singlem . && git checkout vSINGLEM_VERSION
 
 # Remove bundled singlem packages
-RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png
+RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png singlem/test
 
 # Download default metapackage
-RUN mkdir -p /singlem/db && cd /singlem/db && /singlem/bin/singlem data --output-directory .
+# Make the directory and its contents readable by others https://github.com/wwood/singlem/issues/155
+RUN mkdir -p /singlem/db && cd /singlem/db && /singlem/bin/singlem data --output-directory . && \
+    find /singlem/db -type d -print0 | xargs -0 chmod 755 && \
+    find /singlem/db -type f -print0 | xargs -0 chmod +r
 
-######### UPDATE ME !!!!!!!!!! #########
 ENV SINGLEM_METAPACKAGE_PATH=/singlem/db/SINGLEM_DB_BASENAME
 # Checks whether the metapackage is up to date
 RUN /singlem/bin/singlem data --verify
@@ -35,7 +37,53 @@ RUN /singlem/bin/singlem --version
 RUN /singlem/bin/singlem pipe --full-help 
 # RUN cd singlem && python test/test_makedb_and_query.py
 
-WORKDIR /data
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","/singlem/bin/singlem"]
+# Remove ~/.mamba as it is just taking up space
+RUN rm -rf ~/.mamba
 
-# CMD /bin/bash
+
+# Remove all the build dependencies / image layers for a smaller image overall
+FROM scratch
+COPY --from=0 / /
+
+## The following is to add micromamba back into the image, from https://micromamba-docker.readthedocs.io/en/latest/advanced_usage.html#adding-micromamba-to-an-existing-docker-image
+
+# # bring in the micromamba image so we can copy files from it
+# FROM mambaorg/micromamba:1.5.6 as micromamba
+
+# # This is the image we are going add micromaba to:
+# FROM tomcat:9-jdk17-temurin-focal
+
+USER root
+
+# if your image defaults to a non-root user, then you may want to make the
+# next 3 ARG commands match the values in your image. You can get the values
+# by running: docker run --rm -it my/image id -a
+ARG MAMBA_USER=mambauser
+ARG MAMBA_USER_ID=57439
+ARG MAMBA_USER_GID=57439
+## Make the default user root because otherwise there are permission issues in google batch
+# ARG MAMBA_USER=root
+# ARG MAMBA_USER_ID=0
+# ARG MAMBA_USER_GID=0
+ENV MAMBA_USER=$MAMBA_USER
+ENV MAMBA_ROOT_PREFIX="/opt/conda"
+ENV MAMBA_EXE="/bin/micromamba"
+
+# ## These below are not necessary because the copy from the micromamba image already has them, and doing it just adds to the the image size.
+# COPY --from=micromamba "$MAMBA_EXE" "$MAMBA_EXE"
+# COPY --from=micromamba /usr/local/bin/_activate_current_env.sh /usr/local/bin/_activate_current_env.sh
+# COPY --from=micromamba /usr/local/bin/_dockerfile_shell.sh /usr/local/bin/_dockerfile_shell.sh
+# COPY --from=micromamba /usr/local/bin/_entrypoint.sh /usr/local/bin/_entrypoint.sh
+# COPY --from=micromamba /usr/local/bin/_dockerfile_initialize_user_accounts.sh /usr/local/bin/_dockerfile_initialize_user_accounts.sh
+# COPY --from=micromamba /usr/local/bin/_dockerfile_setup_root_prefix.sh /usr/local/bin/_dockerfile_setup_root_prefix.sh
+
+# RUN /usr/local/bin/_dockerfile_initialize_user_accounts.sh && \
+#     /usr/local/bin/_dockerfile_setup_root_prefix.sh
+
+USER $MAMBA_USER
+
+SHELL ["/usr/local/bin/_dockerfile_shell.sh"]
+
+WORKDIR /data
+ENV SINGLEM_METAPACKAGE_PATH=/singlem/db/SINGLEM_DB_BASENAME
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","/singlem/bin/singlem"]
