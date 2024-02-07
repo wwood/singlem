@@ -429,9 +429,9 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
     matched_transcripts_fna = os.path.join(working_directory, 'matched_transcripts.fna')
 
     total_num_transcripts = 0
-    failure_genomes = 0
-    num_transcriptomes = 0
-    num_found_transcripts = 0
+    total_failure_genomes = 0
+    total_num_transcriptomes = 0
+    total_num_found_transcripts = 0
 
     with Manager() as manager:
         lock = manager.Lock()
@@ -445,15 +445,15 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
                 [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()],
                 chunksize=1)
 
-            for (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in map_result:
-                total_num_transcripts += total_num_transcripts
-                failure_genomes += failure_genomes
-                num_transcriptomes += num_transcriptomes
-                num_found_transcripts += num_found_transcripts
+            for (num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in map_result:
+                total_num_transcripts += num_transcripts
+                total_failure_genomes += failure_genomes
+                total_num_transcriptomes += num_transcriptomes
+                total_num_found_transcripts += num_found_transcripts
 
     logging.info(
         "Ran hmmsearch on {} genomes, finding {} marker genes. {} were excluded based on 2+ copy number.".format(
-            num_transcriptomes, num_found_transcripts, total_num_transcripts - num_found_transcripts))
+            total_num_transcriptomes, total_num_found_transcripts, total_num_transcripts - total_num_found_transcripts))
     if failure_genomes > 0:
         logging.warning("hmmsearch failed to find any marker genes for {} genomes".format(failure_genomes))
 
