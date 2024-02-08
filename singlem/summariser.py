@@ -546,3 +546,18 @@ class Summariser:
         ])
 
         all_profiles.write_csv(output_taxonomic_level_coverage_table, separator='\t')
+
+    def write_taxonomic_profile(input_taxonomic_profiles, output_taxonomic_profile_io):
+        '''Write a taxonomic profile to a file'''
+        logging.info("Writing taxonomic profile")
+        seen_samples = set()
+        CondensedCommunityProfile.write_header_to(output_taxonomic_profile_io)
+        for profile_file in input_taxonomic_profiles:
+            with open(profile_file) as f:
+                for profile in CondensedCommunityProfile.each_sample_wise(f):
+                    if profile.sample in seen_samples:
+                        raise Exception("Duplicate sample name detected: %s" % profile.sample)
+                    profile.write_data_to(output_taxonomic_profile_io)
+                    seen_samples.add(profile.sample)
+        logging.info("Wrote taxonomic profile")
+        
