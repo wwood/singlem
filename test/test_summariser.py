@@ -329,6 +329,25 @@ Root; d__Bacteria; p__Firmicutes_A      0.0     6.98
 Root; d__Bacteria; p__Actinobacteriota  0.0     2.83
 """)
         self.assertEqual(expected, stdout)
+
+    def test_concatenate_profiles(self):
+        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
+             {path_to_data}/summarise/profile2.tsv \
+            --output-taxonomic-profile /dev/stdout')
+
+        expected = re.compile(r'  +').sub('\t', """sample        coverage       taxonomy
+A2A_APEX_ALPHA_Plot_21_A30_10.1  18.69   Root; d__Archaea
+A2A_APEX_ALPHA_Plot_21_A30_10.1  89.04   Root; d__Bacteria
+A2A_APEX_ALPHA_Plot_21_A30_10.1  3.57    Root; d__Archaea; p__Halobacteriota
+sample2  14.0      Root; d__Archaea
+sample2  15.0     Root; d__Bacteria
+""")
+
+    def test_concatenate_profiles_duplicate_samples(self):
+        with self.assertRaises(Exception) as cm:
+            extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
+             {path_to_data}/summarise/profile1.tsv \
+            --output-taxonomic-profile /dev/stdout')
         
 
 if __name__ == "__main__":

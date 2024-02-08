@@ -870,9 +870,16 @@ class WordNode:
         return c
 
 class CondensedCommunityProfile:
+    CONDENSED_PROFILE_HEADER = ['sample', 'coverage', 'taxonomy']
+
     def __init__(self, sample, tree):
         self.sample = sample
         self.tree = tree
+
+    @staticmethod
+    def write_header_to(output_file_io):
+        '''Write header to file - IO object is neither opened nor closed.'''
+        output_file_io.write("\t".join(CondensedCommunityProfile.CONDENSED_PROFILE_HEADER)+"\n")
 
     def write_data_to(self, output_file_io):
         '''Write data to file - IO object is neither opened no closed.'''
@@ -894,8 +901,8 @@ class CondensedCommunityProfile:
         CondenseCommunityProfile object once for each sample.'''
 
         header = io.readline().strip().split("\t")
-        if header != ['sample', 'coverage', 'taxonomy']:
-            raise Exception("Unexpected format of condensed community profile file. Expected 'sample', 'coverage', 'taxonomy' as headers.")
+        if header != CondensedCommunityProfile.CONDENSED_PROFILE_HEADER:
+            raise Exception("Unexpected format of condensed community profile file. Expected %s as headers." % CondensedCommunityProfile.CONDENSED_PROFILE_HEADER)
 
         reader = csv.reader(io, delimiter="\t")
         current_sample = None
