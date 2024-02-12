@@ -602,19 +602,38 @@ def recalculate_genome_sizes(
     logging.info("Read {} species-level taxon lengths from old metapackage".format(len(old_taxon_lengths)))
 
     # Map previous rank IDs, which are in the form of "s__xxx", to fully defined taxons
+    logging.info("Reading taxonomies from old metapackage ..")
     old_taxonomies = old_metapackage.get_all_taxonomy_strings()
     logging.debug("Read {} full taxonomy strings from old metapackage".format(len(old_taxonomies)))
     species_to_full = {}
+    logging.info("Creating mapping of species-level taxon IDs to full taxonomies ..")
     for taxonomy in old_taxonomies:
         species_to_full[list([s.strip() for s in taxonomy.split(';')])[-1]] = taxonomy
+
+    # In really rare instances (e.g. spire_mag_01111928) there are no reads
+    # included in the metapackage because all are filtered as being double. But
+    # those ones are recorded in the old_taxon_lengths. Avoid these ones.
+    logging.debug("Filtering out species from the old metapackage which have no entries in singlem profile ..")
+    species_to_add = []
+    num_excluded = 0
+    for s in old_taxon_lengths.keys():
+        if s in species_to_full:
+            species_to_add.append(s)
+        else:
+            logging.debug("Species {} was not found in the old metapackage's full taxonomies, suggesting potentially poor quality".format(s))
+            num_excluded += 1
+    if num_excluded > 0:
+        logging.info("Excluded {} species from the old metapackage because they were not found in the full taxonomies".format(num_excluded))
+    logging.debug("Creating gc dataframe, which has been known to cause issues with polars ..")
     gc = pl.DataFrame(
-        {'species': old_taxon_lengths.keys()}
+        {'species': species_to_add}
     )
     gc = gc.with_columns(pl.lit([species_to_full[s] for s in gc['species']]).alias('gtdb_taxonomy'))
     gc = gc.with_columns(pl.lit([old_taxon_lengths[s] for s in gc['species']]).alias('genome_size'))
 
     # Add new genomes to the species-level taxon lengths
     # First read checkm2 estimate
+    logging.info("Reading checkm2 quality file ..")
     checkm2 = CheckM2(checkm2_quality_file)
 
     logging.info("Reading genome FASTA files to calculate genome lengths ..")
