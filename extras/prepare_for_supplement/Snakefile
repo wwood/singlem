@@ -1,0 +1,93 @@
+import polars as pl
+from bird_tool_utils import iterable_chunks
+import numpy as np
+
+prodigal_runner_path = config['prodigal_runner_path'] #'~/git/prodigal-runner/bin/prodigal-runner'
+mag_paths = config['mag_paths']
+output_directory = config['output'] if 'output_directory' in config else 'supplement_preparation'
+
+# Read in the list of files to process.
+genomes_input = np.loadtxt(mag_paths, dtype='str')
+
+# chunk into batches of 10
+groups1 = list(iterable_chunks(genomes_input, 10))
+
+# groups1 = list(iterable_chunks(genomes_input, 2))[:2] # debug
+# output_directory = output_directory + '-debug'
+
+groups = []
+for group in groups1:
+    groups.append(list([g for g in group if g is not None]))
+
+print("Found {} genome files and {} groups".format(len(genomes_input), len(groups)))
+group_ids = list([str(i) for i in range(len(groups))])
+group_ids = list([i for i in range(len(groups))])
+
+rule all:
+    input:
+        expand(f'{output_directory}/done/checkm2-'+'{group}.done', group=range(len(groups))),
+        expand(f'{output_directory}/done/gtdbtk-'+'{group}.done', group=range(len(groups))),
+        expand(f'{output_directory}/done/prodigal-runner-'+'{group}.done', group=range(len(groups)))
+
+rule checkm2:
+    output:
+        touch(f'{output_directory}/done/checkm2-'+'{group}.done'),
+    conda:
+        "envs/checkm2.yml"
+    threads: 4
+    resources:
+        mem_mb = 8000,
+        runtime = "1h",
+    log:
+        f'{output_directory}/'+'logs/checkm2/{group}.log'
+    benchmark:
+        f'{output_directory}/'+'benchmarks/checkm2/{group}.txt'
+    params:
+        output_directory = output_directory,
+        genome_paths = lambda wildcards: '\n'.join(groups[int(wildcards.group)]),
+    shell:
+        'mkdir -p {params.output_directory}/checkm2-inputs/{wildcards.group} && '\
+        'echo "{params.genome_paths}" |parallel -j1 --halt-on-error 2 ln -frs {{}} {params.output_directory}/checkm2-inputs/{wildcards.group}/{{/}} && '\
+        'mkdir -p {params.output_directory}/checkm2/{wildcards.group} && checkm2 predict --force --threads {threads} --input {params.output_directory}/checkm2-inputs/{wildcards.group} --output-directory {params.output_directory}/checkm2/{wildcards.group} -x .fna &> {log}'
+
+rule gtdbtk:
+    output:
+        touch(f'{output_directory}/done/gtdbtk-'+'{group}.done'),
+    conda:
+        "envs/gtdbtk.yml"
+    threads: 4
+    resources:
+        mem_mb = 100000,
+        runtime = "1h",
+    log:
+        f'{output_directory}/'+'logs/gtdbtk/{group}.log'
+    benchmark:
+        f'{output_directory}/'+'benchmarks/gtdbtk/{group}.txt'
+    params:
+        output_directory = output_directory,
+        genome_paths = lambda wildcards: '\n'.join(groups[int(wildcards.group)]),
+    shell:
+        'mkdir -p {params.output_directory}/gtdbtk-inputs/{wildcards.group} && '\
+        'echo "{params.genome_paths}" |parallel -j1 --halt-on-error 2 ln -frs {{}} {params.output_directory}/gtdbtk-inputs/{wildcards.group}/{{/}} && '\
+        'gtdbtk classify_wf --cpus {threads} --force --mash_db ~/m/db/gtdb/gtdb_release214/mash.db.msh --genome_dir {params.output_directory}/gtdbtk-inputs/{wildcards.group} --out_dir {params.output_directory}/gtdbtk/{wildcards.group} --extension .fna &> {log}'
+
+rule prodigal_runner:
+    output:
+        touch(f'{output_directory}/done/prodigal-runner-'+'{group}.done'),
+    conda:
+        "envs/singlem.yml"
+    threads: 1
+    resources: # These are both overkill for 10 genomes each, but eh
+        mem_mb = 8000,
+        runtime = "1h",
+    log:
+        f'{output_directory}/'+'logs/prodigal-runner/{group}.log'
+    benchmark:
+        f'{output_directory}/'+'benchmarks/prodigal-runner/{group}.txt'
+    params:
+        output_directory = output_directory,
+        genome_paths = lambda wildcards: '\n'.join(groups[int(wildcards.group)]),
+        prodigal_runner_path = prodigal_runner_path
+    shell:
+        'mkdir -p {params.output_directory}/prodigal-runner/{wildcards.group} && '\
+        'echo "{params.genome_paths}" |parallel -j1 --halt-on-error 2 --xargs --ungroup {params.prodigal_runner_path} run -i {{}} -o {params.output_directory}/prodigal-runner/{wildcards.group} &> {log}'
