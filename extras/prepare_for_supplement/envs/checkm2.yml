@@ -3,7 +3,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - pip
-  - python
-  - checkm2==1.0.2
+  - checkm2==1.0.1
+  - parallel
   
