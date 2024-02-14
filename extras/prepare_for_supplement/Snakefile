@@ -5,6 +5,7 @@ import numpy as np
 prodigal_runner_path = config['prodigal_runner_path'] #'~/git/prodigal-runner/bin/prodigal-runner'
 mag_paths = config['mag_paths']
 output_directory = config['output'] if 'output_directory' in config else 'supplement_preparation'
+gtdbtk_db_path = config['GTDBTK_DATA_PATH']
 
 # Read in the list of files to process.
 genomes_input = np.loadtxt(mag_paths, dtype='str')
@@ -66,7 +67,9 @@ rule gtdbtk:
     params:
         output_directory = output_directory,
         genome_paths = lambda wildcards: '\n'.join(groups[int(wildcards.group)]),
+        gtdbtk_db_path = gtdbtk_db_path
     shell:
+        'export GTDBTK_DATA_PATH={params.gtdbtk_db_path} && '\
         'mkdir -p {params.output_directory}/gtdbtk-inputs/{wildcards.group} && '\
         'echo "{params.genome_paths}" |parallel -j1 --halt-on-error 2 ln -frs {{}} {params.output_directory}/gtdbtk-inputs/{wildcards.group}/{{/}} && '\
         'gtdbtk classify_wf --cpus {threads} --force --mash_db ~/m/db/gtdb/gtdb_release214/mash.db.msh --genome_dir {params.output_directory}/gtdbtk-inputs/{wildcards.group} --out_dir {params.output_directory}/gtdbtk/{wildcards.group} --extension .fna &> {log}'
