@@ -3,6 +3,6 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - gtdbtk==2.3.0
+  - gtdbtk==2.3.2
   - parallel
   

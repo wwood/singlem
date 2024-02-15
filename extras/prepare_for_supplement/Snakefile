@@ -4,8 +4,11 @@ import numpy as np
 
 prodigal_runner_path = config['prodigal_runner_path'] #'~/git/prodigal-runner/bin/prodigal-runner'
 mag_paths = config['mag_paths']
-output_directory = config['output'] if 'output_directory' in config else 'supplement_preparation'
 gtdbtk_db_path = config['GTDBTK_DATA_PATH']
+checkm2_db = config['CHECKM2DB']
+
+output_directory = config['output'] if 'output_directory' in config else 'supplement_preparation'
+genome_fasta_extension = config['genome_fasta_extension'] if 'genome_fasta_extension' in config else '.fna'
 
 # Read in the list of files to process.
 genomes_input = np.loadtxt(mag_paths, dtype='str')
@@ -46,10 +49,13 @@ rule checkm2:
     params:
         output_directory = output_directory,
         genome_paths = lambda wildcards: '\n'.join(groups[int(wildcards.group)]),
+        checkm2_db = checkm2_db,
+        genome_fasta_extension = genome_fasta_extension
     shell:
         'mkdir -p {params.output_directory}/checkm2-inputs/{wildcards.group} && '\
         'echo "{params.genome_paths}" |parallel -j1 --halt-on-error 2 ln -frs {{}} {params.output_directory}/checkm2-inputs/{wildcards.group}/{{/}} && '\
-        'mkdir -p {params.output_directory}/checkm2/{wildcards.group} && checkm2 predict --force --threads {threads} --input {params.output_directory}/checkm2-inputs/{wildcards.group} --output-directory {params.output_directory}/checkm2/{wildcards.group} -x .fna &> {log}'
+        'mkdir -p {params.output_directory}/checkm2/{wildcards.group} && '\
+        'CHECKM2DB={params.checkm2_db} checkm2 predict --force --threads {threads} --input {params.output_directory}/checkm2-inputs/{wildcards.group} --output-directory {params.output_directory}/checkm2/{wildcards.group} -x {params.genome_fasta_extension} &> {log}'
 
 rule gtdbtk:
     output:
@@ -67,12 +73,12 @@ rule gtdbtk:
     params:
         output_directory = output_directory,
         genome_paths = lambda wildcards: '\n'.join(groups[int(wildcards.group)]),
-        gtdbtk_db_path = gtdbtk_db_path
+        gtdbtk_db_path = gtdbtk_db_path,
+        genome_fasta_extension = genome_fasta_extension
     shell:
-        'export GTDBTK_DATA_PATH={params.gtdbtk_db_path} && '\
         'mkdir -p {params.output_directory}/gtdbtk-inputs/{wildcards.group} && '\
         'echo "{params.genome_paths}" |parallel -j1 --halt-on-error 2 ln -frs {{}} {params.output_directory}/gtdbtk-inputs/{wildcards.group}/{{/}} && '\
-        'gtdbtk classify_wf --cpus {threads} --force --mash_db ~/m/db/gtdb/gtdb_release214/mash.db.msh --genome_dir {params.output_directory}/gtdbtk-inputs/{wildcards.group} --out_dir {params.output_directory}/gtdbtk/{wildcards.group} --extension .fna &> {log}'
+        'GTDBTK_DATA_PATH={params.gtdbtk_db_path} gtdbtk classify_wf --cpus {threads} --force --mash_db ~/m/db/gtdb/gtdb_release214/mash.db.msh --genome_dir {params.output_directory}/gtdbtk-inputs/{wildcards.group} --out_dir {params.output_directory}/gtdbtk/{wildcards.group} --extension {params.genome_fasta_extension} &> {log}'
 
 rule prodigal_runner:
     output:
