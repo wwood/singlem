@@ -1,18 +1,57 @@
+import shutil
+
 metapackage = config['metapackage_path']
-spkgs = config['singlem_packages']
-test_file = config['test_file']
+spkgs = config['singlem_packages'] if 'singlem_packages' in config else {}
+test_file = config['test_file'] if 'test_file' in config else None
 
 output_directory = 'singlem_new_metapackage_working_directory' #FIXME
+
+# If spkgs are already defined in the config, copy them into the output
+# directory so spkg creation steps can be skipped. Assume they have not already
+# been chainsaw'd.
+if 'pregenerated_singlem_packages' in config:
+    for spkg in config['pregenerated_singlem_packages']:
+        spkg_key = os.path.basename(spkg)
+        final_path = os.path.join(output_directory, "spkgs", f"{spkg_key}.spkg")
+        if not os.path.exists(final_path):
+            print(f"Copying {spkg} to {output_directory} ..")
+            # copy spkg directory to output_directory
+            shutil.copytree(spkg, final_path)
+            # create done touch
+            # mkdir-p
+            os.makedirs(os.path.join(output_directory, "done"), exist_ok=True)
+            with open(os.path.join(output_directory, "done", f"{spkg_key}.singlem_create.done"), 'w') as f:
+                pass
+        if spkg_key in spkgs:
+            raise Exception(f"Duplicate spkg name: {spkg_key}")
+        # taxonomy_file = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
+        # gene_description = lambda wildcards: spkgs[wildcards.name]['gene_description'],
+        # target_domains = lambda wildcards: spkgs[wildcards.name]['target_domains'],
+        spkgs[spkg_key] = {
+            'taxonomy_file': None,
+            'gene_description': None,
+            'target_domains': None,
+            'aa_sequences_file': None,
+        } # Hack of course
+
+print("Generating metapackage from {} singlem packages".format(len(spkgs)))
+if len(spkgs) == 0:
+    raise Exception("No singlem packages defined, cannot create metapackage")
+
+rule all:
+    input:
+        metapackage,
+        os.path.join(output_directory, "done", "create_metapackage.done"),
+        # Verifying/testing is optional
+        os.path.join(output_directory, "done", "verify_tested_metapackage.done") if test_file else [],
 
 rule verify_tested_metapackage:
     input:
         otu_table = os.path.join(output_directory, "otu_table.tsv"),
         done = os.path.join(output_directory, "done", "test_metapackage.done"),
-        test_file = test_file
+        test_file = test_file if test_file else []
     output:
         done = touch(os.path.join(output_directory, "done", "verify_tested_metapackage.done"))
-    # log:
-    #     log = os.path.join(output_directory, "logs", "verify_tested_metapackage.log")
     run:
         # Calculate number of sequences in test file
         import extern
@@ -33,7 +72,7 @@ rule verify_tested_metapackage:
 rule test_metapackage:
     input:
         metapackage = metapackage,
-        test_file = test_file
+        test_file = test_file if test_file else []
     output:
         otu_table = os.path.join(output_directory, "otu_table.tsv"),
         done = touch(os.path.join(output_directory, "done", "test_metapackage.done"))
