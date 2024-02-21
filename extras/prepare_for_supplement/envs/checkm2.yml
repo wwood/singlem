@@ -3,6 +3,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - python>=3.10 # Attempted fix for a python 3.8 error where there was a complaint about importing np.object being deprecated
   - checkm2==1.0.1
   - parallel
   
