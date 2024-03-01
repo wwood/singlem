@@ -123,7 +123,7 @@ rule create_gpkg:
     conda:
         "envs/singlem.yml"
     shell:
-        "graftM create --force --sequences {params.aa_sequences_file} {params.hmm_arg} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
+        "graftM create --min_aligned_percent 0 --force --sequences {params.aa_sequences_file} {params.hmm_arg} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
     
 def get_final_hmm_file(spkg_def, gpkg):
     if 'hmm_file' in spkg_def:
