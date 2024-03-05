@@ -74,25 +74,40 @@ class Regenerator:
             # Extract hit sequences from that set
             euk_result = GraftMResult(euk_graftm_output, False)
             hit_paths = euk_result.unaligned_sequence_paths(require_hits=True)
-            if len(hit_paths) == 0:
-                euk_taxonomy = ""
-                logging.info("Found no eukaryotic sequences that match")
-            else:
-                euk_hits_path = next(iter(hit_paths.values()))  #i.e. first
 
-                # Concatenate input (bacteria and archaea) and euk sequences
-                num_euk_hits = 0
+            with open(final_taxonomy_path, 'w') as final_tax_fp:
+                # Copy across input taxonomy
+                with open(input_taxonomy) as input_tax_f:
+                    final_tax_fp.write(input_tax_f.read())
+                    
+                    if len(hit_paths) == 0:
+                        euk_taxonomy = ""
+                        logging.info("Found no eukaryotic sequences that match")
+                    else:
+                        euk_hits_path = next(iter(hit_paths.values()))  #i.e. first
 
-                with open(final_sequences_path, 'w') as final_seqs_fp:
-                    with open(euk_hits_path) as euk_seqs_fp:
-                        for name, seq, _ in SeqReader().readfq(euk_seqs_fp):
-                            if name.find('_split_') == -1:
-                                num_euk_hits += 1
-                                final_seqs_fp.write(">%s\n%s\n" % (name, seq))
-                logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
+                        # Concatenate input (bacteria and archaea) and euk sequences
+                        num_euk_hits = 0
+
+                        # Read in taxonomy hash
+                        euk_name_to_taxonomy = {}
+                        with open(euk_taxonomy) as f:
+                            for line in f:
+                                splits = line.split('\t')
+                                if len(splits) != 2:
+                                    raise Exception("Unexpected taxonomy line found: {}".format(line))
+                                euk_name_to_taxonomy[splits[0].strip()] = splits[1].strip()
+
+                            with open(final_sequences_path, 'w') as final_seqs_fp:
+                                with open(euk_hits_path) as euk_seqs_fp:
+                                    for name, seq, _ in SeqReader().readfq(euk_seqs_fp):
+                                        if name.find('_split_') == -1:
+                                            num_euk_hits += 1
+                                            final_seqs_fp.write(">%s\n%s\n" % (name, seq))
+                                            final_tax_fp.write("{}\t{}\n".format(name, euk_name_to_taxonomy[name]))
+                        logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
 
             extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
-            extern.run("cat %s %s > %s" % (euk_taxonomy, input_taxonomy, final_taxonomy_path))
 
         # Add package prefix to sequences and taxonomy
         if sequence_prefix != "" and sequence_prefix is not None:
