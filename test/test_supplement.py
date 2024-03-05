@@ -164,7 +164,7 @@ class Tests(unittest.TestCase):
                     'd__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__\n']))
                 f.write('\t'.join(['GCA_011373445.1_genomic.fna',
                     'd__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__DRVV01 sp011373445\n']))
-            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --new-taxonomies new_taxonomies --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.fna {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --output-taxonomies out.taxonomy.tsv --skip-taxonomy-check --threads 2"
+            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --taxonomy-file new_taxonomies --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.fna {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --output-taxonomies out.taxonomy.tsv --skip-taxonomy-check --threads 2"
             extern.run(cmd)
 
             cmd2 = f'{singlem} pipe --translation-table 11 --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
@@ -196,7 +196,7 @@ class Tests(unittest.TestCase):
                     'd__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__\n']))
                 f.write('\t'.join(['GCA_011373445.1_genomic.fna',
                     'd__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__DRVV01 sp011373445\n']))
-            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --new-taxonomies {tempdir}/new_taxonomies --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.fna {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage {tempdir}/out.smpkg --output-taxonomies {tempdir}/out.taxonomy.tsv --skip-taxonomy-check --threads 2 --gene-definitions {path_to_data}/gene_calls.tsv"
+            cmd = f"{run} --no-taxon-genome-lengths --no-dereplication --taxonomy-file {tempdir}/new_taxonomies --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.fna {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage {tempdir}/out.smpkg --output-taxonomies {tempdir}/out.taxonomy.tsv --skip-taxonomy-check --threads 2 --gene-definitions {path_to_data}/gene_calls.tsv"
             extern.run(cmd)
 
             cmd2 = f'{singlem} pipe --translation-table 11 --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --metapackage {tempdir}/out.smpkg --otu-table /dev/stdout'

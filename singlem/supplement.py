@@ -795,12 +795,15 @@ class Supplementor:
         pplacer_threads = kwargs.pop('pplacer_threads')
         predefined_working_directory = kwargs.pop('working_directory')
         gtdbtk_output_directory = kwargs.pop('gtdbtk_output_directory')
+        taxonomy_file = kwargs.pop('taxonomy_file')
         output_taxonomies = kwargs.pop('output_taxonomies')
         checkm2_quality_file = kwargs.pop('checkm2_quality_file')
         checkm2_min_completeness = kwargs.pop('checkm2_min_completeness')
         checkm2_max_contamination = kwargs.pop('checkm2_max_contamination')
         no_quality_filter = kwargs.pop('no_quality_filter')
         hmmsearch_evalue = kwargs.pop('hmmsearch_evalue')
+        # no_dereplication=args.no_dereplication,
+        # dereplicate_with_galah=args.dereplicate_with_galah,
         no_dereplication = kwargs.pop('no_dereplication')
         dereplicate_with_galah = kwargs.pop('dereplicate_with_galah')
         skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
@@ -876,26 +879,31 @@ class Supplementor:
             else:
                 old_metapackage = Metapackage.acquire(input_metapackage)
 
-            taxonomy_file, new_genome_fasta_files = generate_taxonomy_for_new_genomes(
-                working_directory=working_directory,
-                threads=threads,
-                new_genome_fasta_files=new_genome_fasta_files,
-                gtdbtk_output_directory=gtdbtk_output_directory,
-                taxonomy_file=new_taxonomies,
-                pplacer_threads=pplacer_threads,
-                output_taxonomies_file=output_taxonomies,
-                excluded_genomes=excluded_genomes,
-                old_metapackage=old_metapackage,
-                skip_taxonomy_check=skip_taxonomy_check)
-            # Remove genomes that were excluded by not being novel at the species level
-            # and check that we have all the genomes we expect in the gene calls
-            genome_transcripts_and_proteins1 = {}
-            for ng in new_genome_fasta_files:
-                if ng in genome_transcripts_and_proteins:
-                    genome_transcripts_and_proteins1[ng] = genome_transcripts_and_proteins[ng]
-                else:
-                    raise Exception("Transcript and protein sequences not found for genome {} ".format(ng))
-            genome_transcripts_and_proteins = genome_transcripts_and_proteins1
+            if new_taxonomies:
+                taxonomy_file = new_taxonomies
+                new_genome_fasta_files = new_genome_fasta_files
+            else:
+                logging.info("Generating taxonomy for new genomes ..")
+                taxonomy_file, new_genome_fasta_files = generate_taxonomy_for_new_genomes(
+                    working_directory=working_directory,
+                    threads=threads,
+                    new_genome_fasta_files=new_genome_fasta_files,
+                    gtdbtk_output_directory=gtdbtk_output_directory,
+                    taxonomy_file=taxonomy_file,
+                    pplacer_threads=pplacer_threads,
+                    output_taxonomies_file=output_taxonomies,
+                    excluded_genomes=excluded_genomes,
+                    old_metapackage=old_metapackage,
+                    skip_taxonomy_check=skip_taxonomy_check)
+                # Remove genomes that were excluded by not being novel at the species level
+                # and check that we have all the genomes we expect in the gene calls
+                genome_transcripts_and_proteins1 = {}
+                for ng in new_genome_fasta_files:
+                    if ng in genome_transcripts_and_proteins:
+                        genome_transcripts_and_proteins1[ng] = genome_transcripts_and_proteins[ng]
+                    else:
+                        raise Exception("Transcript and protein sequences not found for genome {} ".format(ng))
+                genome_transcripts_and_proteins = genome_transcripts_and_proteins1
 
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
