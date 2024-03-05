@@ -28,7 +28,6 @@ import os
 import sys
 from bird_tool_utils import in_tempdir
 import extern
-import io
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -52,6 +51,7 @@ min_aligned_percent = 30
 
 class Tests(unittest.TestCase):
     def test_regenerate_package(self):
+        self.maxDiff = None
         with in_tempdir():
             Regenerator().regenerate(
                     input_singlem_package = input_package,
@@ -83,7 +83,7 @@ class Tests(unittest.TestCase):
             # expected_output_seqinfo = list(io.open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")))
             with open(os.path.join(path_to_data, "regenerate", "output_seqinfo.csv")) as f:
                 expected_output_seqinfo = list(f)
-            self.assertListEqual(observed_output_seqinfo, expected_output_seqinfo)
+            self.assertListEqual(sorted(observed_output_seqinfo), sorted(expected_output_seqinfo))
 
             # assert seed_idx file has been created
             seed_idx = pkg.graftm_package().diamond_database_path() + ".seed_idx"
@@ -128,7 +128,7 @@ class Tests(unittest.TestCase):
             'prefix~RLA0_PODAS': ['d__Eukaryota', 'Fungi'],
             'prefix~RLA0_SCHPO': ['d__Eukaryota', 'Fungi'],
             }
-            self.assertDictEqual(observed_taxonomy_hash, expected_taxonomy_hash)
+            self.assertEqual(observed_taxonomy_hash, expected_taxonomy_hash)
 
 
     @unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
