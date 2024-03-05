@@ -4,7 +4,7 @@ metapackage = config['metapackage_path']
 spkgs = config['singlem_packages'] if 'singlem_packages' in config else {}
 test_file = config['test_file'] if 'test_file' in config else None
 
-output_directory = 'singlem_new_metapackage_working_directory' #FIXME
+output_directory = config['singlem_new_metapackage_working_directory'] if 'singlem_new_metapackage_working_directory' in config else "singlem_new_metapackage_working_directory"
 
 # If spkgs are already defined in the config, copy them into the output
 # directory so spkg creation steps can be skipped. Assume they have not already
@@ -44,62 +44,7 @@ rule all:
         os.path.join(output_directory, "done", "create_metapackage.done"),
         # Verifying/testing is optional
         os.path.join(output_directory, "done", "verify_tested_metapackage.done") if test_file else [],
-
-rule verify_tested_metapackage:
-    input:
-        otu_table = os.path.join(output_directory, "otu_table.tsv"),
-        done = os.path.join(output_directory, "done", "test_metapackage.done"),
-        test_file = test_file if test_file else []
-    output:
-        done = touch(os.path.join(output_directory, "done", "verify_tested_metapackage.done"))
-    run:
-        # Calculate number of sequences in test file
-        import extern
-        stdout = extern.run(f"grep -c '>' {input.test_file}")
-        num_seqs = int(stdout.strip())
-        # Calculate number of sequences in otu table
-        import polars as pl
-        df = pl.read_csv(input.otu_table, separator='\t')
-        all_seqs = []
-        for row in df.rows(named=True):
-            for n in row['read_names'].split(' '):
-                all_seqs.append(n)
-        print("Number of sequences in otu table:", len(all_seqs))
-        print("Number of sequences in test file:", num_seqs)
-        if len(all_seqs) != num_seqs:
-            raise Exception(f"Number of sequences in otu table ({len(all_seqs)}) does not match number of sequences in test file ({num_seqs})")
-
-rule test_metapackage:
-    input:
-        metapackage = metapackage,
-        test_file = test_file if test_file else []
-    output:
-        otu_table = os.path.join(output_directory, "otu_table.tsv"),
-        done = touch(os.path.join(output_directory, "done", "test_metapackage.done"))
-    log:
-        log = os.path.join(output_directory, "logs", "test_metapackage.log")
-    benchmark: os.path.join(output_directory, "benchmarks", "test_metapackage.benchmark")
-    conda:
-        "envs/singlem.yml"
-    shell:
-        "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug --output-extras 2> {log}"
-
-rule create_metapackage:
-    input:
-        spkgs = [os.path.join(output_directory, "chainsaw", f"{name}.spkg") for name in spkgs.keys()],
-        # sdb = os.path.join(output_directory, "a.sdb") #TODO
-    output:
-        metapackage = directory(metapackage),
-        done = touch(os.path.join(output_directory, "done", "create_metapackage.done"))
-    log:
-        log = os.path.join(output_directory, "logs", "create_metapackage.log")
-    benchmark: os.path.join(output_directory, "benchmarks", "create_metapackage.benchmark")
-    threads: workflow.cores
-    conda:
-        "envs/singlem.yml"
-    shell:
-        # "singlem metapackage --singlem-package {input.spkg} --nucleotide-sdb {input.sdb} --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
-        "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
+        [os.path.join(output_directory, "chainsaw", f"{name}.spkg") for name in spkgs.keys()],
 
 # Definition of HMM path is optional
 def graftm_create_hmm_arg(spkg_def):
@@ -189,10 +134,42 @@ rule singlem_create:
         # There's an unreleased fix post 0.16.0
         "~/git/singlem/bin/singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
 
-rule chainsaw:
+def get_regenerate_decoy_args():
+    if 'decoy_sequences' in config:
+        return f"--euk-sequences {config['decoy_sequences']} --euk-taxonomy {config['decoy_taxonomy']}"
+    else:
+        return "--no-further-euks"
+
+rule add_decoy_sequences_via_regenerate:
     input:
         spkg = os.path.join(output_directory, "spkgs", "{name}.spkg"),
         done = os.path.join(output_directory, "done", "{name}.singlem_create.done")
+    output:
+        spkg = directory(os.path.join(output_directory, "regenerated", "{name}.spkg")),
+        done = touch(os.path.join(output_directory, "done", "{name}.regenerated.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "{name}.regenerated.log")
+    conda:
+        "envs/singlem.yml"
+    params:
+        decoy_sequences_arg = get_regenerate_decoy_args(),
+        sequence_prefix = lambda w: w.name+'~',
+        spkg_seq = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
+        spkg_tax = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
+    shell: # "--sequence-prefix {params.sequence_prefix} "
+        # Fix post 0.16.0
+        "~/git/singlem/bin/singlem regenerate "
+        "--input-singlem-package {input.spkg} "
+        "--input-sequences {params.spkg_seq} "
+        "--input-taxonomy {params.spkg_tax} "
+        " {params.decoy_sequences_arg} "
+        "--output-singlem-package {output.spkg} "
+        "&> {log}"
+
+rule chainsaw:
+    input:
+        spkg = os.path.join(output_directory, "regenerated", "{name}.spkg"),
+        done = os.path.join(output_directory, "done", "{name}.regenerated.done")
     output:
         spkg = directory(os.path.join(output_directory, "chainsaw", "{name}.spkg")),
         done = touch(os.path.join(output_directory, "done", "{name}.chainsaw.done"))
@@ -204,34 +181,59 @@ rule chainsaw:
         # There's an unreleased fix post 0.16.0
         "~/git/singlem/bin/singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output.spkg} 2> {log}"
 
+rule create_metapackage:
+    input:
+        spkgs = [os.path.join(output_directory, "chainsaw", f"{name}.spkg") for name in spkgs.keys()],
+        done = [os.path.join(output_directory, "done", f"{name}.chainsaw.done") for name in spkgs.keys()],
+        # sdb = os.path.join(output_directory, "a.sdb") #TODO
+    output:
+        metapackage = directory(metapackage),
+        done = touch(os.path.join(output_directory, "done", "create_metapackage.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "create_metapackage.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "create_metapackage.benchmark")
+    threads: workflow.cores
+    conda:
+        "envs/singlem.yml"
+    shell:
+        # "singlem metapackage --singlem-package {input.spkg} --nucleotide-sdb {input.sdb} --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
+        "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
 
+rule test_metapackage:
+    input:
+        metapackage = metapackage,
+        test_file = test_file if test_file else []
+    output:
+        otu_table = os.path.join(output_directory, "otu_table.tsv"),
+        done = touch(os.path.join(output_directory, "done", "test_metapackage.done"))
+    log:
+        log = os.path.join(output_directory, "logs", "test_metapackage.log")
+    benchmark: os.path.join(output_directory, "benchmarks", "test_metapackage.benchmark")
+    conda:
+        "envs/singlem.yml"
+    shell:
+        "singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug --output-extras 2> {log}"
 
-# # rule singlem_pipe_to_get_otu_seqs:
-# #     input:
-# #         spkg = os.path.join(output_directory, "a.spkg"),
-# #         na_sequences_file = na_sequences_file
-# #     output:
-# #         otu_sequences_file = os.path.join(output_directory, "otu_sequences.fasta"),
-# #         done = touch(os.path.join(output_directory, "done", "singlem_pipe_to_get_otu_seqs.done"))
-# #     log:
-# #         log = os.path.join(output_directory, "logs", "singlem_pipe_to_get_otu_seqs.log")
-# #     benchmark: os.path.join(output_directory, "benchmarks", "singlem_pipe_to_get_otu_seqs.benchmark")
-# #     conda:
-# #         "envs/singlem.yml"
-# #     shell:
-# #         "singlem pipe --known-sequence-taxonomy {input.taxonomy_file} --sequences {input.na_sequences_file} --singlem-package {input.spkg} --output {output.unannotated_otu_table} --threads {threads} --output-extras 2> {log}"
-
-# # rule singlem_makedb:
-# #     input:
-# #         otu_table = os.path.join(output_directory, "otu_table.tsv"),
-# #     output:
-# #         sdb = os.path.join(output_directory, "a.sdb"),
-# #         done = touch(os.path.join(output_directory, "done", "singlem_makedb.done"))
-# #     log:
-# #         log = os.path.join(output_directory, "logs", "singlem_makedb.log")
-# #     benchmark: os.path.join(output_directory, "benchmarks", "singlem_makedb.benchmark")
-# #     conda:
-# #         "envs/singlem.yml"
-# #     shell:
-# #         "singlem makedb --otu-table {input.otu_table} --db {output.sdb} --threads {threads} 2> {log}"
-
+rule verify_tested_metapackage:
+    input:
+        otu_table = os.path.join(output_directory, "otu_table.tsv"),
+        done = os.path.join(output_directory, "done", "test_metapackage.done"),
+        test_file = test_file if test_file else []
+    output:
+        done = touch(os.path.join(output_directory, "done", "verify_tested_metapackage.done"))
+    run:
+        # Calculate number of sequences in test file
+        import extern
+        stdout = extern.run(f"grep -c '>' {input.test_file}")
+        num_seqs = int(stdout.strip())
+        # Calculate number of sequences in otu table
+        import polars as pl
+        df = pl.read_csv(input.otu_table, separator='\t')
+        all_seqs = []
+        for row in df.rows(named=True):
+            for n in row['read_names'].split(' '):
+                all_seqs.append(n)
+        print("Number of sequences in otu table:", len(all_seqs))
+        print("Number of sequences in test file:", num_seqs)
+        if len(all_seqs) != num_seqs:
+            raise Exception(f"Number of sequences in otu table ({len(all_seqs)}) does not match number of sequences in test file ({num_seqs})")
