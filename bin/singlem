@@ -499,38 +499,51 @@ if __name__ == '__main__':
     supplement_parser.add_argument('--new-genome-fasta-files-list',
                                    help='File containing FASTA file paths of new genomes',
                                    nargs='+')
-    supplement_parser.add_argument(
-        '--new-taxonomies',
-        help='newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk'
-    )
     supplement_parser.add_argument('--input-metapackage', help='metapackage to build upon [default: Use default package]')
     supplement_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
     supplement_parser.add_argument('--threads', help='parallelisation', type=int, default=1)
-    supplement_parser.add_argument('--pplacer-threads', help='for GTDBtk classify_wf', type=int)
-    supplement_parser.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
-    supplement_parser.add_argument(
-        '--gtdbtk-output-directory',
-        help='use this GTDBtk result. Not used if --new-taxonomies is used [default: not set, run GTDBtk]')
-    supplement_parser.add_argument(
+    current_default = '1e-20'
+
+    # Taxonomy
+    taxonomy_group = supplement_parser.add_argument_group('Taxonomy')
+    taxonomy_mut_group = taxonomy_group.add_mutually_exclusive_group()
+    taxonomy_mut_group.add_argument(
+        '--new-fully-defined-taxonomies',
+        help='newline separated file containing taxonomies of new genomes (path<TAB>taxonomy). Must be fully specified to species level. If not specified, the taxonomy will be inferred from the new genomes using GTDB-tk or read from --taxonomy-file [default: not set, run GTDBtk].'
+    )
+    taxonomy_mut_group.add_argument(
         '--taxonomy-file',
         help='A 2 column tab-separated file containing each genome\'s taxonomy as output by GTDBtk [default: not set, run GTDBtk]')
-    supplement_parser.add_argument(
+    taxonomy_mut_group.add_argument(
+         '--gtdbtk-output-directory',
+         help='use this GTDBtk result. Not used if --new-taxonomies is used [default: not set, run GTDBtk]')
+    taxonomy_mut_group.add_argument('--pplacer-threads', help='for GTDBtk classify_wf', type=int)
+    taxonomy_group.add_argument(
         '--output-taxonomies',
         help='TSV output file of taxonomies of new genomes, whether they are novel species or not.')
-    supplement_parser.add_argument('--checkm2-quality-file', help='CheckM2 quality file of new genomes')
-    supplement_parser.add_argument('--no-quality-filter', help='skip quality filtering', action='store_true')
-    supplement_parser.add_argument('--no-taxon-genome-lengths', help='Do not include taxon genome lengths in updated metapackage', action='store_true')
-    dereplication_mut_group = supplement_parser.add_mutually_exclusive_group(required=True)
+    taxonomy_group.add_argument('--skip-taxonomy-check', help='skip check which ensures that GTDBtk assigned taxonomies are concordant with the old metapackage\'s [default: do the check]', action='store_true')
+
+    # Quality filtering
+    quality_group = supplement_parser.add_argument_group('Quality filtering of new genomes')
+    quality_group.add_argument('--checkm2-quality-file', help='CheckM2 quality file of new genomes')
+    quality_group.add_argument('--no-quality-filter', help='skip quality filtering', action='store_true')
+    current_default = 70
+    quality_group.add_argument('--checkm2-min-completeness', help='minimum completeness for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
+    current_default = 10
+    quality_group.add_argument('--checkm2-max-contamination', help='maximum contamination for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
+
+    # Dereplication
+    dereplication_group = supplement_parser.add_argument_group('Dereplication')
+    dereplication_mut_group = dereplication_group.add_mutually_exclusive_group(required=True)
     dereplication_mut_group.add_argument('--no-dereplication', help='Assume genome inputs are already dereplicated', action='store_true')
     dereplication_mut_group.add_argument('--dereplicate-with-galah', help='Run galah to dereplicate genomes at species level', action='store_true')
-    current_default = 70
-    supplement_parser.add_argument('--checkm2-min-completeness', help='minimum completeness for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
-    current_default = 10
-    supplement_parser.add_argument('--checkm2-max-contamination', help='maximum contamination for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
-    current_default = '1e-20'
-    supplement_parser.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
-    supplement_parser.add_argument('--skip-taxonomy-check', help='skip check which ensures that GTDBtk assigned taxonomies are concordant with the old metapackage\'s', action='store_true')
-    supplement_parser.add_argument('--gene-definitions', help='Tab-separated file of genome_fasta<TAB>transcript_fasta<TAB>protein_fasta [default: undefined, call genes using Prodigal]')
+
+    # Rarer options
+    supplement_rare_group = supplement_parser.add_argument_group('Less common options')
+    supplement_rare_group.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
+    supplement_rare_group.add_argument('--gene-definitions', help='Tab-separated file of genome_fasta<TAB>transcript_fasta<TAB>protein_fasta [default: undefined, call genes using Prodigal]')
+    supplement_rare_group.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
+    supplement_rare_group.add_argument('--no-taxon-genome-lengths', help='Do not include taxon genome lengths in updated metapackage', action='store_true')
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -1286,7 +1299,7 @@ if __name__ == '__main__':
         Supplementor().supplement(
             new_genome_fasta_files=args.new_genome_fasta_files,
             new_genome_fasta_files_list=args.new_genome_fasta_files_list,
-            new_taxonomies=args.new_taxonomies,
+            new_taxonomies=args.new_fully_defined_taxonomies,
             input_metapackage=args.input_metapackage,
             output_metapackage=args.output_metapackage,
             threads=args.threads,
