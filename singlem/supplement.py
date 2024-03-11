@@ -826,6 +826,12 @@ class Supplementor:
                 working_directory = predefined_working_directory
             if not os.path.exists(working_directory):
                 os.mkdir(working_directory)
+            # Set tmpdir to the working directory/tmp so that we don't fill
+            # up /tmp when working directory is specified, and we keep
+            # things cleaner. See https://github.com/wwood/singlem/issues/168
+            tempfile_directory = os.path.join(working_directory, 'tmp')
+            os.mkdir(tempfile_directory)
+            tempfile.tempdir = tempfile_directory
 
             # Quality filter the new genomes
             num_before_quality_filter = len(new_genome_fasta_files)
