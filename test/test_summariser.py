@@ -302,6 +302,16 @@ minimal2	0.2
                     expected = json.load(f)
                     self.assertEqual(observed, expected)
 
+    def test_collapse_to_sample_name_no_assign_taxonomy(self):
+        with tempfile.NamedTemporaryFile() as tf:
+            extern.run(f'bin/singlem summarise --collapse-to-sample-name testsample --input-archive-otu-tables {path_to_data}/small.otu_table.no_assign_taxonomy.json  {path_to_data}/small.otu_table.no_assign_taxonomy.json --output-archive-otu-table {tf.name}')
+
+            with open(tf.name) as f:
+                observed = json.load(f)
+                with open(f'{path_to_data}/summarise/collapsed_to_sample_name.no_assign_taxonomy.json') as f:
+                    expected = json.load(f)
+                    self.assertEqual(observed, expected)
+
     def test_species_by_site_relative(self):
         stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
             --output-species-by-site-relative-abundance /dev/stdout \

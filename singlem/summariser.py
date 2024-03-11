@@ -12,7 +12,7 @@ from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
-from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD
+from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD, NO_ASSIGNMENT_METHOD
 from .condense import CondensedCommunityProfile
 
 class Summariser:
@@ -395,7 +395,7 @@ class Summariser:
                 equal_best_hit_taxonomies = grouped.iloc[0]['equal_best_hit_taxonomies']
             elif tax_assignment_method == DIAMOND_ASSIGNMENT_METHOD:
                 equal_best_hit_taxonomies = list(itertools.chain(*grouped['equal_best_hit_taxonomies']))
-            elif tax_assignment_method == None:
+            elif tax_assignment_method == None or tax_assignment_method == NO_ASSIGNMENT_METHOD:
                 equal_best_hit_taxonomies = None
             else:
                 raise Exception("Unexpected tax assignment method: {}".format(tax_assignment_method))
