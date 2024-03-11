@@ -63,12 +63,24 @@ class Metapackage:
         # Otherwise return an empty metapackage
 
     @staticmethod
+    def acquire_default_backpack():
+        logging.debug("Acquiring SingleM packages from environment variable")
+        if DATA_ENVIRONMENT_VARIABLE not in os.environ:
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+        try:
+            backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
+        except KeyError:
+            # Has the payload directory rather than the base directory been specified?
+            original_directory = os.environ[DATA_ENVIRONMENT_VARIABLE]
+            from pathlib import Path
+            path = Path(original_directory)
+            backpack = zenodo_backpack.acquire(path=path.parent, version=DATA_DEFAULT_VERSION)
+        return backpack
+
+    @staticmethod
     def acquire_default():
         '''Acquire the default metapackage'''
-        logging.debug("Acquiring SingleM packages from environment variable")
-        if not DATA_ENVIRONMENT_VARIABLE in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
-        backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
+        backpack = Metapackage.acquire_default_backpack()
         return Metapackage.acquire(backpack.payload_directory_string())
 
 
@@ -158,7 +170,7 @@ class Metapackage:
         logging.info("Acquiring SingleM packages from environment variable")
         if not DATA_ENVIRONMENT_VARIABLE in os.environ:
             raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
-        backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
+        backpack = Metapackage.acquire_default_backpack()
         
         logging.info("Verifying data with ZenodoBackpack ..")
         zenodo_backpack.ZenodoBackpackDownloader().verify(backpack, passed_version=DATA_DEFAULT_VERSION)
