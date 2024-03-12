@@ -22,8 +22,8 @@ class Regenerator:
         output_singlem_package = kwargs.pop('output_singlem_package')
         input_sequences = kwargs.pop('input_sequences')
         input_taxonomy = kwargs.pop('input_taxonomy')
-        euk_sequences = kwargs.pop('euk_sequences', None)
-        euk_taxonomy = kwargs.pop('euk_taxonomy', None)
+        euk_sequences = kwargs.pop('euk_sequences', None) # This is called euk_sequences for historical reasons, but is actually just any off-target seqs
+        euk_taxonomy = kwargs.pop('euk_taxonomy', None) # Likewise
         window_position = kwargs.pop('window_position', None)
         sequence_prefix = kwargs.pop('sequence_prefix', None)
         min_aligned_percent = kwargs.pop('min_aligned_percent', CREATE_MIN_ALIGNED_PERCENT)
@@ -54,18 +54,18 @@ class Regenerator:
         working_directory = tmp.name
         logging.debug("Using working directory %s" % working_directory)
 
-        # Concatenate euk and input taxonomy
+        # Files to concatenate off_target and input seqs/taxonomy
         final_taxonomy_path = os.path.join(working_directory, "%s_final_taxonomy.csv" % basename)
         final_sequences_path = os.path.join(working_directory, "%s_final_sequences.faa" % basename)
 
         if no_further_euks:
-            logging.info("Skipping eukaryotic search. Copying input files directly")
+            logging.info("Skipping off-target search. Copying input files directly")
             shutil.copyfile(input_taxonomy, final_taxonomy_path)
             shutil.copyfile(input_sequences, final_sequences_path)
 
         else:
             # Run GraftM on the euk sequences with the original graftm package
-            logging.info("Finding eukaryotic sequences via GraftM ..")
+            logging.info("Finding off-target sequences via GraftM ..")
             euk_graftm_output = os.path.join(working_directory, "%s-euk_graftm" % basename)
             cmd = "graftM graft --graftm_package '%s' --search_and_align_only --forward '%s' --output %s --force" % (
                 original_pkg.graftm_package_path(), euk_sequences, euk_graftm_output)
@@ -82,7 +82,7 @@ class Regenerator:
                     
                     if len(hit_paths) == 0:
                         euk_taxonomy = ""
-                        logging.info("Found no eukaryotic sequences that match")
+                        logging.info("Found no off-target sequences that match")
                     else:
                         euk_hits_path = next(iter(hit_paths.values()))  #i.e. first
 
@@ -105,7 +105,7 @@ class Regenerator:
                                             num_euk_hits += 1
                                             final_seqs_fp.write(">%s\n%s\n" % (name, seq))
                                             final_tax_fp.write("{}\t{}\n".format(name, euk_name_to_taxonomy[name]))
-                        logging.info("Found %i eukaryotic sequences to include in the package" % num_euk_hits)
+                        logging.info("Found %i off-target sequences to include in the package" % num_euk_hits)
 
             extern.run("cat %s >> %s" % (input_sequences, final_sequences_path))
 
