@@ -426,15 +426,14 @@ if __name__ == '__main__':
     regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: {}]".format(current_default), type=int, default=current_default)
     regenerate_parser.add_argument('--window-position', help="change window position of output package [default: do not change]", type=int, default=False)
     regenerate_parser.add_argument('--sequence-prefix', help="add a prefix to sequence names", type=str, default="")
-    regenerate_parser.add_argument('--euk-sequences', help='candidate euk sequences')
-    regenerate_parser.add_argument('--euk-taxonomy', help='euk sequence taxonomy')
-    regenerate_parser.add_argument('--no-further-euks', help='Do not include any euk sequences beyond what is already in the current SingleM package', action='store_true')
+    regenerate_parser.add_argument('--candidate-decoy-sequences', '--euk-sequences', help='candidate amino acid sequences to search for decoys')
+    regenerate_parser.add_argument('--candidate-decoy-taxonomy', '--euk-taxonomy', help='sequence taxonomy of candidate decoy sequences')
+    regenerate_parser.add_argument('--no-candidate-decoy-sequences', '--no-further-euks', help='Do not include any euk sequences beyond what is already in the current SingleM package', action='store_true')
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
-
     required_regenerate_arguments.add_argument('--input-singlem-package', metavar="PATH", help="input package", required=True)
     required_regenerate_arguments.add_argument('--output-singlem-package', metavar="PATH", help="output package", required=True)
-    required_regenerate_arguments.add_argument('--input-sequences', required=True, help='all sequences for new package')
+    required_regenerate_arguments.add_argument('--input-sequences', required=True, help='all amino acid sequences for new package')
     required_regenerate_arguments.add_argument('--input-taxonomy', required=True, help='input sequence taxonomy')
 
     metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
@@ -1105,19 +1104,19 @@ if __name__ == '__main__':
 
     elif args.subparser_name == 'regenerate':
         from singlem.regenerator import Regenerator
-        if not args.no_further_euks and (not args.euk_sequences or not args.euk_taxonomy):
+        if not args.no_candidate_decoy_sequences and (not args.candidate_decoy_sequences or not args.candidate_decoy_taxonomy):
             raise Exception("Either --no-further-euks or euk taxonomy and sequences must be specified")
         Regenerator().regenerate(
             input_singlem_package = args.input_singlem_package,
             output_singlem_package = args.output_singlem_package,
             input_sequences = args.input_sequences,
             input_taxonomy = args.input_taxonomy,
-            euk_sequences = args.euk_sequences,
-            euk_taxonomy = args.euk_taxonomy,
+            euk_sequences = args.candidate_decoy_sequences,
+            euk_taxonomy = args.candidate_decoy_taxonomy,
             window_position = args.window_position,
             sequence_prefix = args.sequence_prefix,
             min_aligned_percent = args.min_aligned_percent,
-            no_further_euks = args.no_further_euks)
+            no_further_euks = args.no_candidate_decoy_sequences)
 
     elif args.subparser_name == 'get_tree':
         from singlem.metapackage import Metapackage

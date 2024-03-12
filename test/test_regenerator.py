@@ -22,7 +22,6 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
-from singlem.singlem_package import SingleMPackage
 import unittest
 import os
 import sys
@@ -34,6 +33,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.regenerator import Regenerator
+from singlem.singlem_package import SingleMPackage
 
 # small package with few sequences
 input_package = os.path.join(path_to_data, "4.11.22seqs.v3.gpkg.spkg")
@@ -131,18 +131,18 @@ class Tests(unittest.TestCase):
             self.assertEqual(observed_taxonomy_hash, expected_taxonomy_hash)
 
 
-    @unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
+    #@unittest.skip("CLI testing is so slow. Can't figure out how to mock with extern.")
     def test_hello_word_cmdline(self):
         with in_tempdir():
             cmd = "{} regenerate ".format(path_to_script)
-            cmd += "--input_singlem_package {} ".format(input_package)
-            cmd += "--input_sequences {} ".format(input_sequences)
-            cmd += "--input_taxonomy {} ".format(input_taxonomy)
-            cmd += "--euk_sequences {} ".format(euk_sequences)
-            cmd += "--euk_taxonomy {} ".format(euk_taxonomy)
-            cmd += "--window_position {} ".format(window_position)
-            cmd += "--sequence_prefix {} ".format(sequence_prefix)
-            cmd += "--output_singlem_package {} ".format(output_package)
+            cmd += "--input-singlem-package {} ".format(input_package)
+            cmd += "--input-sequences {} ".format(input_sequences)
+            cmd += "--input-taxonomy {} ".format(input_taxonomy)
+            cmd += "--candidate-decoy-sequences {} ".format(euk_sequences)
+            cmd += "--candidate-decoy-taxonomy {} ".format(euk_taxonomy)
+            cmd += "--window-position {} ".format(window_position)
+            cmd += "--sequence-prefix {} ".format(sequence_prefix)
+            cmd += "--output-singlem-package {} ".format(output_package)
             extern.run(cmd)
 
             SingleMPackage.acquire(output_package)
