@@ -17,7 +17,7 @@ hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
-checkm2_output_dirs = '/work/microbiome/msingle/mess/118_read_fraction_underrepresentation/gtdb_rep_checkms' # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
+checkm2_output_dirs = '/work/microbiome/msingle/mess/118_read_fraction_underrepresentation/gtdb_r214_rep_checkms' # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
 
 print("Finding genomes...")
 genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
@@ -34,7 +34,9 @@ wildcard_constraints:
 rule all:
     input:
         output_dir + "/metapackage/" + config["new_metapackage"],
-        output_dir + "/sra/done"
+        # Right now the new singlem won't work with the old metapackage, so only run the new metapackages.
+        expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
+        # output_dir + "/sra/done"
 
 ####################
 ### HMM searches ###
@@ -298,8 +300,8 @@ rule checkm2_gather: # In future presumably this data will be available form the
     input:
         checkm2_output_dirs = checkm2_output_dirs,
     output:
-        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv"
-        done = touch(output_dir + "/checkm2_gather.done")
+        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv",
+        done = touch(output_dir + "/checkm2_gather.done"),
     log:
         logs_dir + "/checkm2_gather.log"
     shell:
@@ -307,7 +309,8 @@ rule checkm2_gather: # In future presumably this data will be available form the
 
 rule calculate_mean_genome_size:
     input:
-        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv"
+        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv",
+        done = output_dir + "/checkm2_gather.done",
     output:
         output_dir + "/gtdb_mean_genome_sizes.tsv"
     params:
@@ -358,7 +361,6 @@ rule test_metapackage:
 
 rule test_old_metapackage:
     input:
-        metapackge = config["metapackage"],
         sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
         sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
     output:
@@ -367,7 +369,8 @@ rule test_old_metapackage:
         profile = output_dir + "/sra/{sra}_old.otu_table.condensed.tsv",
         profile_krona = output_dir + "/sra/{sra}_old.otu_table.condensed.krona.html"
     params:
-        singlem = singlem_bin
+        singlem = singlem_bin,
+        metapackge = config["metapackage"],
     threads:
         8
     log:
@@ -378,7 +381,7 @@ rule test_old_metapackage:
         "{params.singlem} pipe "
         "--forward {input.sra_1} "
         "--reverse {input.sra_2} "
-        "--metapackage {input.metapackge} "
+        "--metapackage {params.metapackge} "
         "--otu-table {output.table} "
         "--archive-otu-table {output.archive_table} "
         "-p {output.profile} "
