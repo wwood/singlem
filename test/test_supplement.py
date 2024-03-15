@@ -70,7 +70,7 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
@@ -84,7 +84,7 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms'
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
@@ -98,8 +98,8 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms',
-                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Desulfurococcales; f__Desulfurococcaceae; g__Thermosphaera'
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms',
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.00	Root; d__Archaea; p__Crenarchaeota; c__Thermoprotei; o__Desulfurococcales; f__Desulfurococcaceae; g__Thermosphaera'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
@@ -112,13 +112,13 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
                 # The row below should really be to species level, but there's
                 # differences in the alignment from transcripts and genome
                 # input, where an AA moves from one side of the gap to another.
                 # To fix this could shunt the gaps to the back, but not
                 # implemented at the moment as low priority.
-                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
@@ -140,13 +140,13 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01',
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01',
                 # The row below should really be to species level, but there's
                 # differences in the alignment from transcripts and genome
                 # input, where an AA moves from one side of the gap to another.
                 # To fix this could shunt the gaps to the back, but not
                 # implemented at the moment as low priority.
-                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic'
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
@@ -171,13 +171,13 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
                 # The row below should really be to species level, but there's
                 # differences in the alignment from transcripts and genome
                 # input, where an AA moves from one side of the gap to another.
                 # To fix this could shunt the gaps to the back, but not
                 # implemented at the moment as low priority.
-                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
@@ -203,13 +203,13 @@ class Tests(unittest.TestCase):
             output = extern.run(cmd2)
             expected = [
                 "\t".join(self.headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
                 # The row below should really be to species level, but there's
                 # differences in the alignment from transcripts and genome
                 # input, where an AA moves from one side of the gap to another.
                 # To fix this could shunt the gaps to the back, but not
                 # implemented at the moment as low priority.
-                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.06	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
+                '4.11.22seqs	GCA_011373445.1_genomic	CTAAAAAAGAAACTAAAAGAT------GTTCATATGAGGGTTATAAAAAACACTCTAATG	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
