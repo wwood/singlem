@@ -11,7 +11,7 @@ import subprocess
 import time
 
 from .metapackage import Metapackage
-from .singlem import OrfMUtils, FastaNameToSampleName
+from .singlem import OrfMUtils
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .sequence_classes import SeqReader
@@ -24,6 +24,7 @@ from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
+from .genome_fasta_mux import GenomeFastaMux
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -193,11 +194,6 @@ class SearchPipe:
 
         if genome_fasta_files and forward_read_files:
             raise Exception("Cannot process reads and genomes in the same run")
-        if genome_fasta_files:
-            forward_read_files = []
-            warning_threshold = 100
-            if len(genome_fasta_files) > warning_threshold:
-                logging.warning("Running singlem with more than {} genomes may take a long time or use a lot of RAM - you might be better off splitting them into batches. Consider also using --no-assign-taxonomy to speed things up.".format(warning_threshold))
 
         analysing_pairs = reverse_read_files is not None
         if analysing_pairs:
@@ -263,21 +259,26 @@ class SearchPipe:
         tempfile.tempdir = tempfile_directory
 
         #### Preprocess genomes into transcripts to speed the rest of the pipeline
-        transcript_tempfiles = []
-        transcript_tempfile_name_to_desired_name = {}
         if genome_fasta_files:
             logging.info("Calling rough transcriptome of genome FASTA files")
+            genome_fasta_mux = GenomeFastaMux(genome_fasta_files)  # to deal with mux and demux of sequence names
+
+            # Create a single tempfile with ORFs from all genomes, and then
+            # demultiplex later, because this saves a bunch of syscalls.
+            #
+            # Make a tempfile with delete=False because it is in a tmpdir already, and useful for debug to keep around with --working-directory
+            transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-orfs', suffix='.fasta', delete=False)
+            transcripts_path.close()
             for fasta in genome_fasta_files:
-                # Make a tempfile with delete=False because it is in a tmpdir already, and useful for debug to keep around with --working-directory
-                transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-{}'.format(os.path.basename(fasta)), suffix='.fasta', delete=False)
-                extern.run('orfm -c {} -m {} -t {} {} >/dev/null'.format(self._translation_table, self._min_orf_length, transcripts_path.name, fasta))
-                transcript_tempfiles.append(transcripts_path)
-                forward_read_files.append(transcripts_path.name)
-                transcript_tempfile_name_to_desired_name[FastaNameToSampleName().fasta_to_name(transcripts_path.name)] = FastaNameToSampleName().fasta_to_name(fasta)
+                extern.run("orfm -c {} -m {} -t >(sed 's/>/>{}|/' >>{}) {} >/dev/null".format(
+                    self._translation_table,
+                    self._min_orf_length,
+                    genome_fasta_mux.fasta_to_prefix(fasta),
+                    transcripts_path.name,
+                    fasta))
+            forward_read_files = [transcripts_path.name]
 
         def return_cleanly():
-            for tf in transcript_tempfiles:
-                tf.close()
             logging.info("Finished")
 
         #### Search
@@ -288,6 +289,9 @@ class SearchPipe:
         elif analysing_pairs:
             logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
                 len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
+        elif genome_fasta_files:
+            logging.info("Using as input %i different genomes e.g. %s" % (
+                len(genome_fasta_files), genome_fasta_files[0]))
         else:
             logging.info("Using as input %i different sequence files e.g. %s" % (
                 len(forward_read_files), forward_read_files[0]))
@@ -466,8 +470,8 @@ class SearchPipe:
             assignment_singlem_db=assignment_singlem_db,
         )
 
-        if len(transcript_tempfile_name_to_desired_name) > 0:
-            otu_table_object.rename_samples(transcript_tempfile_name_to_desired_name)
+        if genome_fasta_files:
+            otu_table_object = genome_fasta_mux.demux_otu_table(otu_table_object)
         return_cleanly()
         return otu_table_object
 

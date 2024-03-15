@@ -1158,7 +1158,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
 
     def test_genome_input_dereplication(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.13'
+            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.00    '
         # ~/git/singlem/bin/singlem pipe --genome-fasta-files genomes/GCA_000309865.1_genomic.fna --singlem-package ../4.12.22seqs.spkg/ --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96
         cmd = '{} pipe --translation-table 11 --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
             path_to_script,
@@ -1167,8 +1167,26 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         )
         self.assertEqualOtuTable(
             expected,
-            extern.run(cmd),
-            no_assign_taxonomy=True)
+            extern.run(cmd))
+
+    def test_genome_multiplexing(self):
+        cmd_stub = '{} pipe --metapackage {} --output-extras --otu-table /dev/stdout --assignment-method diamond --genome-fasta-files '.format(
+            path_to_script,
+            os.path.join(path_to_data, 'archaeal_small.v4.smpkg'),
+        )
+        g1 = os.path.join(path_to_data, 'methanobacteria/genomes/GCA_000309865.1_genomic.fna')
+        g2 = os.path.join(path_to_data, 'methanobacteria/genomes/GCF_000191585.1_genomic.fna')
+        cmd_t1 = cmd_stub + g1
+        cmd_t2 = cmd_stub + g2
+        cmd_both = cmd_stub + g1 + ' ' + g2
+
+        r1 = extern.run(cmd_t1)
+        r2 = extern.run(cmd_t2)
+        r_both = extern.run(cmd_both)
+        
+        lines2 = r2.split('\n')
+        r2 = '\n'.join(lines2[1:]) # Remove header
+        self.assertEqualOtuTable(r1+r2, r_both)
 
     def test_translation_table4_no_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
