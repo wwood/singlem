@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "create_date": "2024-03-13 18:50:35",
+        "format_version": "1.1",
+        "locus": "/data1/pbs.6471442.pbs/tmpc49v192r/S3"
+    },
+    "files": {
+        "aln_fasta": "S3_deduplicated_aligned.fasta",
+        "seq_info": "S3_seqinfo.csv",
+        "taxonomy": "S3_taxonomy.csv"
+    },
+    "md5": {
+        "aln_fasta": "888b082be6286d5655552290f9da7156",
+        "seq_info": "083dd01d58504f8be82c3b0aa847b1ea",
+        "taxonomy": "5842586ac066810ef69b0dd0bdff1673"
+    },
+    "log": [
+        "Stripped refpkg (removed 0 files)",
+        "Loaded initial files into empty refpkg"
+    ],
+    "rollback": null,
+    "rollforward": null
+}

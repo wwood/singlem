@@ -1,0 +1,23 @@
+{
+    "metadata": {
+        "create_date": "2024-03-13 11:43:52",
+        "format_version": "1.1",
+        "locus": "/tmp/tmpe9_ifqsj/S3"
+    },
+    "files": {
+        "aln_fasta": "S3_deduplicated_aligned.fasta",
+        "seq_info": "S3_seqinfo.csv",
+        "taxonomy": "S3_taxonomy.csv"
+    },
+    "md5": {
+        "aln_fasta": "9eced5b803f960454bbb6669509cde9b",
+        "seq_info": "c2c88090ec499b388c1e25ca278cf067",
+        "taxonomy": "c2ce001230ecf7103ab9ea7584ce2bd5"
+    },
+    "log": [
+        "Stripped refpkg (removed 0 files)",
+        "Loaded initial files into empty refpkg"
+    ],
+    "rollback": null,
+    "rollforward": null
+}

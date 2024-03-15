@@ -1,0 +1,1 @@
+{"graftm_package_version": 3, "align_hmm": "graftmx0xlqncl_align.hmm", "search_hmms": ["search_Archaea_S2_55_eS8.hmm"], "refpkg": "S3.20.eS8_final.gpkg.refpkg", "trusted_cutoff": false, "range": 194.9344241818636, "unaligned_sequence_database": "S3.20.eS8_final_sequences.faa", "diamond_database": "S3.dmnd"}

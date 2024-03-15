@@ -33,6 +33,8 @@ class ArchiveOtuTable:
     TAXONOMY_ASSIGNMENT_METHOD_INDEX = FIELDS_VERSION4.index('taxonomy_assignment_method')
     COVERAGE_FIELD_INDEX = FIELDS_VERSION4.index('coverage')
     TAXONOMY_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy')
+    NUCLEOTIDES_ALIGNED_FIELD_INDEX = FIELDS_VERSION4.index('nucleotides_aligned')
+    TAXONOMY_BY_KNOWN_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy_by_known?')
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -115,6 +117,12 @@ class ArchiveOtuTableEntry(OtuTableEntry):
 
     def taxonomy_assignment_method(self):
         return self.data[ArchiveOtuTable.TAXONOMY_ASSIGNMENT_METHOD_INDEX]
+        
+    def nucleotides_aligned(self):
+        return self.data[ArchiveOtuTable.NUCLEOTIDES_ALIGNED_FIELD_INDEX]
+    
+    def taxonomy_by_known(self):
+        return self.data[ArchiveOtuTable.TAXONOMY_BY_KNOWN_FIELD_INDEX]
 
 
 class InsufficientArchiveOtuTableVersionException(Exception):

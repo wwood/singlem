@@ -1,0 +1,1 @@
+{"graftm_package_version": 3, "align_hmm": "graftmwq9tq17f_align.hmm", "search_hmms": ["search_Archaea_S2_56_Fibrillarin.hmm"], "refpkg": "S3.21.Fibrillarin_final.gpkg.refpkg", "trusted_cutoff": false, "range": 341.2065473386717, "unaligned_sequence_database": "graftm7oe5cn7m.faa", "diamond_database": "S3.dmnd"}
