@@ -457,7 +457,7 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
     if failure_genomes > 0:
         logging.warning("hmmsearch failed to find any marker genes for {} genomes".format(failure_genomes))
 
-    if num_found_transcripts == 0:
+    if total_num_found_transcripts == 0:
         logging.error("Unable to find any marker genes from the provided genomes, so cannot generate a new metapackage")
         return None
     else:
