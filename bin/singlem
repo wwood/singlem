@@ -501,7 +501,6 @@ if __name__ == '__main__':
     supplement_parser.add_argument('--input-metapackage', help='metapackage to build upon [default: Use default package]')
     supplement_parser.add_argument('--output-metapackage', help='output metapackage', required=True)
     supplement_parser.add_argument('--threads', help='parallelisation', type=int, default=1)
-    current_default = '1e-20'
 
     # Taxonomy
     taxonomy_group = supplement_parser.add_argument_group('Taxonomy')
@@ -539,6 +538,7 @@ if __name__ == '__main__':
 
     # Rarer options
     supplement_rare_group = supplement_parser.add_argument_group('Less common options')
+    current_default = '1e-20'
     supplement_rare_group.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
     supplement_rare_group.add_argument('--gene-definitions', help='Tab-separated file of genome_fasta<TAB>transcript_fasta<TAB>protein_fasta [default: undefined, call genes using Prodigal]')
     supplement_rare_group.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
