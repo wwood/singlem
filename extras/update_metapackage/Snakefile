@@ -17,7 +17,7 @@ hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
-checkm2_output_dirs = '/work/microbiome/msingle/mess/118_read_fraction_underrepresentation/gtdb_r214_rep_checkms' # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
+checkm2_output_dirs = config['checkm2_output_dirs'] # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
 
 print("Finding genomes...")
 genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
