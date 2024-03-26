@@ -449,7 +449,7 @@ if __name__ == '__main__':
     metapackage_parser.add_argument('--taxonomy-database-name', help='Name of the taxonomy database to use [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--taxonomy-database-version', help='Version of the taxonomy database to use [default: unspecified]')
     metapackage_parser.add_argument('--diamond-prefilter-performance-parameters', help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS, default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
-    metapackage_parser.add_argument('--diamond-taxonomy-assignment-performance-parameters', help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment. [default: \'%s\']' % SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS, default=SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS)
+    metapackage_parser.add_argument('--diamond-taxonomy-assignment-performance-parameters', help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment. [default: \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS, default=SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
 
     metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1

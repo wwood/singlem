@@ -17,6 +17,8 @@ DATA_DEFAULT_VERSION = '3.2.1'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
 DATA_DOI = '10.5281/zenodo.5739611'
 
+CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
+
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
 
