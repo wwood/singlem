@@ -6,7 +6,7 @@ There are several ways to install SingleM.
 SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
 
 ```
-conda create -c bioconda -c conda-forge --name singlem singlem'>='0.16.0
+conda create -c bioconda -c conda-forge --name singlem singlem'>='[RELEASE_TAG]
 ``` 
 
 Test if it works by running
