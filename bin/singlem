@@ -24,7 +24,7 @@ import singlem
 import singlem.pipe as pipe
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
-from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE
+from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE, CUSTOM_TAXONOMY_DATABASE_NAME
 from singlem.singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
 DEFAULT_WINDOW_SIZE = 60
@@ -438,12 +438,18 @@ if __name__ == '__main__':
 
     metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = bird_argparser.new_subparser('metapackage', metapackage_description)
+    metapackage_parser.add_argument('--metapackage', help='Path to write generated metapackage to')
     metapackage_parser.add_argument('--singlem-packages', nargs='+', help="Input packages")
     metapackage_parser.add_argument('--nucleotide-sdb', help="Nucleotide SingleM database for initial assignment pass")
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
     metapackage_parser.add_argument('--taxon-genome-lengths', help="TSV file of genome lengths for each taxon")
     metapackage_parser.add_argument('--no-taxon-genome-lengths', action='store_true', help="Skip taxon genome lengths")
-    metapackage_parser.add_argument('--metapackage', help='Path to write generated metapackage to')
+    current_default = CUSTOM_TAXONOMY_DATABASE_NAME
+    metapackage_parser.add_argument('--taxonomy-database-name', help='Name of the taxonomy database to use [default: %s]' % current_default, default=current_default)
+    metapackage_parser.add_argument('--taxonomy-database-version', help='Version of the taxonomy database to use [default: unspecified]')
+    metapackage_parser.add_argument('--diamond-prefilter-performance-parameters', help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS, default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
+    metapackage_parser.add_argument('--diamond-taxonomy-assignment-performance-parameters', help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment. [default: \'%s\']' % SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS, default=SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS)
+
     metapackage_parser.add_argument('--describe', action='store_true', help='Describe a metapackage rather than create it')
     current_default = 1
     metapackage_parser.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -1154,6 +1160,8 @@ if __name__ == '__main__':
                 raise Exception("Must specify --nucleotide-sdb or --no-nucleotide-sdb")
             if not args.taxon_genome_lengths and not args.no_taxon_genome_lengths:
                 raise Exception("Must specify --taxon-genome-lengths or --no-taxon-genome-lengths")
+            if args.taxonomy_version and not args.taxonomy_name:
+                raise Exception("--taxonomy-name must be specified if --taxonomy-version is specified")
             Metapackage.generate(
                 singlem_packages = args.singlem_packages,
                 nucleotide_sdb = args.nucleotide_sdb,
@@ -1161,7 +1169,11 @@ if __name__ == '__main__':
                 output_path = args.metapackage,
                 threads = args.threads,
                 prefilter_clustering_threshold = args.prefilter_clustering_threshold,
-                prefilter_diamond_db = args.prefilter_diamond_db
+                prefilter_diamond_db = args.prefilter_diamond_db,
+                taxonomy_database_name = args.taxonomy_name,
+                taxonomy_database_version = args.taxonomy_version,
+                diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
+                diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
             )
 
     elif args.subparser_name == 'condense':
