@@ -211,6 +211,7 @@ class Metapackage:
         taxonomic_database_version = kwargs.pop('taxonomy_database_version')
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
+        makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -285,7 +286,11 @@ class Metapackage:
 
 
         logging.info("Running DIAMOND makeidx of prefilter ..")
-        extern.run('diamond makeidx --db {}'.format(prefilter_dmnd_path))
+        if makeidx_sensitivity_params != None:
+            logging.info("Using DIAMOND makeidx parameters: {}".format(makeidx_sensitivity_params))
+            extern.run('diamond makeidx --db {} {}'.format(prefilter_dmnd_path, makeidx_sensitivity_params))
+        else:
+            extern.run('diamond makeidx --db {}'.format(prefilter_dmnd_path))
 
         if not prefilter_diamond_db:
             os.remove(prefilter_path)
@@ -305,6 +310,7 @@ class Metapackage:
                         Metapackage.TAXONOMY_DATABASE_VERSION_KEY: taxonomic_database_version,
                         Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY: diamond_prefilter_performance_parameters,
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters
+
                         }
 
         # save contents file
