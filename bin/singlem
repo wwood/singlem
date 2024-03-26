@@ -1174,7 +1174,7 @@ if __name__ == '__main__':
                 raise Exception("Must specify --nucleotide-sdb or --no-nucleotide-sdb")
             if not args.taxon_genome_lengths and not args.no_taxon_genome_lengths:
                 raise Exception("Must specify --taxon-genome-lengths or --no-taxon-genome-lengths")
-            if args.taxonomy_version and not args.taxonomy_name:
+            if args.taxonomy_database_version and not args.taxonomy_database_name:
                 raise Exception("--taxonomy-name must be specified if --taxonomy-version is specified")
             Metapackage.generate(
                 singlem_packages = args.singlem_packages,
@@ -1184,8 +1184,8 @@ if __name__ == '__main__':
                 threads = args.threads,
                 prefilter_clustering_threshold = args.prefilter_clustering_threshold,
                 prefilter_diamond_db = args.prefilter_diamond_db,
-                taxonomy_database_name = args.taxonomy_name,
-                taxonomy_database_version = args.taxonomy_version,
+                taxonomy_database_name = args.taxonomy_database_name,
+                taxonomy_database_version = args.taxonomy_database_version,
                 diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
                 diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
             )

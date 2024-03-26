@@ -207,8 +207,8 @@ class Metapackage:
         threads = kwargs.pop('threads')
         prefilter_diamond_db = kwargs.pop('prefilter_diamond_db')
         taxon_genome_lengths_csv = kwargs.pop('taxon_genome_lengths')
-        taxonomic_database_name = kwargs.pop('taxonomic_database_name')
-        taxonomic_database_version = kwargs.pop('taxonomic_database_version')
+        taxonomic_database_name = kwargs.pop('taxonomy_database_name')
+        taxonomic_database_version = kwargs.pop('taxonomy_database_version')
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
 
