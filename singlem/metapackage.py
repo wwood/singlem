@@ -28,6 +28,10 @@ class Metapackage:
     NUCLEOTIDE_SDB = 'nucleotide_sdb'
     SQLITE_DB_PATH_KEY = 'sqlite_db_path_key'
     TAXON_GENOME_LENGTHS_KEY = 'taxon_genome_lengths'
+    TAXONOMY_DATABASE_NAME_KEY = 'taxonomy_database_name'
+    TAXONOMY_DATABASE_VERSION_KEY = 'taxonomy_database_version'
+    DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY = 'diamond_prefilter_performance_parameters'
+    DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
 
     _CURRENT_FORMAT_VERSION = 4
 
@@ -47,6 +51,17 @@ class Metapackage:
                         NUCLEOTIDE_SDB,
                         SQLITE_DB_PATH_KEY,
                         TAXON_GENOME_LENGTHS_KEY,
+                        ],
+                    '5': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_KEY,
+                        TAXONOMY_DATABASE_NAME_KEY,
+                        TAXONOMY_DATABASE_VERSION_KEY,
+                        DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
+                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS
                         ],
                       }
 
@@ -92,7 +107,7 @@ class Metapackage:
 
             contents_hash = json.load(f)
 
-        if not Metapackage.VERSION_KEY in contents_hash:
+        if Metapackage.VERSION_KEY not in contents_hash:
             # If the user specifies a .zb directory, acquire the
             # payload_directory
             zb_version_key = 'zenodo_backpack_version'
@@ -107,7 +122,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v not in (1,2,3,4):
+        if v not in (1,2,3,4,5):
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -132,7 +147,11 @@ class Metapackage:
             else:
                 # singlem metapackage was invoked with --no-taxon-genome-lengths
                 mpkg._taxon_genome_lengths_path = None
-
+        if v >= 5:
+            mpkg._taxonomy_database_name = contents_hash[Metapackage.TAXONOMY_DATABASE_NAME_KEY]
+            mpkg._taxonomy_database_version = contents_hash[Metapackage.TAXONOMY_DATABASE_VERSION_KEY]
+            mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
+            mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
 
         return mpkg
 
@@ -186,6 +205,10 @@ class Metapackage:
         threads = kwargs.pop('threads')
         prefilter_diamond_db = kwargs.pop('prefilter_diamond_db')
         taxon_genome_lengths_csv = kwargs.pop('taxon_genome_lengths')
+        taxonomic_database_name = kwargs.pop('taxonomic_database_name')
+        taxonomic_database_version = kwargs.pop('taxonomic_database_version')
+        diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
+        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -276,6 +299,10 @@ class Metapackage:
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
                         Metapackage.SQLITE_DB_PATH_KEY: os.path.basename(sqlitedb_path),
                         Metapackage.TAXON_GENOME_LENGTHS_KEY: taxon_genome_lengths_csv_name,
+                        Metapackage.TAXONOMY_DATABASE_NAME_KEY: taxonomic_database_name,
+                        Metapackage.TAXONOMY_DATABASE_VERSION_KEY: taxonomic_database_version,
+                        Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY: diamond_prefilter_performance_parameters,
+                        Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters
                         }
 
         # save contents file
