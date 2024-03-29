@@ -119,7 +119,7 @@ class ReadFractionEstimator:
                         continue  # More likely false positive hits, I guess.
                     if taxonomy not in taxonomic_genome_lengths:
                         raise Exception("Taxonomy '%s' in profile not found in taxonomic genome lengths file." % taxonomy)
-                    contribution = node.coverage * taxonomic_genome_lengths[taxonomy].mean
+                    contribution = node.coverage * genome_length
                     account += contribution
 
                     if '__' not in taxonomy or node.calculate_level() > 7:
@@ -138,16 +138,16 @@ class ReadFractionEstimator:
                         print("%s\t%s\t%s" % (sample, taxonomy, contribution),
                             file=output_per_taxon_read_fractions_fh)
                 
-                    highest_unknown_taxa = highest_unknown_taxon_names
-                    highest_unknown_taxa_sum = sum([-x.priority * taxonomic_genome_lengths[x.taxon].mean for x in highest_unknown_taxa])
-                    doubled_account = account + highest_unknown_taxa_sum
-                    halved_account = account - (highest_unknown_taxa_sum / 2)
-                    warning_threshold = 0.02
-                    if (doubled_account / metagenome_size - account / metagenome_size) > warning_threshold or \
-                        (account / metagenome_size - halved_account / metagenome_size) > warning_threshold:
-                        warning = "WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate."
-                    else:
-                        warning = ""
+                highest_unknown_taxa = highest_unknown_taxon_names
+                highest_unknown_taxa_sum = sum([-x.priority * taxonomic_genome_lengths[x.taxon].mean for x in highest_unknown_taxa])
+                doubled_account = account + highest_unknown_taxa_sum
+                halved_account = account - (highest_unknown_taxa_sum / 2)
+                warning_threshold = 0.02
+                if (doubled_account / metagenome_size - account / metagenome_size) > warning_threshold or \
+                    (account / metagenome_size - halved_account / metagenome_size) > warning_threshold:
+                    warning = "WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate."
+                else:
+                    warning = ""
 
                 final_estimate = account / metagenome_size * 100
                 if final_estimate > 100:
