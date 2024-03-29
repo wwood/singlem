@@ -84,6 +84,7 @@ class ReadFractionEstimator:
             "bacterial_archaeal_bases",
             "metagenome_size",
             "read_fraction",
+            "average_bacterial_archaeal_genome_size",
             "warning"]),
             file=output_fh)
 
@@ -113,17 +114,24 @@ class ReadFractionEstimator:
                 highest_unknown_taxon_names = []
                 min_unknown_taxon_priority = 0  # To bound the size of the heapq
 
+                average_genome_size_numerator = 0
+                average_genome_size_denominator = 0
+
                 for node in profile.breadth_first_iter():
                     taxonomy = node.word
                     if taxonomy == 'Root':
                         continue  # More likely false positive hits, I guess.
                     if taxonomy not in taxonomic_genome_lengths:
                         raise Exception("Taxonomy '%s' in profile not found in taxonomic genome lengths file." % taxonomy)
-                    contribution = node.coverage * genome_length
+                    genome_size = taxonomic_genome_lengths[taxonomy].mean
+                    contribution = node.coverage * genome_size
                     account += contribution
 
+                    average_genome_size_numerator += node.coverage * genome_size
+                    average_genome_size_denominator += node.coverage
+
                     if '__' not in taxonomy or node.calculate_level() > 7:
-                        raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for read_fraction, since read_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
+                        raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for microbial_fraction, since microbial_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
                     if 's__' not in taxonomy:
                         if node.coverage > min_unknown_taxon_priority:
                             if len(highest_unknown_taxon_names) < num_unknown_taxa_accounted_for:
@@ -153,11 +161,18 @@ class ReadFractionEstimator:
                 if final_estimate > 100:
                     final_estimate = 100
 
-                print("%s\t%s\t%s\t%0.2f%%\t%s" % (
+                # Average genome size is the weighted average of the genome sizes of the taxa in the profile
+                if average_genome_size_denominator == 0:
+                    average_genome_size = 0
+                else:
+                    average_genome_size = average_genome_size_numerator / average_genome_size_denominator
+
+                print("%s\t%s\t%s\t%0.2f%%\t%s\t%s" % (
                     sample,
                     round(account),
                     metagenome_size,
                     final_estimate,
+                    round(average_genome_size),
                     warning),
                     file=output_fh)
 
