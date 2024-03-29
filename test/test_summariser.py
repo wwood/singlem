@@ -352,12 +352,33 @@ A2A_APEX_ALPHA_Plot_21_A30_10.1  3.57    Root; d__Archaea; p__Halobacteriota
 sample2  14.0      Root; d__Archaea
 sample2  15.0     Root; d__Bacteria
 """)
+        self.assertEqual(expected, stdout)
 
     def test_concatenate_profiles_duplicate_samples(self):
         with self.assertRaises(Exception) as cm:
             extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
              {path_to_data}/summarise/profile1.tsv \
             --output-taxonomic-profile /dev/stdout')
+
+    def test_fill_condensed(self):
+        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile <(head -5 {path_to_data}/read_fraction/marine0.profile) <(head -5 {path_to_data}/read_fraction/marine0.profile |sed s/marine0.1/land/) '+
+            '--output-filled-taxonomic-profile /dev/stdout')
+
+        expected = re.compile(r'  +').sub('\t', """sample  filled_coverage        taxonomy
+marine0.1       7.17    Root
+marine0.1       4.20    Root; d__Archaea
+marine0.1       2.97    Root; d__Bacteria
+marine0.1       0.56    Root; d__Archaea; p__Thermoproteota
+marine0.1       0.80     Root; d__Bacteria; p__Desulfobacterota
+marine0.1       2.17    Root; d__Bacteria; p__Proteobacteria
+land       7.17    Root
+land       4.20    Root; d__Archaea
+land       2.97    Root; d__Bacteria
+land       0.56    Root; d__Archaea; p__Thermoproteota
+land       0.80     Root; d__Bacteria; p__Desulfobacterota
+land       2.17    Root; d__Bacteria; p__Proteobacteria
+""")
+        self.assertEqual(expected, stdout)
         
 
 if __name__ == "__main__":
