@@ -13,7 +13,7 @@ from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD, NO_ASSIGNMENT_METHOD
-from .condense import CondensedCommunityProfile
+from .condense import CondensedCommunityProfile, WordNode
 
 class Summariser:
     @staticmethod
@@ -561,3 +561,29 @@ class Summariser:
                     seen_samples.add(profile.sample)
         logging.info("Wrote taxonomic profile")
         
+    def write_filled_taxonomic_profile(**kwargs):
+        '''Write a filled taxonomic profile to a file'''
+        # input_taxonomic_profiles, output_taxonomic_profile_io
+        input_taxonomic_profile_files = kwargs.pop('input_taxonomic_profile_files')
+        output_io = kwargs.pop('output_filled_taxonomic_profile_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Writing filled taxonomic profile")
+
+        print("\t".join(["sample", "filled_coverage", "taxonomy"]), file=output_io)
+
+        num_samples_processed = 0
+        for outfile in input_taxonomic_profile_files:
+            with open(outfile) as f:
+                for tree in CondensedCommunityProfile.each_sample_wise(f):
+                    num_samples_processed += 1
+                    for wn in tree.breadth_first_iter():
+                        print("%s\t%.2f\t%s" % (
+                            tree.sample,
+                            wn.get_full_coverage(),
+                            '; '.join(wn.get_taxonomy())),
+                            file=output_io)
+                
+        logging.info("Wrote {} filled taxonomic profiles".format(
+            len(input_taxonomic_profile_files)))
