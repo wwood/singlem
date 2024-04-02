@@ -155,8 +155,8 @@ if __name__ == '__main__':
         argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
         argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
         argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
-                                    help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
-                                    default=SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
+                                    help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: use metapackage setting, otherwise use \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
+                                    default=None)
         argument_group.add_argument('--evalue',
                                     help='HMMSEARCH e-value cutoff to use for sequence gathering [default: %s]' % SearchPipe.DEFAULT_HMMSEARCH_EVALUE, default=SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
         argument_group.add_argument('--min-orf-length',
@@ -210,8 +210,8 @@ if __name__ == '__main__':
                                 help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages. Should be used with --hmmsearch-package-assignment. NOTE: ignored for nucleotide packages [default: protein packages: use the prefilter, nucleotide packages: do not use the prefilter]',
                                 default=False)
     less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters',
-                                help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
-                                default=SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
+                                help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: use metapackage setting, otherwise use \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
+                                default=None)
     less_common_pipe_arguments.add_argument('--hmmsearch-package-assignment', '--hmmsearch_package_assignment', action='store_true',
                                 help='Assign each sequence to a SingleM package using HMMSEARCH, and a sequence may then be assigned to multiple packages. [default: not set]',
                                 default=False)
@@ -456,7 +456,7 @@ if __name__ == '__main__':
     current_default = 0.6
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
-    metapackage_parser.add_argument('--makeidx-sensitivity-params', metavar='PARAMS', help='DIAMOND sensitivity parameters to use when indexing the prefilter DIAMOND db. NOTE: any sensitivity flag other than the default will require the correct sensitivity to be parsed to the --diamond-prefilter-performance-parameters flag. [default: --default]', default=None)
+    metapackage_parser.add_argument('--makeidx-sensitivity-params', metavar='PARAMS', help='DIAMOND sensitivity parameters to use when indexing the prefilter DIAMOND db. [default: None]', default=None)
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = bird_argparser.new_subparser('chainsaw', chainsaw_description)

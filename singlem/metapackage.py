@@ -152,8 +152,12 @@ class Metapackage:
         if v >= 5:
             mpkg._taxonomy_database_name = contents_hash[Metapackage.TAXONOMY_DATABASE_NAME_KEY]
             mpkg._taxonomy_database_version = contents_hash[Metapackage.TAXONOMY_DATABASE_VERSION_KEY]
-            mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
-            mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
+            if contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY] is not None:
+                mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
+            if contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS] is not None:
+                mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
+            # mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
+            # mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
 
         return mpkg
 
@@ -287,6 +291,7 @@ class Metapackage:
 
         logging.info("Running DIAMOND makeidx of prefilter ..")
         if makeidx_sensitivity_params != None:
+            diamond_prefilter_performance_parameters = diamond_prefilter_performance_parameters + " " + " ".join(makeidx_sensitivity_params.split())
             logging.info("Using DIAMOND makeidx parameters: {}".format(makeidx_sensitivity_params))
             extern.run('diamond makeidx --db {} {}'.format(prefilter_dmnd_path, makeidx_sensitivity_params))
         else:
@@ -300,7 +305,7 @@ class Metapackage:
         MetapackageReadNameStore.generate(
             singlem_packages, sqlitedb_path)
 
-        contents_hash = {Metapackage.VERSION_KEY: 4,
+        contents_hash = {Metapackage.VERSION_KEY: 5,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
@@ -448,3 +453,17 @@ class Metapackage:
         if tsv is None:
             return None
         return pd.read_csv(tsv, sep='\t')
+    
+    def diamond_prefilter_performance_parameters(self):
+        try:
+            return self._diamond_prefilter_performance_parameters
+        except AttributeError:
+            # Happens when version < 5 or metapackage created from spkgs directly
+            return None
+
+    def diamond_taxonomy_assignment_performance_parameters(self):
+        try:
+            return self._diamond_taxonomy_assignment_performance_parameters
+        except AttributeError:
+            # Happens when version < 5 or metapackage created from spkgs directly
+            return None
