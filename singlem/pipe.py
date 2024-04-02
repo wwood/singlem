@@ -163,7 +163,7 @@ class SearchPipe:
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters', SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS)
         diamond_package_assignment = kwargs.pop('diamond_package_assignment', True)
         diamond_prefilter_db = kwargs.pop('diamond_prefilter_db', None)
-        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS)
+        diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', None)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
 
@@ -303,9 +303,14 @@ class SearchPipe:
         if not diamond_prefilter:
             diamond_package_assignment = False
 
+        #### Extract diamond_prefilter_performance_parameters from metapackage (v5 metapackages only)
         if diamond_prefilter:
             # Set the min ORF length in DIAMOND, as this saves CPU time and
             # means absence doesn't crash hmmsearch later.
+            if diamond_prefilter_performance_parameters == None:
+                diamond_prefilter_performance_parameters = metapackage_object.diamond_prefilter_performance_parameters()
+                if diamond_prefilter_performance_parameters == None:
+                    diamond_prefilter_performance_parameters = SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS
             diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
                 diamond_prefilter_performance_parameters, int(min_orf_length / 3))
 
@@ -456,6 +461,12 @@ class SearchPipe:
             for readset in extracted_reads:
                 readset.remove_duplicate_sequences()
 
+        #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
+        if diamond_taxonomy_assignment_performance_parameters == None:
+            diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
+            if diamond_taxonomy_assignment_performance_parameters == None:
+                diamond_taxonomy_assignment_performance_parameters = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
+        
         #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
         otu_table_object = self.assign_taxonomy_and_process(
             extracted_reads=extracted_reads,
