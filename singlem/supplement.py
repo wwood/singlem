@@ -565,7 +565,12 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          output_path=new_metapackage_path,
                          threads=num_threads,
                          prefilter_clustering_threshold=None,
-                         taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None)
+                         taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None,
+                         taxonomy_database_name=old_metapackage.taxonomy_database_name(),
+                         taxonomy_database_version=old_metapackage.taxonomy_database_version(),
+                         diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
+                         diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
+                         makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params())
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     if not no_taxon_genome_lengths:

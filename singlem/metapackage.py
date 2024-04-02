@@ -34,6 +34,7 @@ class Metapackage:
     TAXONOMY_DATABASE_VERSION_KEY = 'taxonomy_database_version'
     DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY = 'diamond_prefilter_performance_parameters'
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
+    MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
 
     _CURRENT_FORMAT_VERSION = 4
 
@@ -63,7 +64,8 @@ class Metapackage:
                         TAXONOMY_DATABASE_NAME_KEY,
                         TAXONOMY_DATABASE_VERSION_KEY,
                         DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
-                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS
+                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
+                        MAKEIDX_SENSITIVITY_PARAMS
                         ],
                       }
 
@@ -152,12 +154,9 @@ class Metapackage:
         if v >= 5:
             mpkg._taxonomy_database_name = contents_hash[Metapackage.TAXONOMY_DATABASE_NAME_KEY]
             mpkg._taxonomy_database_version = contents_hash[Metapackage.TAXONOMY_DATABASE_VERSION_KEY]
-            if contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY] is not None:
-                mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
-            if contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS] is not None:
-                mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
-            # mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
-            # mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
+            mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
+            mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
+            mpkg._makeidx_sensitivity_params = contents_hash[Metapackage.MAKEIDX_SENSITIVITY_PARAMS]
 
         return mpkg
 
@@ -314,8 +313,8 @@ class Metapackage:
                         Metapackage.TAXONOMY_DATABASE_NAME_KEY: taxonomic_database_name,
                         Metapackage.TAXONOMY_DATABASE_VERSION_KEY: taxonomic_database_version,
                         Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY: diamond_prefilter_performance_parameters,
-                        Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters
-
+                        Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
+                        Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params
                         }
 
         # save contents file
@@ -454,6 +453,20 @@ class Metapackage:
             return None
         return pd.read_csv(tsv, sep='\t')
     
+    def taxonomy_database_name(self):
+        try:
+            return self._taxonomy_database_name
+        except AttributeError:
+            # Happens when version < 5 or metapackage created from spkgs directly
+            return None
+
+    def taxonomy_database_version(self):
+        try:
+            return self._taxonomy_database_version
+        except AttributeError:
+            # Happens when version < 5 or metapackage created from spkgs directly
+            return None
+    
     def diamond_prefilter_performance_parameters(self):
         try:
             return self._diamond_prefilter_performance_parameters
@@ -464,6 +477,13 @@ class Metapackage:
     def diamond_taxonomy_assignment_performance_parameters(self):
         try:
             return self._diamond_taxonomy_assignment_performance_parameters
+        except AttributeError:
+            # Happens when version < 5 or metapackage created from spkgs directly
+            return None
+    
+    def makeidx_sensitivity_params(self):
+        try:
+            return self._makeidx_sensitivity_params
         except AttributeError:
             # Happens when version < 5 or metapackage created from spkgs directly
             return None
