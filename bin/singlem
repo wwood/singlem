@@ -329,10 +329,10 @@ if __name__ == '__main__':
     summarise_io_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
     summarise_io_args.add_argument('--input-otu-tables-list', help="Summarise the OTU table files newline separated in this file")
     summarise_io_args.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Summarise these tables")
-    summarise_io_args.add_argument('--input-gzip-archive-otu-table-list',
-        help="Summarise the list of newline-separated gzip-compressed archive OTU tables specified in this file")
     summarise_io_args.add_argument('--input-archive-otu-table-list',
         help="Summarise the archive tables newline separated in this file")
+    summarise_io_args.add_argument('--input-gzip-archive-otu-table-list',
+        help="Summarise the list of newline-separated gzip-compressed archive OTU tables specified in this file")
     summarise_io_args.add_argument('--stream-inputs', help='Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].', action='store_true')
     summarise_io_args.add_argument('--input-taxonomic-profiles', nargs='+', help='Input taxonomic profiles to be e.g. converted to krona HTML, or concatenated')
     summarise_transformation_args = summarise_parser.add_argument_group('transformation')
@@ -768,7 +768,12 @@ if __name__ == '__main__':
         if args.output_filled_taxonomic_profile: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
-        if not args.input_otu_tables and not args.input_otu_tables_list and not args.input_archive_otu_tables and not args.input_gzip_archive_otu_table_list and not args.input_taxonomic_profiles:
+        if not args.input_otu_tables and \
+            not args.input_otu_tables_list and \
+            not args.input_archive_otu_tables and \
+            not args.input_archive_otu_table_list and \
+            not args.input_gzip_archive_otu_table_list and \
+            not args.input_taxonomic_profiles:
             raise Exception("Summary requires input OTU tables, archive OTU tables, or taxonomic profiles")
         if args.exclude_off_target_hits:
             if args.singlem_packages and args.metapackage:
