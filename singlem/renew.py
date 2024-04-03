@@ -42,6 +42,12 @@ class Renew:
 
         if assignment_singlem_db is None:
             assignment_singlem_db = metapackage.nucleotide_sdb_path()
+        
+        # Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
+        if diamond_taxonomy_assignment_performance_parameters == None:
+            diamond_taxonomy_assignment_performance_parameters = metapackage.diamond_taxonomy_assignment_performance_parameters()
+            if diamond_taxonomy_assignment_performance_parameters == None:
+                diamond_taxonomy_assignment_performance_parameters = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
 
         # Create a dict of singlem package name (i.e. the string in the OTU
         # table) to singlem package object
