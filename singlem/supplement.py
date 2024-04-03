@@ -47,7 +47,7 @@ from tqdm import tqdm
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 
-from .metapackage import Metapackage
+from .metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME
 from .archive_otu_table import ArchiveOtuTable
 from .sequence_classes import SeqReader
 from .singlem import FastaNameToSampleName, OrfMUtils
@@ -566,8 +566,8 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          threads=num_threads,
                          prefilter_clustering_threshold=None,
                          taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None,
-                         taxonomy_database_name=old_metapackage.taxonomy_database_name(),
-                         taxonomy_database_version=old_metapackage.taxonomy_database_version(),
+                         taxonomy_database_name=CUSTOM_TAXONOMY_DATABASE_NAME,
+                         taxonomy_database_version=None,
                          diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
                          diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
                          makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params())
