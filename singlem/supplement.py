@@ -466,7 +466,8 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
 
 def generate_new_metapackage(num_threads, working_directory, old_metapackage, new_genome_fasta_files,
                              new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue,
-                             checkm2_quality_file, no_taxon_genome_lengths):
+                             checkm2_quality_file, no_taxon_genome_lengths, new_taxonomy_database_name,
+                             new_taxonomy_database_version):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
@@ -566,8 +567,8 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          threads=num_threads,
                          prefilter_clustering_threshold=None,
                          taxon_genome_lengths=taxon_genome_lengths_tmpfile.name if not no_taxon_genome_lengths else None,
-                         taxonomy_database_name=CUSTOM_TAXONOMY_DATABASE_NAME,
-                         taxonomy_database_version=None,
+                         taxonomy_database_name=new_taxonomy_database_name,
+                         taxonomy_database_version=new_taxonomy_database_version,
                          diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
                          diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
                          makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params())
@@ -815,6 +816,8 @@ class Supplementor:
         no_taxon_genome_lengths = kwargs.pop('no_taxon_genome_lengths')
         gene_definitions = kwargs.pop('gene_definitions')
         ignore_taxonomy_database_incompatibility = kwargs.pop('ignore_taxonomy_database_incompatibility')
+        new_taxonomy_database_name = kwargs.pop('new_taxonomy_database_name')
+        new_taxonomy_database_version = kwargs.pop('new_taxonomy_database_version')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -839,6 +842,9 @@ class Supplementor:
             raise Exception("The input metapackage was not generated using the GTDB taxonomy database, but was recorded as '{}' version '{}'. We are halting here to alert you to the fact that supplementing a metapackage that is already supplemented makes you responsible for ensuring that there aren't any species which have multiple representatives e.g. one from the first supplement and one from the second. If you are confident there are no species like this, rerun supplement mode with --ignore-taxonomy-database-incompatibility.".format(
                 old_metapackage.taxonomy_database_name(),
                 old_metapackage.taxonomy_database_version()))
+        
+        if new_taxonomy_database_name is None:
+            new_taxonomy_database_name = CUSTOM_TAXONOMY_DATABASE_NAME
 
         with tempfile.TemporaryDirectory() as working_directory:
             if predefined_working_directory:
@@ -930,7 +936,8 @@ class Supplementor:
             new_metapackage = generate_new_metapackage(threads, working_directory, old_metapackage,
                                                        new_genome_fasta_files, taxonomy_file,
                                                        genome_transcripts_and_proteins, hmmsearch_evalue,
-                                                       checkm2_quality_file, no_taxon_genome_lengths)
+                                                       checkm2_quality_file, no_taxon_genome_lengths,
+                                                       new_taxonomy_database_name, new_taxonomy_database_version)
 
             if new_metapackage is not None:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))
