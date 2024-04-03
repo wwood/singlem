@@ -47,7 +47,7 @@ from tqdm import tqdm
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 
-from .metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME
+from .metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME, GTDB_DATABASE_NAME
 from .archive_otu_table import ArchiveOtuTable
 from .sequence_classes import SeqReader
 from .singlem import FastaNameToSampleName, OrfMUtils
@@ -814,6 +814,7 @@ class Supplementor:
         skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
         no_taxon_genome_lengths = kwargs.pop('no_taxon_genome_lengths')
         gene_definitions = kwargs.pop('gene_definitions')
+        ignore_taxonomy_database_incompatibility = kwargs.pop('ignore_taxonomy_database_incompatibility')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -825,6 +826,19 @@ class Supplementor:
             for file_list in new_genome_fasta_files_list:
                 with open(file_list) as f:
                     new_genome_fasta_files = [x.strip() for x in f.readlines()]
+
+        if input_metapackage is None:
+            old_metapackage = Metapackage.acquire_default()
+        else:
+            old_metapackage = Metapackage.acquire(input_metapackage)
+        if ignore_taxonomy_database_incompatibility:
+            logging.warning("Ignoring potential taxonomy database incompatibility as specified. You are responsible for ensuring that any new genomes added to the metapackage are from species not currently in the input metapackage.")
+        elif old_metapackage.version < 5:
+            raise Exception("The input metapackage was generated using an older version of SingleM. You are responsible for ensuring that any new genomes added to the metapackage are from species not currently in the input metapackage, since these old versions did not track which genome database was used.")
+        elif old_metapackage.taxonomy_database_name() != GTDB_DATABASE_NAME:
+            raise Exception("The input metapackage was not generated using the GTDB taxonomy database, but was recorded as '{}' version '{}'. We are halting here to alert you to the fact that supplementing a metapackage that is already supplemented makes you responsible for ensuring that there aren't any species which have multiple representatives e.g. one from the first supplement and one from the second. If you are confident there are no species like this, rerun supplement mode with --ignore-taxonomy-database-incompatibility.".format(
+                old_metapackage.taxonomy_database_name(),
+                old_metapackage.taxonomy_database_version()))
 
         with tempfile.TemporaryDirectory() as working_directory:
             if predefined_working_directory:
@@ -884,11 +898,6 @@ class Supplementor:
                 logging.info("Generating faa and transcript fna files for the new genomes ..")
                 genome_transcripts_and_proteins = generate_faa_and_transcript_fna_files_for_new_genomes(
                     working_directory=working_directory, threads=threads, new_genome_fasta_files=new_genome_fasta_files)
-
-            if input_metapackage is None:
-                old_metapackage = Metapackage.acquire_default()
-            else:
-                old_metapackage = Metapackage.acquire(input_metapackage)
 
             if new_taxonomies:
                 taxonomy_file = new_taxonomies
