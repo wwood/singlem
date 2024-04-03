@@ -18,6 +18,8 @@ singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
 checkm2_output_dirs = config['checkm2_output_dirs'] # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
+taxonomy_database_name = config["taxonomy_database_name"]
+taxonomy_database_version = config["taxonomy_database_version"]
 
 print("Finding genomes...")
 genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
@@ -291,6 +293,8 @@ rule create_SingleM_metapackage:
         "--taxon-genome-lengths {input.genome_sizes} "
         "--metapackage {output} "
         "--threads {threads} "
+        "--taxonomy-database-name {taxonomy_database_name} "
+        "--taxonomy-database-version {taxonomy_database_version} "
         "&> {log}"
 
 #######################################
