@@ -552,6 +552,8 @@ if __name__ == '__main__':
     supplement_rare_group.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
     supplement_rare_group.add_argument('--no-taxon-genome-lengths', help='Do not include taxon genome lengths in updated metapackage', action='store_true')
     supplement_rare_group.add_argument('--ignore-taxonomy-database-incompatibility', help='Do not halt when the old metapackage is not the default metapackage.', action='store_true')
+    supplement_rare_group.add_argument('--new-taxonomy-database-name', help='Name of the taxonomy database to record in the created metapackage [default: %s]' % CUSTOM_TAXONOMY_DATABASE_NAME, default=CUSTOM_TAXONOMY_DATABASE_NAME)
+    supplement_rare_group.add_argument('--new-taxonomy-database-version', help='Version of the taxonomy database to use [default: None]')
 
     def validate_pipe_args(args, subparser='pipe'):
         if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -1347,6 +1349,8 @@ if __name__ == '__main__':
             no_taxon_genome_lengths=args.no_taxon_genome_lengths,
             gene_definitions=args.gene_definitions,
             ignore_taxonomy_database_incompatibility=args.ignore_taxonomy_database_incompatibility,
+            new_taxonomy_database_name=args.new_taxonomy_database_name,
+            new_taxonomy_database_version=args.new_taxonomy_database_version,
         )
 
     else:

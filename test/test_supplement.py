@@ -27,8 +27,12 @@ import os.path
 import pytest
 import shutil
 import tempfile
+import sys
 
 from bird_tool_utils import in_tempdir
+
+sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
+from singlem.metapackage import Metapackage
 
 path_to_script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'bin', 'singlem'))
 path_to_data = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'supplement'))
@@ -63,7 +67,7 @@ class Tests(unittest.TestCase):
 
     def test_defined_taxonomy(self):
         with in_tempdir():
-            cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy"
+            cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
             extern.run(cmd)
 
             cmd2 = f'{singlem} pipe --translation-table 11 --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
@@ -73,6 +77,11 @@ class Tests(unittest.TestCase):
                 '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
+            # Test --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+            mpkg = Metapackage.acquire('out.smpkg')
+            self.assertEqual('test_supplement', mpkg.taxonomy_database_name())
+            self.assertEqual('1.0', mpkg.taxonomy_database_version())
 
     @pytest.mark.skipif(not shutil.which('gtdbtk'), reason="GTDBtk not installed")
     def test_auto_taxonomy(self):
@@ -156,6 +165,11 @@ class Tests(unittest.TestCase):
             expected = "genome	taxonomy\n" \
                 "GCA_011373445.1_genomic.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__GCA_011373445.1_genomic\n"
             self.assertEqual(expected, taxonomy)
+
+            # Test lack of --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+            mpkg = Metapackage.acquire('out.smpkg')
+            self.assertEqual('custom_taxonomy_database', mpkg.taxonomy_database_name())
+            self.assertEqual(None, mpkg.taxonomy_database_version())
 
     def test_taxonomy_file_with_not_all_new_fast(self):
         with in_tempdir():
