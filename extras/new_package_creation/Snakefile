@@ -4,6 +4,12 @@ metapackage = config['metapackage_path']
 spkgs = config['singlem_packages'] if 'singlem_packages' in config else {}
 test_file = config['test_file'] if 'test_file' in config else None
 
+taxonomy_database_name = '--taxonomy-database-name ' + config['taxonomy_database_name'] if 'taxonomy_database_name' in config else ''
+taxonomy_database_version = '--taxonomy-database-version ' + config['taxonomy_database_version'] if 'taxonomy_database_version' in config else ''
+diamond_prefilter_performance_params = '--diamond-prefilter-performance-parameters ' + config['diamond_prefilter_performance_params'] if 'diamond_prefilter_performance_params' in config else ''
+diamond_assign_taxonomy_performance_params = '--diamond-taxonomy-assignment-performance-parameters ' + config['diamond_assign_taxonomy_performance_params'] if 'diamond_assign_taxonomy_performance_params' in config else ''
+makeidx_sensitivity_params = '--makeidx-sensitivity-params ' + config['makeidx_sensitivity_params'] if 'makeidx_sensitivity_params' in config else ''
+
 output_directory = config['singlem_new_metapackage_working_directory'] if 'singlem_new_metapackage_working_directory' in config else "singlem_new_metapackage_working_directory"
 
 # If spkgs are already defined in the config, copy them into the output
@@ -185,6 +191,11 @@ rule create_metapackage:
     input:
         spkgs = [os.path.join(output_directory, "chainsaw", f"{name}.spkg") for name in spkgs.keys()],
         done = [os.path.join(output_directory, "done", f"{name}.chainsaw.done") for name in spkgs.keys()],
+        taxonomy_database = taxonomy_database_name,
+        taxonomy_version = taxonomy_database_version,
+        diamond_prefilter_performance_params = diamond_prefilter_performance_params,
+        diamond_assign_taxonomy_performance_params = diamond_assign_taxonomy_performance_params,
+        makeidx_sensitivity_params = makeidx_sensitivity_params,
         # sdb = os.path.join(output_directory, "a.sdb") #TODO
     output:
         metapackage = directory(metapackage),
@@ -197,7 +208,8 @@ rule create_metapackage:
         "envs/singlem.yml"
     shell:
         # "singlem metapackage --singlem-package {input.spkg} --nucleotide-sdb {input.sdb} --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
-        "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
+        # "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
+        "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} {input.taxonomy_database} {input.taxonomy_version} {input.diamond_prefilter_performance_params} {input.diamond_assign_taxonomy_performance_params} {input.makeidx_sensitivity_params} 2> {log}"
 
 rule test_metapackage:
     input:
