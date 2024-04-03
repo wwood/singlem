@@ -36,7 +36,7 @@ class Metapackage:
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
 
-    _CURRENT_FORMAT_VERSION = 4
+    _CURRENT_FORMAT_VERSION = 5
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
