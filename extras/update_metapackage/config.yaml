@@ -26,3 +26,6 @@ gtdb_sp_clusters: /work/microbiome/db/gtdb/gtdb_release214/auxillary_files/sp_cl
 gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release214/bac120_metadata_r214.tsv
 gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release214/ar53_metadata_r214.tsv
 checkm2_output_dirs: /work/microbiome/msingle/mess/118_read_fraction_underrepresentation/gtdb_r214_rep_checkms
+# These 2 constants must jive with those in Metapackage
+taxonomy_database_name: Genome Taxonomy Database (GTDB)
+taxonomy_database_version: R214

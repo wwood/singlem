@@ -13,9 +13,12 @@ from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
+# These constants should be updated in tandem
 DATA_DEFAULT_VERSION = '3.2.1'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
 DATA_DOI = '10.5281/zenodo.5739611'
+GTDB_DATABASE_NAME = 'Genome Taxonomy Database (GTDB)'
+CURRENT_GTDB_DATABASE_VERSION = 'R214'
 
 CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 
