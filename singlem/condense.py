@@ -930,8 +930,13 @@ class CondensedCommunityProfile:
                     taxons_to_wordnode[tax] = wn
                 last_taxon = taxons_to_wordnode[tax]
             if wn is None:
-                raise Exception("Unexpected processing of taxon {}".format(taxons_split))
-            wn.coverage = float(coverage)
+                if taxons_split[-1] in taxons_to_wordnode:
+                    # This happens when the profile has more specific ranks
+                    # before less specific.
+                    wn = taxons_to_wordnode[taxons_split[-1]]
+                else:
+                    raise Exception("Unexpected processing of taxon {}".format(taxons_split))
+            wn.coverage += float(coverage)
 
         if current_sample is not None:
             yield CondensedCommunityProfile(current_sample, current_root)
