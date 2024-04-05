@@ -78,6 +78,7 @@ class Condenser:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
+        logging.info("Using trim percent of {}%".format(trim_percent*100))
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}

@@ -45,6 +45,10 @@ class SearchPipe:
     DEFAULT_HMMSEARCH_EVALUE = 1e-5
     DEFAULT_MAX_SPECIES_DIVERGENCE = 2
 
+    LOW_ABUNDANCE_MODE = 'low-abundance'
+    STRINGENT_MODE = 'stringent'
+    DEFAULT_MODE = STRINGENT_MODE
+
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
         archive_otu_table = kwargs.pop('archive_otu_table', None)
@@ -53,6 +57,7 @@ class SearchPipe:
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
+        mode = kwargs.pop('mode', SearchPipe.DEFAULT_MODE)
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
         if outputting_taxonomic_profile:
@@ -79,6 +84,23 @@ class SearchPipe:
             if output_taxonomic_profile or output_taxonomic_profile_krona:
                 tempfile.tempdir = original_tmpdir
                 from .condense import Condenser
+
+                if mode == SearchPipe.LOW_ABUNDANCE_MODE:
+                    if min_taxon_coverage is None:
+                        min_taxon_coverage = 0.15
+                    condense_trim_percent = 5  # requires 2+ genes for a 39 gene taxon like Archaea
+                elif mode == SearchPipe.STRINGENT_MODE:
+                    if 'genome_fasta_files' in kwargs:
+                        min_taxon_coverage = Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE
+                    else:
+                        min_taxon_coverage = Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE
+                    condense_trim_percent = Condenser.DEFAULT_TRIM_PERCENT
+                else:
+                    raise Exception("Unknown mode %s" % mode)
+                logging.info("Condensing OTU table into taxonomic profile using mode %s" % mode)
+                logging.debug("min_taxon_coverage: %s" % min_taxon_coverage)
+                logging.debug("condense_trim_percent: %s" % condense_trim_percent)
+        
                 otu_table_collection = StreamingOtuTableCollection()
                 otu_table_collection.add_archive_otu_table_object(otu_table_object)
                 Condenser().condense(
@@ -87,6 +109,7 @@ class SearchPipe:
                     krona = output_taxonomic_profile_krona,
                     metapackage = metapackage,
                     min_taxon_coverage = min_taxon_coverage,
+                    trim_percent = condense_trim_percent,
                 )
 
 

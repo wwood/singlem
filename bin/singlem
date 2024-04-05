@@ -98,6 +98,10 @@ if __name__ == '__main__':
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
+        current_default = SearchPipe.DEFAULT_MODE
+        argument_group.add_argument('--mode', choices=(
+            SearchPipe.LOW_ABUNDANCE_MODE, SearchPipe.STRINGENT_MODE),
+            help=f'output mode [default: {current_default}]', default=current_default)
         current_default = SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_METHOD
         argument_group.add_argument(
             '--assignment-method', '--assignment_method',
@@ -672,14 +676,6 @@ if __name__ == '__main__':
         else:
             raise Exception("Programming error")
 
-    def get_min_taxon_coverage(args, subparser='pipe'):
-        if args.min_taxon_coverage:
-            return args.min_taxon_coverage
-        elif subparser == 'pipe' and args.genome_fasta_files:
-            return Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE
-        else:
-            return Condenser.DEFAULT_MIN_TAXON_COVERAGE
-
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
         singlem.pipe.SearchPipe().run(
@@ -719,8 +715,9 @@ if __name__ == '__main__':
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
             exclude_off_target_hits = args.exclude_off_target_hits,
-            min_taxon_coverage = get_min_taxon_coverage(args),
+            min_taxon_coverage = args.min_taxon_coverage,
             max_species_divergence = args.max_species_divergence,
+            mode = args.mode,
         )
 
     elif args.subparser_name=='renew':
