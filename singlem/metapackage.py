@@ -226,9 +226,13 @@ class Metapackage:
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
+        calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if average_num_genes_per_species not in (True, False):
+            raise Exception("average_num_genes_per_species must be a boolean")
 
         if os.path.exists(output_path):
             raise Exception("Not writing new SingleM metapackage to already existing file/directory with name %s" % output_path)
