@@ -183,7 +183,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
         else:
             # Check that the taxonomy provided is a known taxonomy in the current metapackage.
             if not skip_taxonomy_check:
-                taxonomy_to_check = re.sub(r';.__$', '', re.sub(r';.__;.*', '', ';'.join(taxonomy)))
+                taxonomy_to_check = re.sub(r'; {0,1}.__$', '', re.sub(r'; {0,1}.__;.*', '', ';'.join(taxonomy)))
                 if taxonomy_to_check not in known_taxons:
                     raise Exception(
                         "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage".format(
