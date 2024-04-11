@@ -1,10 +1,10 @@
 max_threads: 32
 gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_fna_reps/
 # gtdb_protein_fna_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_fna_reps2 # test
-output_dir: /work/microbiome/msingle/mess/163_S3.1.1_metapackage/output_dir
+output_dir: /work/microbiome/msingle/mess/167_metapackage_v5/r207
 # output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir # test
 metapackage: /home/woodcrob/git/singlem/db/S3.0.5.metapackage20220806.smpkg
-new_metapackage: S3.1.1.GTDB_r207.metapackage_20240302.smpkg
+new_metapackage: S3.1.2.GTDB_r207.metapackage_20240405.smpkg
 # untarred ~/m/db/gtdb/gtdb_release207/genomic_files_reps/gtdb_proteins_aa_reps_r207.tar.gz
 gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_faa_reps
 # gtdb_protein_faa_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_faa_reps2 # test
@@ -22,7 +22,6 @@ sra_seqs_2:
   DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_2.fastq
   SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_2.fastq
   SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_2.fastq
-gtdb_sp_clusters: /work/microbiome/db/gtdb/gtdb_release207/auxillary_files/sp_clusters_r207.tsv
 gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release207/bac120_metadata_r207.tsv
 gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release207/ar53_metadata_r207.tsv
 checkm2_output_dirs: /work/microbiome/msingle/mess/118_read_fraction_underrepresentation/gtdb_rep_checkms
