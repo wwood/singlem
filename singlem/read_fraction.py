@@ -167,7 +167,7 @@ class ReadFractionEstimator:
                 else:
                     average_genome_size = average_genome_size_numerator / average_genome_size_denominator
 
-                print("%s\t%s\t%s\t%0.2f%%\t%s\t%s" % (
+                print("%s\t%s\t%s\t%0.2f\t%s\t%s" % (
                     sample,
                     round(account),
                     metagenome_size,
