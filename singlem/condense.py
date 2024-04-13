@@ -580,6 +580,7 @@ class Condenser:
         logging.debug("Species whitelist: {}".format(species_whitelist))
 
         num_steps = 0
+        min_num_steps = 50
         # The fraction of each undecided OTU is the ratio of that class's
         # coverage (coverage in the current iteration) to the total coverage of
         # all best hits of the undecided OTU
@@ -617,14 +618,15 @@ class Condenser:
 
             # Remove species that appear to be noise based upon having low
             # coverage and proximity to higher coverage species
-            failed_species = self._find_species_with_low_coverage_and_proximity_to_higher_coverage_species(
-                next_species_to_coverage, species_whitelist, proximity_cutoff)
-            for failed_s in failed_species:
-                logging.debug("Removing species {} due to low coverage and proximity to higher coverage species".format(failed_species))
-                del next_species_to_coverage[failed_s]
+            if num_steps >= min_num_steps:
+                failed_species = self._find_species_with_low_coverage_and_proximity_to_higher_coverage_species(
+                    next_species_to_coverage, species_whitelist, proximity_cutoff)
+                for failed_s in failed_species:
+                    logging.debug("Removing species {} due to low coverage and proximity to higher coverage species".format(failed_species))
+                    del next_species_to_coverage[failed_s]
 
             # Has any species changed in abundance by a large enough amount? If not, we're done
-            if len(failed_species) > 0:
+            if num_steps < min_num_steps or len(failed_species) > 0:
                 # Always iterate again if we removed any species, because
                 # otherwise their coverage contributions will be lost.
                 need_another_iteration = True
