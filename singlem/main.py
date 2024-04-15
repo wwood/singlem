@@ -488,6 +488,7 @@ def main():
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
     metapackage_parser.add_argument('--makeidx-sensitivity-params', metavar='PARAMS', help='DIAMOND sensitivity parameters to use when indexing the prefilter DIAMOND db. [default: None]', default=None)
+    metapackage_parser.add_argument('--calculate-average-num-genes-per-species', action='store_true', help='Calculate the average number of genes per species in the metapackage. [default: False]', default=False)
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = bird_argparser.new_subparser('chainsaw', chainsaw_description)
@@ -1243,6 +1244,7 @@ def main():
                 diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
                 diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
                 makeidx_sensitivity_params = args.makeidx_sensitivity_params,
+                calculate_average_num_genes_per_species = args.calculate_average_num_genes_per_species,
             )
 
     elif args.subparser_name == 'condense':
