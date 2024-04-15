@@ -43,17 +43,20 @@ class MetapackageReadNameStore:
                 sqlitedb_path, temp_file.name))
 
             if taxonomy_marker_counts is not None:
+                logging.debug("Creating taxonomy_marker_count table")
                 TaxonomyMarkerCount.metadata.create_all(engine)
                 with tempfile.NamedTemporaryFile(prefix='singlem_metapackage_read_name_store', suffix='.tsv') as temp_file:
+                    num_species = 0
                     for taxonomy, marker_count in taxonomy_marker_counts.items():
-                        temp_file.write("{}\t{}\n".format(
+                        num_species += 1
+                        temp_file.write("{}\t{}\t{}\n".format(
+                            num_species,
                             taxonomy,
                             marker_count).encode('utf-8'))
                     temp_file.flush()
 
                     extern.run("sqlite3 {} '.mode tabs' '.import {} taxonomy_marker_count'".format(
                         sqlitedb_path, temp_file.name))
-
         logging.info("Imported {} packages and {} read names.".format(num_packages, num_read_names))
 
     @staticmethod
