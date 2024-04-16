@@ -105,6 +105,12 @@ class MetapackageReadNameStore:
             raise Exception("Not all taxons found in metapackage sqlite3 database")
         return taxon_to_count
 
+    def get_all_marker_counts(self):
+        '''Return a dict of all taxonomy strings to marker counts'''
+        stmt = select(TaxonomyMarkerCount)
+        with self.engine.connect() as conn:
+            return {res.taxonomy: res.marker_count for res in conn.execute(stmt)}
+
 class ReadNameTaxonomy(Base):
     __tablename__ = "read_name_taxonomy"
 
