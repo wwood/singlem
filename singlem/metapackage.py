@@ -480,6 +480,10 @@ class Metapackage:
     def get_taxon_marker_counts(self, taxons):
         store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
         return store.get_marker_counts_of_species(taxons)
+    
+    def get_all_taxon_marker_counts(self):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_all_marker_counts()
 
     def nucleotide_sdb(self):
         # import here so that we avoid tensorflow dependency if not needed
