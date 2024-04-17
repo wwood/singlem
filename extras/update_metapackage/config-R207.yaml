@@ -1,10 +1,12 @@
 max_threads: 32
 gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_fna_reps/
 # gtdb_protein_fna_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_fna_reps2 # test
-output_dir: /work/microbiome/msingle/mess/167_metapackage_v5/r207
+# output_dir: /work/microbiome/msingle/mess/167_metapackage_v5/r207
+output_dir: /data1/woodcrob/r207
 # output_dir: /work/microbiome/msingle/mess/116_smafa_naive_metapackage/20221209/output_dir # test
 metapackage: /home/woodcrob/git/singlem/db/S3.0.5.metapackage20220806.smpkg
 new_metapackage: S3.1.2.GTDB_r207.metapackage_20240405.smpkg
+new_version_number: 3.1.2
 # untarred ~/m/db/gtdb/gtdb_release207/genomic_files_reps/gtdb_proteins_aa_reps_r207.tar.gz
 gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release207/genomic_files_reps/protein_faa_reps
 # gtdb_protein_faa_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_faa_reps2 # test
