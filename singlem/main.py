@@ -521,6 +521,7 @@ def main():
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+    optional_condense_arguments.add_argument('--viral-mode', action='store_true', help='Use viral mode, which requires a Lyrebird metapackage [default: False]', default=False)
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = bird_argparser.new_subparser('trim_package_hmms', trim_package_hmms_description)
@@ -1256,6 +1257,7 @@ def main():
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
             input_streaming_otu_table = otus,
+            viral_mode = args.viral_mode,
             metapackage_path = args.metapackage,
             trim_percent = args.trim_percent,
             output_otu_table = args.taxonomic_profile,
