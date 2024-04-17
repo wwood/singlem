@@ -25,6 +25,9 @@ print("Finding genomes...")
 genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
 genomes = ["/".join(g.split("/")[-2:]) for g in genome_paths]
 
+zenodo_backpack = os.path.join(output_dir, config["new_metapackage"]+'.zb.tar.gz')
+zenodo_backpack_version = config['new_version_number']
+
 # genomes = genomes[:50]+genomes[(len(genomes)-50):] # debug, so have archaea and bacteria
 print("Found {} genomes.".format(len(genomes)))
 
@@ -35,10 +38,21 @@ wildcard_constraints:
 
 rule all:
     input:
-        output_dir + "/metapackage/" + config["new_metapackage"],
+        zenodo_backpack,
         # Right now the new singlem won't work with the old metapackage, so only run the new metapackages.
         expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
         # output_dir + "/sra/done"
+
+rule zenodo_backpack:
+    input:
+        metapackage = output_dir + "/metapackage/" + config["new_metapackage"],
+    output:
+        zenodo_backpack=zenodo_backpack,
+        done=touch(output_dir + "/zenodo_backpack.done")
+    conda:
+        "../../singlem.yml"
+    shell:
+        "zenodo_backpack create --input-directory {input.metapackage} --output-file {output.zenodo_backpack} --data-version {zenodo_backpack_version}"
 
 ####################
 ### HMM searches ###
@@ -215,24 +229,26 @@ rule SingleM_transcripts:
         metapackage = output_dir + "/draft_metapackage.smpkg"
     output:
         dir = directory(output_dir + "/transcripts"),
-        touch = output_dir + "/transcripts/done"
+        touch = touch(output_dir + "/transcripts/done")
     threads: 64
     params:
         singlem = singlem_bin,
         logs = logs_dir + "/transcripts"
     conda:
         "../../singlem.yml"
+    log:
+        logs_dir + "/transcripts.log"
     shell:
         "mkdir -p {params.logs} "
         "&& cat <( find {input.dir} -name '*.fna' ) "
-        "| parallel --eta -j {threads} "
+        "| parallel --halt-on-error 1 --eta -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
         "--metapackage {input.metapackage} "
         "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
         "--no-assign-taxonomy "
         "'&>' {params.logs}/{{/.}}.log "
-        "&& touch {output.touch}"
+        "2> {log}"
 
 rule assign_taxonomy:
     input:
@@ -293,8 +309,8 @@ rule create_SingleM_metapackage:
         "--taxon-genome-lengths {input.genome_sizes} "
         "--metapackage {output} "
         "--threads {threads} "
-        "--taxonomy-database-name {taxonomy_database_name} "
-        "--taxonomy-database-version {taxonomy_database_version} "
+        "--taxonomy-database-name '{taxonomy_database_name}' "
+        "--taxonomy-database-version '{taxonomy_database_version}' "
         "&> {log}"
 
 #######################################
