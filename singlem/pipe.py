@@ -279,7 +279,8 @@ class SearchPipe:
             forward_read_files = [transcripts_path.name]
 
         def return_cleanly():
-            tempfile.tempdir = None
+            if using_temporary_working_directory and not working_directory_dev_shm:
+                tempfile.tempdir = None
             logging.info("Finished")
 
         #### Search
