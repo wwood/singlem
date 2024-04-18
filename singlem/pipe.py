@@ -279,6 +279,7 @@ class SearchPipe:
             forward_read_files = [transcripts_path.name]
 
         def return_cleanly():
+            tempfile.tempdir = None
             logging.info("Finished")
 
         #### Search
