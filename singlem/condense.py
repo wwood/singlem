@@ -138,7 +138,7 @@ class Condenser:
             avg_num_genes_per_species = int(metapackage.avg_num_genes_per_species())
             if avg_num_genes_per_species is None:
                 raise Exception("Metapackage does not contain average number of genes per species")
-            taxon_marker_counts = metapackage.get_all_taxon_marker_counts()
+            taxon_marker_counts = metapackage.get_taxon_marker_counts([o.taxonomy for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])
 
         if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains, taxon_marker_counts)
@@ -312,7 +312,7 @@ class Condenser:
                 node_list = node_list_queue.get()
 
                 # Calculate stat for this set of markers
-                if avg_num_genes_per_species is not None:
+                if avg_num_genes_per_species is not None: # Running in viral mode
                     m_coverages = [m.get_full_coverage() for m in node_list]
                     total_num_markers = max(avg_num_genes_per_species, len(m_coverages))
                 abundance = self.calculate_abundance(
