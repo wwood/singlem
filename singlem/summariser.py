@@ -612,6 +612,8 @@ class Summariser:
 
         print("\t".join(["sample", "coverage", "full_coverage", "relative_abundance", "level", "taxonomy"]), file=output_io)
 
+        levels = ['root','domain','phylum','class','order','family','genus','species']
+
         # For each profile
         num_printed = 0
         for profile_file in input_taxonomic_profile_files:
@@ -623,19 +625,17 @@ class Summariser:
                     # Now write out the profile
                     for wn in profile.breadth_first_iter():
                         level = wn.calculate_level()
+                        if level >= len(levels):
+                            raise Exception("Unexpected level number: %s, this summariser method only know of %s" % (level, levels))
                         full_coverage = wn.get_full_coverage()
                         print("\t".join([
                             profile.sample,
                             str(wn.coverage),
                             str(round(full_coverage, 2)),
                             str(round(full_coverage / total_coverage * 100, 2)),
-                            str(level),
+                            str(levels[level]),
                             '; '.join(wn.get_taxonomy())
                         ]), file=output_io)
                         num_printed += 1
 
         logging.info("Wrote {} lines of taxonomic profile with extras".format(num_printed))
-
-    @staticmethod
-    def write_site_by_species_by_prefix(self):
-        pass
