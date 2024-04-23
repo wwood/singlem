@@ -454,54 +454,67 @@ class Summariser:
     def write_species_by_site_table(**kwargs):
         input_taxonomic_profiles = kwargs.pop('input_taxonomic_profiles')
         output_species_by_site_relative_abundance_table = kwargs.pop('output_species_by_site_relative_abundance_table')
-        level = kwargs.pop('level')
+        target_level = kwargs.pop('level')
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        logging.info("Writing site by species table")
+        if target_level:
+            logging.info("Writing species by site table at level {}".format(target_level))
+        else:
+            logging.info("Writing species by site table for each taxonomic level ..")
         levels = ['root','domain','phylum','class','order','family','genus','species']
-        if level not in levels:
-            raise Exception("Unexpected level: %s" % level)
-        level_index = levels.index(level)
+        if target_level is not None:
+            if target_level not in levels:
+                raise Exception("Unexpected level: %s" % target_level)
+            level_index = levels.index(target_level)
 
         # Read the taxonomic profile
-        all_profiles = []
+        all_profiles = {}
         for profile_file in input_taxonomic_profiles:
             with open(profile_file) as f:
                 for profile in CondensedCommunityProfile.each_sample_wise(f):
-                    unassigned = 0.
-                    name_to_coverage = {}
+                    total_coverage_in_profile = profile.tree.get_full_coverage()
+
+                    level_to_name_to_coverage = {}
                     for node in profile.breadth_first_iter():
                         node_level = node.calculate_level()
-                        if node_level < level_index:
-                            unassigned += node.coverage
-                        elif node_level == level_index:
-                            name_to_coverage['; '.join(node.get_taxonomy())] = node.get_full_coverage()
-                        else:
-                            # node_level > level_index
-                            # This coveage already included 
-                            pass
-                    # TODO: Sort keys? Later down I guess
-                    keys = list(name_to_coverage.keys()) # not 100% confident that iterations will be in same order
-                    current_sample = pl.DataFrame({
-                        'taxonomy': keys,
-                        'coverage': [name_to_coverage[k] for k in keys]
-                    })
-                    current_sample.columns = ['taxonomy','coverage']
-                    current_sample = pl.concat([
-                        pl.DataFrame([{'taxonomy':'unassigned','coverage':unassigned}]),
-                        current_sample
-                    ])
-                    current_sample = current_sample.with_columns(pl.lit(profile.sample).alias('sample'))
-                    # Make into a relabund
-                    total_coverage = current_sample['coverage'].sum()
-                    current_sample = current_sample.with_columns((pl.col('coverage') / total_coverage * 100).round(2).alias('relative_abundance'))
-                    all_profiles.append(current_sample)
+                        if node_level == 0:
+                            continue
+                        if node_level not in level_to_name_to_coverage:
+                            level_to_name_to_coverage[node_level] = {}
+                        name = '; '.join(node.get_taxonomy())
+                        if name not in level_to_name_to_coverage[node_level]:
+                            level_to_name_to_coverage[node_level][name] = 0.
+                        level_to_name_to_coverage[node_level][name] += node.get_full_coverage()
 
-        # Concatenate all profiles
-        all_profiles = pl.concat(all_profiles)
-        all_profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
-        logging.info("Wrote site by species table for {} samples".format(len(all_profiles['sample'].unique())))
+                    for level, name_to_coverage in level_to_name_to_coverage.items():
+                        if target_level is not None and level != level_index:
+                            continue # Skip this level
+                        unassigned_coverage = total_coverage_in_profile - sum([coverage for coverage in name_to_coverage.values()])
+                        coverage_values = [unassigned_coverage]+list(name_to_coverage.values())
+                        relabunds = [round(coverage / total_coverage_in_profile * 100, 2) for coverage in coverage_values]
+                        new_profile = pl.DataFrame({
+                            'taxonomy': ['unassigned']+list(name_to_coverage.keys()),
+                            'relative_abundance': relabunds
+                        }).with_columns(pl.lit(profile.sample).alias('sample'))
+                        if level not in all_profiles:
+                            all_profiles[level] = []
+                        all_profiles[level].append(new_profile)
+        
+        if target_level is not None:
+            profiles = pl.concat(all_profiles[target_level])
+            profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
+            logging.info("Wrote site by species table for {} samples".format(len(all_profiles['sample'].unique())))
+        else:
+            # Write out a CSV for each level, with the name being the prefix, and the level being the suffix
+            for level, profiles in all_profiles.items():
+                num_samples = len(profiles)
+                profiles = pl.concat(profiles)
+                output_filename = output_species_by_site_relative_abundance_table+'-'+levels[level]+'.tsv'
+                profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_filename, separator='\t')
+                logging.info("Wrote site by species table {} for {} sample(s) at level {}".format(
+                    output_filename, num_samples, levels[level]))
+        
 
     @staticmethod
     def write_taxonomic_level_coverage_table(**kwargs):
@@ -622,3 +635,7 @@ class Summariser:
                         num_printed += 1
 
         logging.info("Wrote {} lines of taxonomic profile with extras".format(num_printed))
+
+    @staticmethod
+    def write_site_by_species_by_prefix(self):
+        pass

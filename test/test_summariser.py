@@ -29,6 +29,7 @@ from io import StringIO
 import tempfile
 import extern
 import re
+from bird_tool_utils import in_tempdir
 
 path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -340,6 +341,47 @@ Root; d__Bacteria; p__Actinobacteriota  0.0     2.83
 """)
         self.assertEqual(expected, stdout)
 
+    def test_species_by_site_relative_abundance_prefix(self):
+        with in_tempdir():
+            stdout = extern.run(f'{path_to_script} summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+                --output-species-by-site-relative-abundance-prefix prefIX')
+            with open('prefIX-domain.tsv') as f:
+                self.assertEqual(f.read(), re.compile(r'  +').sub('\t', """taxonomy\tmarine0.1
+unassigned      0.0
+Root; d__Archaea   58.58
+Root; d__Bacteria      41.42
+"""))
+            with open('prefIX-phylum.tsv') as f:
+                self.assertEqual(f.read(), re.compile(r'  +').sub('\t', """taxonomy\tmarine0.1
+unassigned      50.77
+Root; d__Archaea; p__Thermoproteota  7.81
+Root; d__Bacteria; p__Desulfobacterota       11.16
+Root; d__Bacteria; p__Proteobacteria  30.26
+"""))
+
+    def test_species_by_site_prefix_2_samples(self):
+        with in_tempdir():
+            stdout = extern.run(f'{path_to_script} summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+                {path_to_data}/summarise/land.profile \
+                --output-species-by-site-relative-abundance-prefix prefIX')
+            with open('prefIX-domain.tsv') as f:
+                self.assertEqual(f.read(), re.compile(r'  +').sub('\t', """taxonomy\tmarine0.1   land0.1
+unassigned      0.0    0.0
+Root; d__Archaea   58.58    0.0
+Root; d__Bacteria      41.42    100.0
+"""))
+            with open('prefIX-phylum.tsv') as f:
+                self.assertEqual(f.read(), re.compile(r'  +').sub('\t', """taxonomy\tmarine0.1   land0.1
+unassigned      50.77   0.0
+Root; d__Archaea; p__Thermoproteota     7.81    0.0
+Root; d__Bacteria; p__Desulfobacterota  11.16   0.0
+Root; d__Bacteria; p__Proteobacteria    30.26   14.58
+Root; d__Bacteria; p__Firmicutes        0.0     75.61
+Root; d__Bacteria; p__Firmicutes_A      0.0     6.98
+Root; d__Bacteria; p__Actinobacteriota  0.0     2.83
+"""))
+
+
     def test_concatenate_profiles(self):
         stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
              {path_to_data}/summarise/profile2.tsv \
@@ -398,6 +440,7 @@ land       0.56      0.56           7.81                2      Root; d__Archaea;
 land       0.8       0.8            11.16               2      Root; d__Bacteria; p__Desulfobacterota
 land       2.17      2.17           30.26               2      Root; d__Bacteria; p__Proteobacteria
 """)
+        self.assertEqual(expected, stdout)
         
 
 if __name__ == "__main__":
