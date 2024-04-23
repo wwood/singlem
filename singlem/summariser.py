@@ -587,3 +587,38 @@ class Summariser:
                 
         logging.info("Wrote {} filled taxonomic profiles".format(
             len(input_taxonomic_profile_files)))
+
+    @staticmethod
+    def write_taxonomic_profile_with_extras(**kwargs):
+        input_taxonomic_profile_files = kwargs.pop('input_taxonomic_profile_files')
+        output_io = kwargs.pop('output_taxonomic_profile_extras_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Writing taxonomic profile with extras")
+
+        print("\t".join(["sample", "coverage", "full_coverage", "relative_abundance", "level", "taxonomy"]), file=output_io)
+
+        # For each profile
+        num_printed = 0
+        for profile_file in input_taxonomic_profile_files:
+            with open(profile_file) as f:
+                for profile in CondensedCommunityProfile.each_sample_wise(f):
+                    # First get the total coverage of each taxonomic level, to act as the numerator
+                    total_coverage = profile.tree.get_full_coverage()
+
+                    # Now write out the profile
+                    for wn in profile.breadth_first_iter():
+                        level = wn.calculate_level()
+                        full_coverage = wn.get_full_coverage()
+                        print("\t".join([
+                            profile.sample,
+                            str(wn.coverage),
+                            str(round(full_coverage, 2)),
+                            str(round(full_coverage / total_coverage * 100, 2)),
+                            str(level),
+                            '; '.join(wn.get_taxonomy())
+                        ]), file=output_io)
+                        num_printed += 1
+
+        logging.info("Wrote {} lines of taxonomic profile with extras".format(num_printed))
