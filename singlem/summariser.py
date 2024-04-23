@@ -502,9 +502,10 @@ class Summariser:
                         all_profiles[level].append(new_profile)
         
         if target_level is not None:
-            profiles = pl.concat(all_profiles[target_level])
+            profiles = pl.concat(all_profiles[level_index])
+            num_samples = len(profiles)
             profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
-            logging.info("Wrote site by species table for {} samples".format(len(all_profiles['sample'].unique())))
+            logging.info("Wrote site by species table for {} samples".format(num_samples))
         else:
             # Write out a CSV for each level, with the name being the prefix, and the level being the suffix
             for level, profiles in all_profiles.items():
