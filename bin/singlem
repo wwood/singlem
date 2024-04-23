@@ -366,6 +366,7 @@ if __name__ == '__main__':
     summarise_output_args.add_argument('--output-species-by-site-level', help="Output site by species level to this file", choices=['species','genus','family','order','class','phylum','domain'], default='species')
     summarise_output_args.add_argument('--output-taxonomic-level-coverage', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file")
     summarise_output_args.add_argument('--output-filled-taxonomic-profile', help="Output a taxonomic profile where the coverage of each taxon includes the coverage of each of its descendent taxons e.g. the d__Bacteria entry includes the p__Patescibacteria entry. Requires --input-taxonomic-profiles.")
+    summarise_output_args.add_argument('--output-taxonomic-profile-with-extras', help="Output a taxonomic profile with extra information (coverage, 'filled' coverage, relative abundance, taxonomy level). Requires --input-taxonomic-profiles.")
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage.'
     read_fraction_parser = bird_argparser.new_subparser('microbial_fraction', read_fraction_description, parser_group='Tools')
@@ -776,6 +777,7 @@ if __name__ == '__main__':
         if args.output_species_by_site_relative_abundance: num_output_types += 1
         if args.output_taxonomic_level_coverage: num_output_types += 1
         if args.output_filled_taxonomic_profile: num_output_types += 1
+        if args.output_taxonomic_profile_with_extras: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and \
@@ -982,6 +984,11 @@ if __name__ == '__main__':
                     Summariser.write_filled_taxonomic_profile(
                         input_taxonomic_profile_files = args.input_taxonomic_profiles,
                         output_filled_taxonomic_profile_io = f)
+            elif args.output_taxonomic_profile_with_extras:
+                with open(args.output_taxonomic_profile_with_extras, 'w') as f:
+                    Summariser.write_taxonomic_profile_with_extras(
+                        input_taxonomic_profile_files = args.input_taxonomic_profiles,
+                        output_taxonomic_profile_extras_io = f)
             else:
                 raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance or --output-taxonomic-level-coverage to be defined, since --input-taxonomic-profiles was defined")
 
