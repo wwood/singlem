@@ -427,18 +427,18 @@ land       2.17    Root; d__Bacteria; p__Proteobacteria
             '--output-taxonomic-profile-with-extras /dev/stdout'
         stdout = extern.run(cmd)
         expected = re.compile(r'  +').sub('\t', """sample     coverage  full_coverage  relative_abundance  level  taxonomy
-marine0.1  0         7.17           100.0               0      Root
-marine0.1  3.64      4.2            58.58               1      Root; d__Archaea
-marine0.1  0         2.97           41.42               1      Root; d__Bacteria
-marine0.1  0.56      0.56           7.81                2      Root; d__Archaea; p__Thermoproteota
-marine0.1  0.8       0.8            11.16               2      Root; d__Bacteria; p__Desulfobacterota
-marine0.1  2.17      2.17           30.26               2      Root; d__Bacteria; p__Proteobacteria
-land       0         7.17           100.0               0      Root
-land       3.64      4.2            58.58               1      Root; d__Archaea
-land       0         2.97           41.42               1      Root; d__Bacteria
-land       0.56      0.56           7.81                2      Root; d__Archaea; p__Thermoproteota
-land       0.8       0.8            11.16               2      Root; d__Bacteria; p__Desulfobacterota
-land       2.17      2.17           30.26               2      Root; d__Bacteria; p__Proteobacteria
+marine0.1  0         7.17           100.0               root      Root
+marine0.1  3.64      4.2            58.58               domain      Root; d__Archaea
+marine0.1  0         2.97           41.42               domain      Root; d__Bacteria
+marine0.1  0.56      0.56           7.81                phylum      Root; d__Archaea; p__Thermoproteota
+marine0.1  0.8       0.8            11.16               phylum      Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      2.17           30.26               phylum      Root; d__Bacteria; p__Proteobacteria
+land       0         7.17           100.0               root      Root
+land       3.64      4.2            58.58               domain      Root; d__Archaea
+land       0         2.97           41.42               domain      Root; d__Bacteria
+land       0.56      0.56           7.81                phylum      Root; d__Archaea; p__Thermoproteota
+land       0.8       0.8            11.16               phylum      Root; d__Bacteria; p__Desulfobacterota
+land       2.17      2.17           30.26               phylum      Root; d__Bacteria; p__Proteobacteria
 """)
         self.assertEqual(expected, stdout)
         
