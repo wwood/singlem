@@ -6,6 +6,7 @@ prodigal_runner_path = config['prodigal_runner_path'] #'~/git/prodigal-runner/bi
 mag_paths = config['mag_paths']
 gtdbtk_db_path = config['GTDBTK_DATA_PATH']
 checkm2_db = config['CHECKM2DB']
+num_threads = 8
 
 output_directory = config['output'] if 'output_directory' in config else 'supplement_preparation'
 genome_fasta_extension = config['genome_fasta_extension'] if 'genome_fasta_extension' in config else '.fna'
@@ -27,11 +28,61 @@ print("Found {} genome files and {} groups".format(len(genomes_input), len(group
 group_ids = list([str(i) for i in range(len(groups))])
 group_ids = list([i for i in range(len(groups))])
 
-rule all:
+rule all: 
+    input:
+        f'{output_directory}/done/all-prodigal-runner.done',
+        f'{output_directory}/done/all-gtdbtk.done',
+        f'{output_directory}/done/all-checkm2.done',
+        f'{output_directory}/done/galah.done'
+
+rule galah:
+    input:
+        checkm2_report = f'{output_directory}/checkm2_quality_report.tsv',
+    output:
+        representatives = f'{output_directory}/galah_representatives.tsv',
+        done = touch(f'{output_directory}/done/galah.done')
+    conda:
+        "envs/galah.yml"
+    threads: num_threads
+    shell:
+        "galah cluster --genome-fasta-list {mag_paths} --checkm2-quality-report {input.checkm2_report} --output-representative-list {output.representatives} -t {threads}"
+
+rule all_checkm2:
     input:
         expand(f'{output_directory}/done/checkm2-'+'{group}.done', group=range(len(groups))),
+    output:
+        report = f'{output_directory}/checkm2_quality_report.tsv',
+        done = touch(f'{output_directory}/done/all-checkm2.done')
+    shell:
+        """
+        head -1 {output_directory}/checkm2/0/quality_report.tsv > {output.report} && \
+        find {output_directory}/checkm2/ |grep quality_report.tsv | parallel -j1 -k tail -n+2 {{}} >> {output.report}
+        """
+
+rule all_gtdbtk:
+    input:
         expand(f'{output_directory}/done/gtdbtk-'+'{group}.done', group=range(len(groups))),
-        expand(f'{output_directory}/done/prodigal-runner-'+'{group}.done', group=range(len(groups)))
+    output:
+        done = touch(f'{output_directory}/done/all-gtdbtk.done')
+    shell:
+        """
+        head -1 {output_directory}/gtdbtk/0/gtdbtk.ar53.summary.tsv > {output_directory}/gtdbtk/gtdbtk.ar53.summary.tsv && \
+        find {output_directory}/gtdbtk  -type f |grep -v gtdbtk/gtdbtk.ar53.summary.tsv |grep gtdbtk.ar53.summary.tsv | parallel -j1 tail -n+2 {{}} >> {output_directory}/gtdbtk/gtdbtk.ar53.summary.tsv && \
+        head -1 {output_directory}/gtdbtk/0/gtdbtk.bac120.summary.tsv > {output_directory}/gtdbtk/gtdbtk.bac120.summary.tsv && \
+        find {output_directory}/gtdbtk  -type f |grep -v gtdbtk/gtdbtk.bac120.summary.tsv |grep gtdbtk.bac120.summary.tsv | parallel -j1 tail -n+2 {{}} >> {output_directory}/gtdbtk/gtdbtk.bac120.summary.tsv
+        """
+
+rule all_prodigal_runner:
+    input:
+        expand(f'{output_directory}/done/prodigal-runner-'+'{group}.done', group=range(len(groups))),
+    output:
+        gene_definitions = f'{output_directory}/gene_definitions.tsv',
+        done=touch(f'{output_directory}/done/all-prodigal-runner.done')
+    params:
+        output_directory = output_directory,
+        genomes_input = genomes_input,
+    script:
+        "bin/combine-prodigal-runner.py"
 
 rule checkm2:
     output:
