@@ -4,7 +4,7 @@
 # SingleM
 Welcome.
 
-SingleM is a tool for profiling shotgun metagenomes. It shows good accuracy in estimating the relative abundances of microbial community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, computing ecological diversity metrics, and lineage-targeted MAG recovery.
+SingleM is a tool for profiling shotgun metagenomes. It shows good accuracy in estimating the relative abundances of microbial community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery and lineage-targeted MAG recovery.
 
 SingleM has been applied to ~250,000 public metagenomes. The resulting data are available at a companion website [Sandpiper](https://sandpiper.qut.edu.au).
 
@@ -31,7 +31,7 @@ If you have any questions or comments, raise a [GitHib issue](https://github.com
 
 ### Glossary
 
-* **Taxonomic profile** - A tab-separated table containing the estimated abundances of GTDB taxons in a metagenome. It is in TSV format with 3 columns, with each row corresponding to a taxon. A taxonomic profile may also be called a **condensed profile**, since it is the output of the `condense` algorithm within the main `pipe` workflow. Columns:
+* **Taxonomic profile** - A tab-separated table containing the estimated abundances of GTDB taxons in a metagenome. It is in TSV format with 3 columns, with each row corresponding to a taxon. A taxonomic profile may also be called a **condensed profile**, since it is the output of the `condense` algorithm within the main `pipe` workflow. Taxonomic profiles can be converted to other formats using `singlem summarise`. Columns:
   1. sample name. A taxonomic profile can consist of more than one sample. Usually all the taxons in the first sample are listed, and then the taxons in the second sample, and so on.
   2. coverage of that taxon. This is an approximation of the total read coverage of all genomes from this taxon. However, note that this coverage does not include the coverage of sub-taxons. For instance, the coverage of a species is not included in the coverage shown for its genus.
   3. taxonomy string of the taxon
