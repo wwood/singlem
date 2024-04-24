@@ -135,7 +135,7 @@ class Condenser:
             logging.info("Running condense in viral mode...")
             if metapackage.version not in [6]:
                 raise Exception("Viral mode only works with version 6 metapackages.")
-            avg_num_genes_per_species = int(metapackage.avg_num_genes_per_species())
+            avg_num_genes_per_species = round(metapackage.avg_num_genes_per_species())
             if avg_num_genes_per_species is None:
                 raise Exception("Metapackage does not contain average number of genes per species")
             taxon_marker_counts = metapackage.get_taxon_marker_counts([o.taxonomy for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])
