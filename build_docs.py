@@ -68,7 +68,7 @@ if __name__ == '__main__':
                     'pipe': 'COMMON OPTIONS',
                     'microbial_fraction': 'OPTIONS',
                     'data': 'OPTIONS',
-                    'summarise': 'INPUT',
+                    'summarise': 'TAXONOMIC PROFILE INPUT',
                     'makedb': 'REQUIRED ARGUMENTS',
                     'appraise': 'INPUT OTU TABLE OPTIONS',
                     'seqs': 'OPTIONS',
