@@ -8,6 +8,8 @@ navigation:
   - path: docs/Installation.md
     children:
       - path: docs/tools/data.md
+  - path: docs/Glossary.md
+  - path: docs/FAQ.md
   - path: docs/tools
     children: # Manually specify so in order I want, though currently different to bin/singlem
     - path: docs/tools/data.md
