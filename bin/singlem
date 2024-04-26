@@ -542,7 +542,7 @@ if __name__ == '__main__':
     quality_group = supplement_parser.add_argument_group('Quality filtering of new genomes')
     quality_group.add_argument('--checkm2-quality-file', help='CheckM2 quality file of new genomes')
     quality_group.add_argument('--no-quality-filter', help='skip quality filtering', action='store_true')
-    current_default = 70
+    current_default = 50
     quality_group.add_argument('--checkm2-min-completeness', help='minimum completeness for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
     current_default = 10
     quality_group.add_argument('--checkm2-max-contamination', help='maximum contamination for CheckM2 [default: {}]'.format(current_default), type=float, default=current_default)
