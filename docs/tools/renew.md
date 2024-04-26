@@ -92,7 +92,8 @@ LESS COMMON ARGUMENTS SHARED WITH \'PIPE\'
 **\--diamond-taxonomy-assignment-performance-parameters** *DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS*
 
   Performance-type arguments to use when calling \'diamond blastx\'
-    during the taxonomy assignment step. [default: \'\--block-size 0.5
+    during the taxonomy assignment step. [default: use setting defined
+    in metapackage when set, otherwise use \'\--block-size 0.5
     \--target-indexed -c1\']
 
 **\--evalue** *EVALUE*

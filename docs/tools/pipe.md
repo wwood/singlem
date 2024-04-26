@@ -2,27 +2,41 @@
 title: SingleM pipe
 ---
 # singlem pipe
-
-The SingleM `pipe` subcommand performs three steps:
-
-1. Finding discrete operational taxonomic units (OTUs) from a shotgun metagenome
-2. Assign taxonomy to marker-specific OTU tables
-3. Convert OTU tables into a overall taxonomic profile
-
-In the first step, reads that encode conserved single copy marker genes are found. SingleM specifically finds reads which cover short (20 amino acid / 60 base pair) highly conserved sections ("windows") within those genes. Sequences covering those small sections are OTU sequences, and these OTU sequences exist independent of taxonomy. By default, SingleM currently uses 35 bacterial and 37 archaeal single copy marker genes.
-
-In the second step, taxonomy is assigned based on comparing the nucleotide sequence of the window to GTDB species representatives' window sequences. If none are similar enough (i.e. within 95% identity or 3bp of the 60), then diamond blastx is used.
-
-A common analysis is to convert a set of window sequences (i.e. a metagenome's OTU table) into a taxonomic community profile. This is achieved in the second step by considering the OTUs from the 59 different marker genes holistically, using trimmed means and expectation maximisation.
-
-An overview of your community can be obtained like so:
+**TLDR**: A taxonomic overview of your community can be obtained like so:
 ```
 singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p \
    <output.profile.tsv>
 ```
+To further convert the generated taxonomic profile to other formats that might be more convenient, see [`summarise`](/tools/summarise).
+
+## Algorithm details
+
+**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/#glossary).
+
+`pipe` performs three steps:
+
+1. Find discrete operational taxonomic units (OTUs) from a shotgun metagenome
+2. Assign taxonomy to marker-specific OTU tables
+3. Convert OTU tables into a overall taxonomic profile
+
+Workflow for the first 2 steps:
+
+![steps 1 and 2](/singlem_pipe_v2.svg)
+
+In the 1st step, reads that encode conserved single copy marker genes are found. SingleM specifically finds reads which cover short highly conserved sections ("*windows*") within those genes. In most species, these windows are 20 amino acids encoded by 60 nucleotides - in rare cases there are inserts or deletions. Sequences covering those small sections are OTU sequences, and these OTU sequences exist independent of taxonomy. By default, SingleM currently uses 35 bacterial and 37 archaeal single copy marker genes.
+
+In the 2nd step, taxonomy is assigned based on comparing the nucleotide sequence of the window to GTDB species representatives' window sequences. If none are similar enough (i.e. within 96.7% identity or 2bp of the 60bp window), then diamond blastx is used instead.
+
+Finally, in the 3rd step, the set of window sequences (i.e. a metagenome's OTU table) is converted into a taxonomic profile, which describes the amount of the microbial community belonging to each species or higher level taxon. This is achieved by considering the OTUs from the 59 different marker genes holistically, using trimmed means and expectation maximisation in a somewhat complicated overall algorithm "*condense*":
+
+![step 3](/singlem_condense_v2.svg)
+
 Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for SingleM to use. Adapter trimming is unlikely to be detrimental, but is not needed.
 
 The [examples section](/tools/pipe#examples) may be of use.
+
+For a more detailed explanation of the SingleM pipeline, see the [SingleM paper](https://doi.org/10.1101/2024.01.30.578060).
+
 
 COMMON OPTIONS
 ==============
@@ -116,7 +130,8 @@ LESS COMMON OPTIONS
 **\--diamond-taxonomy-assignment-performance-parameters** *DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS*
 
   Performance-type arguments to use when calling \'diamond blastx\'
-    during the taxonomy assignment step. [default: \'\--block-size 0.5
+    during the taxonomy assignment step. [default: use setting defined
+    in metapackage when set, otherwise use \'\--block-size 0.5
     \--target-indexed -c1\']
 
 **\--evalue** *EVALUE*
@@ -221,7 +236,8 @@ LESS COMMON OPTIONS
 
   Performance-type arguments to use when calling \'diamond blastx\'
     during the prefiltering. By default, SingleM should run in \<4GB of
-    RAM except in very large (\>100Gbp) metagenomes. [default:
+    RAM except in very large (\>100Gbp) metagenomes. [default: use
+    setting defined in metapackage when set, otherwise use
     \'\--block-size 0.5 \--target-indexed -c1\']
 
 **\--hmmsearch-package-assignment**

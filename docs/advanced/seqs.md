@@ -28,6 +28,11 @@ OPTIONS
 
   Number of nucleotides to use in continuous window [default: 60]
 
+**\--hmm** *HMM*
+
+  HMM file used to generate alignment, used here to rank windows
+    according to their information content.
+
 OTHER GENERAL OPTIONS
 =====================
 

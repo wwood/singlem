@@ -85,3 +85,7 @@ singlem -h
 ```
 
 After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
+
+# Containerised SingleM installation examples
+
+To ensure that the instructions here work, they have been tested in containerised environments. Logs of this procedure are available at https://github.com/wwood/singlem-installation.

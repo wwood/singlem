@@ -11,6 +11,10 @@ Create or describe a metapackage (i.e. set of SingleM packages)
 OPTIONS
 =======
 
+**\--metapackage** *METAPACKAGE*
+
+  Path to write generated metapackage to
+
 **\--singlem-packages** *SINGLEM_PACKAGES* [*SINGLEM_PACKAGES* \...]
 
   Input packages
@@ -31,9 +35,26 @@ OPTIONS
 
   Skip taxon genome lengths
 
-**\--metapackage** *METAPACKAGE*
+**\--taxonomy-database-name** *TAXONOMY_DATABASE_NAME*
 
-  Path to write generated metapackage to
+  Name of the taxonomy database to use [default:
+    custom_taxonomy_database]
+
+**\--taxonomy-database-version** *TAXONOMY_DATABASE_VERSION*
+
+  Version of the taxonomy database to use [default: unspecified]
+
+**\--diamond-prefilter-performance-parameters** *DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS*
+
+  Performance-type arguments to use when calling \'diamond blastx\'
+    during the prefiltering. [default: \'\--block-size 0.5
+    \--target-indexed -c1\']
+
+**\--diamond-taxonomy-assignment-performance-parameters** *DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS*
+
+  Performance-type arguments to use when calling \'diamond blastx\'
+    during the taxonomy assignment. [default: \'\--block-size 0.5
+    \--target-indexed -c1\']
 
 **\--describe**
 
@@ -51,6 +72,11 @@ OPTIONS
 
   Dereplicated DIAMOND db for prefilter to use [default: dereplicate
     from input SingleM packages]
+
+**\--makeidx-sensitivity-params** PARAMS
+
+  DIAMOND sensitivity parameters to use when indexing the prefilter
+    DIAMOND db. [default: None]
 
 OTHER GENERAL OPTIONS
 =====================

@@ -19,13 +19,6 @@ OPTIONS
 
   File containing FASTA file paths of new genomes
 
-**\--new-taxonomies** *NEW_TAXONOMIES*
-
-  newline separated file containing taxonomies of new genomes
-    (path\<TAB\>taxonomy). Must be fully specified to species level. If
-    not specified, the taxonomy will be inferred from the new genomes
-    using GTDB-tk
-
 **\--input-metapackage** *INPUT_METAPACKAGE*
 
   metapackage to build upon [default: Use default package]
@@ -38,28 +31,43 @@ OPTIONS
 
   parallelisation
 
-**\--pplacer-threads** *PPLACER_THREADS*
+TAXONOMY
+========
 
-  for GTDBtk classify_wf
+**\--new-fully-defined-taxonomies** *NEW_FULLY_DEFINED_TAXONOMIES*
 
-**\--working-directory** *WORKING_DIRECTORY*
-
-  working directory [default: use a temporary directory]
-
-**\--gtdbtk-output-directory** *GTDBTK_OUTPUT_DIRECTORY*
-
-  use this GTDBtk result. Not used if \--new-taxonomies is used
-    [default: not set, run GTDBtk]
+  newline separated file containing taxonomies of new genomes
+    (path\<TAB\>taxonomy). Must be fully specified to species level. If
+    not specified, the taxonomy will be inferred from the new genomes
+    using GTDB-tk or read from \--taxonomy-file [default: not set, run
+    GTDBtk].
 
 **\--taxonomy-file** *TAXONOMY_FILE*
 
   A 2 column tab-separated file containing each genome\'s taxonomy as
     output by GTDBtk [default: not set, run GTDBtk]
 
+**\--gtdbtk-output-directory** *GTDBTK_OUTPUT_DIRECTORY*
+
+  use this GTDBtk result. Not used if \--new-taxonomies is used
+    [default: not set, run GTDBtk]
+
+**\--pplacer-threads** *PPLACER_THREADS*
+
+  for GTDBtk classify_wf
+
 **\--output-taxonomies** *OUTPUT_TAXONOMIES*
 
   TSV output file of taxonomies of new genomes, whether they are novel
     species or not.
+
+**\--skip-taxonomy-check**
+
+  skip check which ensures that GTDBtk assigned taxonomies are
+    concordant with the old metapackage\'s [default: do the check]
+
+QUALITY FILTERING OF NEW GENOMES
+================================
 
 **\--checkm2-quality-file** *CHECKM2_QUALITY_FILE*
 
@@ -69,9 +77,16 @@ OPTIONS
 
   skip quality filtering
 
-**\--no-taxon-genome-lengths**
+**\--checkm2-min-completeness** *CHECKM2_MIN_COMPLETENESS*
 
-  Do not include taxon genome lengths in updated metapackage
+  minimum completeness for CheckM2 [default: 70]
+
+**\--checkm2-max-contamination** *CHECKM2_MAX_CONTAMINATION*
+
+  maximum contamination for CheckM2 [default: 10]
+
+DEREPLICATION
+=============
 
 **\--no-dereplication**
 
@@ -81,23 +96,40 @@ OPTIONS
 
   Run galah to dereplicate genomes at species level
 
-**\--checkm2-min-completeness** *CHECKM2_MIN_COMPLETENESS*
-
-  minimum completeness for CheckM2 [default: 70]
-
-**\--checkm2-max-contamination** *CHECKM2_MAX_CONTAMINATION*
-
-  maximum contamination for CheckM2 [default: 10]
+LESS COMMON OPTIONS
+===================
 
 **\--hmmsearch-evalue** *HMMSEARCH_EVALUE*
 
   evalue for hmmsearch run on proteins to gather markers [default:
     1e-20]
 
-**\--skip-taxonomy-check**
+**\--gene-definitions** *GENE_DEFINITIONS*
 
-  skip check which ensures that GTDBtk assigned taxonomies are
-    concordant with the old metapackage\'s
+  Tab-separated file of
+    genome_fasta\<TAB\>transcript_fasta\<TAB\>protein_fasta [default:
+    undefined, call genes using Prodigal]
+
+**\--working-directory** *WORKING_DIRECTORY*
+
+  working directory [default: use a temporary directory]
+
+**\--no-taxon-genome-lengths**
+
+  Do not include taxon genome lengths in updated metapackage
+
+**\--ignore-taxonomy-database-incompatibility**
+
+  Do not halt when the old metapackage is not the default metapackage.
+
+**\--new-taxonomy-database-name** *NEW_TAXONOMY_DATABASE_NAME*
+
+  Name of the taxonomy database to record in the created metapackage
+    [default: custom_taxonomy_database]
+
+**\--new-taxonomy-database-version** *NEW_TAXONOMY_DATABASE_VERSION*
+
+  Version of the taxonomy database to use [default: None]
 
 OTHER GENERAL OPTIONS
 =====================

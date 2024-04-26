@@ -7,7 +7,9 @@ DESCRIPTION
 ===========
 
 Combine OTU tables across different markers into a single taxonomic
-profile.
+profile. Note that while this mode can be run independently, it is often
+more straightforward to invoke its methodology by specifying -p /
+\--taxonomic- profile when running pipe mode.
 
 OPTIONS
 =======
