@@ -30,7 +30,10 @@ OPTIONS
 **\--hmm-position** INTEGER
 
   Position in the GraftM alignment HMM where the SingleM window
-    starts. To choose the best position, use \'singlem seqs\'.
+    starts. To choose the best position, use \'singlem seqs\'. Note that
+    this position (both the one output by \'seqs\' and the one specified
+    here) is a 1-based index, but this positions stored within the
+    SingleM package as a 0-based index.
 
 **\--window-size** INTEGER
 
