@@ -116,6 +116,7 @@ def main():
     def add_common_pipe_arguments(argument_group):
         argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
         argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
+        argument_group.add_argument('--viral-profile-output', action='store_true', help="EXPERIMENTAL: activates \"viral mode\" for the taxonomic profile [default: False]", default=False)
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -751,6 +752,7 @@ def main():
             assignment_singlem_db = args.assignment_singlem_db,
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
+            viral_profile_output = args.viral_profile_output,
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
