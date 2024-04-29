@@ -85,15 +85,13 @@ class SearchPipe:
                 from .condense import Condenser
                 otu_table_collection = StreamingOtuTableCollection()
                 otu_table_collection.add_archive_otu_table_object(otu_table_object)
-                if viral_profile_output:
-                    viral_mode = True
                 Condenser().condense(
                     input_streaming_otu_table = otu_table_collection,
                     output_otu_table = output_taxonomic_profile,
                     krona = output_taxonomic_profile_krona,
                     metapackage = metapackage,
                     min_taxon_coverage = min_taxon_coverage,
-                    viral_mode = viral_mode,
+                    viral_mode = viral_profile_output,
                 )
 
 
