@@ -7,15 +7,25 @@ from gtdbtk.external.pypfam.Scan.PfamScan import PfamScan
 import logging
 import pathlib
 from tqdm.contrib.concurrent import process_map
+import tempfile
+import subprocess
 
 def process_a_genome(params):
     genome_input, output_tsv, pfams = params
     logging.debug("Processing genome: " + genome)
     pathlib.Path(os.path.dirname(output_tsv)).mkdir(parents=True, exist_ok=True)
 
-    pfam_scan = PfamScan(cpu=1, fasta=genome_input, dir=pfams)
-    pfam_scan.search()
-    pfam_scan.write_results(output_tsv, None, None, None, None)
+    if 'compressed_genome_data' in snakemake.config and snakemake.config['compressed_genome_data']:
+        # Temporary file to store the uncompressed genome
+        with tempfile.NamedTemporaryFile(prefix='singlem-pfam-scan-', suffix='.faa') as genome_tmp:
+            subprocess.check_call(['bash','-c', 'zcat {} > {}'.format(genome_input, genome_tmp.name)])
+            pfam_scan = PfamScan(cpu=1, fasta=genome_tmp.name, dir=pfams)
+            pfam_scan.search()
+            pfam_scan.write_results(output_tsv, None, None, None, None)
+    else:
+        pfam_scan = PfamScan(cpu=1, fasta=genome_input, dir=pfams)
+        pfam_scan.search()
+        pfam_scan.write_results(output_tsv, None, None, None, None)
 
 
 pfams = snakemake.params.pfams

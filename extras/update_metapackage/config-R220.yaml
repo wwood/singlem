@@ -1,0 +1,32 @@
+max_threads: 32
+#compressed_genome_data: true
+gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release220/genomic_files_reps/protein_fna_reps/
+# gtdb_protein_fna_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_fna_reps2 # test
+output_dir: /work/microbiome/msingle/mess/167_metapackage_v5/r220
+# output_dir: /tmp/singlem_update_output_dir_test # test
+metapackage: /work/microbiome/msingle/mess/167_metapackage_v5/S3.3.1.GTDB_r214.metapackage_20240405.smpkg.zb/payload_directory
+new_metapackage: S3.4.0.GTDB_r220.metapackage_20240426.smpkg
+new_version_number: 3.4.0
+# untarred ~/m/db/gtdb/gtdb_release214/genomic_files_reps/gtdb_proteins_aa_reps_r207.tar.gz
+gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release220/genomic_files_reps/protein_faa_reps
+# gtdb_protein_faa_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_faa_reps2 # test
+gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release220/bac120_taxonomy_r220.tsv
+gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release220/ar53_taxonomy_r220.tsv
+pfams: /work/microbiome/msingle/sam/HMMs/Pfam
+tigrfams: /work/microbiome/msingle/sam/HMMs/TIGRfams.HMM
+uniprot_seq: /work/microbiome/abisko/aroneys/uniprot/uniref100_20210616/uniprot_sprot.fa
+uniprot_tax: /work/microbiome/abisko/aroneys/uniprot/uniref100_20210616/uniprot_sprot_taxonomy.tsv
+sra_seqs_1:
+  DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_1.fastq
+  SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_1.fastq
+  SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_1.fastq
+sra_seqs_2:
+  DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_2.fastq
+  SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_2.fastq
+  SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_2.fastq
+gtdb_bac_metadata: /work/microbiome/db/gtdb/gtdb_release220/bac120_metadata_r220.tsv
+gtdb_arc_metadata: /work/microbiome/db/gtdb/gtdb_release220/ar53_metadata_r220.tsv
+checkm2_output_dirs: /work/microbiome/msingle/mess/172_checkm2_r220/output/checkm2
+# These 2 constants must jive with those in Metapackage
+taxonomy_database_name: Genome Taxonomy Database (GTDB)
+taxonomy_database_version: R220

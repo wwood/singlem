@@ -13,8 +13,14 @@ def process_a_genome(params):
     pathlib.Path(os.path.dirname(output)).mkdir(parents=True, exist_ok=True)
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
+    genome_is_compressed = 'compressed_genome_data' in snakemake.config and snakemake.config['compressed_genome_data']
+    if genome_is_compressed:
+        input_fasta = '<(zcat {})'.format(fasta)
+    else:
+        input_fasta = fasta
+
     cmd = "cut -f1 {} |mfqe ".format(fam) + \
-        "--input-fasta {} ".format(fasta) + \
+        "--input-fasta {} ".format(input_fasta) + \
         "--sequence-name-lists /dev/stdin " + \
         "--output-fasta-files {} ".format(output) + \
         "--output-uncompressed " + \

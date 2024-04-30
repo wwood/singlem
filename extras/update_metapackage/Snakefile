@@ -17,12 +17,15 @@ hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
-checkm2_output_dirs = config['checkm2_output_dirs'] # In future, when the next version of GTDB after r214 is created, will need to rerun checkm2, probably best done via adding a new rule and getting rid of this variable
+checkm2_output_dirs = config['checkm2_output_dirs'] if 'checkm_output_dirs' in config else None # not needed for R220 and beyond (actually R220 was missing some data, so using it there too)
 taxonomy_database_name = config["taxonomy_database_name"]
 taxonomy_database_version = config["taxonomy_database_version"]
 
 print("Finding genomes...")
-genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
+if 'compressed_genome_data' in config and config['compressed_genome_data']:
+    genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa.gz")]
+else:
+    genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
 genomes = ["/".join(g.split("/")[-2:]) for g in genome_paths]
 
 zenodo_backpack = os.path.join(output_dir, config["new_metapackage"]+'.zb.tar.gz')
@@ -318,7 +321,7 @@ rule create_SingleM_metapackage:
 #######################################
 rule checkm2_gather: # In future presumably this data will be available form the GTDB metadata
     input:
-        checkm2_output_dirs = checkm2_output_dirs,
+        checkm2_output_dirs = checkm2_output_dirs if checkm2_output_dirs else [],
     output:
         gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv",
         done = touch(output_dir + "/checkm2_gather.done"),
@@ -329,13 +332,15 @@ rule checkm2_gather: # In future presumably this data will be available form the
 
 rule calculate_mean_genome_size:
     input:
-        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv",
-        done = output_dir + "/checkm2_gather.done",
+        # Only need these inputs if checkm2 isn't in the metadata
+        gtdb_checkm2_grepped = output_dir + "/gtdb_checkm2_grepped.tsv" if checkm2_output_dirs else [],
+        done = output_dir + "/checkm2_gather.done" if checkm2_output_dirs else [],
     output:
         output_dir + "/gtdb_mean_genome_sizes.tsv"
     params:
         gtdb_bac_metadata = config["gtdb_bac_metadata"],
         gtdb_arc_metadata = config["gtdb_arc_metadata"],
+        checkm2_grep_arg = '--checkm2-grep ' + output_dir + "/gtdb_checkm2_grepped.tsv" if checkm2_output_dirs else ''
     threads: 8
     log:
         logs_dir + "/calculate_mean_genome_size.log"
@@ -343,7 +348,7 @@ rule calculate_mean_genome_size:
         "envs/calculate_mean_genome_size.yml"
     shell:
         """
-        scripts/genome_size_from_gtdb.py --checkm2-grep {input.gtdb_checkm2_grepped} --gtdb-bac-metadata {params.gtdb_bac_metadata} --gtdb-ar-metadata {params.gtdb_arc_metadata} > {output} 2> {log}
+        scripts/genome_size_from_gtdb.py {params.checkm2_grep_arg} --gtdb-bac-metadata {params.gtdb_bac_metadata} --gtdb-ar-metadata {params.gtdb_arc_metadata} > {output} 2> {log}
         """
 
 ###########################
