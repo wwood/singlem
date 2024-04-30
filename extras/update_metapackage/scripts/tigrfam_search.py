@@ -4,6 +4,8 @@ import logging
 import pathlib
 import extern
 from tqdm.contrib.concurrent import process_map
+import tempfile
+import subprocess
 
 def process_a_genome(params):
     genome_faa, output, tigrfams, log = params
@@ -11,6 +13,14 @@ def process_a_genome(params):
 
     pathlib.Path(os.path.dirname(output_tsv)).mkdir(parents=True, exist_ok=True)
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
+
+    genome_is_compressed = 'compressed_genome_data' in snakemake.config and snakemake.config['compressed_genome_data']
+    if genome_is_compressed:
+        # Temporary file to store the uncompressed genome
+        original_genome_faa = genome_faa
+        genome_tmp = tempfile.NamedTemporaryFile(prefix='singlem-tigrfam-scan-', suffix='.faa')
+        genome_faa = genome_tmp.name
+        subprocess.check_call(['bash','-c', 'zcat {} > {}'.format(original_genome_faa, genome_tmp.name)])
 
     cmd = "hmmsearch " \
         "-o /dev/null " \
@@ -23,6 +33,9 @@ def process_a_genome(params):
         "{} ".format(genome_faa) + \
         "&> {}".format(log)
     extern.run(cmd)
+
+    if genome_is_compressed:
+        genome_tmp.close()
 
 tigrfams = snakemake.config['tigrfams']
 genomes = snakemake.params.genome_ids

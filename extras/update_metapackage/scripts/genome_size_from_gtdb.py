@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     parent_parser.add_argument(
         '--checkm2-grep',
-        help="grep to header remove checkm2 quality file(s)", required=True)
+        help="grep to header remove checkm2 quality file(s). If not specified use checkm2 stats from metadata files")
     parent_parser.add_argument(
         '--gtdb-bac-metadata',
         help="GTDB metadata file for bacteria", required=True)
@@ -64,16 +64,19 @@ if __name__ == '__main__':
         loglevel = logging.INFO
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
 
-    # Read checkm2 stats
-    checkm = pl.read_csv(args.checkm2_grep, has_header=False, separator="\t")
-    checkm.columns = ['Name','Completeness','Contamination','Completeness_Model_Used','Additional_Notes']
-    checkm = checkm.with_columns(pl.col("Name").str.replace('_protein','').alias("accession"))
-    logging.info("Read in {} checkm2 stats".format(len(checkm)))
+    # Read checkm2 stats if needed
+    if args.checkm2_grep:
+        checkm = pl.read_csv(args.checkm2_grep, has_header=False, separator="\t")
+        checkm.columns = ['Name','Completeness','Contamination','Completeness_Model_Used','Additional_Notes']
+        checkm = checkm.with_columns(pl.col("Name").str.replace('_protein','').alias("accession"))
+        logging.info("Read in {} checkm2 stats".format(len(checkm)))
 
     # Read GTDB metadata
     columns_of_interest = [
         "accession", 'gtdb_representative', "gtdb_taxonomy", 'genome_size'
     ]
+    if not args.checkm2_grep:
+        columns_of_interest += ['checkm2_completeness', 'checkm2_contamination']
     gtdb = pl.concat([
         pl.read_csv(args.gtdb_bac_metadata, separator="\t", infer_schema_length=10000000).select(columns_of_interest),
         pl.read_csv(args.gtdb_ar_metadata, separator="\t", infer_schema_length=10000000).select(columns_of_interest)
@@ -84,10 +87,16 @@ if __name__ == '__main__':
     gtdb_reps = gtdb.filter(pl.col("gtdb_representative") == "t")
 
     # Calculate the mean completeness and contamination for each GTDB rep
-    gc_reps = gtdb_reps.join(checkm, on="accession", how="inner")
-    if len(gc_reps) != len(checkm):
-        raise Exception("Different number of checkm2 stats and GTDB reps detected, something is amiss.")
-    logging.info("Joined {} GTDB reps with checkm2 stats".format(len(gc_reps)))
+    if args.checkm2_grep:
+        gc_reps = gtdb_reps.join(checkm, on="accession", how="inner")
+        if len(gc_reps) != len(checkm):
+            raise Exception("Different number of checkm2 stats and GTDB reps detected, something is amiss.")
+        logging.info("Joined {} GTDB reps with checkm2 stats".format(len(gc_reps)))
+    else:
+        gc_reps = gtdb_reps.with_columns(
+            pl.col('checkm2_completeness').cast(pl.Float32).alias('Completeness'),
+            pl.col('checkm2_contamination').cast(pl.Float32).alias('Contamination'),
+        )
 
     def correct_size(struct: dict):
         return GenomeSizes.corrected_genome_size(struct['genome_size'], struct['Completeness']/100., struct['Contamination']/100.)
