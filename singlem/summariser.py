@@ -550,7 +550,10 @@ class Summariser:
         if len(all_profiles.select(pl.col('level')).groupby('level').count()) in [7, 8]:
             # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
             levels = ['root','domain','phylum','class','order','family','genus','species']
-            all_profiles = all_profiles.with_columns(pl.lit([levels[l] for l in all_profiles['level']]).alias('level'))
+            level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
+            all_profiles = all_profiles.with_columns(
+                level = pl.col('level').replace(level_id_to_level_name)
+            )
 
         all_profiles = all_profiles.select([
             'sample',
