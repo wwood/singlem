@@ -4,8 +4,8 @@ gtdb_protein_fna_reps: /work/microbiome/db/gtdb/gtdb_release214/genomic_files_re
 output_dir: /work/microbiome/msingle/mess/167_metapackage_v5/r214
 # output_dir: /tmp/singlem_update_output_dir_test # test
 metapackage: /home/woodcrob/git/singlem/db/S3.2.1.GTDB_r214.metapackage_20231006.smpkg
-new_metapackage: S3.3.1.GTDB_r214.metapackage_20240405.smpkg
-new_version_number: 3.3.1
+new_metapackage: S4.3.0.GTDB_r214.metapackage_20240502.smpkg
+new_version_number: 4.3.0
 # untarred ~/m/db/gtdb/gtdb_release214/genomic_files_reps/gtdb_proteins_aa_reps_r207.tar.gz
 gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps
 # gtdb_protein_faa_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_faa_reps2 # test

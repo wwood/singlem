@@ -8,7 +8,6 @@ import sys
 from queue import Queue
 
 from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
-from .singlem_package import SingleMPackage
 from .metapackage import Metapackage
 from .taxonomy import *
 
@@ -883,13 +882,13 @@ class CondensedCommunityProfile:
         '''Write header to file - IO object is neither opened nor closed.'''
         output_file_io.write("\t".join(CondensedCommunityProfile.CONDENSED_PROFILE_HEADER)+"\n")
 
-    def write_data_to(self, output_file_io):
-        '''Write data to file - IO object is neither opened no closed.'''
+    def write_data_to(self, output_file_io, num_decimals=2):
+        '''Write data to file - IO object is neither opened no closed. If num_decimals is None, then the coverage is written as is, without rounding. Otherwise, the coverage is rounded to the number of decimals specified.'''
         for node in self.tree:
-            if round(node.coverage,2) != 0:
+            if (num_decimals is None and node.coverage > 0) or round(node.coverage, num_decimals) != 0:
                 output_file_io.write("\t".join([
                     self.sample,
-                    str(round(node.coverage,2)),
+                    str(round(node.coverage, num_decimals)) if num_decimals is not None else str(node.coverage),
                     '; '.join(node.get_taxonomy())
                 ])+"\n")
 

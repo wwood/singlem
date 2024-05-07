@@ -85,12 +85,15 @@ if __name__ == '__main__':
 
     # We do not calculate the checkm stats for all genomes in GTDB, just the reps, to save effort.
     gtdb_reps = gtdb.filter(pl.col("gtdb_representative") == "t")
+    logging.info("Read in {} GTDB reps".format(len(gtdb_reps)))
 
     # Calculate the mean completeness and contamination for each GTDB rep
     if args.checkm2_grep:
         gc_reps = gtdb_reps.join(checkm, on="accession", how="inner")
         if len(gc_reps) != len(checkm):
-            raise Exception("Different number of checkm2 stats and GTDB reps detected, something is amiss.")
+            logging.warning("Different number of checkm2 stats and GTDB reps detected, something is amiss.")
+        if len(gc_reps) != len(gtdb_reps):
+            raise Exception("It appears there are not enough checkm2 stats to cover all the reps, found only {} checkm2 stats for {} reps".format(len(gc_reps), len(gtdb_reps)))
         logging.info("Joined {} GTDB reps with checkm2 stats".format(len(gc_reps)))
     else:
         gc_reps = gtdb_reps.with_columns(
