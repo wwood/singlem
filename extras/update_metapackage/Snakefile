@@ -17,7 +17,7 @@ hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=
 singlem_bin = "../../bin/singlem"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
-checkm2_output_dirs = config['checkm2_output_dirs'] if 'checkm_output_dirs' in config else None # not needed for R220 and beyond (actually R220 was missing some data, so using it there too)
+checkm2_output_dirs = config['checkm2_output_dirs'] if 'checkm2_output_dirs' in config else None # not needed for R220 and beyond (actually R220 was missing some data, so using it there too)
 taxonomy_database_name = config["taxonomy_database_name"]
 taxonomy_database_version = config["taxonomy_database_version"]
 
@@ -44,6 +44,7 @@ rule all:
         zenodo_backpack,
         # Right now the new singlem won't work with the old metapackage, so only run the new metapackages.
         expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
+        expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["new"]),
         # output_dir + "/sra/done"
 
 rule zenodo_backpack:
@@ -244,13 +245,13 @@ rule SingleM_transcripts:
     shell:
         "mkdir -p {params.logs} "
         "&& cat <( find {input.dir} -name '*.fna' ) "
-        "| parallel --halt-on-error 1 --eta -j {threads} "
+        "| parallel --halt-on-error 1 --eta -N 50 -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
         "--metapackage {input.metapackage} "
-        "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
+        "--otu-table {output.dir}/{{#}}.otu_table.tsv "
         "--no-assign-taxonomy "
-        "'&>' {params.logs}/{{/.}}.log "
+        "'&>' {params.logs}/{{#}}.log "
         "2> {log}"
 
 rule assign_taxonomy:
@@ -328,7 +329,8 @@ rule checkm2_gather: # In future presumably this data will be available form the
     log:
         logs_dir + "/checkm2_gather.log"
     shell:
-        "grep -hv Completeness {input.checkm2_output_dirs}/*.checkm2/quality_report.tsv > {output.gtdb_checkm2_grepped} 2> {log}"
+        # grep -hv Completeness {input.checkm2_output_dirs}/*.checkm2/quality_report.tsv
+        "find {input.checkm2_output_dirs} -name '*quality_report.tsv' |parallel -N50 grep -hv Completeness {{}} > {output.gtdb_checkm2_grepped} 2> {log}"
 
 rule calculate_mean_genome_size:
     input:
@@ -414,11 +416,22 @@ rule test_old_metapackage:
         "--threads {threads} "
         "&> {log}"
 
+rule sra_fractions_assigned_to_each_level:
+    input:
+        profile = output_dir + "/sra/{sra}_{version}.otu_table.condensed.tsv",
+    output:
+        breakdown = output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv"
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{singlem_bin} summarise "
+        "--input-taxonomic-profile {input.profile} "
+        "--output-taxonomic-level-coverage {output.breakdown} "
+
 rule check_tests:
     input:
         expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
         expand(output_dir + "/sra/{sra}_old.otu_table.tsv", sra=config["sra_seqs_1"]),
+        expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["new", "old"]),
     output:
-        output_dir + "/sra/done"
-    shell:
-        "touch {output}"
+        touch(output_dir + "/sra/done")
