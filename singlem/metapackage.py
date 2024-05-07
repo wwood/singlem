@@ -14,7 +14,7 @@ from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
 # These constants should be updated in tandem
-DATA_DEFAULT_VERSION = '3.2.1'
+DATA_DEFAULT_VERSION = '4.2.2'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
 DATA_DOI = '10.5281/zenodo.5739611'
 GTDB_DATABASE_NAME = 'Genome Taxonomy Database (GTDB)'
@@ -173,11 +173,12 @@ class Metapackage:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         
-        logging.info("Downloading data with ZenodoBackpack ..")
+        logging.info(f"Downloading data version {DATA_DEFAULT_VERSION} with ZenodoBackpack from {DATA_DOI} ..")
         backpack = zenodo_backpack.ZenodoBackpackDownloader().download_and_extract(
             output_directory,
             DATA_DOI,
-            progress_bar=True)
+            progress_bar=True,
+            version=DATA_DEFAULT_VERSION)
         logging.info("Finished downloading data")
 
         logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
