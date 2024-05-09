@@ -93,7 +93,7 @@ class Tests(unittest.TestCase):
             observed = extern.run(cmd)
             expected = '\n'.join(
                 ['sample  coverage        taxonomy',
-                'GB_GCA_000309865.1_protein      1.12    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n'])
+                'GB_GCA_000309865.1_protein      1.0    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n'])
             self.assert_equal_taxonomic_profile(observed, expected)
 
     # This test takes a long time - like 1+ hours.
@@ -101,7 +101,8 @@ class Tests(unittest.TestCase):
     def test_supplement_with_extra_taxon_genome_lengths(self):
         with in_tempdir():
             # TODO: Once galah 0.4 is released, remove the --no-dereplication flag
-            cmd = f"{run_supplement} --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --new-taxonomies {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
+            cmd = f"{run_supplement} --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
+            # print(cmd)
             extern.run(cmd)
 
             cmd2 = f'{path_to_script} pipe --genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
