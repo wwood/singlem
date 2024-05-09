@@ -231,10 +231,13 @@ class SearchPipe:
                 working_directory = tmp.name
             else:
                 logging.debug("Using conventional temporary directory as working directory")
+                original_temporary_working_directory = tempfile.gettempdir()
+                logging.debug("Original temporary directory is %s" % original_temporary_working_directory)
                 tmp = tempfile.TemporaryDirectory()
                 tempfiles_path = os.path.join(tmp.name, 'tempfiles')
                 os.mkdir(tempfiles_path)
                 os.environ['TEMP'] = tempfiles_path
+                logging.debug("Temporary directory is now %s" % tmp.name)
                 working_directory = tmp.name
         else:
             working_directory = working_directory
@@ -279,6 +282,12 @@ class SearchPipe:
             forward_read_files = [transcripts_path.name]
 
         def return_cleanly():
+            if using_temporary_working_directory and not working_directory_dev_shm:
+                # Directly setting tempdir in this way is not recommended, but
+                # unclear how else to set it globally because the result is
+                # cached.
+                tempfile.tempdir = original_temporary_working_directory
+                logging.debug("tempdir reset to %s" % tempfile.gettempdir())
             logging.info("Finished")
 
         #### Search
