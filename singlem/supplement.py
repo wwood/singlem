@@ -39,13 +39,14 @@ import polars as pl
 from Bio import SearchIO
 
 import extern
+import subprocess
 
 from .biolib_lite.prodigal_biolib import Prodigal
 from .biolib_lite.common import remove_extension
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 
-sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
+sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__))), '..'] + sys.path
 
 from .metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME, GTDB_DATABASE_NAME
 from .archive_otu_table import ArchiveOtuTable
@@ -89,7 +90,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     else:
                         taxon_building += ';' + t
                     known_taxons.add(taxon_building)
-        logging.debug("Read in {} known taxons".format(len(known_taxons)))
+        logging.info("Read in {} known taxons".format(len(known_taxons)))
 
     # Create batchfile, tab separated in 2 columns (FASTA file, genome ID)
     name_to_genome_fasta = {}
@@ -356,7 +357,9 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_dir
         'hmmsearch', '-o /dev/null', '-E ', hmmsearch_evalue, '--tblout', hmmsearch_output, concatenated_hmms, tranp.protein_fasta
     ]
     logging.debug("Running hmmsearch on {} ..".format(genome))
-    extern.run(' '.join(hmmsearch_cmd))
+    # In the past have got strange errors about not extern.run not existing, so
+    # using subprocess instead.
+    subprocess.check_call(['bash','-c',' '.join(hmmsearch_cmd)])
     logging.debug("Ran hmmsearch on {} ..".format(genome))
     num_transcriptomes += 1
 
@@ -582,7 +585,6 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
 
 
 class TranscriptsAndProteins:
-
     def __init__(self):
         self.transcript_fasta = None
         self.protein_fasta = None
@@ -615,7 +617,8 @@ def recalculate_genome_sizes(
     species_to_full = {}
     logging.info("Creating mapping of species-level taxon IDs to full taxonomies ..")
     for taxonomy in old_taxonomies:
-        species_to_full[list([s.strip() for s in taxonomy.split(';')])[-1]] = taxonomy
+        last = taxonomy.split(';')[-1].strip()
+        species_to_full[last] = taxonomy
 
     # In really rare instances (e.g. spire_mag_01111928) there are no reads
     # included in the metapackage because all are filtered as being double. But
@@ -633,10 +636,12 @@ def recalculate_genome_sizes(
         logging.info("Excluded {} species from the old metapackage because they were not found in the full taxonomies".format(num_excluded))
     logging.debug("Creating gc dataframe, which has been known to cause issues with polars ..")
     gc = pl.DataFrame(
-        {'species': species_to_add}
+        {
+            'species': species_to_add,
+            'gtdb_taxonomy': [species_to_full[s] for s in species_to_add],
+            'genome_size': [old_taxon_lengths[s] for s in species_to_add]
+        }
     )
-    gc = gc.with_columns(pl.lit([species_to_full[s] for s in gc['species']]).alias('gtdb_taxonomy'))
-    gc = gc.with_columns(pl.lit([old_taxon_lengths[s] for s in gc['species']]).alias('genome_size'))
 
     # Add new genomes to the species-level taxon lengths
     # First read checkm2 estimate
@@ -655,10 +660,11 @@ def recalculate_genome_sizes(
 
         new_taxon_lengths[taxonomy] = corrected_length
 
-    news = pl.DataFrame(
-        {'gtdb_taxonomy': new_taxon_lengths.keys()}
-    )
-    news = news.with_columns(pl.lit([new_taxon_lengths[n] for n in news['gtdb_taxonomy']]).alias('genome_size'))
+    gtdb_taxonomies = new_taxon_lengths.keys()
+    news = pl.DataFrame({
+        'gtdb_taxonomy': gtdb_taxonomies,
+        'genome_size': [new_taxon_lengths[n] for n in gtdb_taxonomies]
+    })
 
     gc = pl.concat([
         gc.select(['gtdb_taxonomy', 'genome_size']),
@@ -944,3 +950,14 @@ class Supplementor:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))
                 shutil.copytree(new_metapackage, output_metapackage)
                 logging.info("Finished supplement.")
+
+# if __name__ == "__main__":
+#     import logging
+#     logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    
+#     old_metapackage = Metapackage.acquire('/home/woodcrob/git/singlem/db/S4.2.2.GTDB_r214.metapackage_20240502.smpkg.zb/payload_directory')
+#     recalculate_genome_sizes(
+#         old_metapackage,
+#         None,
+#         None,
+#         None)
