@@ -78,9 +78,23 @@ if __name__ == '__main__':
             Example(
                 'Gather an OTU table (per marker sequence groupings) from paired reads:',
                 'singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> --otu-table <output.otu_table.tsv>'),
+        ],
+        'summarise': [
+            Example(
+                'Convert a taxonomic profile to a site-by-species table at the genus level:',
+                'singlem summarise --input-taxonomic-profiles <profile1.tsv> <profile2.tsv> \\\n'
+                    '    --output-species-by-site-relative-abundance <output.tsv> \\\n'
+                    '    --output-species-by-site-level genus'),
+            Example(
+                'Create a Krona diagram from a taxonomic profile:',
+                'singlem summarise --input-taxonomic-profiles <profile1.tsv> \\\n'
+                    '    --output-taxonomic-profile-krona <output.html>'),
+            Example(
+                'Add extra coverage and relative abundance information to a taxonomic profile:',
+                'singlem summarise --input-taxonomic-profiles <profile1.tsv> \\\n'
+                    '    --output-taxonomic-profile-with-extras <output.tsv>'),
         ]}
     )
-
 
     data_description = 'Download reference metapackage data'
     data_parser = bird_argparser.new_subparser('data', data_description, parser_group='Tools')
@@ -93,7 +107,7 @@ if __name__ == '__main__':
 
     # Make a function here so the code can be re-used between pipe and renew
     def add_common_pipe_arguments(argument_group):
-        argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
+        argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
         argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
