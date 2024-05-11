@@ -79,7 +79,7 @@ QUALITY FILTERING OF NEW GENOMES
 
 **\--checkm2-min-completeness** *CHECKM2_MIN_COMPLETENESS*
 
-  minimum completeness for CheckM2 [default: 70]
+  minimum completeness for CheckM2 [default: 50]
 
 **\--checkm2-max-contamination** *CHECKM2_MAX_CONTAMINATION*
 
