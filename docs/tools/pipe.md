@@ -62,7 +62,8 @@ COMMON OPTIONS
 **-p**, **\--taxonomic-profile** FILE
 
   output a \'condensed\' taxonomic profile for each sample based on
-    the OTU table
+    the OTU table. Taxonomic profiles output can be further converted to
+    other formats using singlem summarise.
 
 **\--taxonomic-profile-krona** FILE
 

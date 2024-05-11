@@ -347,3 +347,22 @@ AUTHORS
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
 >     Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+
+EXAMPLES
+========
+
+Convert a taxonomic profile to a site-by-species table at the genus level:
+
+  **\$ singlem summarise \--input-taxonomic-profiles \<profile1.tsv\>
+    \<profile2.tsv\> \--output-species-by-site-relative-abundance
+    \<output.tsv\> \--output-species-by-site-level genus**
+
+Create a Krona diagram from a taxonomic profile:
+
+  **\$ singlem summarise \--input-taxonomic-profiles \<profile1.tsv\>
+    \--output-taxonomic-profile-krona \<output.html\>**
+
+Add extra coverage and relative abundance information to a taxonomic profile:
+
+  **\$ singlem summarise \--input-taxonomic-profiles \<profile1.tsv\>
+    \--output-taxonomic-profile-with-extras \<output.tsv\>**
