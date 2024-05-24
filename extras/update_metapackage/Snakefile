@@ -265,12 +265,15 @@ rule assign_taxonomy:
         arc_metadata = config["gtdb_arc_metadata"]
     conda:
         "../../singlem.yml"
+    log:
+        logs_dir + "/taxonomy.log"
     shell:
         "../assign_gtdb_taxonomy_to_gtdb_genomes.py "
         "--otu-table-list <( find {input.dir} -name '*.otu_table.tsv' ) "
         "--gtdb-bac {params.bac_metadata} "
         "--gtdb-arc {params.arc_metadata} "
-        "> {output}"
+        "> {output} "
+        "2> {log}"
 
 rule make_sdb:
     input:
