@@ -70,7 +70,12 @@ class Renew:
             input_otus = ArchiveOtuTable.read(f)
         if input_otus.version < 2:
             raise Exception("Currently only version 2+ archive otu tables are supported")
-        logging.info("Read in {} OTUs".format(len(input_otus.data)))        
+        logging.info("Read in {} OTUs".format(len(input_otus.data)))
+
+        # Sort the archive OTU table, because sometimes the OTUs are not in
+        # marker-wise order, which causes repeated calls to DIAMOND with too few
+        # seqs. Only really need marker and sample name to be together.
+        input_otus.sort()
         
         # Generate ExtractedReads. Never analysing pairs because no 2 reads with
         # the same name should be in the same OTU.
