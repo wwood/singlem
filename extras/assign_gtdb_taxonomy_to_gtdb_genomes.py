@@ -91,13 +91,11 @@ if __name__ == '__main__':
         logging.debug("Opening {}".format(otu_table_file))
         with open(otu_table_file) as f:
             otu_table = OtuTable.read(f)
-        
-        for otu in otu_table:
-            gtdb_id = otu.sample_name.replace('_protein','')
-            taxonomy = gtdb_id_to_taxonomy[gtdb_id]
-            break
 
         for otu in otu_table.data:
+            gtdb_id = otu[sample_name_field_index].replace('_protein','')
+            taxonomy = gtdb_id_to_taxonomy[gtdb_id]
+
             otu[sample_name_field_index] = gtdb_id
             otu[taxonomy_field_index] = taxonomy
             otu[coverage_field_index] = 1.0
