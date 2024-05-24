@@ -89,6 +89,9 @@ class ArchiveOtuTable:
         otus.data = j['otus']
         return otus
 
+    def sort(self):
+        self.data.sort()
+
     def __iter__(self):
         for d in self.data:
             e = ArchiveOtuTableEntry()
