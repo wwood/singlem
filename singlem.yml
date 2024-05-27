@@ -47,4 +47,4 @@ dependencies:
   #   - scann # optional
 variables:
   # Only works on CMR servers
-  SINGLEM_METAPACKAGE_PATH: /work/microbiome/db/singlem/S4.2.2.GTDB_r214.metapackage_20240502.smpkg.zb
+  SINGLEM_METAPACKAGE_PATH: /work/microbiome/db/singlem/S4.3.0.GTDB_r220.metapackage_20240523.smpkg.zb
