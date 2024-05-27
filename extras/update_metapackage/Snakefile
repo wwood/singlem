@@ -42,9 +42,8 @@ wildcard_constraints:
 rule all:
     input:
         zenodo_backpack,
-        # Right now the new singlem won't work with the old metapackage, so only run the new metapackages.
-        expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
-        expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["new"]),
+        expand(output_dir + "/sra/{sra}_{version}.otu_table.tsv", sra=config["sra_seqs_1"], version=["old","new"]),
+        expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["old","new"]),
         # output_dir + "/sra/done"
 
 rule zenodo_backpack:
@@ -54,7 +53,7 @@ rule zenodo_backpack:
         zenodo_backpack=zenodo_backpack,
         done=touch(output_dir + "/zenodo_backpack.done")
     conda:
-        "../../singlem.yml"
+        "envs/zenodo_backpack.yml"
     shell:
         "zenodo_backpack create --input-directory {input.metapackage} --output-file {output.zenodo_backpack} --data-version {zenodo_backpack_version}"
 
