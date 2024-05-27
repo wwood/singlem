@@ -16,4 +16,4 @@ Here is an example output from 'microbial_fraction':
 | ----------- | ------------------------ | --------------- | ------------- | ------- |
 | KRGM_94     | 473147661                | 512995675       | 92.23         |         |
 
-The `read_fraction` column is a percentage, i.e. 0.3 is 0.3%, nt 30%. The `warning` column is empty if no warning was emitted.
+The `read_fraction` column is a percentage, i.e. 0.3 is 0.3%, not 30%. The `warning` column is empty if no warning was emitted.
