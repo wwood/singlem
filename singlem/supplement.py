@@ -155,7 +155,6 @@ def generate_taxonomy_for_new_genomes(**kwargs):
         logging.info("Writing new genome taxonomies to {}".format(output_taxonomies_file))
         output_taxonomies_fh = open(output_taxonomies_file, 'w')
         output_taxonomies_fh.write('genome\ttaxonomy\n')
-        import IPython; IPython.embed()
 
     # For loop
     for genome_name, taxonomy_str in taxonomies_to_process:
