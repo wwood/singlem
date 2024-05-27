@@ -14,11 +14,12 @@ from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
 # These constants should be updated in tandem
-DATA_DEFAULT_VERSION = '4.2.2'
-DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
-DATA_DOI = '10.5281/zenodo.5739611'
+DATA_DEFAULT_VERSION = '4.3.0'
+CURRENT_GTDB_DATABASE_VERSION = 'R220'
+
 GTDB_DATABASE_NAME = 'Genome Taxonomy Database (GTDB)'
-CURRENT_GTDB_DATABASE_VERSION = 'R214'
+DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
+DATA_DOI = '10.5281/zenodo.5739611' # This is the series DOI, not the individual metapackage's DOI
 
 CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 
@@ -178,7 +179,13 @@ class Metapackage:
             output_directory,
             DATA_DOI,
             progress_bar=True,
-            version=DATA_DEFAULT_VERSION)
+            # Unfortunately, we are stuck with zenodo_backpackge 0.2.0 because
+            # the newer version cannot be deployed on conda-forge, due to this
+            # open ticket. 
+            # https://github.com/conda-forge/zenodo_backpack-feedstock/pull/1
+            #
+            # version=DATA_DEFAULT_VERSION 
+            )
         logging.info("Finished downloading data")
 
         logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
