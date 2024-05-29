@@ -45,6 +45,3 @@ dependencies:
   #   - zenodo_backpack>=0.3.0 # required for version parameter in metapackage download
   #   - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
   #   - scann # optional
-variables:
-  # Only works on CMR servers
-  SINGLEM_METAPACKAGE_PATH: /work/microbiome/db/singlem/S4.3.0.GTDB_r220.metapackage_20240523.smpkg.zb
