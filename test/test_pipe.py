@@ -1112,7 +1112,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs.fna'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
-            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.sdb'),
+            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
         )
         self.assertEqualOtuTable(
             list([line.split("\t") for line in expected]),
@@ -1126,7 +1126,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             os.path.join(path_to_data, 'random.fna'), # i.e. no hits
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
-            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.sdb'),
+            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
         )
         self.assertEqualOtuTable(
             list([line.split("\t") for line in expected]),
@@ -1140,7 +1140,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.fna'),
             os.path.join(path_to_data, 'random.fna'), # i.e. no hits
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
-            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.sdb'),
+            os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
         )
         self.assertEqualOtuTable(
             list([line.split("\t") for line in expected]),
