@@ -827,6 +827,9 @@ class Supplementor:
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
+        os.environ["POLARS_MAX_THREADS"] = str(threads)
+        import polars as pl
+
         if new_genome_fasta_files is None and new_genome_fasta_files_list is None:
             raise Exception("Must provide either --new-genome-fasta-files or --new-genome-fasta-files-list")
         elif new_genome_fasta_files is not None and new_genome_fasta_files_list is not None:
