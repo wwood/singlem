@@ -77,6 +77,10 @@ if __name__ == '__main__':
     logging.info("Deleting various files")
     os.remove(metapackage._sqlite_db_path)
 
+    if metapackage.nucleotide_sdb_path() is not None:
+        logging.info("Deleting nucleotide sdb")
+        shutil.rmtree(metapackage.nucleotide_sdb_path())
+
     # From each graftm package
     for singlem_package in metapackage.singlem_packages:
         os.remove(singlem_package.taxonomy_hash_path())
