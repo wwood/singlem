@@ -130,16 +130,16 @@ TAXONOMIC PROFILE INPUT
 TAXONOMIC PROFILE OUTPUT
 ========================
 
-**\--output-taxonomic-profile** *OUTPUT_TAXONOMIC_PROFILE*
+**\--output-taxonomic-profile** FILE
 
   Output a single output file containing taxonomic profiles of all
     input taxonomic profile files. Requires \--input-taxonomic-profiles
 
-**\--output-taxonomic-profile-krona** *OUTPUT_TAXONOMIC_PROFILE_KRONA*
+**\--output-taxonomic-profile-krona** FILE
 
   Output taxonomic profile to this file in Krona format.
 
-**\--output-species-by-site-relative-abundance** *OUTPUT_SPECIES_BY_SITE_RELATIVE_ABUNDANCE*
+**\--output-species-by-site-relative-abundance** FILE
 
   Output site by species relative abundance to this file
 
@@ -148,23 +148,23 @@ TAXONOMIC PROFILE OUTPUT
   Output site by species level to this file. Requires
     \--output-species-by-site-relative-abundance.
 
-**\--output-species-by-site-relative-abundance-prefix** *OUTPUT_SPECIES_BY_SITE_RELATIVE_ABUNDANCE_PREFIX*
+**\--output-species-by-site-relative-abundance-prefix** PATH_PREFIX
 
   Output site by species relative abundance to this file prefix. One
     file will be written for each taxonomic level.
 
-**\--output-filled-taxonomic-profile** *OUTPUT_FILLED_TAXONOMIC_PROFILE*
+**\--output-filled-taxonomic-profile** FILE
 
   Output a taxonomic profile where the coverage of each taxon includes
     the coverage of each of its descendent taxons e.g. the d\_\_Bacteria
     entry includes the p\_\_Patescibacteria entry.
 
-**\--output-taxonomic-profile-with-extras** *OUTPUT_TAXONOMIC_PROFILE_WITH_EXTRAS*
+**\--output-taxonomic-profile-with-extras** FILE
 
   Output a taxonomic profile with extra information (coverage,
     \'filled\' coverage, relative abundance, taxonomy level).
 
-**\--output-taxonomic-level-coverage** *OUTPUT_TAXONOMIC_LEVEL_COVERAGE*
+**\--output-taxonomic-level-coverage** FILE
 
   Output summary of how much coverage has been assigned to each
     taxonomic level in a taxonomic profile to a TSV file.
