@@ -6,7 +6,7 @@ There are several ways to install SingleM.
 SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
 
 ```
-conda create -c bioconda -c conda-forge --name singlem singlem'>='0.17.0
+conda create -c bioconda -c conda-forge --name singlem singlem'>='0.18.0
 ``` 
 
 Test if it works by running
@@ -20,45 +20,45 @@ After this, you'll also need to procure the reference data (the "metapackage"). 
 ## Installation via DockerHub
 A docker image generated from the conda package is [available](https://hub.docker.com/r/wwood/singlem) on DockerHub. After installing Docker, run the following:
 ```
-docker pull wwood/singlem:0.17.0
+docker pull wwood/singlem:0.18.0
 ```
 
 Test if it works by running
 ```
-docker run wwood/singlem:0.17.0 -h
+docker run wwood/singlem:0.18.0 -h
 ```
 
 If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
-docker run -v `pwd`:`pwd` wwood/singlem:0.17.0 pipe --sequences \
+docker run -v `pwd`:`pwd` wwood/singlem:0.18.0 pipe --sequences \
     `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 Two things to note:
 
 1. The default SingleM reference data is included in the docker image, so running [singlem data](/tools/data) is not necessary for this installation method - you can jump straight to using `pipe`.
-2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `docker run wwood/singlem:0.17.0 pipe -h`.
+2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `docker run wwood/singlem:0.18.0 pipe -h`.
 
 
 ## Installation via Singularity / Apptainer
 SingleM can be installed via [Singularity](https://sylabs.io/singularity/) or [Apptainer](https://apptainer.org). After installing Singularity or Apptainer, run the following:
 ```
-singularity pull docker://wwood/singlem:0.17.0
+singularity pull docker://wwood/singlem:0.18.0
 ```
 
 Test if it works by running
 ```
-singularity run singlem_0.17.0.sif -h
+singularity run singlem_0.18.0.sif -h
 ```
 
 If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
-singularity run -B `pwd`:`pwd` singlem_0.17.0.sif pipe --sequences \
+singularity run -B `pwd`:`pwd` singlem_0.18.0.sif pipe --sequences \
     `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 Two things to note:
 
 1. The default SingleM reference data is included in the docker image, so running [singlem data](/tools/data) is not necessary for this installation method - you can jump straight to using `pipe`.
-2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `singularity run singlem_0.17.0.sif pipe -h`.
+2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `singularity run singlem_0.18.0.sif pipe -h`.
 
 
 ## Installation via PyPI
