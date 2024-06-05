@@ -33,22 +33,6 @@ ENV SINGLEM_METAPACKAGE_PATH=/singlem/db/SINGLEM_DB_BASENAME
 # Checks whether the metapackage is up to date
 RUN /singlem/bin/singlem data --verify
 
-# TEMPORARY: Install smafa by directly compiling, while 0.8.0 is unavailable on conda
-# https://github.com/bioconda/bioconda-recipes/pull/47843
-#
-# NOTE: Also need to uncomment the rm -rf ~/.mamba below
-RUN micromamba remove -n base -y smafa
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
-ENV PATH="${PATH}:${HOME}/.cargo/bin"
-ENV CARGO_HOME="${HOME}/.cargo"
-ENV RUSTUP_HOME="${HOME}/.rustup"
-USER root
-RUN apt update && apt install -y man-db
-RUN apt install gcc -y # Only needed for smafa compilation
-USER $MAMBA_USER
-RUN PATH="${PATH}:${HOME}/.cargo/bin" RUSTUP_HOME="${HOME}/.rustup" CARGO_HOME="${HOME}/.cargo" cargo install smafa --version 0.8.0
-RUN ln -s `which smafa` /usr/bin/smafa
-
 # Run some tests
 RUN /singlem/bin/singlem --version
 RUN /singlem/bin/singlem pipe --full-help 
@@ -85,8 +69,6 @@ ARG MAMBA_USER_GID=57439
 ENV MAMBA_USER=$MAMBA_USER
 ENV MAMBA_ROOT_PREFIX="/opt/conda"
 ENV MAMBA_EXE="/bin/micromamba"
-
-RUN cp /home/$MAMBA_USER/.cargo/bin/smafa /usr/bin/smafa
 
 # ## These below are not necessary because the copy from the micromamba image already has them, and doing it just adds to the the image size.
 # COPY --from=micromamba "$MAMBA_EXE" "$MAMBA_EXE"
