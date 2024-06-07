@@ -5,5 +5,11 @@ SingleM is a tool for profiling shotgun metagenomes. It has a particular strengt
 
 Documentation can be found at https://wwood.github.io/singlem/
 
-### Citation
-SingleM and Sandpiper: Robust microbial taxonomic profiles from metagenomic data. Ben J Woodcroft, Samuel T. N. Aroney, Rossen Zhao, Mitchell Cunningham, Joshua A. M. Mitchell, Linda Blackall, Gene W Tyson. bioRxiv 2024.01.30.578060; doi: https://doi.org/10.1101/2024.01.30.578060
+### Citations
+The overall citation for SingleM/Sandpiper:
+
+Woodcroft, Ben J., Samuel TN Aroney, Rossen Zhao, Mitchell Cunningham, Joshua AM Mitchell, Linda Blackall, and Gene W. Tyson. SingleM and Sandpiper: Robust microbial taxonomic profiles from metagenomic data. bioRxiv (2024): 2024-01. https://doi.org/10.1101/2024.01.30.578060
+
+The `microbial_fraction` (SMF) mode of SingleM:
+
+Eisenhofer, Raphael, Antton Alberdi, and Ben J. Woodcroft. Large-scale estimation of bacterial and archaeal DNA prevalence in metagenomes reveals biome-specific patterns. bioRxiv (2024): 2024-05. https://doi.org/10.1101/2024.05.16.594470
