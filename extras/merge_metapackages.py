@@ -36,7 +36,7 @@ import extern
 from bird_tool_utils import in_tempdir
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
-from singlem.metapackage import Metapackage
+from singlem.metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME
 
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
@@ -91,7 +91,12 @@ if __name__ == '__main__':
             output_path=output_metapackage,
             threads=1,
             prefilter_diamond_db='prefilter_seqs.dmnd',
-            taxon_genome_lengths=None
+            taxon_genome_lengths=None,
+            taxonomy_database_name=f'metapackage merged from {args.metapackage1} and {args.metapackage2}',
+            taxonomy_database_version=None,
+            diamond_prefilter_performance_parameters=None,
+            diamond_taxonomy_assignment_performance_parameters=None,
+            makeidx_sensitivity_params=None,
         )
 
         logging.info("Done")
