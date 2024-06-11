@@ -35,6 +35,8 @@ import shutil
 from multiprocessing import Pool, Manager, get_context
 import tempfile
 import re
+os.environ["POLARS_MAX_THREADS"] = str(1)
+os.environ["OPENBLAS_NUM_THREADS"] = str(1)
 import polars as pl
 from Bio import SearchIO
 
