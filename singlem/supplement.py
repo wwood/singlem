@@ -144,7 +144,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 if os.path.exists(tax_file):
                     logging.info("Reading taxonomy from {}".format(tax_file))
 
-                    df = pl.read_csv(tax_file, separator='\t')
+                    df = pl.read_csv(tax_file, separator='\t', null_values = "N/A")
                     for row in df.rows(named=True):
                         genome_name = row['user_genome']
                         taxonomies_to_process.append((genome_name, row['classification']))
