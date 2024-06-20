@@ -839,7 +839,9 @@ class Supplementor:
         elif new_genome_fasta_files_list is not None:
             for file_list in new_genome_fasta_files_list:
                 with open(file_list) as f:
-                    new_genome_fasta_files = [x.strip() for x in f.readlines()]
+                    new_genome_fasta_files = [os.path.abspath(x.strip()) for x in f.readlines()]
+        else:
+            new_genome_fasta_files = [os.path.abspath(x) for x in new_genome_fasta_files]
 
         if input_metapackage is None:
             old_metapackage = Metapackage.acquire_default()
