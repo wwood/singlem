@@ -3,13 +3,11 @@ title: SingleM create
 ---
 # singlem create
 
-DESCRIPTION
-===========
+# DESCRIPTION
 
 Create a SingleM package.
 
-OPTIONS
-=======
+# OPTIONS
 
 **\--input-graftm-package** PATH
 
@@ -55,8 +53,7 @@ OPTIONS
 
   Overwrite output path if it already exists [default: false]
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -78,8 +75,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

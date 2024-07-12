@@ -12,8 +12,7 @@ The window positions in the default SingleM packages were chosen through this me
 
 Once a best window position is chosen through this process, [singlem create](/advanced/create) is used to finalise creation of the SingleM package.
 
-OPTIONS
-=======
+# OPTIONS
 
 **\--alignment** aligned_fasta
 
@@ -33,8 +32,7 @@ OPTIONS
   HMM file used to generate alignment, used here to rank windows
     according to their information content.
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -56,8 +54,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

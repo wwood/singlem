@@ -9,7 +9,7 @@ import os
 
 
 def remove_before(marker, string_to_process):
-    splitter = '\n' + marker + '\n'
+    splitter = '\n# ' + marker + '\n'
     if splitter not in string_to_process:
         raise Exception("Marker '{}' not found in string".format(marker))
     return splitter + string_to_process.split(splitter)[1]
