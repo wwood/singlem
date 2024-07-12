@@ -38,8 +38,7 @@ The [examples section](/tools/pipe#examples) may be of use.
 For a more detailed explanation of the SingleM pipeline, see the [SingleM paper](https://doi.org/10.1101/2024.01.30.578060).
 
 
-COMMON OPTIONS
-==============
+# COMMON OPTIONS
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
@@ -100,8 +99,7 @@ COMMON OPTIONS
     each OTU was generated from) in the output OTU table [default: not
     set]
 
-LESS COMMON OPTIONS
-===================
+# LESS COMMON OPTIONS
 
 **\--archive-otu-table** filename
 
@@ -262,8 +260,7 @@ LESS COMMON OPTIONS
   Sleep for this many seconds after running os.mkfifo [default:
     None]
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -285,16 +282,14 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
 >     Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 
-EXAMPLES
-========
+# EXAMPLES
 
 Get a taxonomic profile from paired read input:
 

@@ -119,16 +119,14 @@ convertToEBD.py otu_table-S3.5.ribosomal_protein_S2_rpsB.unifrac \
 ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 ```
 
-TAXONOMIC PROFILE INPUT
-=======================
+# TAXONOMIC PROFILE INPUT
 
 **\--input-taxonomic-profiles** *INPUT_TAXONOMIC_PROFILES* [*INPUT_TAXONOMIC_PROFILES* \...]
 
   Input taxonomic profiles to be e.g. converted to krona HTML, or
     concatenated
 
-TAXONOMIC PROFILE OUTPUT
-========================
+# TAXONOMIC PROFILE OUTPUT
 
 **\--output-taxonomic-profile** FILE
 
@@ -169,8 +167,7 @@ TAXONOMIC PROFILE OUTPUT
   Output summary of how much coverage has been assigned to each
     taxonomic level in a taxonomic profile to a TSV file.
 
-OTU TABLE INPUT
-===============
+# OTU TABLE INPUT
 
 **\--input-otu-tables**, **\--input-otu-table** *INPUT_OTU_TABLES* [*INPUT_OTU_TABLES* \...]
 
@@ -199,8 +196,7 @@ OTU TABLE INPUT
     \--output-otu-table and transformation options do not work [expert
     option].
 
-OTU TABLE TRANSFORMATION
-========================
+# OTU TABLE TRANSFORMATION
 
 **\--cluster**
 
@@ -247,8 +243,7 @@ OTU TABLE TRANSFORMATION
   For archive OTU tables that have both paired and unpaired
     components, merge these into a single output archive OTU table
 
-OTU TABLE OUTPUT
-================
+# OTU TABLE OUTPUT
 
 **\--output-otu-table** *OUTPUT_OTU_TABLE*
 
@@ -317,8 +312,7 @@ OTU TABLE OUTPUT
     first read in the original input sequence set, but instead to the
     order in the input archive OTU table.
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -340,16 +334,14 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
 >     Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 
-EXAMPLES
-========
+# EXAMPLES
 
 Convert a taxonomic profile to a site-by-species table at the genus level:
 

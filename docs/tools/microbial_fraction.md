@@ -35,18 +35,15 @@ The method is least reliable in simple communities consisting of a small number 
 
 To detect such situations SingleM `microbial_fraction` emits a warning when a sample's microbial_fraction estimate could under- or overestimate the read fraction. Specifically, the warning is emitted when the 3 highest abundance lineages not classified to the species level would change the estimated read fraction of the sample by >2% if their genome size is halved or doubled. Microbial fractions are also capped at 100% since values greater than this are impossible, but the original value can be recovered from the output if you calculate `bacterial_archaeal_bases / metagenome_size`.
 
-OPTIONS
-=======
+# OPTIONS
 
-INPUT
-=====
+# INPUT
 
 **-p**, **\--input-profile** *INPUT_PROFILE*
 
   Input taxonomic profile file [required]
 
-READ INFORMATION [1+ ARGS REQUIRED]
-=====================================
+# READ INFORMATION [1+ ARGS REQUIRED]
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
@@ -68,8 +65,7 @@ READ INFORMATION [1+ ARGS REQUIRED]
     \'pipe\'. These must be the same reads that were used to generate
     the input profile.
 
-DATABASE
-========
+# DATABASE
 
 **\--taxon-genome-lengths-file** *TAXON_GENOME_LENGTHS_FILE*
 
@@ -81,8 +77,7 @@ DATABASE
   Metapackage containing genome lengths [default: Use genome lengths
     from the default metapackage]
 
-OTHER OPTIONS
-=============
+# OTHER OPTIONS
 
 **\--accept-missing-samples**
 
@@ -98,8 +93,7 @@ OTHER OPTIONS
   Output a fraction for each taxon to this TSV [default: D o not
     output anything]
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -121,8 +115,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology

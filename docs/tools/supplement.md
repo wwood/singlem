@@ -3,13 +3,11 @@ title: SingleM supplement
 ---
 # singlem supplement
 
-DESCRIPTION
-===========
+# DESCRIPTION
 
 Create a new metapackage from a vanilla one plus new genomes
 
-OPTIONS
-=======
+# OPTIONS
 
 **\--new-genome-fasta-files** *NEW_GENOME_FASTA_FILES* [*NEW_GENOME_FASTA_FILES* \...]
 
@@ -31,8 +29,7 @@ OPTIONS
 
   parallelisation
 
-TAXONOMY
-========
+# TAXONOMY
 
 **\--new-fully-defined-taxonomies** *NEW_FULLY_DEFINED_TAXONOMIES*
 
@@ -66,8 +63,7 @@ TAXONOMY
   skip check which ensures that GTDBtk assigned taxonomies are
     concordant with the old metapackage\'s [default: do the check]
 
-QUALITY FILTERING OF NEW GENOMES
-================================
+# QUALITY FILTERING OF NEW GENOMES
 
 **\--checkm2-quality-file** *CHECKM2_QUALITY_FILE*
 
@@ -85,8 +81,7 @@ QUALITY FILTERING OF NEW GENOMES
 
   maximum contamination for CheckM2 [default: 10]
 
-DEREPLICATION
-=============
+# DEREPLICATION
 
 **\--no-dereplication**
 
@@ -96,8 +91,7 @@ DEREPLICATION
 
   Run galah to dereplicate genomes at species level
 
-LESS COMMON OPTIONS
-===================
+# LESS COMMON OPTIONS
 
 **\--hmmsearch-evalue** *HMMSEARCH_EVALUE*
 
@@ -131,8 +125,7 @@ LESS COMMON OPTIONS
 
   Version of the taxonomy database to use [default: None]
 
-OTHER GENERAL OPTIONS
-=====================
+# OTHER GENERAL OPTIONS
 
 **\--debug**
 
@@ -154,8 +147,7 @@ OTHER GENERAL OPTIONS
 
   print longer help message in ROFF (manpage) format
 
-AUTHORS
-=======
+# AUTHORS
 
 >     Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
