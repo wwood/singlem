@@ -2,11 +2,14 @@
 
 There are several ways to install SingleM. 
 
-## Installation via conda
-SingleM can be installed through [Bioconda](https://anaconda.org/bioconda/singlem):
+## Installation via conda / mamba
+SingleM can be installed through
+[Bioconda](https://anaconda.org/bioconda/singlem). You can use the default conda
+if you prefer but we recommend [mamba](https://mamba.readthedocs.io/) for faster
+installation and better error messages.
 
 ```
-conda create -c bioconda -c conda-forge --name singlem singlem'>='0.18.0
+mamba create -c bioconda -c conda-forge --name singlem singlem'>='0.18.0
 ``` 
 
 Test if it works by running
