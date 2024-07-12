@@ -27,7 +27,7 @@ class GenomeSizes:
             if level == 'species':
                 taxon_means = gc.select([level, 'genome_size']).group_by(level).mean()
             else:
-                taxon_means = gc.groupby('genus').first().select([level, 'genus_wise_genome_size']).group_by(level).mean()
+                taxon_means = gc.group_by('genus').first().select([level, 'genus_wise_genome_size']).group_by(level).mean()
             taxon_means.columns = ['rank', 'genome_size']
             # taxon_mins = gc.select([level, 'genome_size']).group_by(level).min()
             # taxon_mins.columns = ['rank', 'min_genome_size']
