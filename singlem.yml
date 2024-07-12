@@ -30,7 +30,7 @@ dependencies:
   - bird_tool_utils_python>=0.4.1
   - smafa>=0.8.0 # required for new metapackage smafa db format
   - pyranges
-  - polars>=0.19.3 # supplement with taxon genome length requires this, for strip_chars
+  - polars>=1.1.0 # supplement with taxon genome length requires this, for strip_chars, and group_by
   - prodigal
   - tqdm
   - pyarrow
