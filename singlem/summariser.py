@@ -547,7 +547,7 @@ class Summariser:
         # Concatenate all profiles
         all_profiles = pl.concat(all_profiles)
 
-        if len(all_profiles.select(pl.col('level')).groupby('level').count()) in [7, 8]:
+        if len(all_profiles.select(pl.col('level')).group_by('level').count()) in [7, 8]:
             # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
             levels = ['root','domain','phylum','class','order','family','genus','species']
             level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
