@@ -365,24 +365,31 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_dir
     num_transcriptomes += 1
 
     qresults = list(SearchIO.parse(hmmsearch_output, 'hmmer3-tab'))
-    found_hits = []
+    found_hits_hmm = []
+    found_hits_transcript = []
+    found_hits_bitscore = []
     for qresult in qresults:
         for hit in qresult.hits:
-            found_hits.append([qresult.id, hit.id, hit.bitscore])
+            found_hits_hmm.append(qresult.id)
+            found_hits_transcript.append(hit.id)
+            found_hits_bitscore.append(hit.bitscore)
             total_num_transcripts += 1
 
-    if len(found_hits) == 0:
+    if total_num_transcripts == 0:
         logging.debug("No hits found for {}".format(genome))
         failure_genomes += 1
         return (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts)
 
-    df = pl.DataFrame(found_hits)
-    df.columns = ['hmm', 'transcript', 'bitscore']
+    df = pl.DataFrame({
+        'hmm': found_hits_hmm,
+        'transcript': found_hits_transcript,
+        'bitscore': found_hits_bitscore
+    })
     # Take best hit for each transcript
-    df2 = df.sort('bitscore', descending=True).groupby('transcript').first()
+    df2 = df.sort('bitscore', descending=True).group_by('transcript').first()
     # Remove genes where there is >1 hit
     # If any HMM is associated with multiple genes, remove it as being potentially dubious
-    ok_genes = list(df2.groupby('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
+    ok_genes = list(df2.group_by('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
     df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
     logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
 
