@@ -5,6 +5,8 @@ SingleM is a tool for profiling shotgun metagenomes. It has a particular strengt
 
 Documentation can be found at https://wwood.github.io/singlem/
 
+Community profiles for many publicly available metagenomes can be found at the [Sandpiper](https://sandpiper.qut.edu.au/) website.
+
 ### Citations
 The overall citation for SingleM/Sandpiper:
 
