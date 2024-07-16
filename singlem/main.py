@@ -27,6 +27,10 @@ from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE, CUSTOM_TAXONOMY_DATABASE_NAME
 from singlem.singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
+from singlem.condense import DEFAULT_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
+from singlem.condense import DEFAULT_GENOME_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
+from singlem.condense import DEFAULT_TRIM_PERCENT as CONDENSE_DEFAULT_TRIM_PERCENT
+
 DEFAULT_WINDOW_SIZE = 60
 SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
 
@@ -58,7 +62,7 @@ def seqs(args):
     print(best_position)
 
 
-if __name__ == '__main__':
+def main():
     bird_argparser = BirdArgparser(
         program='SingleM',
         authors=[
@@ -196,7 +200,7 @@ if __name__ == '__main__':
         argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
         argument_group.add_argument('--min-taxon-coverage',
                                     metavar='FLOAT',
-                                    help='Minimum coverage to report in a taxonomic profile. [default: {} for reads, {} for genomes]'.format(Condenser.DEFAULT_MIN_TAXON_COVERAGE, Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE),
+                                    help='Minimum coverage to report in a taxonomic profile. [default: {} for reads, {} for genomes]'.format(CONDENSE_DEFAULT_MIN_TAXON_COVERAGE, CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE),
                                     type=float)
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
@@ -508,10 +512,10 @@ if __name__ == '__main__':
 
     optional_condense_arguments = condense_parser.add_argument_group("Other options")
     optional_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-    current_default = Condenser.DEFAULT_MIN_TAXON_COVERAGE
+    current_default = CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
     optional_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION',
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
-    current_default = Condenser.DEFAULT_TRIM_PERCENT
+    current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
@@ -700,9 +704,9 @@ if __name__ == '__main__':
         if args.min_taxon_coverage:
             return args.min_taxon_coverage
         elif subparser == 'pipe' and args.genome_fasta_files:
-            return Condenser.DEFAULT_GENOME_MIN_TAXON_COVERAGE
+            return CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
         else:
-            return Condenser.DEFAULT_MIN_TAXON_COVERAGE
+            return CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)

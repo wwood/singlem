@@ -48,7 +48,7 @@ from .biolib_lite.common import remove_extension
 from tqdm.contrib.concurrent import process_map
 from tqdm import tqdm
 
-sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__))), '..'] + sys.path
+# sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__))), '..'] + sys.path
 
 from .metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME, GTDB_DATABASE_NAME
 from .archive_otu_table import ArchiveOtuTable

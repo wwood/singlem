@@ -29,7 +29,7 @@ import sys
 import json
 import re
 
-path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
+path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path

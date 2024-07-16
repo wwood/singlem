@@ -29,7 +29,7 @@ from io import StringIO
 import json
 from bird_tool_utils import in_tempdir
 
-path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
+path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path

@@ -36,7 +36,7 @@ from bird_tool_utils import in_tempdir
 
 from singlem.metapackage import Metapackage
 
-path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
+path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 singlem_base_directory = os.path.join(os.path.dirname(__file__), '..')

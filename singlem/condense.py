@@ -11,6 +11,10 @@ from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
 from .metapackage import Metapackage
 from .taxonomy import *
 
+DEFAULT_TRIM_PERCENT = 10
+DEFAULT_MIN_TAXON_COVERAGE = 0.35
+DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
+
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
 # https://stackoverflow.com/questions/15063936/csv-error-field-larger-than-field-limit-131072
@@ -26,10 +30,6 @@ while True:
 
 class Condenser:
     """ Combines otu table output for each marker into a single otu table"""
-
-    DEFAULT_TRIM_PERCENT = 10
-    DEFAULT_MIN_TAXON_COVERAGE = 0.35
-    DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
 
     def condense(self, **kwargs):
         output_otu_table = kwargs.pop('output_otu_table')
