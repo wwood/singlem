@@ -3,6 +3,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  # NOTE: Ensure setup.py is changed in tandem with this file
   - python>=3.7 #, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10. Older python versions than 3.7 may also work, not tested.
   - diamond>=2.1.7 # Getting segmentation fault on test_insert_prefilter otherwise
   - biopython=1.84 # Pinning to be safe, no known issues

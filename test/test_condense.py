@@ -32,7 +32,7 @@ from singlem.condense  import Condenser
 from singlem.archive_otu_table import ArchiveOtuTable
 from singlem.pipe import QUERY_BASED_ASSIGNMENT_METHOD
 
-path_to_script = os.path.join(os.path.dirname(os.path.realpath(__file__)),'..','bin','singlem')
+path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data','condense')
 
 class Tests(unittest.TestCase):
