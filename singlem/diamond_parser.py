@@ -1,6 +1,6 @@
 import logging
 from graftm.sequence_search_results import DiamondSearchResult, SequenceSearchResult
-from .singlem import OrfMUtils
+from .utils import OrfMUtils
 
 class DiamondResultParser:
     def __init__(self, diamond_daa_path):

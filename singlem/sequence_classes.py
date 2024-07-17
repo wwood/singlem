@@ -2,7 +2,7 @@ from Bio.Seq import Seq
 import logging
 import re
 
-from .singlem import OrfMUtils
+from .utils import OrfMUtils
 
 
 class Sequence:

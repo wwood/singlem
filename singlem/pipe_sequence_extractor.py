@@ -12,7 +12,7 @@ from .sequence_classes import SeqReader, AlignedProteinSequence, Sequence
 from .metagenome_otu_finder import MetagenomeOtuFinder
 from . import sequence_extractor as singlem_sequence_extractor
 from .streaming_hmm_search_result import StreamingHMMSearchResult
-from .singlem import OrfMUtils
+from .utils import OrfMUtils
 
 
 # Must be defined outside a class so that it is pickle-able, so multiprocessing can work

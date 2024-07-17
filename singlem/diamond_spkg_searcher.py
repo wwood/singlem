@@ -2,7 +2,7 @@ import os
 import logging
 import extern
 
-from .singlem import FastaNameToSampleName
+from .utils import FastaNameToSampleName
 from .run_via_os_system import run_via_os_system
 
 class DiamondSpkgSearcher:

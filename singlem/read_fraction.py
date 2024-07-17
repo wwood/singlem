@@ -10,7 +10,7 @@ import extern
 
 from .condense import CondensedCommunityProfile
 from .metapackage import Metapackage
-from .singlem import FastaNameToSampleName
+from .utils import FastaNameToSampleName
 
 @dataclass
 class GenomeSizeStruct:
