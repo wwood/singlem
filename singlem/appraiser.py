@@ -12,7 +12,7 @@ from .sequence_database import SequenceDatabase
 from .sequence_database import SMAFA_NAIVE_INDEX_FORMAT
 from .condense import _tmean
 
-from .utils import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
+from . import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
 class Appraiser:
     def appraise(self, **kwargs):
