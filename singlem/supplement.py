@@ -53,7 +53,7 @@ from tqdm import tqdm
 from .metapackage import Metapackage, CUSTOM_TAXONOMY_DATABASE_NAME, GTDB_DATABASE_NAME
 from .archive_otu_table import ArchiveOtuTable
 from .sequence_classes import SeqReader
-from .singlem import FastaNameToSampleName, OrfMUtils
+from .utils import FastaNameToSampleName, OrfMUtils
 from .otu_table_collection import OtuTableCollection
 from .regenerator import Regenerator
 from .pipe import SearchPipe

@@ -12,8 +12,7 @@ from .singlem_package import SingleMPackageVersion4, SingleMPackage
 from .sequence_classes import SeqReader, Sequence
 from .metagenome_otu_finder import MetagenomeOtuFinder
 from .pipe_sequence_extractor import _align_proteins_to_hmm
-from .singlem import CREATE_MIN_ALIGNED_PERCENT
-
+from . import CREATE_MIN_ALIGNED_PERCENT
 
 class Regenerator:
 

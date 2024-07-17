@@ -2,7 +2,7 @@ import logging
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table import OtuTable
-from .singlem import FastaNameToSampleName
+from .utils import FastaNameToSampleName
 
 
 class GenomeFastaMux:

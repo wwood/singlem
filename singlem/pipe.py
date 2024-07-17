@@ -11,7 +11,7 @@ import subprocess
 import time
 
 from .metapackage import Metapackage
-from .singlem import OrfMUtils
+from .utils import OrfMUtils
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .sequence_classes import SeqReader

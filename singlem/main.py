@@ -25,7 +25,7 @@ import singlem.pipe as pipe
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE, CUSTOM_TAXONOMY_DATABASE_NAME
-from singlem.singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
+from singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 
 from singlem.condense import DEFAULT_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_GENOME_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
@@ -453,7 +453,7 @@ def main():
 
     regenerate_description = 'Update a SingleM package with new sequences and taxonomy (expert mode).'
     regenerate_parser = bird_argparser.new_subparser('regenerate', regenerate_description)
-    current_default = singlem.singlem.CREATE_MIN_ALIGNED_PERCENT
+    current_default = singlem.CREATE_MIN_ALIGNED_PERCENT
     regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: {}]".format(current_default), type=int, default=current_default)
     regenerate_parser.add_argument('--window-position', help="change window position of output package [default: do not change]", type=int, default=False)
     regenerate_parser.add_argument('--sequence-prefix', help="add a prefix to sequence names", type=str, default="")
