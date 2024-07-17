@@ -36,6 +36,9 @@ SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_
 
 
 def seqs(args):
+    from singlem.sequence_classes import SeqReader as SingleMSeqReader
+    from singlem.metagenome_otu_finder import MetagenomeOtuFinder
+
     if args.alignment_type == 'aa':
         is_protein_alignment = True
     elif args.alignment_type == 'dna':
@@ -44,7 +47,7 @@ def seqs(args):
         raise Exception("Unexpected alignment type '%s'" % args.alignment_type)
 
     # Read in the fasta Alignment
-    protein_alignment = SeqReader().alignment_from_alignment_file(args.alignment)
+    protein_alignment = SingleMSeqReader().alignment_from_alignment_file(args.alignment)
     logging.info("Read in %i aligned protein sequences e.g. %s %s" % (
         len(protein_alignment),
         protein_alignment[0].name,
@@ -1263,8 +1266,6 @@ def main():
         )
 
     elif args.subparser_name == 'seqs':
-        from singlem.sequence_classes import SeqReader
-        from singlem.metagenome_otu_finder import MetagenomeOtuFinder
         seqs(args)
 
     elif args.subparser_name=='makedb':
