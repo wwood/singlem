@@ -273,6 +273,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 
             cmd = "%s pipe --sequences %s --metapackage %s --assignment-method diamond --taxonomic-profile /dev/stdout --taxonomic-profile-krona /tmp/blah.html" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg.smpkg'))
+            print(cmd)
             self.assertEqual(
                 expected, extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),'SAMPLE_ID'))
 
