@@ -34,7 +34,6 @@ from bird_tool_utils import in_tempdir
 path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
-sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.summariser import Summariser
 from singlem.otu_table_collection import OtuTableCollection
 from singlem.archive_otu_table import ArchiveOtuTable
@@ -295,7 +294,7 @@ minimal2	0.2
 
     def test_collapse_to_sample_name(self):
         with tempfile.NamedTemporaryFile() as tf:
-            extern.run(f'bin/singlem summarise --collapse-to-sample-name a1 --input-archive-otu-tables {path_to_data}/summarise/original1_for_merge.json  {path_to_data}/summarise/original2_for_merge.json --output-archive-otu-table {tf.name}')
+            extern.run(f'singlem summarise --collapse-to-sample-name a1 --input-archive-otu-tables {path_to_data}/summarise/original1_for_merge.json  {path_to_data}/summarise/original2_for_merge.json --output-archive-otu-table {tf.name}')
 
             with open(tf.name) as f:
                 observed = json.load(f)
@@ -305,7 +304,7 @@ minimal2	0.2
 
     def test_collapse_to_sample_name_no_assign_taxonomy(self):
         with tempfile.NamedTemporaryFile() as tf:
-            extern.run(f'bin/singlem summarise --collapse-to-sample-name testsample --input-archive-otu-tables {path_to_data}/small.otu_table.no_assign_taxonomy.json  {path_to_data}/small.otu_table.no_assign_taxonomy.json --output-archive-otu-table {tf.name}')
+            extern.run(f'singlem summarise --collapse-to-sample-name testsample --input-archive-otu-tables {path_to_data}/small.otu_table.no_assign_taxonomy.json  {path_to_data}/small.otu_table.no_assign_taxonomy.json --output-archive-otu-table {tf.name}')
 
             with open(tf.name) as f:
                 observed = json.load(f)
@@ -314,7 +313,7 @@ minimal2	0.2
                     self.assertEqual(observed, expected)
 
     def test_species_by_site_relative(self):
-        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
             --output-species-by-site-relative-abundance /dev/stdout \
             --output-species-by-site-level phylum')
         self.assertEqual(stdout, """taxonomy\tmarine0.1
@@ -325,7 +324,7 @@ Root; d__Bacteria; p__Proteobacteria\t30.26
 """)
 
     def test_species_by_site_2_samples(self):
-        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
              {path_to_data}/summarise/land.profile \
             --output-species-by-site-relative-abundance /dev/stdout \
             --output-species-by-site-level phylum')
@@ -383,7 +382,7 @@ Root; d__Bacteria; p__Actinobacteriota  0.0     2.83
 
 
     def test_concatenate_profiles(self):
-        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
              {path_to_data}/summarise/profile2.tsv \
             --output-taxonomic-profile /dev/stdout')
 
@@ -398,12 +397,12 @@ sample2  15.0     Root; d__Bacteria
 
     def test_concatenate_profiles_duplicate_samples(self):
         with self.assertRaises(Exception) as cm:
-            extern.run(f'bin/singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
+            extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv \
              {path_to_data}/summarise/profile1.tsv \
             --output-taxonomic-profile /dev/stdout')
 
     def test_fill_condensed(self):
-        stdout = extern.run(f'bin/singlem summarise --input-taxonomic-profile <(head -5 {path_to_data}/read_fraction/marine0.profile) <(head -5 {path_to_data}/read_fraction/marine0.profile |sed s/marine0.1/land/) '+
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile <(head -5 {path_to_data}/read_fraction/marine0.profile) <(head -5 {path_to_data}/read_fraction/marine0.profile |sed s/marine0.1/land/) '+
             '--output-filled-taxonomic-profile /dev/stdout')
 
         expected = re.compile(r'  +').sub('\t', """sample  filled_coverage        taxonomy
@@ -423,7 +422,7 @@ land       2.17    Root; d__Bacteria; p__Proteobacteria
         self.assertEqual(expected, stdout)
 
     def test_output_taxonomic_profile_with_extras(self):
-        cmd = f'bin/singlem summarise --input-taxonomic-profile <(head -5 {path_to_data}/read_fraction/marine0.profile) <(head -5 {path_to_data}/read_fraction/marine0.profile |sed s/marine0.1/land/) '\
+        cmd = f'singlem summarise --input-taxonomic-profile <(head -5 {path_to_data}/read_fraction/marine0.profile) <(head -5 {path_to_data}/read_fraction/marine0.profile |sed s/marine0.1/land/) '\
             '--output-taxonomic-profile-with-extras /dev/stdout'
         stdout = extern.run(cmd)
         expected = re.compile(r'  +').sub('\t', """sample     coverage  full_coverage  relative_abundance  level  taxonomy

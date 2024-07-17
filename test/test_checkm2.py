@@ -25,9 +25,9 @@ import unittest
 import os.path
 import sys
 
-sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 from singlem.checkm2 import CheckM2
 
+path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data')
 
 class Tests(unittest.TestCase):
     maxDiff = None
