@@ -82,8 +82,7 @@ git clone https://github.com/wwood/singlem
 cd singlem
 conda env create -n singlem -f singlem.yml
 conda activate singlem
-cd bin
-export PATH=$PWD:$PATH
+pip install -e .
 singlem -h
 ```
 
