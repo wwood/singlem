@@ -1,6 +1,6 @@
 # Installing SingleM
 
-There are several ways to install SingleM. 
+There are several ways to install SingleM. On the assumption that a standard internet connection speed is available, each of these methods should take substantially less than 1 hour, hopefully less than 15 minutes.
 
 ## Installation via conda
 SingleM can be installed through
@@ -87,6 +87,21 @@ singlem -h
 ```
 
 After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
+
+# Example data
+
+To test the main subcommand of SingleM, [pipe](/tools/pipe) works, download a minimal dataset and generate a taxonomic profile like so:
+```
+wget 'https://github.com/wwood/singlem/raw/44e1f81404c12931742259088999290edbb271b3/test/data/methanobacteria/genomes/GCA_000309865.1_genomic.fna'
+singlem pipe -1 GCA_000309865.1_genomic.fna -p /dev/stdout
+```
+
+This should output a profile similar to the below. When tested, the `pipe` took a little less than 2 minutes:
+```
+sample  coverage        taxonomy
+GCA_000309865.1_genomic 0.39    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium
+08/06/2024 04:50:25 PM INFO: Finished condense
+```
 
 # Containerised SingleM installation examples
 
