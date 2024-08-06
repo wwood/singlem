@@ -20,22 +20,24 @@ RUN pip install zenodo_backpack==0.3.0
 
 RUN git clone https://github.com/wwood/singlem . && git checkout vSINGLEM_VERSION
 
+RUN pip install -e .
+
 # Remove bundled singlem packages
 RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png singlem/test
 
 # Download default metapackage
 # Make the directory and its contents readable by others https://github.com/wwood/singlem/issues/155
-RUN mkdir -p /singlem/db && cd /singlem/db && /singlem/bin/singlem data --output-directory . && \
+RUN mkdir -p /singlem/db && cd /singlem/db && singlem data --output-directory . && \
     find /singlem/db -type d -print0 | xargs -0 chmod 755 && \
     find /singlem/db -type f -print0 | xargs -0 chmod +r
 
 ENV SINGLEM_METAPACKAGE_PATH=/singlem/db/SINGLEM_DB_BASENAME
 # Checks whether the metapackage is up to date
-RUN /singlem/bin/singlem data --verify
+RUN singlem data --verify
 
 # Run some tests
-RUN /singlem/bin/singlem --version
-RUN /singlem/bin/singlem pipe --full-help 
+RUN singlem --version
+RUN singlem pipe --full-help 
 # RUN cd singlem && python test/test_makedb_and_query.py
 
 # Remove ~/.mamba as it is just taking up space
@@ -87,4 +89,4 @@ SHELL ["/usr/local/bin/_dockerfile_shell.sh"]
 
 WORKDIR /data
 ENV SINGLEM_METAPACKAGE_PATH=/singlem/db/SINGLEM_DB_BASENAME
-ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","/singlem/bin/singlem"]
+ENTRYPOINT ["/usr/local/bin/_entrypoint.sh","singlem"]

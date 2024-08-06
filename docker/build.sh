@@ -1,7 +1,7 @@
 
 #!/bin/bash -eo pipefail
 
-export SINGLEM_VERSION=`../bin/singlem --version`
+export SINGLEM_VERSION=`singlem --version`
 export SINGLEM_DOCKER_VERSION=wwood/singlem:$SINGLEM_VERSION
 export SINGLEM_DB_BASENAME=`basename $SINGLEM_METAPACKAGE_PATH`
 
