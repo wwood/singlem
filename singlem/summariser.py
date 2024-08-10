@@ -552,7 +552,7 @@ class Summariser:
             levels = ['root','domain','phylum','class','order','family','genus','species']
             level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
             all_profiles = all_profiles.with_columns(
-                level = pl.col('level').replace(level_id_to_level_name)
+                level = pl.col('level').replace_strict(level_id_to_level_name, return_dtype=pl.Utf8)
             )
 
         all_profiles = all_profiles.select([
