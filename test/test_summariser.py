@@ -440,7 +440,34 @@ land       0.8       0.8            11.16               phylum      Root; d__Bac
 land       2.17      2.17           30.26               phylum      Root; d__Bacteria; p__Proteobacteria
 """)
         self.assertEqual(expected, stdout)
-        
+
+    def test_taxonomic_profile_coverage_not_down_to_species(self):
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
+            --output-taxonomic-level-coverage /dev/stdout')
+        expected = """sample    level   coverage        relative abundance (%)
+marine0.1  1       3.64    50.77
+marine0.1  2       3.53    49.23
+"""
+        # replace multiple spaces with tabs
+        expected = re.compile(r'  +').sub('\t', expected)
+        self.assertEqual(stdout, expected)
+
+    def test_taxonomic_profile_coverage_down_to_species(self):
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/land.profile \
+            --output-taxonomic-level-coverage /dev/stdout')
+        expected = """sample    level   coverage        relative abundance (%)
+land0.1   domain  0.0     0.0
+land0.1   phylum  0.0     0.0
+land0.1   class   0.0     0.0
+land0.1   order   0.0     0.0
+land0.1   family  0.0     0.0
+land0.1   genus   0.0     0.0
+land0.1   species  132.9   100.0
+"""
+        # replace multiple spaces with tabs
+        expected = re.compile(r'  +').sub('\t', expected)
+        self.assertEqual(stdout, expected)
+
 
 if __name__ == "__main__":
     unittest.main()
