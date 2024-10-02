@@ -7,13 +7,14 @@ import pandas
 import Bio
 import pandas as pd
 import polars as pl
+import gzip
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD, NO_ASSIGNMENT_METHOD
-from .condense import CondensedCommunityProfile, WordNode
+from .condense import CondensedCommunityProfile
 
 class Summariser:
     @staticmethod
@@ -337,36 +338,60 @@ class Summariser:
     #     output_table_io = open(args.collapse_paired_with_unpaired,'w'))
     def write_collapsed_paired_with_unpaired_otu_table(**kwargs):
         archive_otu_tables = kwargs.pop('archive_otu_tables')
+        # archive_otu_table_list = args.input_archive_otu_table_list,
+        # gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list,
+        archive_otu_table_list = kwargs.pop('archive_otu_table_list')
+        gzip_archive_otu_table_list = kwargs.pop('gzip_archive_otu_table_list')
         output_table_io = kwargs.pop('output_table_io')
         set_sample_name = kwargs.pop('set_sample_name', None)  # For merging OTU tables
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         # Read all OTU tables
-        df = None
-        for a in archive_otu_tables:
-            with open(a) as f:
-                logging.debug("Reading archive table {} into RAM ..".format(a))
-                ar = ArchiveOtuTable.read(f)
+        overall_df = None
+        ar = None
+
+        def read_archive_table(df, f, prev_ar):
+            logging.debug("Reading archive table {} into RAM ..".format(a))
+            ar = ArchiveOtuTable.read(f)
             if df is None:
-                version = ar.version
-                fields = ar.fields
-                alignment_hmm_sha256s = ar.alignment_hmm_sha256s
-                singlem_package_sha256s = ar.singlem_package_sha256s
+                # version = ar.version
+                # fields = ar.fields
+                # alignment_hmm_sha256s = ar.alignment_hmm_sha256s
+                # singlem_package_sha256s = ar.singlem_package_sha256s
                 df = pandas.DataFrame(ar.data)
-                df.columns = fields
+                df.columns = ar.fields
             else:
-                if version != ar.version:
+                if prev_ar.version != ar.version:
                     raise Exception("Version mismatch between archives")
-                elif fields != ar.fields:
+                elif prev_ar.fields != ar.fields:
                     raise Exception("Fields mismatch between archives")
-                elif alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
+                elif prev_ar.alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
                     raise Exception("Alignment HMM SHA256 mismatch between archives")
-                elif singlem_package_sha256s != ar.singlem_package_sha256s:
+                elif prev_ar.singlem_package_sha256s != ar.singlem_package_sha256s:
                     raise Exception("Singlem package SHA256 mismatch between archives")
                 df2 = pandas.DataFrame(ar.data)
-                df2.columns = fields
+                df2.columns = prev_ar.fields
                 df = pd.concat([df, df2], ignore_index=True)
+            return df, ar
+            
+        for a in archive_otu_tables:
+            with open(a) as f:
+                overall_df, ar = read_archive_table(overall_df, f, ar)
+        if archive_otu_table_list:
+            with open(archive_otu_table_list) as f:
+                for a in f:
+                    with open(a.strip()) as g:
+                        overall_df, ar = read_archive_table(overall_df, g, ar)
+        if gzip_archive_otu_table_list:
+            with open(gzip_archive_otu_table_list) as f:
+                lines = f.readlines()
+                print(lines)
+                for a in lines:
+                    logging.debug("Reading gzip archive table {} ..".format(a))
+                    with gzip.open(a.strip()) as g:
+                        overall_df, ar = read_archive_table(overall_df, g, ar)
+        df = overall_df
 
         # Remove suffixes
         if set_sample_name is None:
