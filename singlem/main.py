@@ -363,7 +363,7 @@ def main():
     summarise_otu_table_input_args = summarise_parser.add_argument_group('OTU table input')
     summarise_otu_table_input_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
     summarise_otu_table_input_args.add_argument('--input-otu-tables-list', help="Summarise the OTU table files newline separated in this file")
-    summarise_otu_table_input_args.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Summarise these tables")
+    summarise_otu_table_input_args.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Summarise these tables", default=[])
     summarise_otu_table_input_args.add_argument('--input-archive-otu-table-list',
         help="Summarise the archive tables newline separated in this file")
     summarise_otu_table_input_args.add_argument('--input-gzip-archive-otu-table-list',
@@ -419,7 +419,7 @@ def main():
     read_fraction_uncommon_args = read_fraction_parser.add_argument_group('other options')
     read_fraction_uncommon_args.add_argument('--accept-missing-samples', action='store_true', help="If a sample is missing from the input-metagenome-sizes file, skip analysis of it without croaking.")
     read_fraction_uncommon_args.add_argument('--output-tsv', help="Output file [default: stdout]")
-    read_fraction_uncommon_args.add_argument('--output-per-taxon-read-fractions', help="Output a fraction for each taxon to this TSV [default: D o not output anything]")
+    read_fraction_uncommon_args.add_argument('--output-per-taxon-read-fractions', help="Output a fraction for each taxon to this TSV [default: Do not output anything]")
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
@@ -823,7 +823,7 @@ def main():
         if args.collapse_to_sample_name:
             if args.input_otu_tables:
                 raise Exception("--collapse-to-sample-name currently only works with archive tables")
-            elif not len(args.input_archive_otu_tables) >= 1:
+            elif not len(args.input_archive_otu_tables) >= 1 and not args.input_archive_otu_table_list and not args.input_gzip_archive_otu_table_list:
                 raise Exception("--collapse-to-sample-name currently only works with archive tables as input")
         if args.collapse_paired_with_unpaired_archive_otu_table:
             if args.input_otu_tables:
@@ -974,12 +974,16 @@ def main():
             with open(args.output_archive_otu_table, 'w') as f:
                 Summariser.write_collapsed_paired_with_unpaired_otu_table(
                     archive_otu_tables = args.input_archive_otu_tables,
+                    archive_otu_table_list = args.input_archive_otu_table_list,
+                    gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list,
                     output_table_io = f,
                     set_sample_name = args.collapse_to_sample_name)
         elif args.collapse_paired_with_unpaired_archive_otu_table:
             with open(args.collapse_paired_with_unpaired_archive_otu_table,'w') as output_io:
                 Summariser.write_collapsed_paired_with_unpaired_otu_table(
                     archive_otu_tables = args.input_archive_otu_tables,
+                    archive_otu_table_list = args.input_archive_otu_table_list,
+                    gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list,
                     output_table_io = output_io)
         elif args.unaligned_sequences_dump_file:
             with open(args.unaligned_sequences_dump_file, 'w') as f:
