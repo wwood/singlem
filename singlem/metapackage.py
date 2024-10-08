@@ -287,7 +287,7 @@ class Metapackage:
                 target_domains = spkg.target_domains()
                 for seq_id, taxonomy in tax_hash.items():
                     if taxonomy[0].replace('d__','') in target_domains:
-                        tax = ';'.join(taxonomy)
+                        tax = 'Root;' + ';'.join(taxonomy) # add Root so condense doesn't break
                         if tax in taxonomy_marker_counts:
                             taxonomy_marker_counts[tax] += 1
                         else:
