@@ -134,7 +134,15 @@ class Condenser:
             avg_num_genes_per_species = round(metapackage.avg_num_genes_per_species())
             if avg_num_genes_per_species is None:
                 raise Exception("Metapackage does not contain average number of genes per species")
-            taxon_marker_counts = metapackage.get_taxon_marker_counts([o.taxonomy for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])
+            #TODO: extremely hacky fix for now, figure out how to get an average taxon marker count if query isn't returning a species-level taxonomy
+            # taxon_marker_counts = metapackage.get_taxon_marker_counts([";".join(o.taxonomy.split('; ')[1:]) for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])
+            query_best_hits = set()
+            for o in sample_otus:
+                if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
+                    for best_hit in o.equal_best_hit_taxonomies():
+                        query_best_hits.add(best_hit.replace('; ',';')) # pre-emptively strip to avoid issues with whitespace
+            # query_best_hits = [o.equal_best_hit_taxonomies() for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD]
+            taxon_marker_counts = metapackage.get_taxon_marker_counts(query_best_hits)
 
         if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains, taxon_marker_counts)
@@ -543,7 +551,7 @@ class Condenser:
 
         # Do not use trimmed mean for EM, as it seems to give slightly worse
         # results (not well benchmarked though)
-        core_return = self._apply_species_expectation_maximization_core(sample_otus, 0, genes_per_domain, taxon_marker_counts)
+        core_return = self._apply_species_expectation_maximization_core(sample_otus, 0, genes_per_domain, taxon_marker_counts=taxon_marker_counts)
 
         if core_return is None:
             return sample_otus
@@ -593,7 +601,6 @@ class Condenser:
         if some_em_to_do is False:
             return None
         logging.debug(best_hit_taxonomy_sets)
-
         species_whitelist = set([sp for (sp, genes) in species_genes.items() if len(genes) >= min_genes_for_whitelist])
         logging.info("Found {} species uniquely hitting >= {} marker genes".format(len(species_whitelist), min_genes_for_whitelist))
         logging.debug("Species whitelist: {}".format(species_whitelist))
@@ -630,7 +637,7 @@ class Condenser:
             next_species_to_coverage = {}
             for tax, gene_to_coverage in next_species_to_gene_to_coverage.items():
                 if taxon_marker_counts is not None:
-                    num_markers = taxon_marker_counts[tax]
+                    num_markers = taxon_marker_counts[tax.replace('; ',';')]
                 else:
                     num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 # logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
