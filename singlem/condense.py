@@ -138,7 +138,6 @@ class Condenser:
             avg_num_genes_per_species = round(metapackage.avg_num_genes_per_species())
             if avg_num_genes_per_species is None:
                 raise Exception("Metapackage does not contain average number of genes per species")
-            #TODO: extremely hacky fix for now, figure out how to get an average taxon marker count if query isn't returning a species-level taxonomy
             # taxon_marker_counts = metapackage.get_taxon_marker_counts([";".join(o.taxonomy.split('; ')[1:]) for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])
             query_best_hits = set()
             for o in sample_otus:
