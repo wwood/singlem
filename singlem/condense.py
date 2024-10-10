@@ -70,17 +70,17 @@ class Condenser:
 
     def _condense_to_otu_table(self, metapackage, **kwargs):
         input_otu_table = kwargs.pop('input_streaming_otu_table')
+        viral_mode = kwargs.pop('viral_mode', False)
         trim_percent = kwargs.pop('trim_percent', Condenser.DEFAULT_TRIM_PERCENT) / 100
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', Condenser.DEFAULT_MIN_TAXON_COVERAGE)
         # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
 
         markers = {} # set of markers used to the domains they target
-        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": []}
+        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
         
         for spkg in metapackage.singlem_packages:
             # ensure v3 packages
@@ -96,6 +96,8 @@ class Condenser:
                     target_domains["Bacteria"] += [marker_name]
                 elif domain == "Eukaryota":
                     target_domains["Eukaryota"] += [marker_name]
+                elif domain == "Viruses":
+                    target_domains["Viruses"] += [marker_name]
                 else:
                     raise Exception("Domain: {} not supported.".format(domain))
                 
@@ -107,11 +109,11 @@ class Condenser:
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table)
+                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode)
 
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
-            output_after_em_otu_table):
+            output_after_em_otu_table, viral_mode):
 
         # Remove off-target OTUs genes
         logging.debug("Total OTU coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
@@ -123,8 +125,26 @@ class Condenser:
         logging.info("Total OTU coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
         # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
+        avg_num_genes_per_species = None
+        taxon_marker_counts = None
+        if viral_mode:
+            logging.info("Running condense in viral mode...")
+            if metapackage.version not in [6]:
+                raise Exception("Viral mode only works with version 6 metapackages.")
+            avg_num_genes_per_species = round(metapackage.avg_num_genes_per_species())
+            if avg_num_genes_per_species is None:
+                raise Exception("Metapackage does not contain average number of genes per species")
+            # taxon_marker_counts = metapackage.get_taxon_marker_counts([";".join(o.taxonomy.split('; ')[1:]) for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])
+            query_best_hits = set()
+            for o in sample_otus:
+                if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
+                    for best_hit in o.equal_best_hit_taxonomies():
+                        query_best_hits.add(best_hit.replace('; ',';')) # pre-emptively strip to avoid issues with whitespace
+            # query_best_hits = [o.equal_best_hit_taxonomies() for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD]
+            taxon_marker_counts = metapackage.get_taxon_marker_counts(query_best_hits)
+
         if apply_query_expectation_maximisation:
-            sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains)
+            sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains, taxon_marker_counts)
         # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if apply_diamond_expectation_maximisation:
@@ -133,7 +153,7 @@ class Condenser:
             # logging.info("Total coverage: {}".format(sum([o.coverage for o in sample_otus])))
             # import pickle; pickle.dump(sample_otus, open("real_data/sample_otus.pkl", "wb"))
             # import pickle; sample_otus = pickle.load(open('real_data/sample_otus.pkl','rb'))
-            sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains)
+            sample_otus = self._apply_genus_expectation_maximization(sample_otus, target_domains, avg_num_genes_per_species)
             logging.debug("Total OTU coverage: {}".format(sum([o.coverage for o in sample_otus])))
 
         if output_after_em_otu_table:
@@ -143,7 +163,7 @@ class Condenser:
                 sample_otus.write_to(f)
 
         # Condense via trimmed mean from domain to species
-        condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage)
+        condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, avg_num_genes_per_species)
         logging.info("Total profile coverage after condense domain to species: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
         # Attribute genus-level down to species level to account for sequencing error
@@ -240,7 +260,7 @@ class Condenser:
                 for species_node in wordnode.children.values():
                     species_node.coverage += extra_coverage_to_push_down * species_node.coverage / total_species_coverage
 
-    def _condense_domain_to_species(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage):
+    def _condense_domain_to_species(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, avg_num_genes_per_species=None):
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
         marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
@@ -295,6 +315,9 @@ class Condenser:
                 node_list = node_list_queue.get()
 
                 # Calculate stat for this set of markers
+                if avg_num_genes_per_species is not None: # Running in viral mode
+                    m_coverages = [m.get_full_coverage() for m in node_list]
+                    total_num_markers = max(avg_num_genes_per_species, len(m_coverages))
                 abundance = self.calculate_abundance(
                     [m.get_full_coverage() for m in node_list],
                     total_num_markers,
@@ -397,12 +420,12 @@ class Condenser:
 
         return domain in markers[otu.marker]
 
-    def _apply_genus_expectation_maximization(self, sample_otus, genes_per_domain):
+    def _apply_genus_expectation_maximization(self, sample_otus, genes_per_domain, avg_num_genes_per_species=None):
         logging.info("Applying genus-wise expectation maximization algorithm to OTU table")
         
         logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
-        core_return = self._apply_genus_expectation_maximization_core(sample_otus, 0, genes_per_domain)
+        core_return = self._apply_genus_expectation_maximization_core(sample_otus, 0, genes_per_domain, avg_num_genes_per_species)
         logging.debug("Total coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
         logging.debug("Total coverage by diamond: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD])))
 
@@ -424,7 +447,7 @@ class Condenser:
         logging.info("Finished genus expectation maximization")
         return demux_otus
     
-    def _apply_genus_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain):
+    def _apply_genus_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain, avg_num_genes_per_species=None):
         def best_hit_genera_from_otu(otu):
             # The DIAMOND assignments are already truncated to genus level.
             # But the query-based ones go to species level.
@@ -489,7 +512,10 @@ class Condenser:
             # Calculate the trimmed mean for each genus
             next_genus_to_coverage = {}
             for tax, gene_to_coverage in next_genus_to_gene_to_coverage.items():
-                num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
+                if avg_num_genes_per_species is not None:
+                    num_markers = avg_num_genes_per_species
+                else:
+                    num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
                 next_genus_to_coverage[tax] = trimmed_mean
@@ -518,13 +544,13 @@ class Condenser:
         return rounded_genus_to_coverage, \
             list([self._key_to_species_list(k) for k in best_hit_taxonomy_sets])
 
-    def _apply_species_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain):
+    def _apply_species_expectation_maximization(self, sample_otus, trim_percent, genes_per_domain, taxon_marker_counts):
         logging.info("Applying species-wise expectation maximization algorithm to OTU table")
         # core_return = self._apply_expectation_maximization_core(sample_otus, trim_percent, genes_per_domain)
 
         # Do not use trimmed mean for EM, as it seems to give slightly worse
         # results (not well benchmarked though)
-        core_return = self._apply_species_expectation_maximization_core(sample_otus, 0, genes_per_domain)
+        core_return = self._apply_species_expectation_maximization_core(sample_otus, 0, genes_per_domain, taxon_marker_counts=taxon_marker_counts)
 
         if core_return is None:
             return sample_otus
@@ -551,7 +577,7 @@ class Condenser:
     def _key_to_species_list(self, key):
         return key.split('~')
 
-    def _apply_species_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain, min_genes_for_whitelist=10, proximity_cutoff=0.1):
+    def _apply_species_expectation_maximization_core(self, sample_otus, trim_percent, genes_per_domain, min_genes_for_whitelist=10, proximity_cutoff=0.1, taxon_marker_counts=None):
         # Set up initial conditions. The coverage of each species is set to 1
         species_to_coverage = {}
         best_hit_taxonomy_sets = set()
@@ -574,7 +600,6 @@ class Condenser:
         if some_em_to_do is False:
             return None
         logging.debug(best_hit_taxonomy_sets)
-
         species_whitelist = set([sp for (sp, genes) in species_genes.items() if len(genes) >= min_genes_for_whitelist])
         logging.info("Found {} species uniquely hitting >= {} marker genes".format(len(species_whitelist), min_genes_for_whitelist))
         logging.debug("Species whitelist: {}".format(species_whitelist))
@@ -610,7 +635,10 @@ class Condenser:
             # Calculate the (possibly trimmed) mean for each species
             next_species_to_coverage = {}
             for tax, gene_to_coverage in next_species_to_gene_to_coverage.items():
-                num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
+                if taxon_marker_counts is not None:
+                    num_markers = taxon_marker_counts[tax.replace('; ',';')]
+                else:
+                    num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 # logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
                 next_species_to_coverage[tax] = trimmed_mean
