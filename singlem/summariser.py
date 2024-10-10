@@ -551,43 +551,47 @@ class Summariser:
 
         logging.info("Writing taxonomic level coverage table")
         # Read the taxonomic profile
-        all_profiles = []
-        for profile_file in input_taxonomic_profiles:
-            with open(profile_file) as f:
-                for profile in CondensedCommunityProfile.each_sample_wise(f):
-                    name_to_coverage = {}
-                    for node in profile.breadth_first_iter():
-                        node_level = node.calculate_level()
-                        if node_level == 0:
-                            continue
-                        if node_level not in name_to_coverage:
-                            name_to_coverage[node_level] = 0.
-                        name_to_coverage[node_level] += node.coverage
-                    all_profiles.append(pl.DataFrame({
-                        'level': list(name_to_coverage.keys()),
-                        'coverage': list(name_to_coverage.values())
-                    }).with_columns(pl.lit(profile.sample).alias('sample')).with_columns(
-                        ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
-                    ))
-        # Concatenate all profiles
-        all_profiles = pl.concat(all_profiles)
+        first = True
+        with open(output_taxonomic_level_coverage_table, 'w') as output:
+            for profile_file in input_taxonomic_profiles:
+                with open(profile_file) as f:
+                    for profile in CondensedCommunityProfile.each_sample_wise(f):
+                        name_to_coverage = {}
+                        for node in profile.breadth_first_iter():
+                            node_level = node.calculate_level()
+                            if node_level == 0:
+                                continue
+                            if node_level not in name_to_coverage:
+                                name_to_coverage[node_level] = 0.
+                            name_to_coverage[node_level] += node.coverage
+                        result = pl.DataFrame({
+                            'level': list(name_to_coverage.keys()),
+                            'coverage': list(name_to_coverage.values())
+                        }).with_columns(pl.lit(profile.sample).alias('sample')).with_columns(
+                            ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
+                        )
 
-        if len(all_profiles.select(pl.col('level')).group_by('level').count()) in [7, 8]:
-            # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
-            levels = ['root','domain','phylum','class','order','family','genus','species']
-            level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
-            all_profiles = all_profiles.with_columns(
-                level = pl.col('level').replace_strict(level_id_to_level_name, return_dtype=pl.Utf8)
-            )
+                        if len(result.select(pl.col('level')).group_by('level').count()) in [7, 8]:
+                            # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
+                            levels = ['root','domain','phylum','class','order','family','genus','species']
+                            level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
+                            result = result.with_columns(
+                                level = pl.col('level').replace_strict(level_id_to_level_name, return_dtype=pl.Utf8)
+                            )
 
-        all_profiles = all_profiles.select([
-            'sample',
-            'level',
-            pl.col('coverage').round(2),
-            pl.col('relative_abundance').alias('relative abundance (%)'),
-        ])
+                        result = result.select([
+                            'sample',
+                            'level',
+                            pl.col('coverage').round(2),
+                            pl.col('relative_abundance').alias('relative abundance (%)'),
+                        ])
 
-        all_profiles.write_csv(output_taxonomic_level_coverage_table, separator='\t')
+                        if first:
+                            first = False
+                            # Write the header
+                            print("\t".join(result.columns), file=output)
+                        for row in result.rows():
+                            print("\t".join([str(cell) for cell in row]), file=output)
 
     def write_taxonomic_profile(input_taxonomic_profiles, output_taxonomic_profile_io):
         '''Write a taxonomic profile to a file'''
