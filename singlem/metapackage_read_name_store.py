@@ -82,7 +82,11 @@ class MetapackageReadNameStore:
                 for res in conn.execute(stmt):
                     to_return[res.read_name] = [s.strip() for s in res.taxonomy.split(';')]
         if len(to_return) != len(read_names):
-            raise Exception("Not all read names found in metapackage sqlite3 database")
+            # raise Exception("Not all read names found in metapackage sqlite3 database")
+            for r in read_names:
+                if r not in to_return:
+                    logging.error(f"Read name {r} not found in database.")
+            raise Exception(f"Found {len(to_return)} read names in metapackage sqlite3 database, expected {len(read_names)}.")
         return to_return
 
     def get_all_taxonomy_strings(self):
@@ -102,7 +106,10 @@ class MetapackageReadNameStore:
                 for res in conn.execute(stmt):
                     taxon_to_count[res.taxonomy] = res.marker_count
         if len(taxon_to_count) != len(taxons):
-            raise Exception("Not all taxons found in metapackage sqlite3 database")
+            for t in taxons:
+                if t not in taxon_to_count:
+                    logging.error(f"Taxon {t} not found in database.")
+            raise Exception(f"Found {len(taxon_to_count)} taxons in database, expected {len(taxons)}.")
         return taxon_to_count
 
     def get_all_marker_counts(self):
