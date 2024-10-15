@@ -144,11 +144,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-<<<<<<< HEAD
         if v not in range(1,7):
-=======
-        if v not in (1,2,3,4,5,6):
->>>>>>> 743fd80... metapackage: Add further support for v6.
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
