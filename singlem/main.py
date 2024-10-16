@@ -116,6 +116,7 @@ def main():
     def add_common_pipe_arguments(argument_group):
         argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
         argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
+        argument_group.add_argument('--viral-profile-output', action='store_true', help="EXPERIMENTAL: activates \"viral mode\" for the taxonomic profile [default: False]", default=False)
         argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
         current_default = pipe.DEFAULT_THREADS
         argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -488,6 +489,7 @@ def main():
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
     metapackage_parser.add_argument('--makeidx-sensitivity-params', metavar='PARAMS', help='DIAMOND sensitivity parameters to use when indexing the prefilter DIAMOND db. [default: None]', default=None)
+    metapackage_parser.add_argument('--calculate-average-num-genes-per-species', action='store_true', help='Calculate the average number of genes per species in the metapackage. [default: False]', default=False)
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = bird_argparser.new_subparser('chainsaw', chainsaw_description)
@@ -520,6 +522,7 @@ def main():
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+    optional_condense_arguments.add_argument('--viral-mode', action='store_true', help='Use viral mode (EXPERIMENTAL), which requires a Lyrebird v6 metapackage [default: False]', default=False)
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = bird_argparser.new_subparser('trim_package_hmms', trim_package_hmms_description)
@@ -749,6 +752,7 @@ def main():
             assignment_singlem_db = args.assignment_singlem_db,
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
+            viral_profile_output = args.viral_profile_output,
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
@@ -1243,6 +1247,7 @@ def main():
                 diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
                 diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
                 makeidx_sensitivity_params = args.makeidx_sensitivity_params,
+                calculate_average_num_genes_per_species = args.calculate_average_num_genes_per_species,
             )
 
     elif args.subparser_name == 'condense':
@@ -1254,6 +1259,7 @@ def main():
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
             input_streaming_otu_table = otus,
+            viral_mode = args.viral_mode,
             metapackage_path = args.metapackage,
             trim_percent = args.trim_percent,
             output_otu_table = args.taxonomic_profile,
