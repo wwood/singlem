@@ -63,8 +63,7 @@ class Tests(unittest.TestCase):
         ]
         species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_species_expectation_maximization_core(otus, 0, {'Viruses': ['g1']}, min_genes_for_whitelist=0, proximity_cutoff=0, taxon_marker_counts=taxon_marker_counts)
         self.assertEqual(
-            {'Root;d__Viruses;p;c;o;f;g;tax1': 2.199,
-             'Root;d__Viruses;p;c;o;f;g;tax2': 0.001},
+            {'Root;d__Viruses;p;c;o;f;g;tax1': 2.2},
             species_to_coverage
         )
 
@@ -78,8 +77,7 @@ class Tests(unittest.TestCase):
         ]
         species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_species_expectation_maximization_core(otus, 0, {'Viruses': ['g1']}, min_genes_for_whitelist=0, proximity_cutoff=0, taxon_marker_counts=taxon_marker_counts)
         self.assertEqual(
-            {'Root;d__Viruses;p;c;o;f;g;tax1': 2.199,
-             'Root;d__Viruses;p;c;o;f;g;tax2': 0.001},
+            {'Root;d__Viruses;p;c;o;f;g;tax1': 2.2,},
             species_to_coverage
         )
 
@@ -93,7 +91,7 @@ class Tests(unittest.TestCase):
         ]
         species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_species_expectation_maximization_core(otus, 0, {'Viruses': ['g1']}, min_genes_for_whitelist=0, proximity_cutoff=0, taxon_marker_counts=taxon_marker_counts)
         self.assertEqual(
-            {'Root;d__Viruses;p;c;o;f;g;tax1': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax2': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax3': 0.001},
+            {'Root;d__Viruses;p;c;o;f;g;tax1': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax2': 1.1},
             species_to_coverage
         )
 
@@ -108,7 +106,7 @@ class Tests(unittest.TestCase):
         ]
         species_to_coverage, best_hit_taxonomy_sets = Condenser()._apply_species_expectation_maximization_core(otus, 0, {'Viruses': ['g1']}, min_genes_for_whitelist=0, proximity_cutoff=0, taxon_marker_counts=taxon_marker_counts)
         self.assertEqual(
-            {'Root;d__Viruses;p;c;o;f;g;tax1': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax2': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax4': 0.6, 'Root;d__Viruses;p;c;o;f;g;tax5': 0.6, 'Root;d__Viruses;p;c;o;f;g;tax3': 0.001,},
+            {'Root;d__Viruses;p;c;o;f;g;tax1': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax2': 1.1, 'Root;d__Viruses;p;c;o;f;g;tax4': 0.6, 'Root;d__Viruses;p;c;o;f;g;tax5': 0.6},
             species_to_coverage
         )
         self.assertEqual(sorted([
