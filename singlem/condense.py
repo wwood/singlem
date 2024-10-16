@@ -70,8 +70,8 @@ class Condenser:
     def _condense_to_otu_table(self, metapackage, **kwargs):
         input_otu_table = kwargs.pop('input_streaming_otu_table')
         viral_mode = kwargs.pop('viral_mode', False)
-        trim_percent = kwargs.pop('trim_percent', Condenser.DEFAULT_TRIM_PERCENT) / 100
-        min_taxon_coverage = kwargs.pop('min_taxon_coverage', Condenser.DEFAULT_MIN_TAXON_COVERAGE)
+        trim_percent = kwargs.pop('trim_percent', DEFAULT_TRIM_PERCENT) / 100
+        min_taxon_coverage = kwargs.pop('min_taxon_coverage', DEFAULT_MIN_TAXON_COVERAGE)
         # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
         if len(kwargs) > 0:
