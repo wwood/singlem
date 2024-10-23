@@ -162,7 +162,7 @@ class Condenser:
                 sample_otus.write_to(f)
 
         # Condense via trimmed mean from domain to species
-        condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, avg_num_genes_per_species)
+        condensed_otus = self._condense_domain_to_species(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, avg_num_genes_per_species, taxon_marker_counts)
         logging.info("Total profile coverage after condense domain to species: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
         # Attribute genus-level down to species level to account for sequencing error
@@ -259,7 +259,7 @@ class Condenser:
                 for species_node in wordnode.children.values():
                     species_node.coverage += extra_coverage_to_push_down * species_node.coverage / total_species_coverage
 
-    def _condense_domain_to_species(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, avg_num_genes_per_species=None):
+    def _condense_domain_to_species(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, avg_num_genes_per_species=None, taxon_marker_counts=None):
         # Stage 1: Build a tree of the observed OTU abundance that is 
         # sample -> gene -> WordNode root
         marker_to_taxon_counts = {} # {sampleID:{gene:wordtree}}}
@@ -312,11 +312,15 @@ class Condenser:
             node_list_queue.put(marker_wise_trees_targetted)
             while not node_list_queue.empty():
                 node_list = node_list_queue.get()
+                taxonomy = node_list[0].get_taxonomy()
 
                 # Calculate stat for this set of markers
                 if avg_num_genes_per_species is not None: # Running in viral mode
                     m_coverages = [m.get_full_coverage() for m in node_list]
-                    total_num_markers = max(avg_num_genes_per_species, len(m_coverages))
+                    if taxon_marker_counts is not None and len(taxonomy) == 8:
+                        total_num_markers = taxon_marker_counts[';'.join(node_list[0].get_taxonomy())]
+                    else:
+                        total_num_markers = max(avg_num_genes_per_species, len(m_coverages))
                 abundance = self.calculate_abundance(
                     [m.get_full_coverage() for m in node_list],
                     total_num_markers,
@@ -324,7 +328,6 @@ class Condenser:
 
                 # If stat > 0, add stat to tree and queue children
                 if abundance > 0:
-                    taxonomy = node_list[0].get_taxonomy()
                     # print(taxonomy, abundance)
                     sample_summary_root_node.add_words(taxonomy, abundance)
 
