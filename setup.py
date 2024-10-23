@@ -60,6 +60,7 @@ setup(
         'zenodo_backpack ~= 0.3.0',
     ),
     entry_points = {
-        'console_scripts': ['singlem = singlem.main:main']
+        'console_scripts': ['singlem = singlem.main:main',
+                            'lyrebird = singlem.lyrebird:main']
     },
 )
