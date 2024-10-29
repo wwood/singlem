@@ -317,7 +317,7 @@ class Condenser:
                 # Calculate stat for this set of markers
                 if avg_num_genes_per_species is not None: # Running in viral mode
                     m_coverages = [m.get_full_coverage() for m in node_list]
-                    if taxon_marker_counts is not None and len(taxonomy) == 8:
+                    if taxon_marker_counts is not None and len(taxonomy) == 8: # 8 ranks including Root for species-level taxonomy
                         total_num_markers = taxon_marker_counts[';'.join(node_list[0].get_taxonomy())]
                     else:
                         total_num_markers = max(avg_num_genes_per_species, len(m_coverages))
