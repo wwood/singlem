@@ -67,7 +67,7 @@ class SearchPipe:
         if outputting_taxonomic_profile and metapackage.version < 3:
             raise Exception("Taxonomic profile output is only available for metapackages version 3 or higher")
         
-        if viral_profile_output and metapackage.version < 6:
+        if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
             raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
         otu_table_object = self.run_to_otu_table(**kwargs)
