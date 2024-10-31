@@ -919,7 +919,10 @@ def main():
             else:
                 mpkg = Metapackage.acquire_default()
                 pkgs = mpkg.singlem_packages
-            o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs))
+            # Do not lose the extra columns if they are provided as input by
+            # using return_archive_table=True. Currently an issue here that it
+            # doesn't error when extra info is not provided as input.
+            o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs, return_archive_table=True))
             otus = o2
 
         if args.krona:
