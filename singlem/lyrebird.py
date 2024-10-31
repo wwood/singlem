@@ -22,7 +22,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 
 import singlem
 import singlem.pipe as pipe
-from singlem.main import add_common_pipe_arguments, add_less_common_pipe_arguments, add_condense_arguments
+from singlem.main import add_common_pipe_arguments, add_less_common_pipe_arguments, validate_pipe_args, add_condense_arguments, generate_streaming_otu_table_from_args, get_min_orf_length, get_min_taxon_coverage
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import DATA_ENVIRONMENT_VARIABLE, CUSTOM_TAXONOMY_DATABASE_NAME
@@ -31,9 +31,6 @@ from singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 from singlem.condense import DEFAULT_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_GENOME_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_TRIM_PERCENT as CONDENSE_DEFAULT_TRIM_PERCENT
-
-DEFAULT_WINDOW_SIZE = 60
-SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
 
 def main():
     bird_argparser = BirdArgparser(
@@ -88,93 +85,6 @@ def main():
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
     add_condense_arguments(condense_parser)
 
-    def validate_pipe_args(args, subparser='pipe'):
-        if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
-            raise Exception("At least one of --output-taxonomic-profile, --output-taxonomic-profile-krona, --otu-table, or --archive-otu-table must be specified")
-        if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
-            raise Exception("If --output-jplace is specified, then --assignment-method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
-        if args.metapackage and args.singlem_packages:
-            raise Exception("Can only specify a metapackage or a singlem package set, not both")
-        if args.output_extras and not args.otu_table:
-            raise Exception("Can't use --output-extras without --otu-table")
-        if subparser == 'pipe':
-            if args.include_inserts and not args.otu_table and not args.archive_otu_table:
-                raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
-            if args.metapackage and args.diamond_prefilter_db:
-                raise Exception("Can't use a metapackage with --diamond-prefilter-db")
-            if args.output_jplace and args.known_otu_tables:
-                raise Exception("Currently --output-jplace and --known-otu-tables are incompatible")
-            if args.output_jplace and args.no_assign_taxonomy:
-                raise Exception("Currently --output-jplace and --no-assign-taxonomy are incompatible")
-            if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
-                raise Exception(
-                    "Currently --known-sequence-taxonomy requires --no-assign-taxonomy to be set also")
-            if args.reverse and args.output_jplace:
-                raise Exception("Currently --jplace-output cannot be used with --reverse")
-            if args.working_directory and args.working_directory_dev_shm:
-                raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
-            if args.sra_files and args.no_diamond_prefilter:
-                raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
-            if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
-                raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
-
-    def generate_streaming_otu_table_from_args(args,
-        input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
-
-        if archive_only:
-            otu_tables = False
-            otu_tables_list = False
-        if input_prefix:
-            if not archive_only:
-                otu_tables = args.input_otu_tables
-                otu_tables_list = args.input_otu_tables_list
-            archive_otu_tables = args.input_archive_otu_tables
-            archive_otu_table_list = args.input_archive_otu_table_list
-            gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list
-        elif query_prefix:
-            otu_tables = args.query_otu_table
-            otu_tables_list = args.query_otu_tables_list
-            archive_otu_tables = args.query_archive_otu_tables
-            archive_otu_table_list = args.query_archive_otu_table_list
-            gzip_archive_otu_table_list = args.query_gzip_archive_otu_table_list
-        else:
-            if not archive_only:
-                otu_tables = args.otu_tables
-                otu_tables_list = args.otu_tables_list
-            archive_otu_tables = args.archive_otu_tables
-            archive_otu_table_list = args.archive_otu_table_list
-            gzip_archive_otu_table_list = args.gzip_archive_otu_table_list
-
-        if archive_only:
-            if not archive_otu_tables and not archive_otu_table_list and not gzip_archive_otu_table_list:
-                raise Exception("{} requires input archive OTU tables".format(args.subparser_name))
-        else:
-            if not otu_tables and not otu_tables_list and not archive_otu_tables and \
-                not archive_otu_table_list and not gzip_archive_otu_table_list:
-                raise Exception("{} requires input OTU tables or archive OTU tables".format(args.subparser_name))
-        otus = StreamingOtuTableCollection()
-        if min_archive_otu_table_version:
-            otus.min_archive_otu_table_version = min_archive_otu_table_version
-        if otu_tables:
-            for o in otu_tables:
-                otus.add_otu_table_file(o)
-        if otu_tables_list:
-            with open(otu_tables_list) as f:
-                for o in f:
-                    otus.add_otu_table_file(o.strip())
-        if archive_otu_tables:
-            for o in archive_otu_tables:
-                otus.add_archive_otu_table_file(o.strip())
-        if archive_otu_table_list:
-            with open(archive_otu_table_list) as f:
-                for o in f.readlines():
-                    otus.add_archive_otu_table_file(o)
-        if gzip_archive_otu_table_list:
-            with open(gzip_archive_otu_table_list) as f:
-                for arc in f.readlines():
-                    otus.add_gzip_archive_otu_table_file(arc.strip())
-        return otus
-
     args = bird_argparser.parse_the_args()
 
     if args.debug:
@@ -191,26 +101,6 @@ def main():
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
     logging.info("Lyrebird v{}".format("0.1.0")) # TODO: change to lyrebird version 0.1.0
-
-    def get_min_orf_length(args, subparser='pipe'):
-        if args.min_orf_length:
-            return args.min_orf_length
-        elif subparser=='pipe' and (args.forward or args.sra_files):
-            return SearchPipe.DEFAULT_MIN_ORF_LENGTH
-        elif subparser=='pipe' and args.genome_fasta_files:
-            return SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH
-        elif subparser=='renew':
-            return SearchPipe.DEFAULT_MIN_ORF_LENGTH
-        else:
-            raise Exception("Programming error")
-
-    def get_min_taxon_coverage(args, subparser='pipe'):
-        if args.min_taxon_coverage:
-            return args.min_taxon_coverage
-        elif subparser == 'pipe' and args.genome_fasta_files:
-            return CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
-        else:
-            return CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
@@ -299,7 +189,8 @@ def main():
             min_taxon_coverage = args.min_taxon_coverage,
             output_after_em_otu_table = args.output_after_em_otu_table)
 
-    elif args.subparser_name=='data':
+    elif args.subparser_name=='data': #TODO: need lyrebird metapackage on zenodo
+        raise NotImplementedError("Lyrebird metapackage not yet available on Zenodo")
         from singlem.metapackage import Metapackage
         if args.verify_only:
             Metapackage.verify(output_directory = args.output_directory)
