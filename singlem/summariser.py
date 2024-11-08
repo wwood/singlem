@@ -556,28 +556,7 @@ class Summariser:
             for profile_file in input_taxonomic_profiles:
                 with open(profile_file) as f:
                     for profile in CondensedCommunityProfile.each_sample_wise(f):
-                        name_to_coverage = {}
-                        for node in profile.breadth_first_iter():
-                            node_level = node.calculate_level()
-                            if node_level == 0:
-                                continue
-                            if node_level not in name_to_coverage:
-                                name_to_coverage[node_level] = 0.
-                            name_to_coverage[node_level] += node.coverage
-                        result = pl.DataFrame({
-                            'level': list(name_to_coverage.keys()),
-                            'coverage': list(name_to_coverage.values())
-                        }).with_columns(pl.lit(profile.sample).alias('sample')).with_columns(
-                            ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
-                        )
-
-                        if len(result.select(pl.col('level')).group_by('level').count()) in [7, 8]:
-                            # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
-                            levels = ['root','domain','phylum','class','order','family','genus','species']
-                            level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
-                            result = result.with_columns(
-                                level = pl.col('level').replace_strict(level_id_to_level_name, return_dtype=pl.Utf8)
-                            )
+                        result = profile.taxonomic_level_coverage_table()
 
                         result = result.select([
                             'sample',
