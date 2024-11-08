@@ -943,7 +943,7 @@ class CondensedCommunityProfile:
         if current_sample is not None:
             yield CondensedCommunityProfile(current_sample, current_root)
 
-    def taxonomic_level_coverage_table(self):
+    def taxonomic_level_coverage_table(self, assume_8_levels=False):
         '''Return a pl DataFrame with the coverage and relative abundance of
         each taxonomic level. If there are 7 or 8 levels, then the standard
         [root], domain, phylum, etc. levels are assumed. Returning a polars
@@ -964,13 +964,23 @@ class CondensedCommunityProfile:
             ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
         )
 
-        if len(result.select(pl.col('level')).group_by('level').count()) in [7, 8]:
+        if assume_8_levels or len(result.select(pl.col('level')).group_by('level').count()) in [7, 8]:
             # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
             levels = ['root', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']
             level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
             result = result.with_columns(
                 level=pl.col('level').replace_strict(level_id_to_level_name, return_dtype=pl.Utf8)
             )
+        # If we assume 8 levels then ensure that each level is present
+        if assume_8_levels:
+            for level in ['root', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']:
+                if level not in result['level']:
+                    result = result.vstack(pl.DataFrame({
+                        'level': [level],
+                        'coverage': [0.],
+                        'sample': [self.sample],
+                        'relative_abundance': [0.]
+                    }))
         return result
 
 

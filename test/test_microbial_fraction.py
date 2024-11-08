@@ -33,7 +33,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.
 
 
 class Tests(unittest.TestCase):
-    output_headers = str.split('sample  bacterial_archaeal_bases        metagenome_size   read_fraction    average_bacterial_archaeal_genome_size  warning')
+    output_headers = str.split('sample  bacterial_archaeal_bases        metagenome_size   read_fraction    average_bacterial_archaeal_genome_size  warning domain_relative_abundance       phylum_relative_abundance     class_relative_abundance        order_relative_abundance        family_relative_abundance       genus_relative_abundance        species_relative_abundance')
     maxDiff = None
 
     def test_marine0(self):
@@ -43,7 +43,7 @@ class Tests(unittest.TestCase):
             path_to_data,
             path_to_data)
         obs = extern.run(cmd)
-        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      17858646300.0   92.92   3718692')+[''])+'\n', obs)
+        self.assertEqual('\t'.join(self.output_headers) + '\n' + '\t'.join(str.split('marine0.1       16593586562      17858646300.0   92.92   3718692') + [''] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58')) + '\n', obs)
 
     def test_smafa_count_unpaired(self):
         cmd = "{} microbial_fraction -p {}/read_fraction/marine0.profile  --forward {}/read_fraction/marine0.1.fa --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
@@ -52,7 +52,7 @@ class Tests(unittest.TestCase):
             path_to_data,
             path_to_data)
         obs = extern.run(cmd)
-        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      3       100.00  3718692')+['WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate.'])+'\n', obs)
+        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      3       100.00  3718692')+['WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate.'] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58'))+'\n', obs)
 
     def test_smafa_count_paired(self):
         cmd = "{} microbial_fraction -p {}/read_fraction/marine0.profile  --forward {}/read_fraction/marine0.1.fa --reverse {}/read_fraction/marine0.2.fa --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
@@ -62,7 +62,7 @@ class Tests(unittest.TestCase):
             path_to_data,
             path_to_data)
         obs = extern.run(cmd)
-        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      6       100.00    3718692')+['WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate.'])+'\n', obs)
+        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      6       100.00    3718692')+['WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate.'] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58'))+'\n', obs)
 
     def test_output_per_taxon_read_fractions(self):
         cmd = "{} microbial_fraction -p <(head -5 {}/read_fraction/marine0.profile) --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv --output-tsv /dev/null --output-per-taxon-read-fractions /dev/stdout".format(
@@ -87,7 +87,7 @@ marine0.1	p__Proteobacteria	7151244.856821437
             path_to_data,
             path_to_data)
         obs = extern.run(cmd)
-        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16335072      17858646300.0   0.09  2278253')+[''])+'\n', obs)
+        self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16335072      17858646300.0   0.09  2278253')+[''] + str.split('50.77   49.23   0.00    0.00    0.00    0.00    0.00'))+'\n', obs)
 
 
 
