@@ -1,4 +1,5 @@
 import pandas as pd
+import polars as pl
 import logging
 import json
 import os
@@ -78,19 +79,27 @@ class ReadFractionEstimator:
                 raise Exception("Must specify either a metagenome sizes file or read files.")
             metagenome_sizes = self._get_stems_and_read_files(forward_read_files, reverse_read_files)
             
-        # Iterate through the input profile, calculating the read fraction for each sample
         print("\t".join([
             "sample",
             "bacterial_archaeal_bases",
             "metagenome_size",
             "read_fraction",
             "average_bacterial_archaeal_genome_size",
-            "warning"]),
+            "warning",
+            "domain_relative_abundance",
+            "phylum_relative_abundance",
+            "class_relative_abundance",
+            "order_relative_abundance",
+            "family_relative_abundance",
+            "genus_relative_abundance",
+            "species_relative_abundance"]),
             file=output_fh)
 
         if output_per_taxon_read_fractions:
             print("sample\ttaxonomy\tbase_contribution", file=output_per_taxon_read_fractions_fh)
+            
         num_samples = 0
+        # Iterate through the input profile, calculating the read fraction for each sample
         with open(input_profile) as f:
             for profile in CondensedCommunityProfile.each_sample_wise(f):
                 sample = profile.sample
@@ -167,13 +176,22 @@ class ReadFractionEstimator:
                 else:
                     average_genome_size = average_genome_size_numerator / average_genome_size_denominator
 
-                print("%s\t%s\t%s\t%0.2f\t%s\t%s" % (
+                per_level_coverage = profile.taxonomic_level_coverage_table(assume_8_levels=True)
+
+                print("%s\t%s\t%s\t%0.2f\t%s\t%s\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f\t%0.2f" % (
                     sample,
                     round(account),
                     metagenome_size,
                     final_estimate,
                     round(average_genome_size),
-                    warning),
+                    warning,
+                    per_level_coverage.filter(pl.col('level') == 'domain')['relative_abundance'][0],
+                    per_level_coverage.filter(pl.col('level') == 'phylum')['relative_abundance'][0],
+                    per_level_coverage.filter(pl.col('level') == 'class')['relative_abundance'][0],
+                    per_level_coverage.filter(pl.col('level') == 'order')['relative_abundance'][0],
+                    per_level_coverage.filter(pl.col('level') == 'family')['relative_abundance'][0],
+                    per_level_coverage.filter(pl.col('level') == 'genus')['relative_abundance'][0],
+                    per_level_coverage.filter(pl.col('level') == 'species')['relative_abundance'][0]),
                     file=output_fh)
 
                 num_samples += 1
@@ -212,14 +230,19 @@ class SmafaCountedMetagenomeSizes:
         self.stems_to_read_files = stems_to_read_files
 
     def __contains__(self, stem):
-        return stem in self.stems_to_read_files
+        # Somewhat of a hack but allow fuzziness for _1
+        return stem in self.stems_to_read_files or stem + '_1' in self.stems_to_read_files
 
     def __getitem__(self, stem):
-        if stem not in self.stems_to_read_files:
+        if stem not in self:
             raise Exception("Stem '%s' not found in input metagenome set." % stem)
         total_base_count = 0
         logging.info("Counting bases in sample '%s' .." % stem)
-        j = extern.run('smafa count -i %s' % ' '.join(self.stems_to_read_files[stem]))
+        try:
+            read_files = self.stems_to_read_files[stem]
+        except KeyError:
+            read_files = self.stems_to_read_files[stem + '_1']
+        j = extern.run('smafa count -i %s' % ' '.join(read_files))
         logging.debug("Found JSON response from smafa count: %s" % j)
         j2 = json.loads(j)
         
