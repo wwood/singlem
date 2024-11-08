@@ -4,8 +4,9 @@ import csv
 import numpy as np
 import extern
 import sys
-
 from queue import Queue
+
+import polars as pl
 
 from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
 from .metapackage import Metapackage
@@ -941,6 +942,37 @@ class CondensedCommunityProfile:
 
         if current_sample is not None:
             yield CondensedCommunityProfile(current_sample, current_root)
+
+    def taxonomic_level_coverage_table(self):
+        '''Return a pl DataFrame with the coverage and relative abundance of
+        each taxonomic level. If there are 7 or 8 levels, then the standard
+        [root], domain, phylum, etc. levels are assumed. Returning a polars
+        dataframe maybe isn't the most pythonic, and so this might be changed in
+        the future. But eh for now.'''
+        name_to_coverage = {}
+        for node in self.breadth_first_iter():
+            node_level = node.calculate_level()
+            if node_level == 0:
+                continue
+            if node_level not in name_to_coverage:
+                name_to_coverage[node_level] = 0.
+            name_to_coverage[node_level] += node.coverage
+        result = pl.DataFrame({
+            'level': list(name_to_coverage.keys()),
+            'coverage': list(name_to_coverage.values())
+        }).with_columns(pl.lit(self.sample).alias('sample')).with_columns(
+            ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
+        )
+
+        if len(result.select(pl.col('level')).group_by('level').count()) in [7, 8]:
+            # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
+            levels = ['root', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+            level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
+            result = result.with_columns(
+                level=pl.col('level').replace_strict(level_id_to_level_name, return_dtype=pl.Utf8)
+            )
+        return result
+
 
 class CondensedCommunityProfileKronaWriter:
     @staticmethod
