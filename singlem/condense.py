@@ -913,6 +913,8 @@ class CondensedCommunityProfile:
 
         for row in reader:
             (sample, coverage, taxonomy) = row
+            if float(coverage) == 0:
+                continue
             if sample != current_sample:
                 if current_sample is not None:
                     yield CondensedCommunityProfile(current_sample, current_root)
