@@ -36,6 +36,7 @@ class Appraiser:
         sequence_identity = kwargs.pop('sequence_identity', None)
         output_found_in = kwargs.pop('output_found_in', False)
         window_size = kwargs.pop('window_size')
+        threads = kwargs.pop('threads', 1)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -62,7 +63,8 @@ class Appraiser:
                 sequence_identity,
                 output_found_in,
                 packages,
-                window_size)
+                window_size,
+                threads)
             sample_to_building_block = sample_to_binned
         if assembly_otu_table_collection:
             sample_to_assembled = self._appraise_inexactly(
@@ -71,7 +73,8 @@ class Appraiser:
                 sequence_identity,
                 output_found_in,
                 packages,
-                window_size)
+                window_size,
+                threads)
             sample_to_building_block = sample_to_assembled
 
         app = Appraisal()
@@ -112,7 +115,8 @@ class Appraiser:
                             sequence_identity,
                             output_found_in,
                             packages,
-                            window_size):
+                            window_size,
+                            threads):
         '''Given a metagenome sample collection and OTUs 'found' either by binning or
         assembly, return a AppraisalBuildingBlock representing the OTUs that
         have been found, using inexact matching.
@@ -151,7 +155,7 @@ class Appraiser:
             metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
-        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
+        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None, threads)
 
         sample_to_building_block = {}
         for hit in queries:

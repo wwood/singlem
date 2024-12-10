@@ -254,6 +254,8 @@ def main():
     appraise_otu_table_options.add_argument('--assembly-otu-tables', nargs='+', help="output of 'pipe' run on assembled sequence")
     appraise_otu_table_options.add_argument('--assembly-archive-otu-tables', nargs='+', help="archive output of 'pipe' run on assembled sequence")
     appraise_otu_table_options.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
+    current_default = 1
+    appraise_otu_table_options.add_argument('--threads', help='Use this many threads where possible [default %i]' % current_default, default=current_default)
     appraise_inexact_options = appraise_parser.add_argument_group('Inexact appraisal options')
     appraise_inexact_options.add_argument('--imperfect', action='store_true', help="use sequence searching to account for genomes that are similar to those found in the metagenome [default: False]", default=False)
     appraise_inexact_options.add_argument('--sequence-identity', type=float, help="sequence identity cutoff to use if --imperfect is specified [default: ~species level divergence i.e. %s]" % SPECIES_LEVEL_AVERAGE_IDENTITY, default=SPECIES_LEVEL_AVERAGE_IDENTITY)
@@ -1138,7 +1140,9 @@ def main():
                                 output_found_in = args.output_found_in,
                                 sequence_identity=(args.sequence_identity if args.imperfect else None),
                                 packages=pkgs,
-                                window_size=DEFAULT_WINDOW_SIZE)
+                                window_size=DEFAULT_WINDOW_SIZE,
+                                threads=args.threads,
+                                )
 
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
