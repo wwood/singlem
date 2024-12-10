@@ -94,6 +94,7 @@ class Tests(unittest.TestCase):
                 "--metapackage {}/four_package.smpkg "
                 "--output-binned-otu-table binned.otu_table.tsv "
                 "--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+                "--threads 1 "
             ).format(
                 path_to_script,
                 path_to_data,

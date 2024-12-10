@@ -11,6 +11,7 @@ import extern
 from bird_tool_utils import iterable_chunks
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+import concurrent.futures
 
 from .sequence_database import SequenceDatabase
 from . import sequence_database
@@ -168,7 +169,18 @@ class Querier:
         logging.info("Sorted {} OTU queries ..".format(total_otu_count))
         return MarkerSortedQueryInput(sorted_io)
 
-    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence, continue_on_missing_genes=False):
+    def query_with_queries(self,
+                           queries,
+                           sdb,
+                           max_divergence,
+                           search_method,
+                           sequence_type,
+                           max_nearest_neighbours,
+                           max_search_nearest_neighbours,
+                           preload_db,
+                           limit_per_sequence,
+                           continue_on_missing_genes=False,
+                           threads=1):
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
@@ -191,7 +203,7 @@ class Querier:
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'smafa-naive':
             return self.query_by_sequence_similarity_with_smafa_naive(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence, continue_on_missing_genes=continue_on_missing_genes)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence, continue_on_missing_genes=continue_on_missing_genes, threads=threads)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -339,7 +351,16 @@ class Querier:
                             if num_reported >= max_nearest_neighbours:
                                 break
 
-    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None, continue_on_missing_genes=False):
+    def query_by_sequence_similarity_with_smafa_naive(self,
+                                                      queries,
+                                                      sdb,
+                                                      max_divergence,
+                                                      sequence_type,
+                                                      max_nearest_neighbours,
+                                                      preload_db=False,
+                                                      limit_per_sequence=None,
+                                                      continue_on_missing_genes=False,
+                                                      threads=1):
         logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
 
         for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
@@ -364,9 +385,8 @@ class Querier:
                     preloaded_db = self.preload_protein_db(sdb, marker_id, limit_per_sequence)
                 else:
                     raise Exception("Unexpected sequence_type")
-            
-            # Actually do searches, in batches
-            for chunked_queries1 in iterable_chunks(marker_queries, 1000):
+
+            def process_chunk(chunked_queries1):
                 chunked_queries = list([a for a in chunked_queries1 if a is not None]) # Remove trailing Nones from the iterable
 
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
@@ -376,15 +396,6 @@ class Querier:
                 else:
                     raise Exception("Unexpected sequence_type")
 
-                # Previous version of this code piped the fasta file via STDIN,
-                # but this ran into deadlock problems e.g. singlem query
-                # --query-archive-otu-tables <(zcat
-                # from_s3/us-west-2/sra_20211215_7_sample50000/singlem-err1193301-m82rp-ERR1193301/ERR1193301.annotated.singlem.json.gz)
-                # --db
-                # ~/m/msingle/sam/otu_tables/S3.0.5.metapackage20220806/NCBI_r215.sdb
-                #
-                # So instead just write the output to a temporary file, using
-                # extern rather than Popen.
                 smafa_args = ""
                 if max_divergence is not None:
                     smafa_args += " --max-divergence {}".format(max_divergence)
@@ -394,61 +405,69 @@ class Querier:
                     index, smafa_args)
                 smafa_stdout = extern.run(smafa_cmd, stdin='\n'.join([">{}\n{}".format(i, q.sequence) for i, q in enumerate(chunked_queries)]))
 
-                if not preload_db:
-                    batch_for_db_queries = []
-                    batch_for_db_hit_indices = []
-                    batch_for_db_divs = []
+                return chunked_queries, smafa_stdout
 
-                # Read the output
-                previous_query_index = None
-                previous_query_index_num_reported = 0
-                for line in smafa_stdout.splitlines():
-                    splits = line.strip().split("\t")
-                    if len(splits) != 4:
-                        raise Exception("Unexpected output from smafa: {}".format(line))
-                    query_index_str, hit_index, div_str, _ = splits
-                    query_index = int(query_index_str)
-                    hit_index = int(hit_index)
-                    div = int(div_str)
+            # Actually do searches, in batches
+            with concurrent.futures.ThreadPoolExecutor(max_workers=threads) as executor:
+                futures = [executor.submit(process_chunk, chunk) for chunk in iterable_chunks(marker_queries, 1000)]
+                for future in concurrent.futures.as_completed(futures):
+                    chunked_queries, smafa_stdout = future.result()  # This will raise an exception if the thread raised one
 
-                    if query_index == previous_query_index:
-                        if previous_query_index_num_reported > max_nearest_neighbours:
-                            continue
-                        previous_query_index_num_reported += 1
-                    else:
-                        previous_query_index_num_reported = 0
-                        previous_query_index = query_index
+                    if not preload_db:
+                        batch_for_db_queries = []
+                        batch_for_db_hit_indices = []
+                        batch_for_db_divs = []
 
-                    if preload_db:
-                        for entry_i in preloaded_db.indices.iat[hit_index]:
-                            otu = OtuTableEntry()
-                            otu.marker = marker
-                            otu.sample_name = preloaded_db.sample_name[entry_i]
-                            otu.count = preloaded_db.count[entry_i]
-                            otu.sequence = preloaded_db.sequence[entry_i]
-                            otu.coverage = preloaded_db.coverage[entry_i]
-                            otu.taxonomy = preloaded_db.taxonomy[entry_i]
-                            if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
-                                yield QueryResult(chunked_queries[query_index], otu, div)
-                            else:
-                                # Below not actually used - smafa doesn't handle proteins (yet)
-                                yield QueryResult(
-                                    chunked_queries[query_index], otu, div, 
-                                    query_protein_sequence=query_protein_sequences[i],
-                                    subject_protein_sequence=preloaded_db.protein_sequence[entry_i])
-                    else:
-                        # Query in batch as this should be faster than doing individually
-                        batch_for_db_queries.append(chunked_queries[query_index])
-                        batch_for_db_hit_indices.append(hit_index)
-                        batch_for_db_divs.append(div)
+                    # Read the output
+                    previous_query_index = None
+                    previous_query_index_num_reported = 0
+                    for line in smafa_stdout.splitlines():
+                        splits = line.strip().split("\t")
+                        if len(splits) != 4:
+                            raise Exception("Unexpected output from smafa: {}".format(line))
+                        query_index_str, hit_index, div_str, _ = splits
+                        query_index = int(query_index_str)
+                        hit_index = int(hit_index)
+                        div = int(div_str)
 
-                if not preload_db:
-                    for qres in self.query_result_batch_from_db(sdb, batch_for_db_queries, sequence_type, batch_for_db_hit_indices, 
-                        marker, marker_id, batch_for_db_divs, 
-                        query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
-                        limit_per_sequence=limit_per_sequence):
+                        if query_index == previous_query_index:
+                            if previous_query_index_num_reported > max_nearest_neighbours:
+                                continue
+                            previous_query_index_num_reported += 1
+                        else:
+                            previous_query_index_num_reported = 0
+                            previous_query_index = query_index
 
-                        yield qres
+                        if preload_db:
+                            for entry_i in preloaded_db.indices.iat[hit_index]:
+                                otu = OtuTableEntry()
+                                otu.marker = marker
+                                otu.sample_name = preloaded_db.sample_name[entry_i]
+                                otu.count = preloaded_db.count[entry_i]
+                                otu.sequence = preloaded_db.sequence[entry_i]
+                                otu.coverage = preloaded_db.coverage[entry_i]
+                                otu.taxonomy = preloaded_db.taxonomy[entry_i]
+                                if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
+                                    yield QueryResult(chunked_queries[query_index], otu, div)
+                                else:
+                                    # Below not actually used - smafa doesn't handle proteins (yet)
+                                    yield QueryResult(
+                                        chunked_queries[query_index], otu, div, 
+                                        query_protein_sequence=query_protein_sequences[i],
+                                        subject_protein_sequence=preloaded_db.protein_sequence[entry_i])
+                        else:
+                            # Query in batch as this should be faster than doing individually
+                            batch_for_db_queries.append(chunked_queries[query_index])
+                            batch_for_db_hit_indices.append(hit_index)
+                            batch_for_db_divs.append(div)
+
+                    if not preload_db:
+                        for qres in self.query_result_batch_from_db(sdb, batch_for_db_queries, sequence_type, batch_for_db_hit_indices, 
+                            marker, marker_id, batch_for_db_divs, 
+                            query_protein_sequence=query_protein_sequences[i] if sequence_type == SequenceDatabase.PROTEIN_TYPE else None,
+                            limit_per_sequence=limit_per_sequence):
+
+                            yield qres
 
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
@@ -732,4 +751,3 @@ class PreloadedDB:
         ''' shuffle and truncate once up front '''
         self.indices.apply(np.random.shuffle)
         self.indices = pd.Series([a[:limit_per_sequence] for a in self.indices])
-        
