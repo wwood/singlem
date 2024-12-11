@@ -967,7 +967,7 @@ def main():
             with open(args.rarefied_output_otu_table, 'w') as f:
                 Summariser.write_rarefied_otu_table(
                     table_collection = otus,
-                    output_table_io = open(args.rarefied_output_otu_table,'w'),
+                    output_table_io = f,
                     number_to_choose = args.number_to_choose)
         elif args.output_translated_otu_table:
             with open(args.output_translated_otu_table, 'w') as f:
