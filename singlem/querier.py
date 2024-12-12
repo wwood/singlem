@@ -387,7 +387,7 @@ class Querier:
                     raise Exception("Unexpected sequence_type")
             
             # Actually do searches, in batches
-            for chunked_queries1 in iterable_chunks(marker_queries, 1000):
+            for chunked_queries1 in iterable_chunks(marker_queries, 1_000_000):
                 chunked_queries = list([a for a in chunked_queries1 if a is not None]) # Remove trailing Nones from the iterable
 
                 if sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
