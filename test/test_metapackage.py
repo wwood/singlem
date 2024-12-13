@@ -46,7 +46,7 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 5, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null}',
+                self.assertEqual('{"singlem_metapackage_version": 6, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null}',
                 con.read())
 
     def test_metapackage_create_with_sdb(self):
@@ -56,7 +56,7 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 5, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null}',
+                self.assertEqual('{"singlem_metapackage_version": 6, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null}',
                 con.read())
 
     def test_metapackage_read_name_store(self):
