@@ -193,9 +193,9 @@ class Appraiser:
         '''print the Appraisal object overview to STDOUT'''
 
         headers = ['sample', 'domain']
-        if doing_binning: headers.append('num_binned')
-        if doing_assembly: headers.append('num_assembled')
-        headers.append('num_not_found')
+        if doing_binning: headers.append('coverage_binned')
+        if doing_assembly: headers.append('coverage_assembled')
+        headers.append('coverage_not_found')
         if doing_binning: headers.append('percent_binned')
         if doing_assembly: headers.append('percent_assembled')
         output_io.write("\t".join(headers)+"\n")
