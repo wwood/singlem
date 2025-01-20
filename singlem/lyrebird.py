@@ -40,8 +40,7 @@ def main():
             "Samuel Aroney, "+CMR,
             "Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark",
             "Rossen Zhao, "+CMR],
-        # version=singlem.__version__, # TODO: change to lyrebird version 0.1.0
-        version="0.1.0",
+        version=singlem.__version__["lyrebird"],
         raw_format=True,
         examples={'pipe': [
             Example(
@@ -100,7 +99,7 @@ def main():
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    logging.info("Lyrebird v{}".format("0.1.0")) # TODO: change to lyrebird version 0.1.0
+    logging.info("Lyrebird v{}".format(singlem.__version__["lyrebird"]))
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)

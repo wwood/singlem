@@ -23,6 +23,10 @@ DATA_DOI = '10.5281/zenodo.5739611' # This is the series DOI, not the individual
 
 CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 
+LYREBIRD_DATA_DEFAULT_VERSION = '0.2.0'
+LYREBIRD_DATA_ENVIRONMENT_VARIABLE = 'LYREBIRD_METAPACKAGE_PATH'
+LYREBIRD_DATA_DOI = 'TO_BE_FILLED' # TODO: no record yet
+
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
 
