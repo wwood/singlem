@@ -50,6 +50,7 @@ class SearchPipe:
         archive_otu_table = kwargs.pop('archive_otu_table', None)
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile', None)
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona', None)
+        viral_profile_output = kwargs.pop('viral_profile_output', False)
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
@@ -65,6 +66,9 @@ class SearchPipe:
 
         if outputting_taxonomic_profile and metapackage.version < 3:
             raise Exception("Taxonomic profile output is only available for metapackages version 3 or higher")
+        
+        if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
+            raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
         otu_table_object = self.run_to_otu_table(**kwargs)
         if otu_table_object is not None:
@@ -87,6 +91,7 @@ class SearchPipe:
                     krona = output_taxonomic_profile_krona,
                     metapackage = metapackage,
                     min_taxon_coverage = min_taxon_coverage,
+                    viral_mode = viral_profile_output,
                 )
 
 

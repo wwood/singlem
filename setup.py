@@ -10,10 +10,8 @@ def get_version(relpath):
     """Read version info from a file without importing it"""
     for line in io.open(join(dirname(__file__), relpath), encoding="cp437"):
         if "__version__" in line:
-            if '"' in line:
-                return line.split('"')[1]
-            elif "'" in line:
-                return line.split("'")[1]
+            version_dict = eval(line.split("=")[1])
+            return version_dict["singlem"]
 
 
 setup(
@@ -60,6 +58,7 @@ setup(
         'zenodo_backpack ~= 0.3.0',
     ),
     entry_points = {
-        'console_scripts': ['singlem = singlem.main:main']
+        'console_scripts': ['singlem = singlem.main:main',
+                            'lyrebird = singlem.lyrebird:main']
     },
 )

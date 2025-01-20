@@ -23,6 +23,10 @@ DATA_DOI = '10.5281/zenodo.5739611' # This is the series DOI, not the individual
 
 CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 
+LYREBIRD_DATA_DEFAULT_VERSION = '0.2.0'
+LYREBIRD_DATA_ENVIRONMENT_VARIABLE = 'LYREBIRD_METAPACKAGE_PATH'
+LYREBIRD_DATA_DOI = 'TO_BE_FILLED' # TODO: no record yet
+
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
 
@@ -39,8 +43,9 @@ class Metapackage:
     DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY = 'diamond_prefilter_performance_parameters'
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
+    AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
 
-    _CURRENT_FORMAT_VERSION = 5
+    _CURRENT_FORMAT_VERSION = 6
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -69,7 +74,20 @@ class Metapackage:
                         TAXONOMY_DATABASE_VERSION_KEY,
                         DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
                         DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
-                        MAKEIDX_SENSITIVITY_PARAMS
+                        MAKEIDX_SENSITIVITY_PARAMS,
+                        ],
+                    '6': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_KEY,
+                        TAXONOMY_DATABASE_NAME_KEY,
+                        TAXONOMY_DATABASE_VERSION_KEY,
+                        DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
+                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
+                        MAKEIDX_SENSITIVITY_PARAMS,
+                        AVG_NUM_GENES_PER_SPECIES,
                         ],
                       }
 
@@ -161,7 +179,11 @@ class Metapackage:
             mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
             mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
             mpkg._makeidx_sensitivity_params = contents_hash[Metapackage.MAKEIDX_SENSITIVITY_PARAMS]
-
+        if v >= 6:
+            if contents_hash.get(Metapackage.AVG_NUM_GENES_PER_SPECIES, None) is not None:
+                mpkg._avg_num_genes_per_species = contents_hash.get(Metapackage.AVG_NUM_GENES_PER_SPECIES, None)
+            else:
+                mpkg._avg_num_genes_per_species = None
         return mpkg
 
     @staticmethod
@@ -226,9 +248,13 @@ class Metapackage:
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
+        calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if calculate_average_num_genes_per_species not in (True, False):
+            raise Exception("calculate_average_num_genes_per_species must be a boolean")
 
         if os.path.exists(output_path):
             raise Exception("Not writing new SingleM metapackage to already existing file/directory with name %s" % output_path)
@@ -246,6 +272,29 @@ class Metapackage:
             dest = os.path.join(output_path, relpath)
             logging.info("Copying package {} to be {} ..".format(pkg, dest))
             shutil.copytree(pkg, dest)
+        
+        taxonomy_marker_counts = None
+        avg_num_genes_per_species = None
+
+        # calculate average number of genes per species
+        if calculate_average_num_genes_per_species:
+            logging.debug("Calculating average number of genes per on-target species ..")
+            total_count = 0
+            taxonomy_marker_counts = {}
+            for pkg in singlem_packages:
+                spkg = SingleMPackage.acquire(pkg)
+                tax_hash = spkg.taxonomy_hash()
+                target_domains = spkg.target_domains()
+                for seq_id, taxonomy in tax_hash.items():
+                    if taxonomy[0].replace('d__','') in target_domains:
+                        tax = 'Root;' + ';'.join(taxonomy) # add Root so condense doesn't break
+                        if tax in taxonomy_marker_counts:
+                            taxonomy_marker_counts[tax] += 1
+                        else:
+                            taxonomy_marker_counts[tax] = 1
+                        total_count += 1
+            avg_num_genes_per_species = total_count / len(taxonomy_marker_counts)
+            logging.info("Average number of genes per species: {} for {} species".format(avg_num_genes_per_species, len(taxonomy_marker_counts)))
 
         # Copy nucleotide SingleM db into output directory
         if nucleotide_sdb:
@@ -313,9 +362,9 @@ class Metapackage:
         logging.info("Generating read name taxonomy store ..")
         sqlitedb_path = os.path.join(output_path, 'read_taxonomies.sqlite3')
         MetapackageReadNameStore.generate(
-            singlem_packages, sqlitedb_path)
+            singlem_packages, sqlitedb_path, taxonomy_marker_counts)
 
-        contents_hash = {Metapackage.VERSION_KEY: 5,
+        contents_hash = {Metapackage.VERSION_KEY: 6,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
@@ -325,7 +374,8 @@ class Metapackage:
                         Metapackage.TAXONOMY_DATABASE_VERSION_KEY: taxonomic_database_version,
                         Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY: diamond_prefilter_performance_parameters,
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
-                        Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params
+                        Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params,
+                        Metapackage.AVG_NUM_GENES_PER_SPECIES: avg_num_genes_per_species,
                         }
 
         # save contents file
@@ -438,6 +488,14 @@ class Metapackage:
     def get_all_taxonomy_strings(self):
         store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
         return store.get_all_taxonomy_strings()
+    
+    def get_taxon_marker_counts(self, taxons):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_marker_counts_of_species(taxons)
+    
+    def get_all_taxon_marker_counts(self):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_all_marker_counts()
 
     def nucleotide_sdb(self):
         # import here so that we avoid tensorflow dependency if not needed
@@ -497,4 +555,11 @@ class Metapackage:
             return self._makeidx_sensitivity_params
         except AttributeError:
             # Happens when version < 5 or metapackage created from spkgs directly
+            return None
+    
+    def avg_num_genes_per_species(self):
+        try:
+            return self._avg_num_genes_per_species
+        except AttributeError:
+            # Happens when version < 6 or metapackage created from spkgs directly
             return None
