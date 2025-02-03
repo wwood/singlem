@@ -25,7 +25,7 @@ CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 
 LYREBIRD_DATA_DEFAULT_VERSION = '0.2.0'
 LYREBIRD_DATA_ENVIRONMENT_VARIABLE = 'LYREBIRD_METAPACKAGE_PATH'
-LYREBIRD_DATA_DOI = 'TO_BE_FILLED' # TODO: no record yet
+LYREBIRD_DATA_DOI = '10.5281/zenodo.14768887'
 
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
@@ -119,9 +119,30 @@ class Metapackage:
         return backpack
 
     @staticmethod
+    def acquire_lyrebird_backpack():
+        logging.debug("Acquiring Lyrebird packages from environment variable")
+        if LYREBIRD_DATA_ENVIRONMENT_VARIABLE not in os.environ:
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+        try:
+            backpack = zenodo_backpack.acquire(env_var_name=LYREBIRD_DATA_ENVIRONMENT_VARIABLE, version=LYREBIRD_DATA_DEFAULT_VERSION)
+        except KeyError:
+            # Has the payload directory rather than the base directory been specified?
+            original_directory = os.environ[LYREBIRD_DATA_ENVIRONMENT_VARIABLE]
+            from pathlib import Path
+            path = Path(original_directory)
+            backpack = zenodo_backpack.acquire(path=path.parent, version=LYREBIRD_DATA_DEFAULT_VERSION)
+        return backpack
+
+    @staticmethod
     def acquire_default():
         '''Acquire the default metapackage'''
         backpack = Metapackage.acquire_default_backpack()
+        return Metapackage.acquire(backpack.payload_directory_string())
+    
+    @staticmethod
+    def acquire_lyrebird():
+        '''Acquire the default Lyrebird metapackage'''
+        backpack = Metapackage.acquire_lyrebird_backpack()
         return Metapackage.acquire(backpack.payload_directory_string())
 
 
@@ -190,16 +211,26 @@ class Metapackage:
     def download(**kwargs):
         '''Download a metapackage from Zenodo'''
         output_directory = kwargs.pop('output_directory', None)
+        lyrebird = kwargs.pop('lyrebird', False)
         if not output_directory:
             raise Exception("Must specify an output directory to download a new default metapackage to")
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if lyrebird:
+            data_version = LYREBIRD_DATA_DEFAULT_VERSION
+            data_doi = LYREBIRD_DATA_DOI
+            data_env_var = LYREBIRD_DATA_ENVIRONMENT_VARIABLE
+        else:
+            data_version = DATA_DEFAULT_VERSION
+            data_doi = DATA_DOI
+            data_env_var = DATA_ENVIRONMENT_VARIABLE
         
-        logging.info(f"Downloading data version {DATA_DEFAULT_VERSION} with ZenodoBackpack from {DATA_DOI} ..")
+        logging.info(f"Downloading data version {data_version} with ZenodoBackpack from {data_doi} ..")
         backpack = zenodo_backpack.ZenodoBackpackDownloader().download_and_extract(
             output_directory,
-            DATA_DOI,
+            data_doi,
             progress_bar=True,
             # Unfortunately, we are stuck with zenodo_backpackge 0.2.0 because
             # the newer version cannot be deployed on conda-forge, due to this
@@ -210,27 +241,36 @@ class Metapackage:
             )
         logging.info("Finished downloading data")
 
-        logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
+        logging.info("The environment variable {} can now be set to {}".format(data_env_var, output_directory))
         logging.info("For instance, the following can be included in your .bashrc (requires logout and login after inclusion):")
-        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, os.path.abspath(backpack.base_directory)))
+        logging.info("export {}='{}'".format(data_env_var, os.path.abspath(backpack.base_directory)))
 
     @staticmethod
     def verify(**kwargs):
         '''Verify that the ZenodoBackpack is valid'''
         od = kwargs.pop('output_directory', None) # not used
+        lyrebird = kwargs.pop('lyrebird', False)
         if od is not None:
             raise Exception("Verification of downloaded data does not require an output directory to be specified. Use the environment variable {} to specify the location of the downloaded data".format(DATA_ENVIRONMENT_VARIABLE))
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-
-        logging.info("Acquiring SingleM packages from environment variable")
-        if not DATA_ENVIRONMENT_VARIABLE in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
-        backpack = Metapackage.acquire_default_backpack()
+        
+        if lyrebird:
+            data_version = LYREBIRD_DATA_DEFAULT_VERSION
+            logging.info("Acquiring Lyrebird packages from environment variable")
+            if not LYREBIRD_DATA_ENVIRONMENT_VARIABLE in os.environ:
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+            backpack = Metapackage.acquire_lyrebird_backpack()
+        else:
+            data_version = DATA_DEFAULT_VERSION
+            logging.info("Acquiring SingleM packages from environment variable")
+            if not DATA_ENVIRONMENT_VARIABLE in os.environ:
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+            backpack = Metapackage.acquire_default_backpack()
         
         logging.info("Verifying data with ZenodoBackpack ..")
-        zenodo_backpack.ZenodoBackpackDownloader().verify(backpack, passed_version=DATA_DEFAULT_VERSION)
+        zenodo_backpack.ZenodoBackpackDownloader().verify(backpack, passed_version=data_version)
         logging.info("Finished verifying data")
 
 

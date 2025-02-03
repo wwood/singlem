@@ -100,12 +100,15 @@ class SearchPipe:
     def _parse_packages_or_metapackage(self, **kwargs):
         metapackage_path = kwargs.pop('metapackage_path', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
+        parse_lyrebird_metapackage = kwargs.pop('parse_lyrebird_metapackage', False)
 
         if metapackage_path and singlem_package_paths and singlem_package_paths != []:
             raise Exception("Cannot specify both a metapackage and singlem_packages")
         elif metapackage_path:
             return Metapackage.acquire(metapackage_path)
         elif not singlem_package_paths or singlem_package_paths == []:
+            if parse_lyrebird_metapackage:
+                return Metapackage.acquire_lyrebird()
             # Return the default set
             return Metapackage.acquire_default()
         else:
@@ -162,6 +165,7 @@ class SearchPipe:
         metapackage_object = kwargs.pop('metapackage_object', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
         metapackage_path = kwargs.pop('metapackage_path', None)
+        parse_lyrebird_metapackage = kwargs.pop('parse_lyrebird_metapackage', False)
         assign_taxonomy = kwargs.pop('assign_taxonomy', True)
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy', None)
         diamond_prefilter = kwargs.pop('diamond_prefilter', None)
