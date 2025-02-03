@@ -189,8 +189,7 @@ def main():
             min_taxon_coverage = args.min_taxon_coverage,
             output_after_em_otu_table = args.output_after_em_otu_table)
 
-    elif args.subparser_name=='data': #TODO: need lyrebird metapackage on zenodo > done
-        # raise NotImplementedError("Lyrebird metapackage not yet available on Zenodo")
+    elif args.subparser_name=='data':
         from singlem.metapackage import Metapackage
         if args.verify_only:
             Metapackage.verify(output_directory = args.output_directory,

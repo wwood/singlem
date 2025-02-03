@@ -100,7 +100,7 @@ class SearchPipe:
     def _parse_packages_or_metapackage(self, **kwargs):
         metapackage_path = kwargs.pop('metapackage_path', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
-        parse_lyrebird_metapackage = kwargs.pop('parse_lyrebird_metapackage', False) # or should use kwargs.get('viral_profile_output', False)?
+        parse_lyrebird_metapackage = kwargs.pop('parse_lyrebird_metapackage', False)
 
         if metapackage_path and singlem_package_paths and singlem_package_paths != []:
             raise Exception("Cannot specify both a metapackage and singlem_packages")
