@@ -54,6 +54,7 @@ class SearchPipe:
         archive_otu_table = kwargs.pop('archive_otu_table', None)
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile', None)
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona', None)
+        viral_profile_output = kwargs.pop('viral_profile_output', False)
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
@@ -69,6 +70,9 @@ class SearchPipe:
 
         if outputting_taxonomic_profile and metapackage.version < 3:
             raise Exception("Taxonomic profile output is only available for metapackages version 3 or higher")
+        
+        if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
+            raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
         otu_table_object = self.run_to_otu_table(**kwargs)
 
@@ -149,6 +153,7 @@ class SearchPipe:
                     krona = output_taxonomic_profile_krona,
                     metapackage = metapackage,
                     min_taxon_coverage = min_taxon_coverage,
+                    viral_mode = viral_profile_output,
                 )
 
 
@@ -157,12 +162,15 @@ class SearchPipe:
     def _parse_packages_or_metapackage(self, **kwargs):
         metapackage_path = kwargs.pop('metapackage_path', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
+        parse_lyrebird_metapackage = kwargs.pop('parse_lyrebird_metapackage', False)
 
         if metapackage_path and singlem_package_paths and singlem_package_paths != []:
             raise Exception("Cannot specify both a metapackage and singlem_packages")
         elif metapackage_path:
             return Metapackage.acquire(metapackage_path)
         elif not singlem_package_paths or singlem_package_paths == []:
+            if parse_lyrebird_metapackage:
+                return Metapackage.acquire_lyrebird()
             # Return the default set
             return Metapackage.acquire_default()
         else:
@@ -219,6 +227,7 @@ class SearchPipe:
         metapackage_object = kwargs.pop('metapackage_object', None)
         singlem_package_paths = kwargs.pop('singlem_packages', None)
         metapackage_path = kwargs.pop('metapackage_path', None)
+        parse_lyrebird_metapackage = kwargs.pop('parse_lyrebird_metapackage', False)
         assign_taxonomy = kwargs.pop('assign_taxonomy', True)
         known_sequence_taxonomy = kwargs.pop('known_sequence_taxonomy', None)
         diamond_prefilter = kwargs.pop('diamond_prefilter', None)

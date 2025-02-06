@@ -64,6 +64,268 @@ def seqs(args):
     logging.info("Found best start position %i" % best_position)
     print(best_position)
 
+# Make pipe argument functions here so the code can be re-used between pipe and renew
+def add_common_pipe_arguments(argument_group, extra_args=False):
+    if extra_args:
+        sequence_input_group = argument_group.add_mutually_exclusive_group(required=True)
+        # Keep parity of these arguments with the 'read_fraction' command
+        sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
+                                    nargs='+',
+                                    metavar='sequence_file',
+                                    help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
+        argument_group.add_argument('-2', '--reverse',
+                                    nargs='+',
+                                    metavar='sequence_file',
+                                    help='reverse reads to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
+        sequence_input_group.add_argument('--genome-fasta-files',
+                                    nargs='+',
+                                    metavar='sequence_file',
+                                    help='nucleotide genome sequence(s) to be searched')
+        sequence_input_group.add_argument('--sra-files',
+                                    nargs='+',
+                                    metavar='sra_file',
+                                    help='"sra" format files (usually from NCBI SRA) to be searched')
+    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
+    argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
+    argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
+    current_default = pipe.DEFAULT_THREADS
+    argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
+    current_default = SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_METHOD
+    argument_group.add_argument(
+        '--assignment-method', '--assignment_method',
+        choices=(
+                pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                pipe.DIAMOND_ASSIGNMENT_METHOD,
+                pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+                pipe.ANNOY_ASSIGNMENT_METHOD,
+                pipe.PPLACER_ASSIGNMENT_METHOD),
+        help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) +
+            table_roff([
+                ["Method", "Description"],
+                [pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
+                [pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
+                [pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
+                [pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using SCANN rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
+                [pipe.DIAMOND_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU."],
+                [pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy."],
+                [pipe.ANNOY_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage."],
+                [pipe.PPLACER_ASSIGNMENT_METHOD, "Use pplacer to assign taxonomy of each read in each OTU. Requires a non-standard metapackage."]
+            ]),
+        default=current_default)
+
+    argument_group.add_argument('--output-extras', action='store_true',
+        help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) in the output OTU table [default: not set]',
+        default=False)
+
+def add_less_common_pipe_arguments(argument_group, extra_args=False):
+    argument_group.add_argument('--archive-otu-table', metavar='filename', help='output OTU table in archive format for making DBs etc. [default: unused]')
+    argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
+    argument_group.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
+    argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
+    argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
+    argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
+                                help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: use setting defined in metapackage when set, otherwise use \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
+                                default=None)
+    argument_group.add_argument('--evalue',
+                                help='HMMSEARCH e-value cutoff to use for sequence gathering [default: %s]' % SearchPipe.DEFAULT_HMMSEARCH_EVALUE, default=SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
+    argument_group.add_argument('--min-orf-length',
+                                metavar='length',
+                                help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i when input is reads, %i when input is genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH, SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
+                                type=int)
+    argument_group.add_argument('--restrict-read-length',
+                                metavar='length',
+                                help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
+                                type=int)
+    argument_group.add_argument('--translation-table',
+                                metavar='number',
+                                type=int,
+                                help='Codon table for translation. By default, translation table 4 is used, which is the same as translation table 11 (the usual bacterial/archaeal one), except that the TGA codon is translated as tryptophan, not as a stop codon. Using table 4 means that the minority of organisms which use table 4 are not biased against, without a significant effect on the majority of bacteria and archaea that use table 11. See http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes for details on specific tables. [default: %i]' % SearchPipe.DEFAULT_TRANSLATION_TABLE,
+                                default=SearchPipe.DEFAULT_TRANSLATION_TABLE)
+    argument_group.add_argument('--filter-minimum-protein',
+                                metavar='length',
+                                help='Ignore reads aligning in less than this many positions to each protein HMM when using --no-diamond-prefilter [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
+                                type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
+    argument_group.add_argument('--max-species-divergence', metavar='INT',
+                                help='Maximum number of different bases acids to allow between a sequence and the best hit in the database so that it is assigned to the species level. [default: %i]' % SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE,
+                                type=int, default=SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
+    argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
+    argument_group.add_argument('--min-taxon-coverage',
+                                metavar='FLOAT',
+                                help='Minimum coverage to report in a taxonomic profile. [default: {} for reads, {} for genomes]'.format(CONDENSE_DEFAULT_MIN_TAXON_COVERAGE, CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE),
+                                type=float)
+    argument_group.add_argument('--short-read-correction', 
+                            help='adds a max read length to the coverage calculation to account for long reads', 
+                            type=int, default=None)
+    
+    if extra_args:
+        argument_group.add_argument('--working-directory', metavar='directory', help='use intermediate working directory at a specified location, and do not delete it upon completion [default: not set, use a temporary directory]')
+        argument_group.add_argument('--working-directory-dev-shm', default=False, action='store_true', help='use an intermediate results temporary working directory in /dev/shm rather than the default [default: the usual temporary working directory, currently {}]'.format(
+            tempfile.gettempdir()
+        ))
+        argument_group.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
+        argument_group.add_argument('--filter-minimum-nucleotide',
+                                    metavar='length',
+                                    help='Ignore reads aligning in less than this many positions to each nucleotide HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE,
+                                    type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
+        argument_group.add_argument('--include-inserts', action='store_true',
+                                    help='print the entirety of the sequences in the OTU table, not just the aligned nucleotides [default: not set]', default=False)
+        argument_group.add_argument('--known-otu-tables', nargs='+',
+                                    help='OTU tables previously generated with trusted taxonomies for each sequence [default: unused]')
+        argument_group.add_argument('--no-assign-taxonomy', action='store_true',
+                                    help='Do not assign any taxonomy except for those already known [default: not set]',
+                                    default=False)
+        argument_group.add_argument('--known-sequence-taxonomy', metavar='FILE',
+                                    help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
+        argument_group.add_argument('--no-diamond-prefilter', action='store_true',
+                                    help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages. Should be used with --hmmsearch-package-assignment. NOTE: ignored for nucleotide packages [default: protein packages: use the prefilter, nucleotide packages: do not use the prefilter]',
+                                    default=False)
+        argument_group.add_argument('--diamond-prefilter-performance-parameters',
+                                    help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: use setting defined in metapackage when set, otherwise use \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
+                                    default=None)
+        argument_group.add_argument('--hmmsearch-package-assignment', '--hmmsearch_package_assignment', action='store_true',
+                                    help='Assign each sequence to a SingleM package using HMMSEARCH, and a sequence may then be assigned to multiple packages. [default: not set]',
+                                    default=False)
+        argument_group.add_argument('--diamond-prefilter-db',
+                                    help='Use this DB when running DIAMOND prefilter [default: use the one in the metapackage, or generate one from the SingleM packages]')
+        argument_group.add_argument('--assignment-threads',type=int,
+                                    help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
+                                    default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
+        argument_group.add_argument('--sleep-after-mkfifo', type=int,
+                                    help='Sleep for this many seconds after running os.mkfifo [default: None]')
+
+def validate_pipe_args(args, subparser='pipe'):
+    if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
+        raise Exception("At least one of --output-taxonomic-profile, --output-taxonomic-profile-krona, --otu-table, or --archive-otu-table must be specified")
+    if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
+        raise Exception("If --output-jplace is specified, then --assignment-method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
+    if args.metapackage and args.singlem_packages:
+        raise Exception("Can only specify a metapackage or a singlem package set, not both")
+    if args.output_extras and not args.otu_table:
+        raise Exception("Can't use --output-extras without --otu-table")
+    if subparser == 'pipe':
+        if args.include_inserts and not args.otu_table and not args.archive_otu_table:
+            raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
+        if args.metapackage and args.diamond_prefilter_db:
+            raise Exception("Can't use a metapackage with --diamond-prefilter-db")
+        if args.output_jplace and args.known_otu_tables:
+            raise Exception("Currently --output-jplace and --known-otu-tables are incompatible")
+        if args.output_jplace and args.no_assign_taxonomy:
+            raise Exception("Currently --output-jplace and --no-assign-taxonomy are incompatible")
+        if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
+            raise Exception(
+                "Currently --known-sequence-taxonomy requires --no-assign-taxonomy to be set also")
+        if args.reverse and args.output_jplace:
+            raise Exception("Currently --jplace-output cannot be used with --reverse")
+        if args.working_directory and args.working_directory_dev_shm:
+            raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
+        if args.sra_files and args.no_diamond_prefilter:
+            raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
+        if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
+            raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
+
+def add_condense_arguments(parser):
+    input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
+    input_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
+    input_condense_arguments.add_argument('--input-archive-otu-table-list',
+        help="Condense from the archive tables newline separated in this file")
+    input_condense_arguments.add_argument('--input-gzip-archive-otu-table-list',
+        help="Condense from the gzip'd archive tables newline separated in this file")
+
+    output_condense_arguments = parser.add_argument_group("Output arguments (1+ required)")
+    output_condense_arguments.add_argument('-p', '--taxonomic-profile', metavar='filename', help="output OTU table")
+    output_condense_arguments.add_argument('--taxonomic-profile-krona', metavar='filename', help='name of krona file to generate.')
+    output_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
+
+    optional_condense_arguments = parser.add_argument_group("Other options")
+    optional_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
+    current_default = CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
+    optional_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION',
+        help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
+    current_default = CONDENSE_DEFAULT_TRIM_PERCENT
+    optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+
+def generate_streaming_otu_table_from_args(args,
+    input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
+
+    if archive_only:
+        otu_tables = False
+        otu_tables_list = False
+    if input_prefix:
+        if not archive_only:
+            otu_tables = args.input_otu_tables
+            otu_tables_list = args.input_otu_tables_list
+        archive_otu_tables = args.input_archive_otu_tables
+        archive_otu_table_list = args.input_archive_otu_table_list
+        gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list
+    elif query_prefix:
+        otu_tables = args.query_otu_table
+        otu_tables_list = args.query_otu_tables_list
+        archive_otu_tables = args.query_archive_otu_tables
+        archive_otu_table_list = args.query_archive_otu_table_list
+        gzip_archive_otu_table_list = args.query_gzip_archive_otu_table_list
+    else:
+        if not archive_only:
+            otu_tables = args.otu_tables
+            otu_tables_list = args.otu_tables_list
+        archive_otu_tables = args.archive_otu_tables
+        archive_otu_table_list = args.archive_otu_table_list
+        gzip_archive_otu_table_list = args.gzip_archive_otu_table_list
+
+    if archive_only:
+        if not archive_otu_tables and not archive_otu_table_list and not gzip_archive_otu_table_list:
+            raise Exception("{} requires input archive OTU tables".format(args.subparser_name))
+    else:
+        if not otu_tables and not otu_tables_list and not archive_otu_tables and \
+            not archive_otu_table_list and not gzip_archive_otu_table_list:
+            raise Exception("{} requires input OTU tables or archive OTU tables".format(args.subparser_name))
+
+    from singlem.otu_table_collection import StreamingOtuTableCollection
+
+    otus = StreamingOtuTableCollection()
+    if min_archive_otu_table_version:
+        otus.min_archive_otu_table_version = min_archive_otu_table_version
+    if otu_tables:
+        for o in otu_tables:
+            otus.add_otu_table_file(o)
+    if otu_tables_list:
+        with open(otu_tables_list) as f:
+            for o in f:
+                otus.add_otu_table_file(o.strip())
+    if archive_otu_tables:
+        for o in archive_otu_tables:
+            otus.add_archive_otu_table_file(o.strip())
+    if archive_otu_table_list:
+        with open(archive_otu_table_list) as f:
+            for o in f.readlines():
+                otus.add_archive_otu_table_file(o)
+    if gzip_archive_otu_table_list:
+        with open(gzip_archive_otu_table_list) as f:
+            for arc in f.readlines():
+                otus.add_gzip_archive_otu_table_file(arc.strip())
+    return otus
+
+def get_min_orf_length(args, subparser='pipe'):
+    if args.min_orf_length:
+        return args.min_orf_length
+    elif subparser=='pipe' and (args.forward or args.sra_files):
+        return SearchPipe.DEFAULT_MIN_ORF_LENGTH
+    elif subparser=='pipe' and args.genome_fasta_files:
+        return SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH
+    elif subparser=='renew':
+        return SearchPipe.DEFAULT_MIN_ORF_LENGTH
+    else:
+        raise Exception("Programming error")
+
+def get_min_taxon_coverage(args, subparser='pipe'):
+    if args.min_taxon_coverage:
+        return args.min_taxon_coverage
+    elif subparser == 'pipe' and args.genome_fasta_files:
+        return CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
+    else:
+        return CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 
 def main():
     bird_argparser = BirdArgparser(
@@ -73,7 +335,7 @@ def main():
             "Samuel Aroney, "+CMR,
             "Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark",
             "Rossen Zhao, "+CMR],
-        version=singlem.__version__,
+        version=singlem.__version__["singlem"],
         raw_format=True,
         examples={'pipe': [
             Example(
@@ -112,141 +374,11 @@ def main():
     pipe_description = 'Generate a taxonomic profile or OTU table from raw sequences'
     pipe_parser = bird_argparser.new_subparser('pipe', pipe_description, parser_group='Tools')
 
-    # Make a function here so the code can be re-used between pipe and renew
-    def add_common_pipe_arguments(argument_group):
-        argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
-        argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-        argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
-        current_default = pipe.DEFAULT_THREADS
-        argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
-        current_default = SearchPipe.DEFAULT_TAXONOMY_ASSIGNMENT_METHOD
-        argument_group.add_argument(
-            '--assignment-method', '--assignment_method',
-            choices=(
-                    pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.DIAMOND_ASSIGNMENT_METHOD,
-                    pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-                    pipe.ANNOY_ASSIGNMENT_METHOD,
-                    pipe.PPLACER_ASSIGNMENT_METHOD
-                    ),
-            help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) +
-                table_roff([
-                    ["Method", "Description"],
-                    [pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
-                    [pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
-                    [pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
-                    [pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using SCANN rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
-                    [pipe.DIAMOND_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU."],
-                    [pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy."],
-                    [pipe.ANNOY_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage."],
-                    [pipe.PPLACER_ASSIGNMENT_METHOD, "Use pplacer to assign taxonomy of each read in each OTU. Requires a non-standard metapackage."]
-                ]),
-            default=current_default)
-
-        argument_group.add_argument('--output-extras', action='store_true',
-            help='give extra output for each sequence identified (e.g. the read(s) each OTU was generated from) in the output OTU table [default: not set]',
-            default=False)
     common_pipe_arguments = pipe_parser.add_argument_group('Common options')
-    sequence_input_group = common_pipe_arguments.add_mutually_exclusive_group(required=True)
-    # Keep parity of these arguments with the 'read_fraction' command
-    sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
-                                nargs='+',
-                                metavar='sequence_file',
-                                help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
-    common_pipe_arguments.add_argument('-2', '--reverse',
-                                nargs='+',
-                                metavar='sequence_file',
-                                help='reverse reads to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
-    sequence_input_group.add_argument('--genome-fasta-files',
-                                nargs='+',
-                                metavar='sequence_file',
-                                help='nucleotide genome sequence(s) to be searched')
-    sequence_input_group.add_argument('--sra-files',
-                                nargs='+',
-                                metavar='sra_file',
-                                help='"sra" format files (usually from NCBI SRA) to be searched')
-    add_common_pipe_arguments(common_pipe_arguments)
-
-    def add_less_common_pipe_arguments(argument_group):
-        argument_group.add_argument('--archive-otu-table', metavar='filename', help='output OTU table in archive format for making DBs etc. [default: unused]')
-        argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
-        argument_group.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-        argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
-        argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
-        argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
-                                    help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: use setting defined in metapackage when set, otherwise use \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
-                                    default=None)
-        argument_group.add_argument('--evalue',
-                                    help='HMMSEARCH e-value cutoff to use for sequence gathering [default: %s]' % SearchPipe.DEFAULT_HMMSEARCH_EVALUE, default=SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
-        argument_group.add_argument('--min-orf-length',
-                                    metavar='length',
-                                    help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i when input is reads, %i when input is genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH, SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
-                                    type=int)
-        argument_group.add_argument('--restrict-read-length',
-                                    metavar='length',
-                                    help='Only use this many base pairs at the start of each sequence searched [default: no restriction]',
-                                    type=int)
-        argument_group.add_argument('--translation-table',
-                                    metavar='number',
-                                    type=int,
-                                    help='Codon table for translation. By default, translation table 4 is used, which is the same as translation table 11 (the usual bacterial/archaeal one), except that the TGA codon is translated as tryptophan, not as a stop codon. Using table 4 means that the minority of organisms which use table 4 are not biased against, without a significant effect on the majority of bacteria and archaea that use table 11. See http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes for details on specific tables. [default: %i]' % SearchPipe.DEFAULT_TRANSLATION_TABLE,
-                                    default=SearchPipe.DEFAULT_TRANSLATION_TABLE)
-        argument_group.add_argument('--filter-minimum-protein',
-                                    metavar='length',
-                                    help='Ignore reads aligning in less than this many positions to each protein HMM when using --no-diamond-prefilter [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN,
-                                    type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_PROTEIN)
-        argument_group.add_argument('--max-species-divergence', metavar='INT',
-                                    help='Maximum number of different bases acids to allow between a sequence and the best hit in the database so that it is assigned to the species level. [default: %i]' % SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE,
-                                    type=int, default=SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
-        argument_group.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
-        argument_group.add_argument('--min-taxon-coverage',
-                                    metavar='FLOAT',
-                                    help='Minimum coverage to report in a taxonomic profile. [default: {} for reads, {} for genomes]'.format(CONDENSE_DEFAULT_MIN_TAXON_COVERAGE, CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE),
-                                    type=float)
-        argument_group.add_argument('--short-read-correction', 
-                                    help='adds a max read length to the coverage calculation to account for long reads', 
-                                    type=int, default=None)
+    add_common_pipe_arguments(common_pipe_arguments, extra_args=True)
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
-    add_less_common_pipe_arguments(less_common_pipe_arguments)
-
-    less_common_pipe_arguments.add_argument('--working-directory', metavar='directory', help='use intermediate working directory at a specified location, and do not delete it upon completion [default: not set, use a temporary directory]')
-    less_common_pipe_arguments.add_argument('--working-directory-dev-shm', default=False, action='store_true', help='use an intermediate results temporary working directory in /dev/shm rather than the default [default: the usual temporary working directory, currently {}]'.format(
-        tempfile.gettempdir()
-    ))
-    less_common_pipe_arguments.add_argument('--force', action='store_true', help='overwrite working directory if required [default: not set]')
-    less_common_pipe_arguments.add_argument('--filter-minimum-nucleotide',
-                                metavar='length',
-                                help='Ignore reads aligning in less than this many positions to each nucleotide HMM [default: %i]' % SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE,
-                                type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
-    less_common_pipe_arguments.add_argument('--include-inserts', action='store_true',
-                                help='print the entirety of the sequences in the OTU table, not just the aligned nucleotides [default: not set]', default=False)
-    less_common_pipe_arguments.add_argument('--known-otu-tables', nargs='+',
-                                help='OTU tables previously generated with trusted taxonomies for each sequence [default: unused]')
-    less_common_pipe_arguments.add_argument('--no-assign-taxonomy', action='store_true',
-                                help='Do not assign any taxonomy except for those already known [default: not set]',
-                                default=False)
-    less_common_pipe_arguments.add_argument('--known-sequence-taxonomy', metavar='FILE',
-                                help='A 2-column "sequence<tab>taxonomy" file specifying some sequences that have known taxonomy [default: unused]')
-    less_common_pipe_arguments.add_argument('--no-diamond-prefilter', action='store_true',
-                                help='Do not parse sequence data through DIAMOND blastx using a database constructed from the set of singlem packages. Should be used with --hmmsearch-package-assignment. NOTE: ignored for nucleotide packages [default: protein packages: use the prefilter, nucleotide packages: do not use the prefilter]',
-                                default=False)
-    less_common_pipe_arguments.add_argument('--diamond-prefilter-performance-parameters',
-                                help='Performance-type arguments to use when calling \'diamond blastx\' during the prefiltering. By default, SingleM should run in <4GB of RAM except in very large (>100Gbp) metagenomes. [default: use setting defined in metapackage when set, otherwise use \'%s\']' % SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS,
-                                default=None)
-    less_common_pipe_arguments.add_argument('--hmmsearch-package-assignment', '--hmmsearch_package_assignment', action='store_true',
-                                help='Assign each sequence to a SingleM package using HMMSEARCH, and a sequence may then be assigned to multiple packages. [default: not set]',
-                                default=False)
-    less_common_pipe_arguments.add_argument('--diamond-prefilter-db',
-                                help='Use this DB when running DIAMOND prefilter [default: use the one in the metapackage, or generate one from the SingleM packages]')
-    less_common_pipe_arguments.add_argument('--assignment-threads',type=int,
-                                help='Use this many processes in parallel while assigning taxonomy [default: %i]' % SearchPipe.DEFAULT_ASSIGNMENT_THREADS,
-                                default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
-    less_common_pipe_arguments.add_argument('--sleep-after-mkfifo', type=int,
-                                help='Sleep for this many seconds after running os.mkfifo [default: None]')
+    add_less_common_pipe_arguments(less_common_pipe_arguments, extra_args=True)
 
     appraise_description = 'How much of the metagenome do the genomes or assembly represent?'
     appraise_parser = bird_argparser.new_subparser('appraise', appraise_description, parser_group='Tools')
@@ -361,7 +493,8 @@ def main():
     summarise_taxonomic_profile_output_args.add_argument('--output-species-by-site-level', help="Output site by species level to this file. Requires --output-species-by-site-relative-abundance.", choices=['species','genus','family','order','class','phylum','domain'], default='species')
     summarise_taxonomic_profile_output_args.add_argument('--output-species-by-site-relative-abundance-prefix', metavar='PATH_PREFIX', help="Output site by species relative abundance to this file prefix. One file will be written for each taxonomic level.")
     summarise_taxonomic_profile_output_args.add_argument('--output-filled-taxonomic-profile', metavar='FILE', help="Output a taxonomic profile where the coverage of each taxon includes the coverage of each of its descendent taxons e.g. the d__Bacteria entry includes the p__Patescibacteria entry.")
-    summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-profile-with-extras', metavar='FILE', help="Output a taxonomic profile with extra information (coverage, 'filled' coverage, relative abundance, taxonomy level). ")
+    summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-profile-with-extras', metavar='FILE', help="Output a taxonomic profile with extra information (coverage, 'filled' coverage, relative abundance, taxonomy level).")
+    summarise_taxonomic_profile_output_args.add_argument('--num-decimal-places', metavar='INT', type=int, help="Number of decimal places to report in the coverage column of the --output-taxonomic-profile-with-extras [default: 2].")
     summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-level-coverage', metavar='FILE', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file.")
     
     summarise_otu_table_input_args = summarise_parser.add_argument_group('OTU table input')
@@ -492,6 +625,7 @@ def main():
     metapackage_parser.add_argument('--prefilter-clustering-threshold', type=float, metavar='fraction', help='ID for dereplication of prefilter DB [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--prefilter-diamond-db', metavar='DMND', help='Dereplicated DIAMOND db for prefilter to use [default: dereplicate from input SingleM packages]')
     metapackage_parser.add_argument('--makeidx-sensitivity-params', metavar='PARAMS', help='DIAMOND sensitivity parameters to use when indexing the prefilter DIAMOND db. [default: None]', default=None)
+    metapackage_parser.add_argument('--calculate-average-num-genes-per-species', action='store_true', help='Calculate the average number of genes per species in the metapackage. [default: False]', default=False)
 
     chainsaw_description = 'Remove tree information and trim unaligned sequences from a SingleM package (expert mode)'
     chainsaw_parser = bird_argparser.new_subparser('chainsaw', chainsaw_description)
@@ -503,27 +637,7 @@ def main():
 
     condense_description = 'Combine OTU tables across different markers into a single taxonomic profile. Note that while this mode can be run independently, it is often more straightforward to invoke its methodology by specifying -p / --taxonomic-profile when running pipe mode.'
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
-
-    input_condense_arguments = condense_parser.add_argument_group("Input arguments (1+ required)")
-
-    input_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
-    input_condense_arguments.add_argument('--input-archive-otu-table-list',
-        help="Condense from the archive tables newline separated in this file")
-    input_condense_arguments.add_argument('--input-gzip-archive-otu-table-list',
-        help="Condense from the gzip'd archive tables newline separated in this file")
-
-    output_condense_arguments = condense_parser.add_argument_group("Output arguments (1+ required)")
-    output_condense_arguments.add_argument('-p', '--taxonomic-profile', metavar='filename', help="output OTU table")
-    output_condense_arguments.add_argument('--taxonomic-profile-krona', metavar='filename', help='name of krona file to generate.')
-    output_condense_arguments.add_argument('--output-after-em-otu-table', metavar='filename', help="output OTU table after expectation maximisation has been applied. Note that this table usually contains multiple rows with the same window sequence.")
-
-    optional_condense_arguments = condense_parser.add_argument_group("Other options")
-    optional_condense_arguments.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-    current_default = CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
-    optional_condense_arguments.add_argument('--min-taxon-coverage',metavar='FRACTION',
-        help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
-    current_default = CONDENSE_DEFAULT_TRIM_PERCENT
-    optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+    add_condense_arguments(condense_parser)
 
     trim_package_hmms_description = 'Trim the width of HMMs to increase speed (expert mode)'
     trim_package_hmms_parser = bird_argparser.new_subparser('trim_package_hmms', trim_package_hmms_description)
@@ -589,95 +703,6 @@ def main():
     supplement_rare_group.add_argument('--new-taxonomy-database-name', help='Name of the taxonomy database to record in the created metapackage [default: %s]' % CUSTOM_TAXONOMY_DATABASE_NAME, default=CUSTOM_TAXONOMY_DATABASE_NAME)
     supplement_rare_group.add_argument('--new-taxonomy-database-version', help='Version of the taxonomy database to use [default: None]')
 
-    def validate_pipe_args(args, subparser='pipe'):
-        if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
-            raise Exception("At least one of --output-taxonomic-profile, --output-taxonomic-profile-krona, --otu-table, or --archive-otu-table must be specified")
-        if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
-            raise Exception("If --output-jplace is specified, then --assignment-method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
-        if args.metapackage and args.singlem_packages:
-            raise Exception("Can only specify a metapackage or a singlem package set, not both")
-        if args.output_extras and not args.otu_table:
-            raise Exception("Can't use --output-extras without --otu-table")
-        if subparser == 'pipe':
-            if args.include_inserts and not args.otu_table and not args.archive_otu_table:
-                raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
-            if args.metapackage and args.diamond_prefilter_db:
-                raise Exception("Can't use a metapackage with --diamond-prefilter-db")
-            if args.output_jplace and args.known_otu_tables:
-                raise Exception("Currently --output-jplace and --known-otu-tables are incompatible")
-            if args.output_jplace and args.no_assign_taxonomy:
-                raise Exception("Currently --output-jplace and --no-assign-taxonomy are incompatible")
-            if args.known_sequence_taxonomy and not args.no_assign_taxonomy:
-                raise Exception(
-                    "Currently --known-sequence-taxonomy requires --no-assign-taxonomy to be set also")
-            if args.reverse and args.output_jplace:
-                raise Exception("Currently --jplace-output cannot be used with --reverse")
-            if args.working_directory and args.working_directory_dev_shm:
-                raise Exception("Cannot specify both --working-directory and --working-directory-dev-shm")
-            if args.sra_files and args.no_diamond_prefilter:
-                raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
-            if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
-                raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
-
-
-
-    def generate_streaming_otu_table_from_args(args,
-        input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
-
-        if archive_only:
-            otu_tables = False
-            otu_tables_list = False
-        if input_prefix:
-            if not archive_only:
-                otu_tables = args.input_otu_tables
-                otu_tables_list = args.input_otu_tables_list
-            archive_otu_tables = args.input_archive_otu_tables
-            archive_otu_table_list = args.input_archive_otu_table_list
-            gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list
-        elif query_prefix:
-            otu_tables = args.query_otu_table
-            otu_tables_list = args.query_otu_tables_list
-            archive_otu_tables = args.query_archive_otu_tables
-            archive_otu_table_list = args.query_archive_otu_table_list
-            gzip_archive_otu_table_list = args.query_gzip_archive_otu_table_list
-        else:
-            if not archive_only:
-                otu_tables = args.otu_tables
-                otu_tables_list = args.otu_tables_list
-            archive_otu_tables = args.archive_otu_tables
-            archive_otu_table_list = args.archive_otu_table_list
-            gzip_archive_otu_table_list = args.gzip_archive_otu_table_list
-
-        if archive_only:
-            if not archive_otu_tables and not archive_otu_table_list and not gzip_archive_otu_table_list:
-                raise Exception("{} requires input archive OTU tables".format(args.subparser_name))
-        else:
-            if not otu_tables and not otu_tables_list and not archive_otu_tables and \
-                not archive_otu_table_list and not gzip_archive_otu_table_list:
-                raise Exception("{} requires input OTU tables or archive OTU tables".format(args.subparser_name))
-        otus = StreamingOtuTableCollection()
-        if min_archive_otu_table_version:
-            otus.min_archive_otu_table_version = min_archive_otu_table_version
-        if otu_tables:
-            for o in otu_tables:
-                otus.add_otu_table_file(o)
-        if otu_tables_list:
-            with open(otu_tables_list) as f:
-                for o in f:
-                    otus.add_otu_table_file(o.strip())
-        if archive_otu_tables:
-            for o in archive_otu_tables:
-                otus.add_archive_otu_table_file(o.strip())
-        if archive_otu_table_list:
-            with open(archive_otu_table_list) as f:
-                for o in f.readlines():
-                    otus.add_archive_otu_table_file(o)
-        if gzip_archive_otu_table_list:
-            with open(gzip_archive_otu_table_list) as f:
-                for arc in f.readlines():
-                    otus.add_gzip_archive_otu_table_file(arc.strip())
-        return otus
-
     args = bird_argparser.parse_the_args()
 
     if args.debug:
@@ -693,27 +718,7 @@ def main():
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    logging.info("SingleM v{}".format(singlem.__version__))
-
-    def get_min_orf_length(args, subparser='pipe'):
-        if args.min_orf_length:
-            return args.min_orf_length
-        elif subparser=='pipe' and (args.forward or args.sra_files):
-            return SearchPipe.DEFAULT_MIN_ORF_LENGTH
-        elif subparser=='pipe' and args.genome_fasta_files:
-            return SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH
-        elif subparser=='renew':
-            return SearchPipe.DEFAULT_MIN_ORF_LENGTH
-        else:
-            raise Exception("Programming error")
-
-    def get_min_taxon_coverage(args, subparser='pipe'):
-        if args.min_taxon_coverage:
-            return args.min_taxon_coverage
-        elif subparser == 'pipe' and args.genome_fasta_files:
-            return CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
-        else:
-            return CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
+    logging.info("SingleM v{}".format(singlem.__version__["singlem"]))
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
@@ -753,6 +758,7 @@ def main():
             assignment_singlem_db = args.assignment_singlem_db,
             output_taxonomic_profile = args.taxonomic_profile,
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
+            viral_profile_output = False,
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
@@ -850,6 +856,8 @@ def main():
             raise Exception("--output-filled-taxonomic-profile requires --input-taxonomic-profiles to be defined")
         if args.output_taxonomic_profile_with_extras and not args.input_taxonomic_profiles:
             raise Exception("--output-taxonomic-profile-with-extras requires --input-taxonomic-profiles to be defined")
+        if args.num_decimal_places and not args.output_taxonomic_profile_with_extras:
+            raise Exception("--num-decimal-places currently requires --output-taxonomic-profile-with-extras to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -970,7 +978,7 @@ def main():
             with open(args.rarefied_output_otu_table, 'w') as f:
                 Summariser.write_rarefied_otu_table(
                     table_collection = otus,
-                    output_table_io = open(args.rarefied_output_otu_table,'w'),
+                    output_table_io = f,
                     number_to_choose = args.number_to_choose)
         elif args.output_translated_otu_table:
             with open(args.output_translated_otu_table, 'w') as f:
@@ -1040,7 +1048,8 @@ def main():
                 with open(args.output_taxonomic_profile_with_extras, 'w') as f:
                     Summariser.write_taxonomic_profile_with_extras(
                         input_taxonomic_profile_files = args.input_taxonomic_profiles,
-                        output_taxonomic_profile_extras_io = f)
+                        output_taxonomic_profile_extras_io = f,
+                        num_decimal_places = args.num_decimal_places)
             else:
                 raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance or --output-taxonomic-level-coverage to be defined, since --input-taxonomic-profiles was defined")
 
@@ -1252,10 +1261,11 @@ def main():
                 diamond_prefilter_performance_parameters = args.diamond_prefilter_performance_parameters,
                 diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
                 makeidx_sensitivity_params = args.makeidx_sensitivity_params,
+                calculate_average_num_genes_per_species = args.calculate_average_num_genes_per_species,
             )
 
     elif args.subparser_name == 'condense':
-        from singlem.otu_table_collection import StreamingOtuTableCollection
+        # from singlem.otu_table_collection import StreamingOtuTableCollection
         from singlem.condense import Condenser
 
         otus = generate_streaming_otu_table_from_args(args, input_prefix=True, archive_only=True, min_archive_otu_table_version=4)
@@ -1263,6 +1273,7 @@ def main():
             raise Exception("Either a krona or OTU table output must be specified for condense.")
         Condenser().condense(
             input_streaming_otu_table = otus,
+            viral_mode = False,
             metapackage_path = args.metapackage,
             trim_percent = args.trim_percent,
             output_otu_table = args.taxonomic_profile,
@@ -1284,7 +1295,7 @@ def main():
     elif args.subparser_name=='makedb':
         # Import here to avoid the slow tensorflow import in other subcommands
         from singlem.sequence_database import SequenceDatabase
-        from singlem.otu_table_collection import StreamingOtuTableCollection
+        # from singlem.otu_table_collection import StreamingOtuTableCollection
 
         if args.pregenerated_otu_sqlite_db:
             otus = None
@@ -1312,7 +1323,7 @@ def main():
         # Import here to avoid the slow tensorflow import in other subcommands
         from singlem.querier import Querier
         from singlem.sequence_database import SequenceDatabase
-        from singlem.otu_table_collection import StreamingOtuTableCollection
+        # from singlem.otu_table_collection import StreamingOtuTableCollection
         querier = Querier()
 
         if args.dump:
