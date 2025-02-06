@@ -130,7 +130,8 @@ def main():
                     pipe.DIAMOND_ASSIGNMENT_METHOD,
                     pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
                     pipe.ANNOY_ASSIGNMENT_METHOD,
-                    pipe.PPLACER_ASSIGNMENT_METHOD),
+                    pipe.PPLACER_ASSIGNMENT_METHOD
+                    ),
             help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) +
                 table_roff([
                     ["Method", "Description"],
@@ -205,6 +206,9 @@ def main():
                                     metavar='FLOAT',
                                     help='Minimum coverage to report in a taxonomic profile. [default: {} for reads, {} for genomes]'.format(CONDENSE_DEFAULT_MIN_TAXON_COVERAGE, CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE),
                                     type=float)
+        argument_group.add_argument('--short-read-correction', 
+                                    help='adds a max read length to the coverage calculation to account for long reads', 
+                                    type=int, default=None)
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments)
@@ -752,6 +756,7 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
+            short_read_correction = args.short_read_correction
         )
 
     elif args.subparser_name=='renew':
@@ -778,6 +783,7 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
+            short_read_correction = args.short_read_correction
             )
 
     elif args.subparser_name == 'summarise':
