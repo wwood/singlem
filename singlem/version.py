@@ -1,1 +1,1 @@
-__version__ = "0.18.3"
+__version__ = {"singlem": "0.18.3", "lyrebird": "0.2.0"}

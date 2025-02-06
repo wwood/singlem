@@ -151,7 +151,7 @@ class Appraiser:
             metagenome_collection.sort_otu_tables_by_marker()
 
         querier = Querier()
-        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None)
+        queries = querier.query_with_queries(metagenome_collection, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
 
         sample_to_building_block = {}
         for hit in queries:
@@ -193,9 +193,9 @@ class Appraiser:
         '''print the Appraisal object overview to STDOUT'''
 
         headers = ['sample', 'domain']
-        if doing_binning: headers.append('num_binned')
-        if doing_assembly: headers.append('num_assembled')
-        headers.append('num_not_found')
+        if doing_binning: headers.append('coverage_binned')
+        if doing_assembly: headers.append('coverage_assembled')
+        headers.append('coverage_not_found')
         if doing_binning: headers.append('percent_binned')
         if doing_assembly: headers.append('percent_assembled')
         output_io.write("\t".join(headers)+"\n")

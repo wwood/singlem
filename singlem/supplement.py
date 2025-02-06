@@ -189,7 +189,7 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 taxonomy_to_check = re.sub(r'; {0,1}.__$', '', re.sub(r'; {0,1}.__;.*', '', ';'.join(taxonomy)))
                 if taxonomy_to_check not in known_taxons:
                     raise Exception(
-                        "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage".format(
+                        "The taxonomy {} for genome {} (originally {}) is not a known taxonomy in the current metapackage. This error might be due to a mismatch between the GTDB version used to generate the metapackage to be supplemented, and the GTDB version backing GTDBtk. For instance, are they both R214 or both R220?".format(
                             taxonomy_to_check, genome_name, taxonomy_str))
             if taxonomy[6] != 's__':
                 logging.debug(
@@ -569,6 +569,13 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
         new_spkg_paths = Pool(num_threads).map(generate_new_singlem_package, to_process)
     else:
         new_spkg_paths = list([generate_new_singlem_package(x) for x in to_process])
+    
+    # Check if old_metapackage uses avg_num_genes_per_species
+    if old_metapackage.avg_num_genes_per_species() is not None:
+        # Will need to recalculate this for the new metapackage
+        calculate_average_num_genes_per_species = True
+    else:
+        calculate_average_num_genes_per_species = False
 
     # Create a new metapackage from the singlem packages
     logging.info("Creating new metapackage ..")
@@ -583,7 +590,8 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          taxonomy_database_version=new_taxonomy_database_version,
                          diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
                          diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
-                         makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params())
+                         makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params(),
+                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     if not no_taxon_genome_lengths:

@@ -371,7 +371,7 @@ class Tests(unittest.TestCase):
 
         to_print = StringIO()
         appraiser.print_appraisal(app, packages, True, to_print)
-        self.assertEqual("sample\tdomain\tnum_binned\tnum_not_found\tpercent_binned\nminimal\td__Archaea\t0\t0\t0.0\nminimal\td__Bacteria\t4\t0\t100.0\nanother\td__Archaea\t0\t0\t0.0\nanother\td__Bacteria\t0\t2\t0.0\ntotal\td__Archaea\t0\t0\t0.0\naverage\td__Archaea\t0.0\t0.0\tnan\ntotal\td__Bacteria\t4\t2\t66.7\naverage\td__Bacteria\t2.0\t1.0\t50.0\n", to_print.getvalue())
+        self.assertEqual("sample\tdomain\tcoverage_binned\tcoverage_not_found\tpercent_binned\nminimal\td__Archaea\t0\t0\t0.0\nminimal\td__Bacteria\t4\t0\t100.0\nanother\td__Archaea\t0\t0\t0.0\nanother\td__Bacteria\t0\t2\t0.0\ntotal\td__Archaea\t0\t0\t0.0\naverage\td__Archaea\t0.0\t0.0\tnan\ntotal\td__Bacteria\t4\t2\t66.7\naverage\td__Bacteria\t2.0\t1.0\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
@@ -431,7 +431,7 @@ class Tests(unittest.TestCase):
 
         to_print = StringIO()
         appraiser.print_appraisal(app, packages, True, to_print, doing_assembly=True)
-        self.assertEqual("sample\tdomain\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\td__Archaea\t0\t0\t0\t0.0\t0.0\nminimal\td__Bacteria\t0\t4\t0\t0.0\t100.0\nanother\td__Archaea\t0\t0\t0\t0.0\t0.0\nanother\td__Bacteria\t0\t0\t2\t0.0\t0.0\ntotal\td__Archaea\t0\t0\t0\t0.0\t0.0\naverage\td__Archaea\t0.0\t0.0\t0.0\tnan\tnan\ntotal\td__Bacteria\t0\t4\t2\t0.0\t66.7\naverage\td__Bacteria\t0.0\t2.0\t1.0\t0.0\t50.0\n", to_print.getvalue())
+        self.assertEqual("sample\tdomain\tcoverage_binned\tcoverage_assembled\tcoverage_not_found\tpercent_binned\tpercent_assembled\nminimal\td__Archaea\t0\t0\t0\t0.0\t0.0\nminimal\td__Bacteria\t0\t4\t0\t0.0\t100.0\nanother\td__Archaea\t0\t0\t0\t0.0\t0.0\nanother\td__Bacteria\t0\t0\t2\t0.0\t0.0\ntotal\td__Archaea\t0\t0\t0\t0.0\t0.0\naverage\td__Archaea\t0.0\t0.0\t0.0\tnan\tnan\ntotal\td__Bacteria\t0\t4\t2\t0.0\t66.7\naverage\td__Bacteria\t0.0\t2.0\t1.0\t0.0\t50.0\n", to_print.getvalue())
 
         to_print = StringIO()
         found_otu_table_io = StringIO()
@@ -517,7 +517,7 @@ class Tests(unittest.TestCase):
 
         to_print = StringIO()
         appraiser.print_appraisal(app, packages, True, to_print, doing_assembly=True)
-        self.assertEqual("sample\tdomain\tnum_binned\tnum_assembled\tnum_not_found\tpercent_binned\tpercent_assembled\nminimal\td__Archaea\t0\t0\t0\t0.0\t0.0\nminimal\td__Bacteria\t4\t4\t0\t100.0\t100.0\nanother\td__Archaea\t0\t0\t0\t0.0\t0.0\nanother\td__Bacteria\t0\t0\t2\t0.0\t0.0\ntotal\td__Archaea\t0\t0\t0\t0.0\t0.0\naverage\td__Archaea\t0.0\t0.0\t0.0\tnan\tnan\ntotal\td__Bacteria\t4\t4\t2\t66.7\t66.7\naverage\td__Bacteria\t2.0\t2.0\t1.0\t50.0\t50.0\n", to_print.getvalue())
+        self.assertEqual("sample\tdomain\tcoverage_binned\tcoverage_assembled\tcoverage_not_found\tpercent_binned\tpercent_assembled\nminimal\td__Archaea\t0\t0\t0\t0.0\t0.0\nminimal\td__Bacteria\t4\t4\t0\t100.0\t100.0\nanother\td__Archaea\t0\t0\t0\t0.0\t0.0\nanother\td__Bacteria\t0\t0\t2\t0.0\t0.0\ntotal\td__Archaea\t0\t0\t0\t0.0\t0.0\naverage\td__Archaea\t0.0\t0.0\t0.0\tnan\tnan\ntotal\td__Bacteria\t4\t4\t2\t66.7\t66.7\naverage\td__Bacteria\t2.0\t2.0\t1.0\t50.0\t50.0\n", to_print.getvalue())
 
         # Check that unbinned is the same as assembled OTUs when no binning is done
         to_print = StringIO()
@@ -1211,7 +1211,7 @@ class Tests(unittest.TestCase):
                 cmd = f'{path_to_script} appraise --metagenome-otu-table {f.name} --genome-otu-table {g.name} --imperfect --metapackage {smpkg}'
 
                 expected_header = "# Appraised using max divergence 2 (97% ANI)\n"
-                expected = """sample  domain  num_binned      num_not_found   percent_binned
+                expected = """sample  domain  coverage_binned coverage_not_found      percent_binned
 minimal d__Archaea      0       0       0.0
 minimal d__Bacteria     9       4       69.2
 total   d__Archaea      0       0       0.0

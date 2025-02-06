@@ -23,6 +23,10 @@ DATA_DOI = '10.5281/zenodo.5739611' # This is the series DOI, not the individual
 
 CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 
+LYREBIRD_DATA_DEFAULT_VERSION = '0.2.0'
+LYREBIRD_DATA_ENVIRONMENT_VARIABLE = 'LYREBIRD_METAPACKAGE_PATH'
+LYREBIRD_DATA_DOI = '10.5281/zenodo.14768887'
+
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
 
@@ -39,8 +43,9 @@ class Metapackage:
     DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY = 'diamond_prefilter_performance_parameters'
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
+    AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
 
-    _CURRENT_FORMAT_VERSION = 5
+    _CURRENT_FORMAT_VERSION = 6
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -69,7 +74,20 @@ class Metapackage:
                         TAXONOMY_DATABASE_VERSION_KEY,
                         DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
                         DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
-                        MAKEIDX_SENSITIVITY_PARAMS
+                        MAKEIDX_SENSITIVITY_PARAMS,
+                        ],
+                    '6': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_KEY,
+                        TAXONOMY_DATABASE_NAME_KEY,
+                        TAXONOMY_DATABASE_VERSION_KEY,
+                        DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
+                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
+                        MAKEIDX_SENSITIVITY_PARAMS,
+                        AVG_NUM_GENES_PER_SPECIES,
                         ],
                       }
 
@@ -101,9 +119,30 @@ class Metapackage:
         return backpack
 
     @staticmethod
+    def acquire_lyrebird_backpack():
+        logging.debug("Acquiring Lyrebird packages from environment variable")
+        if LYREBIRD_DATA_ENVIRONMENT_VARIABLE not in os.environ:
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+        try:
+            backpack = zenodo_backpack.acquire(env_var_name=LYREBIRD_DATA_ENVIRONMENT_VARIABLE, version=LYREBIRD_DATA_DEFAULT_VERSION)
+        except KeyError:
+            # Has the payload directory rather than the base directory been specified?
+            original_directory = os.environ[LYREBIRD_DATA_ENVIRONMENT_VARIABLE]
+            from pathlib import Path
+            path = Path(original_directory)
+            backpack = zenodo_backpack.acquire(path=path.parent, version=LYREBIRD_DATA_DEFAULT_VERSION)
+        return backpack
+
+    @staticmethod
     def acquire_default():
         '''Acquire the default metapackage'''
         backpack = Metapackage.acquire_default_backpack()
+        return Metapackage.acquire(backpack.payload_directory_string())
+    
+    @staticmethod
+    def acquire_lyrebird():
+        '''Acquire the default Lyrebird metapackage'''
+        backpack = Metapackage.acquire_lyrebird_backpack()
         return Metapackage.acquire(backpack.payload_directory_string())
 
 
@@ -161,23 +200,37 @@ class Metapackage:
             mpkg._diamond_prefilter_performance_parameters = contents_hash[Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY]
             mpkg._diamond_taxonomy_assignment_performance_parameters = contents_hash[Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS]
             mpkg._makeidx_sensitivity_params = contents_hash[Metapackage.MAKEIDX_SENSITIVITY_PARAMS]
-
+        if v >= 6:
+            if contents_hash.get(Metapackage.AVG_NUM_GENES_PER_SPECIES, None) is not None:
+                mpkg._avg_num_genes_per_species = contents_hash.get(Metapackage.AVG_NUM_GENES_PER_SPECIES, None)
+            else:
+                mpkg._avg_num_genes_per_species = None
         return mpkg
 
     @staticmethod
     def download(**kwargs):
         '''Download a metapackage from Zenodo'''
         output_directory = kwargs.pop('output_directory', None)
+        lyrebird = kwargs.pop('lyrebird', False)
         if not output_directory:
             raise Exception("Must specify an output directory to download a new default metapackage to")
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if lyrebird:
+            data_version = LYREBIRD_DATA_DEFAULT_VERSION
+            data_doi = LYREBIRD_DATA_DOI
+            data_env_var = LYREBIRD_DATA_ENVIRONMENT_VARIABLE
+        else:
+            data_version = DATA_DEFAULT_VERSION
+            data_doi = DATA_DOI
+            data_env_var = DATA_ENVIRONMENT_VARIABLE
         
-        logging.info(f"Downloading data version {DATA_DEFAULT_VERSION} with ZenodoBackpack from {DATA_DOI} ..")
+        logging.info(f"Downloading data version {data_version} with ZenodoBackpack from {data_doi} ..")
         backpack = zenodo_backpack.ZenodoBackpackDownloader().download_and_extract(
             output_directory,
-            DATA_DOI,
+            data_doi,
             progress_bar=True,
             # Unfortunately, we are stuck with zenodo_backpackge 0.2.0 because
             # the newer version cannot be deployed on conda-forge, due to this
@@ -188,27 +241,36 @@ class Metapackage:
             )
         logging.info("Finished downloading data")
 
-        logging.info("The environment variable {} can now be set to {}".format(DATA_ENVIRONMENT_VARIABLE, output_directory))
+        logging.info("The environment variable {} can now be set to {}".format(data_env_var, output_directory))
         logging.info("For instance, the following can be included in your .bashrc (requires logout and login after inclusion):")
-        logging.info("export {}='{}'".format(DATA_ENVIRONMENT_VARIABLE, os.path.abspath(backpack.base_directory)))
+        logging.info("export {}='{}'".format(data_env_var, os.path.abspath(backpack.base_directory)))
 
     @staticmethod
     def verify(**kwargs):
         '''Verify that the ZenodoBackpack is valid'''
         od = kwargs.pop('output_directory', None) # not used
+        lyrebird = kwargs.pop('lyrebird', False)
         if od is not None:
             raise Exception("Verification of downloaded data does not require an output directory to be specified. Use the environment variable {} to specify the location of the downloaded data".format(DATA_ENVIRONMENT_VARIABLE))
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-
-        logging.info("Acquiring SingleM packages from environment variable")
-        if not DATA_ENVIRONMENT_VARIABLE in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
-        backpack = Metapackage.acquire_default_backpack()
+        
+        if lyrebird:
+            data_version = LYREBIRD_DATA_DEFAULT_VERSION
+            logging.info("Acquiring Lyrebird packages from environment variable")
+            if not LYREBIRD_DATA_ENVIRONMENT_VARIABLE in os.environ:
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+            backpack = Metapackage.acquire_lyrebird_backpack()
+        else:
+            data_version = DATA_DEFAULT_VERSION
+            logging.info("Acquiring SingleM packages from environment variable")
+            if not DATA_ENVIRONMENT_VARIABLE in os.environ:
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+            backpack = Metapackage.acquire_default_backpack()
         
         logging.info("Verifying data with ZenodoBackpack ..")
-        zenodo_backpack.ZenodoBackpackDownloader().verify(backpack, passed_version=DATA_DEFAULT_VERSION)
+        zenodo_backpack.ZenodoBackpackDownloader().verify(backpack, passed_version=data_version)
         logging.info("Finished verifying data")
 
 
@@ -226,9 +288,13 @@ class Metapackage:
         diamond_prefilter_performance_parameters = kwargs.pop('diamond_prefilter_performance_parameters')
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
+        calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if calculate_average_num_genes_per_species not in (True, False):
+            raise Exception("calculate_average_num_genes_per_species must be a boolean")
 
         if os.path.exists(output_path):
             raise Exception("Not writing new SingleM metapackage to already existing file/directory with name %s" % output_path)
@@ -246,6 +312,29 @@ class Metapackage:
             dest = os.path.join(output_path, relpath)
             logging.info("Copying package {} to be {} ..".format(pkg, dest))
             shutil.copytree(pkg, dest)
+        
+        taxonomy_marker_counts = None
+        avg_num_genes_per_species = None
+
+        # calculate average number of genes per species
+        if calculate_average_num_genes_per_species:
+            logging.debug("Calculating average number of genes per on-target species ..")
+            total_count = 0
+            taxonomy_marker_counts = {}
+            for pkg in singlem_packages:
+                spkg = SingleMPackage.acquire(pkg)
+                tax_hash = spkg.taxonomy_hash()
+                target_domains = spkg.target_domains()
+                for seq_id, taxonomy in tax_hash.items():
+                    if taxonomy[0].replace('d__','') in target_domains:
+                        tax = 'Root;' + ';'.join(taxonomy) # add Root so condense doesn't break
+                        if tax in taxonomy_marker_counts:
+                            taxonomy_marker_counts[tax] += 1
+                        else:
+                            taxonomy_marker_counts[tax] = 1
+                        total_count += 1
+            avg_num_genes_per_species = total_count / len(taxonomy_marker_counts)
+            logging.info("Average number of genes per species: {} for {} species".format(avg_num_genes_per_species, len(taxonomy_marker_counts)))
 
         # Copy nucleotide SingleM db into output directory
         if nucleotide_sdb:
@@ -313,9 +402,9 @@ class Metapackage:
         logging.info("Generating read name taxonomy store ..")
         sqlitedb_path = os.path.join(output_path, 'read_taxonomies.sqlite3')
         MetapackageReadNameStore.generate(
-            singlem_packages, sqlitedb_path)
+            singlem_packages, sqlitedb_path, taxonomy_marker_counts)
 
-        contents_hash = {Metapackage.VERSION_KEY: 5,
+        contents_hash = {Metapackage.VERSION_KEY: 6,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
@@ -325,7 +414,8 @@ class Metapackage:
                         Metapackage.TAXONOMY_DATABASE_VERSION_KEY: taxonomic_database_version,
                         Metapackage.DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY: diamond_prefilter_performance_parameters,
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
-                        Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params
+                        Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params,
+                        Metapackage.AVG_NUM_GENES_PER_SPECIES: avg_num_genes_per_species,
                         }
 
         # save contents file
@@ -438,6 +528,14 @@ class Metapackage:
     def get_all_taxonomy_strings(self):
         store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
         return store.get_all_taxonomy_strings()
+    
+    def get_taxon_marker_counts(self, taxons):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_marker_counts_of_species(taxons)
+    
+    def get_all_taxon_marker_counts(self):
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_all_marker_counts()
 
     def nucleotide_sdb(self):
         # import here so that we avoid tensorflow dependency if not needed
@@ -497,4 +595,11 @@ class Metapackage:
             return self._makeidx_sensitivity_params
         except AttributeError:
             # Happens when version < 5 or metapackage created from spkgs directly
+            return None
+    
+    def avg_num_genes_per_species(self):
+        try:
+            return self._avg_num_genes_per_species
+        except AttributeError:
+            # Happens when version < 6 or metapackage created from spkgs directly
             return None
