@@ -176,7 +176,7 @@ def _filter_sequences_through_hmmsearch(
     ])
     with tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch_input') as input_tf:
         count, example = _generate_package_specific_fasta_input(target_sequence_ids, prefilter_result, input_tf)
-        # logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(count, example))
+        logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(count, example))
         input_tf.flush()
         if count == 0:
             return
@@ -219,7 +219,6 @@ def _generate_package_specific_fasta_input(
         if example is not None:
             example = qseqid
         output_io.write(">{}\n{}\n".format(qseqid, seq).encode())
-        # print(">{}\n{}\n".format(qseqid, seq))
 
     return count, example
 
@@ -266,10 +265,7 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
         min_orf_length,
         translation_table,
         hmmsearch_evalue))
-    
 
-    # print(spkg.graftm_package_basename())
-    # print("Found {} sequences".format(len(sequences)))
     # On very rare occasions, the same sequence can be returned twice, causing
     # hmmalign to give unexpected format output. So dedup. For instance using
     # S3.2.1 and
