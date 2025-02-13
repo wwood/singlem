@@ -78,7 +78,7 @@ class UnalignedAlignedNucleotideSequence:
         # original calculation
         return float(
             len(self.unaligned_sequence) /
-           (len(self.unaligned_sequence) - (self.aligned_length + 1))
+           (len(self.unaligned_sequence) - self.aligned_length + 1)
             )
     
         # ## with mild correction for multiple hits
