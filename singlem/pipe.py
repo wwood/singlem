@@ -1442,24 +1442,6 @@ class SearchPipe:
                             still_unknown_sequences = \
                                 [u for u in readset.unknown_sequences if not \
                                     query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset.sample_name, u.name, None)]
-                            
-                            # known_sequences = [u for u in readset.unknown_sequences if u not in still_unknown_sequences]
-
-                            # with open('unknown_sequences', 'w') as f:
-                            #     for u in still_unknown_sequences:
-                            #         f.write(">")
-                            #         f.write(u.name)
-                            #         f.write("\n")
-                            #         f.write(u.unaligned_sequence)
-                            #         f.write("\n")
-
-                            # with open('known_sequences', 'w') as f:
-                            #     for u in known_sequences:
-                            #         f.write(">")
-                            #         f.write(u.name)
-                            #         f.write("\n")
-                            #         f.write(u.unaligned_sequence)
-                            #         f.write("\n")
 
                             logging.info("Assigning taxonomy with DIAMOND for {} out of {} sequences ({:.1f}%) for sample {}, package {}".format(
                                 len(still_unknown_sequences),
