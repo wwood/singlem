@@ -1657,17 +1657,11 @@ class SearchPipe:
         choosing as the right one the one that has the least gaps.'''
 
         names = [unknown_sequence.name for unknown_sequence in readset.unknown_sequences]
-        # TODO: This is a hack to remove the ~1, ~2, etc. suffixes for the simulated short reads,
-        # remove after testing
-        names = [name.split('~')[0] + '~' + name.split('~')[-1] for name in names]
         
         if len(set(names)) < len(names):
             unknown_sequences_to_keep = {}
             for seq_obj in readset.unknown_sequences:
                 name = seq_obj.name
-                # TODO: This is a hack to remove the ~1, ~2, etc. suffixes for the simulated short reads,
-                # remove after testing
-                # name = name.split('~')[0] + '~' + name.split('~')[-1]
   
                 if name not in unknown_sequences_to_keep:
                     unknown_sequences_to_keep[name] = seq_obj
@@ -1675,60 +1669,6 @@ class SearchPipe:
                     unknown_sequences_to_keep[name] = seq_obj
 
             readset.unknown_sequences = list(unknown_sequences_to_keep.values())
-
-        # if num_unique_names < len(readset.unknown_sequences):
-        #     logging.debug("Found at {} instance(s) where 2 different translations align to the 1 marker gene/window, removing duplicates.".format(
-        #         len(readset.unknown_sequences)-num_unique_names
-        #     ))
-
-        #     readname_to_otus = {}
-
-        # # gather all sequences for each readname
-        #     for unknown_sequence in readset.unknown_sequences:
-        #         try:
-        #             readname_to_otus[unknown_sequence.name].append(unknown_sequence.aligned_sequence)
-        #         except KeyError:
-        #             readname_to_otus[unknown_sequence.name] = [unknown_sequence.aligned_sequence]
-
-        #     to_delete = {}
-
-        # # iterate over readnames with multiple sequences
-        #     for (readname, window_sequences) in readname_to_otus.items():
-        #         if len(window_sequences) > 1:
-        #             min_gaps_otu = None
-
-        # # search for the sequence with the least gaps
-        #             for window_sequence in window_sequences:
-        
-        # # define the first sequence as the one with the least gaps
-        #                 if min_gaps_otu is None:
-        #                     min_gaps_otu = window_sequence
-
-        # # compare the number of gaps in the current sequence with the number of gaps in the previous min
-        #                 elif min_gaps_otu.count('-') > window_sequence.count('-'):
-        #                     # Mark previous min for deletion
-        # # 
-        #                     if min_gaps_otu in to_delete:
-        #                         to_delete[min_gaps_otu].append(readname)
-        #                     else:
-        #                         to_delete[min_gaps_otu] = [readname]
-        #                     min_gaps_otu = window_sequence
-        #                 else:
-        #                     # Mark current for deletion
-        #                     if window_sequence in to_delete:
-        #                         to_delete[window_sequence].append(readname)
-        #                     else:
-        #                         to_delete[window_sequence] = [readname]
-        
-        # # remove duplicates
-        #     readset.unknown_sequences = list(
-        #         [unknown_sequence for unknown_sequence in readset.unknown_sequences 
-        #             if not (
-        #                     unknown_sequence.aligned_sequence   in to_delete 
-        #                 and unknown_sequence.name               in to_delete[unknown_sequence.aligned_sequence])
-        #                 ])
-
-
 
 
 class SingleMPipeSearchResult:
