@@ -31,9 +31,6 @@ from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
 
-# TODO: DELETE
-from memory_profiler import profile
-
 DEFAULT_THREADS = 1
 
 class SearchPipe:
@@ -76,7 +73,13 @@ class SearchPipe:
 
         otu_table_object = self.run_to_otu_table(**kwargs)
 
-        # HERE is some new stuff
+        # This snippet is for collapsing reads by their most common taxonomic 
+        # assignment.
+        # May be useful / more biologically accurate to do this instead of 
+        # treating each OTU as a separate entity.
+        # Preliminary testing shows that this has a negligible effect on the 
+        # final OTU table.
+
         # only using the query-based OTUs
         # might be better to use all and then pass on reassignment if DIAMOND is the mode
 
@@ -203,7 +206,7 @@ class SearchPipe:
             with open(archive_otu_table, 'w') as f:
                 otu_table_object.archive(metapackage).write_to(f)
 
-    # @profile
+
     def run_to_otu_table(self, **kwargs):
         '''Run the pipe'''
         forward_read_files = kwargs.pop('sequences', [])
@@ -237,10 +240,6 @@ class SearchPipe:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', None)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
-
-        # TODO: make not globaL once tested
-        global SHORT_READ_CORRECTION
-        SHORT_READ_CORRECTION = kwargs.pop('short_read_correction', None)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -608,7 +607,11 @@ class SearchPipe:
         package_to_taxonomy_bihash = {}
 
 
-        # HERE is the new change
+        # This code snippet counts how many hits each read has.
+        # Can be used to do read_length corrections for multihit nanopore reads.
+        # Other snippets need to be uncommented in the 
+        # UnalignedAlignedNucleotideSequence class in sequence_classes.py
+        
         # hits_per_true_name = []
         # read_to_true_name = {}
         # for readset in extracted_reads:
@@ -1019,7 +1022,7 @@ class SearchPipe:
                 collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
             collected_info.unaligned_sequences.append(s.unaligned_sequence)
-            collected_info.coverage += s.coverage_increment(SHORT_READ_CORRECTION)
+            collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
             collected_info.orf_names.append(s.orf_name)
 
