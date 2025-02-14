@@ -521,7 +521,8 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
         metapackage_object=old_metapackage,
         threads=num_threads,
         diamond_prefilter=True,
-        assign_taxonomy=False)  # Maybe could remove off-targets here?
+        assign_taxonomy=False,
+        supplement=True)  # Maybe could remove off-targets here?
     tempfile.tempdir = original_tmpdir
 
     # Assign taxonomy. When multiple genomes have the same OTU, add each genome
