@@ -241,6 +241,8 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
 
+        supplement = kwargs.pop('supplement', False)
+
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
         force = kwargs.pop('force', False)
@@ -540,11 +542,25 @@ class SearchPipe:
                 self._remove_single_sequence_duplicates(readset)
 
 
+            
+        def get_original_seq_names(self):
+            for sequence in readset.unknown_sequences:
+                sequence.name = sequence.name.rpartition('~')[0]
+
+        if supplement:
+            for readset in extracted_reads:
+                if analysing_pairs:
+                    get_original_seq_names(readset[0])
+                    get_original_seq_names(readset[1])
+                else:
+                    get_original_seq_names(readset)
+
+
         #### Remove duplications which happen when OrfM hits the same sequence more than once.
         if genome_fasta_files:
-            # is this correct?
             logging.info("Removing duplicate sequences from rough transcriptome ..")
             for readset in extracted_reads:
+                get_original_seq_names(readset)
                 readset.remove_duplicate_sequences()
 
         #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
@@ -565,10 +581,13 @@ class SearchPipe:
             known_taxes=known_taxes,
             output_jplace=output_jplace,
             assignment_singlem_db=assignment_singlem_db,
+            supplement=supplement,
+            genome_fasta_files=genome_fasta_files
         )
 
         if genome_fasta_files:
             otu_table_object = genome_fasta_mux.demux_otu_table(otu_table_object)
+
         return_cleanly()
         return otu_table_object
 
@@ -583,6 +602,8 @@ class SearchPipe:
         known_taxes = kwargs.pop('known_taxes')
         output_jplace = kwargs.pop('output_jplace')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+        supplement = kwargs.pop('supplement', False)
+        genome_fasta_files = kwargs.pop('genome_fasta_files', False)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -649,8 +670,9 @@ class SearchPipe:
                 known_sequence_tax if known_sequence_taxonomy else None,
                 # outputs
                 otu_table_object,
-                package_to_taxonomy_bihash)
-
+                package_to_taxonomy_bihash,
+                supplement,
+                genome_fasta_files)
 
         return otu_table_object
 
@@ -692,7 +714,9 @@ class SearchPipe:
             known_sequence_tax,
             # outputs
             otu_table_object,
-            package_to_taxonomy_bihash):
+            package_to_taxonomy_bihash,
+            supplement,
+            genome_fasta_files):
 
         # To deal with paired reads, process each. Then exclude second reads
         # from pairs where both match.
@@ -707,9 +731,18 @@ class SearchPipe:
 
         def add_info(infos, otu_table_object, known_tax):
             for info in infos:
+                if supplement or genome_fasta_files:
+                    # seq name already in original format
+                    names = info.names
+                else:
+                    # seq name in format "seq~gene"
+                    names = [name.rpartition('~')[0] for name in info.names]
+
                 names_and_sequences = list(sorted(
-                    list(zip(info.names, info.unaligned_sequences)),
-                    key=lambda x: x[0]))
+                    list(zip(names, info.unaligned_sequences)),
+                    key=lambda x: x[0]
+                ))
+
                 to_print = [
                     singlem_package.graftm_package_basename(),
                     sample_name,
