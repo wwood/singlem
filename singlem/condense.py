@@ -6,8 +6,6 @@ import extern
 import sys
 from queue import Queue
 
-import polars as pl
-
 from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
 from .metapackage import Metapackage
 from .taxonomy import *
@@ -982,6 +980,7 @@ class CondensedCommunityProfile:
         [root], domain, phylum, etc. levels are assumed. Returning a polars
         dataframe maybe isn't the most pythonic, and so this might be changed in
         the future. But eh for now.'''
+        import polars as pl # Import here to avoid requiring it for sandpiper runs
         name_to_coverage = {}
         for node in self.breadth_first_iter():
             node_level = node.calculate_level()
