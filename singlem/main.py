@@ -1417,3 +1417,6 @@ def main():
 
     else:
         raise Exception("Programming error")
+
+if __name__ == '__main__':
+    main()
