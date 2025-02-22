@@ -30,6 +30,7 @@ class Renew:
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona')
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits')
         max_species_divergence = kwargs.pop('max_species_divergence')
+        ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -106,10 +107,16 @@ class Renew:
         read_unaligned_sequences_field = ArchiveOtuTable.FIELDS_VERSION2.index('read_unaligned_sequences')
         nucleotides_aligned_field = ArchiveOtuTable.FIELDS_VERSION2.index('nucleotides_aligned')
 
+        num_ignored_otus = 0
         for otu in input_otus:
             # Ensure that the packages in the archive exist
             if not otu.marker in marker_name_to_spkg:
-                raise Exception("Found marker '{}' that was not one of the specified singlem packages".format(otu.marker))
+                if ignore_missing_singlem_packages:
+                    logging.debug("Ignoring marker '{}' as it was not found in the specified singlem packages".format(otu.marker))
+                    num_ignored_otus += 1
+                    continue
+                else:
+                    raise Exception("Found marker '{}' that was not one of the specified singlem packages".format(otu.marker))
 
             marker_and_sample = [otu.marker, otu.sample_name]
             if marker_and_sample != last_marker_and_sample:
@@ -131,6 +138,8 @@ class Renew:
                 state.current_unaligned_aligned_nuc_seqs.append(
                     UnalignedAlignedNucleotideSequence(
                         name, None, otu.sequence, seq, num_aligned))
+        if ignore_missing_singlem_packages:
+            logging.info("Ignored {} OTUs that were not found in the specified singlem packages".format(num_ignored_otus))
         
         # process last batch
         if last_marker_and_sample is not None:
