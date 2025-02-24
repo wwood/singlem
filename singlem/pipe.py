@@ -30,6 +30,7 @@ from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
 from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
+
 DEFAULT_THREADS = 1
 
 class SearchPipe:
@@ -71,6 +72,70 @@ class SearchPipe:
             raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
         otu_table_object = self.run_to_otu_table(**kwargs)
+
+        # This snippet is for collapsing reads by their most common taxonomic 
+        # assignment.
+        # May be useful / more biologically accurate to do this instead of 
+        # treating each OTU as a separate entity.
+        # Preliminary testing shows that this has a negligible effect on the 
+        # final OTU table.
+
+        # only using the query-based OTUs
+        # might be better to use all and then pass on reassignment if DIAMOND is the mode
+
+        # def collapse_by_read(otu_table_object):
+
+        #     from collections import Counter
+        #     def get_all_modes(tax):
+        #         count = Counter(tax)
+        #         max_count = max(count.values())
+        #         most_common = [(k, v) for k, v in count.items() if v == max_count]
+        #         return most_common
+
+        #     otu_table_collection = StreamingOtuTableCollection()
+        #     otu_table_collection.add_archive_otu_table_object(otu_table_object)
+
+        #     for _, sample_otus in otu_table_collection.each_sample_otus(generate_archive_otu_table=True):
+            
+        #         tax_per_read = {}
+        #         for otu in sample_otus:
+        #             if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
+        #                 for read in otu.read_names():
+        #                     real_read = read.split('~')[0]
+        #                     if real_read not in tax_per_read:
+        #                         tax_per_read[real_read] = otu.equal_best_hit_taxonomies()
+        #                     else:
+        #                         tax_per_read[real_read] += otu.equal_best_hit_taxonomies()
+        #                     # tax_per_read[real_read] = list(itertools.chain.from_iterable(tax_per_read[real_read]))
+                
+        #         # getting the mode for each read
+        #         # might be good to add a check to make sure the mode
+        #         read_modes = {}
+        #         for real_read, tax in tax_per_read.items():
+        #             # print(real_read)
+        #             total = len(tax)
+        #             modes = get_all_modes(tax)
+        #             # if len(modes) > 1:
+        #                 # print("Multiple modes found: {}".format(modes))
+        #             # else:
+        #                 # print("Mode: {}\nAccounting for {} hits.".format(modes[0][0], modes[0][1]/total))
+        #             if len(modes) == 1:
+        #                 read_modes[real_read] = {'taxon': modes[0][0], 'fraction': modes[0][1]/total}
+
+        #         # sort read_modes so that the most common reads are last but just keep the taxon
+        #         read_modes = {k: v['taxon'] for k, v in sorted(read_modes.items(), key=lambda item: item[1]['fraction'])}
+
+        #         # reassign taxonomies of reads with modes to match the mode
+        #         for otu in sample_otus:
+        #             for read in otu.read_names():
+        #                 real_read = read.split('~')[0]
+        #                 if real_read in read_modes:
+        #                     otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = read_modes[real_read].replace(' ', '').replace(';', '; ')
+        #                     otu.data[ArchiveOtuTable.EQUAL_BEST_HIT_TAXONOMIES_INDEX] = [read_modes[real_read]]
+        #                     otu.data[ArchiveOtuTable.TAXONOMY_ASSIGNMENT_METHOD_INDEX] = QUERY_BASED_ASSIGNMENT_METHOD
+
+        # collapse_by_read(otu_table_object)
+
         if otu_table_object is not None:
             self.write_otu_tables(
                 otu_table_object,
@@ -175,6 +240,8 @@ class SearchPipe:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', None)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
+
+        supplement = kwargs.pop('supplement', False)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -465,7 +532,8 @@ class SearchPipe:
                 return_cleanly()
                 return OtuTable()
 
-        #### Clean up super-rare instances where individual sequences are assigned to 2 different OTUs of the same gene.
+
+        
         for readset in extracted_reads:
             if analysing_pairs:
                 self._remove_single_sequence_duplicates(readset[0])
@@ -473,10 +541,26 @@ class SearchPipe:
             else:
                 self._remove_single_sequence_duplicates(readset)
 
+
+            
+        def get_original_seq_names(self):
+            for sequence in readset.unknown_sequences:
+                sequence.name = sequence.name.rpartition('~')[0]
+
+        if supplement:
+            for readset in extracted_reads:
+                if analysing_pairs:
+                    get_original_seq_names(readset[0])
+                    get_original_seq_names(readset[1])
+                else:
+                    get_original_seq_names(readset)
+
+
         #### Remove duplications which happen when OrfM hits the same sequence more than once.
         if genome_fasta_files:
             logging.info("Removing duplicate sequences from rough transcriptome ..")
             for readset in extracted_reads:
+                get_original_seq_names(readset)
                 readset.remove_duplicate_sequences()
 
         #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
@@ -497,10 +581,13 @@ class SearchPipe:
             known_taxes=known_taxes,
             output_jplace=output_jplace,
             assignment_singlem_db=assignment_singlem_db,
+            supplement=supplement,
+            genome_fasta_files=genome_fasta_files
         )
 
         if genome_fasta_files:
             otu_table_object = genome_fasta_mux.demux_otu_table(otu_table_object)
+
         return_cleanly()
         return otu_table_object
 
@@ -515,6 +602,8 @@ class SearchPipe:
         known_taxes = kwargs.pop('known_taxes')
         output_jplace = kwargs.pop('output_jplace')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+        supplement = kwargs.pop('supplement', False)
+        genome_fasta_files = kwargs.pop('genome_fasta_files', False)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -537,6 +626,36 @@ class SearchPipe:
         #### Process taxonomically assigned reads
         otu_table_object = OtuTable()
         package_to_taxonomy_bihash = {}
+
+
+        # This code snippet counts how many hits each read has.
+        # Can be used to do read_length corrections for multihit nanopore reads.
+        # Other snippets need to be uncommented in the 
+        # UnalignedAlignedNucleotideSequence class in sequence_classes.py
+        
+        # hits_per_true_name = []
+        # read_to_true_name = {}
+        # for readset in extracted_reads:
+        #     for sequence in readset.unknown_sequences:
+        #         true_name = sequence.name.split('~')[0]
+        #         read_to_true_name[sequence.name] = true_name
+        #         hits_per_true_name.append(true_name)
+
+        # from collections import Counter
+        # hits_per_true_name = Counter(hits_per_true_name)
+
+        # hits_per_read = {}
+        # for false_name, true_name in read_to_true_name.items():
+        #     if true_name in hits_per_true_name:
+        #         hits_per_read[false_name] = hits_per_true_name[true_name]
+
+        # for readset in extracted_reads:
+        #     for sequence in readset.unknown_sequences:
+        #         if sequence.name in hits_per_read:
+        #             sequence.num_hits_on_read = hits_per_read[sequence.name]
+        #             # print(sequence.name, sequence.num_hits_on_read)
+        
+
         for readset in extracted_reads:
             self._process_taxonomically_assigned_reads(
                 # inputs
@@ -551,7 +670,10 @@ class SearchPipe:
                 known_sequence_tax if known_sequence_taxonomy else None,
                 # outputs
                 otu_table_object,
-                package_to_taxonomy_bihash)
+                package_to_taxonomy_bihash,
+                supplement,
+                genome_fasta_files)
+
         return otu_table_object
 
     def _find_and_extract_reads_by_hmmsearch(self,
@@ -592,7 +714,9 @@ class SearchPipe:
             known_sequence_tax,
             # outputs
             otu_table_object,
-            package_to_taxonomy_bihash):
+            package_to_taxonomy_bihash,
+            supplement,
+            genome_fasta_files):
 
         # To deal with paired reads, process each. Then exclude second reads
         # from pairs where both match.
@@ -603,11 +727,22 @@ class SearchPipe:
         sample_name = readset_example.sample_name
         singlem_package = readset_example.singlem_package
 
+
+
         def add_info(infos, otu_table_object, known_tax):
             for info in infos:
+                if supplement or genome_fasta_files:
+                    # seq name already in original format
+                    names = info.names
+                else:
+                    # seq name in format "seq~gene"
+                    names = [name.rpartition('~')[0] for name in info.names]
+
                 names_and_sequences = list(sorted(
-                    list(zip(info.names, info.unaligned_sequences)),
-                    key=lambda x: x[0]))
+                    list(zip(names, info.unaligned_sequences)),
+                    key=lambda x: x[0]
+                ))
+
                 to_print = [
                     singlem_package.graftm_package_basename(),
                     sample_name,
@@ -826,6 +961,7 @@ class SearchPipe:
                     len(indices_to_remove)))
 
         new_infos = process_readset(maybe_paired_readset, analysing_pairs)
+
         add_info(new_infos, otu_table_object, not assign_taxonomy)
 
     def lca_taxonomy(self, tax_hash, hits):
@@ -1288,6 +1424,7 @@ class SearchPipe:
                         still_unknown_sequences = (readset[0].unknown_sequences, readset[1].unknown_sequences)
 
                     if len(still_unknown_sequences[0] + still_unknown_sequences[1]) > 0:
+                        logging.debug("Creating temp readset files.")
                         forward_tmp = generate_tempfile_for_readset(readset[0])
                         reverse_tmp = generate_tempfile_for_readset(readset[1])
 
@@ -1325,6 +1462,7 @@ class SearchPipe:
                         tmp_files.append([readset[0].sample_name, forward_tmp, reverse_tmp])
                 else:
                     if len(readset.unknown_sequences) > 0:
+                        logging.debug("Creating temp readset file.")
                         tmp = generate_tempfile_for_readset(readset)
                         if assignment_method in (
                             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
@@ -1337,6 +1475,7 @@ class SearchPipe:
                             still_unknown_sequences = \
                                 [u for u in readset.unknown_sequences if not \
                                     query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset.sample_name, u.name, None)]
+
                             logging.info("Assigning taxonomy with DIAMOND for {} out of {} sequences ({:.1f}%) for sample {}, package {}".format(
                                 len(still_unknown_sequences),
                                 len(readset.unknown_sequences),
@@ -1382,6 +1521,7 @@ class SearchPipe:
                                 # (40Gbp+) e.g. SRR11833493 failing on
                                 # GCP/Terra. That wasn't enough to stop the
                                 # error though.
+                                logging.debug("Command:" + cmd2)
                                 extern.run(cmd2)
 
                                 chunk_best_hits = {}
@@ -1424,6 +1564,7 @@ class SearchPipe:
 
                         with open(query) as query_in:
                             current_chunk_count = 0
+                            logging.debug("Creating temp diamond chunk file.")
                             current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk')
                             for (name, seq, _) in SeqReader().readfq(query_in):
                                 current_chunk_count += 1
@@ -1431,12 +1572,14 @@ class SearchPipe:
                                 # If we at the limit, run diamond and collect
                                 if current_chunk_count == 1000:
                                     current_chunk_sequences_fh.flush()
+                                    logging.debug("Running DIAMOND")
                                     run_diamond_chunk(current_chunk_sequences_fh.name)
                                     current_chunk_sequences_fh.close()
                                     current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk')
                                     current_chunk_count = 0
                             if current_chunk_count > 0:
                                 current_chunk_sequences_fh.flush()
+                                logging.debug("Running DIAMOND")
                                 run_diamond_chunk(current_chunk_sequences_fh.name)
                             current_chunk_sequences_fh.close()
 
@@ -1545,41 +1688,20 @@ class SearchPipe:
         '''In extremely rare circumstances, a single read can have >1 OTU
         sequence that aligns to the same marker gene. Remove these in-place,
         choosing as the right one the one that has the least gaps.'''
-        num_unique_names = len(set([u.name for u in readset.unknown_sequences]))
-        if num_unique_names < len(readset.unknown_sequences):
-            logging.debug("Found at {} instance(s) where 2 different translations align to the 1 marker gene/window, removing duplicates.".format(
-                len(readset.unknown_sequences)-num_unique_names
-            ))
-            readname_to_otus = {}
-            for un in readset.unknown_sequences:
-                try:
-                    readname_to_otus[un.name].append(un.aligned_sequence)
-                except KeyError:
-                    readname_to_otus[un.name] = [un.aligned_sequence]
-            to_delete = {}
-            for (readname, window_sequences) in readname_to_otus.items():
-                if len(window_sequences) > 1:
-                    min_gaps_otu = None
-                    for window_sequence in window_sequences:
-                        if min_gaps_otu is None:
-                            min_gaps_otu = window_sequence
-                        elif min_gaps_otu.count('-') > window_sequence.count('-'):
-                            # Mark previous min for deletion
-                            if min_gaps_otu in to_delete:
-                                to_delete[min_gaps_otu].append(readname)
-                            else:
-                                to_delete[min_gaps_otu] = [readname]
-                            min_gaps_otu = window_sequence
-                        else:
-                            # Mark current for deletion
-                            if window_sequence in to_delete:
-                                to_delete[window_sequence].append(readname)
-                            else:
-                                to_delete[window_sequence] = [readname]
-            readset.unknown_sequences = list(
-                [un for un in readset.unknown_sequences if not (un.aligned_sequence in to_delete and un.name in to_delete[un.aligned_sequence])])
 
+        names = [unknown_sequence.name for unknown_sequence in readset.unknown_sequences]
+        
+        if len(set(names)) < len(names):
+            unknown_sequences_to_keep = {}
+            for seq_obj in readset.unknown_sequences:
+                name = seq_obj.name
+  
+                if name not in unknown_sequences_to_keep:
+                    unknown_sequences_to_keep[name] = seq_obj
+                elif unknown_sequences_to_keep[name].aligned_sequence.count('-') > seq_obj.aligned_sequence.count('-'):
+                    unknown_sequences_to_keep[name] = seq_obj
 
+            readset.unknown_sequences = list(unknown_sequences_to_keep.values())
 
 
 class SingleMPipeSearchResult:

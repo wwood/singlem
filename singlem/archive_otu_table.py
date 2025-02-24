@@ -126,6 +126,12 @@ class ArchiveOtuTableEntry(OtuTableEntry):
     
     def taxonomy_by_known(self):
         return self.data[ArchiveOtuTable.TAXONOMY_BY_KNOWN_FIELD_INDEX]
+    
+    def coverage(self):
+        return self.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX]
+    
+    def taxonomy(self):
+        return self.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX]
 
 
 class InsufficientArchiveOtuTableVersionException(Exception):
