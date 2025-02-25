@@ -893,15 +893,6 @@ def main():
                             logging.warning("Failed to parse JSON from archive OTU table {}, skipping".format(arc))
             otus.set_target_taxonomy_by_string(args.taxonomy)
 
-        if args.cluster:
-            if args.stream_inputs:
-                raise Exception("Streaming inputs is not currently known to work with cluster.")
-            logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
-            o2 = OtuTableCollection()
-            o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
-            otus = o2
-            logging.info("Finished clustering")
-
         if args.collapse_coupled:
             if not args.output_otu_table:
                 raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
@@ -934,6 +925,15 @@ def main():
             # doesn't error when extra info is not provided as input.
             o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs, return_archive_table=True))
             otus = o2
+
+        if args.cluster:
+            if args.stream_inputs:
+                raise Exception("Streaming inputs is not currently known to work with cluster.")
+            logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
+            otus = o2
+            logging.info("Finished clustering")
 
         if args.krona:
             Summariser.write_otu_table_krona(
