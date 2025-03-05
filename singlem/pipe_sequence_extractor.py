@@ -224,17 +224,21 @@ def _generate_package_specific_fasta_input(
 
 
 # Function to chunk sequences by max bp
-def chunk_sequences_by_bp(sequences, max_bp):
+# there is an edge case where a sequence is longer than the max bp
+# in this case, the sequence will be in a chunk by itself
+def chunk_sequences_by_bp(sequences, soft_max_bp):
     chunks = []
     current_chunk = []
     current_bp = 0
 
     for seq in sequences:
         seq_length = len(seq.seq)
-        if current_bp + seq_length > max_bp:
+        
+        if current_bp + seq_length > soft_max_bp:
             chunks.append(current_chunk)
             current_chunk = []
             current_bp = 0
+
         current_chunk.append(seq)
         current_bp += seq_length
 
@@ -277,7 +281,7 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     sequences = list(set(sequences))
 
     # limit the number of bp per chunk to avoid memory issues
-    max_bp_per_chunk = 1000000
+    soft_max_bp_per_chunk = 1000000
     window_seqs = []
     
     # to help debug when multi-processing
@@ -285,7 +289,7 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     logging.debug("PID: {}".format(pid))
 
     # Chunk sequences by max bp
-    sequence_chunks = chunk_sequences_by_bp(sequences, max_bp_per_chunk)
+    sequence_chunks = chunk_sequences_by_bp(sequences, soft_max_bp_per_chunk)
 
     logging.debug("[PID: {}] Processing {} chunks".format(pid, len(sequence_chunks)))
     for chunk_sequences in sequence_chunks:
