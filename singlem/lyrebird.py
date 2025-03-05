@@ -75,6 +75,7 @@ def main():
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
     renew_input_args = renew_parser.add_argument_group('input')
     renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
+    renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
@@ -144,6 +145,7 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
+            ignore_missing_singlem_packages = args.ignore_missing_singlem_packages,
         )
 
     elif args.subparser_name=='renew':
