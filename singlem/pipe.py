@@ -73,69 +73,6 @@ class SearchPipe:
 
         otu_table_object = self.run_to_otu_table(**kwargs)
 
-        # This snippet is for collapsing reads by their most common taxonomic 
-        # assignment.
-        # May be useful / more biologically accurate to do this instead of 
-        # treating each OTU as a separate entity.
-        # Preliminary testing shows that this has a negligible effect on the 
-        # final OTU table.
-
-        # only using the query-based OTUs
-        # might be better to use all and then pass on reassignment if DIAMOND is the mode
-
-        # def collapse_by_read(otu_table_object):
-
-        #     from collections import Counter
-        #     def get_all_modes(tax):
-        #         count = Counter(tax)
-        #         max_count = max(count.values())
-        #         most_common = [(k, v) for k, v in count.items() if v == max_count]
-        #         return most_common
-
-        #     otu_table_collection = StreamingOtuTableCollection()
-        #     otu_table_collection.add_archive_otu_table_object(otu_table_object)
-
-        #     for _, sample_otus in otu_table_collection.each_sample_otus(generate_archive_otu_table=True):
-            
-        #         tax_per_read = {}
-        #         for otu in sample_otus:
-        #             if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD:
-        #                 for read in otu.read_names():
-        #                     real_read = read.split('~')[0]
-        #                     if real_read not in tax_per_read:
-        #                         tax_per_read[real_read] = otu.equal_best_hit_taxonomies()
-        #                     else:
-        #                         tax_per_read[real_read] += otu.equal_best_hit_taxonomies()
-        #                     # tax_per_read[real_read] = list(itertools.chain.from_iterable(tax_per_read[real_read]))
-                
-        #         # getting the mode for each read
-        #         # might be good to add a check to make sure the mode
-        #         read_modes = {}
-        #         for real_read, tax in tax_per_read.items():
-        #             # print(real_read)
-        #             total = len(tax)
-        #             modes = get_all_modes(tax)
-        #             # if len(modes) > 1:
-        #                 # print("Multiple modes found: {}".format(modes))
-        #             # else:
-        #                 # print("Mode: {}\nAccounting for {} hits.".format(modes[0][0], modes[0][1]/total))
-        #             if len(modes) == 1:
-        #                 read_modes[real_read] = {'taxon': modes[0][0], 'fraction': modes[0][1]/total}
-
-        #         # sort read_modes so that the most common reads are last but just keep the taxon
-        #         read_modes = {k: v['taxon'] for k, v in sorted(read_modes.items(), key=lambda item: item[1]['fraction'])}
-
-        #         # reassign taxonomies of reads with modes to match the mode
-        #         for otu in sample_otus:
-        #             for read in otu.read_names():
-        #                 real_read = read.split('~')[0]
-        #                 if real_read in read_modes:
-        #                     otu.data[ArchiveOtuTable.TAXONOMY_FIELD_INDEX] = read_modes[real_read].replace(' ', '').replace(';', '; ')
-        #                     otu.data[ArchiveOtuTable.EQUAL_BEST_HIT_TAXONOMIES_INDEX] = [read_modes[real_read]]
-        #                     otu.data[ArchiveOtuTable.TAXONOMY_ASSIGNMENT_METHOD_INDEX] = QUERY_BASED_ASSIGNMENT_METHOD
-
-        # collapse_by_read(otu_table_object)
-
         if otu_table_object is not None:
             self.write_otu_tables(
                 otu_table_object,
@@ -626,35 +563,6 @@ class SearchPipe:
         #### Process taxonomically assigned reads
         otu_table_object = OtuTable()
         package_to_taxonomy_bihash = {}
-
-
-        # This code snippet counts how many hits each read has.
-        # Can be used to do read_length corrections for multihit nanopore reads.
-        # Other snippets need to be uncommented in the 
-        # UnalignedAlignedNucleotideSequence class in sequence_classes.py
-        
-        # hits_per_true_name = []
-        # read_to_true_name = {}
-        # for readset in extracted_reads:
-        #     for sequence in readset.unknown_sequences:
-        #         true_name = sequence.name.split('~')[0]
-        #         read_to_true_name[sequence.name] = true_name
-        #         hits_per_true_name.append(true_name)
-
-        # from collections import Counter
-        # hits_per_true_name = Counter(hits_per_true_name)
-
-        # hits_per_read = {}
-        # for false_name, true_name in read_to_true_name.items():
-        #     if true_name in hits_per_true_name:
-        #         hits_per_read[false_name] = hits_per_true_name[true_name]
-
-        # for readset in extracted_reads:
-        #     for sequence in readset.unknown_sequences:
-        #         if sequence.name in hits_per_read:
-        #             sequence.num_hits_on_read = hits_per_read[sequence.name]
-        #             # print(sequence.name, sequence.num_hits_on_read)
-        
 
         for readset in extracted_reads:
             self._process_taxonomically_assigned_reads(
