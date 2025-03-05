@@ -77,12 +77,11 @@ class DiamondSpkgSearcher:
             # now with range culling, etc
             cmd = [ 
                 "diamond", "blastx",
-                "--outfmt", "6", "qseqid", "full_qseq", "sseqid",
-                "--max-target-seqs", "0",
+                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart",
+                "--max-target-seqs", "1",
                 "--evalue", "0.01",
                 "--frameshift", "15",
                 "--range-culling",
-                "-k", "1",
                 "--threads", str(self._num_threads),
                 "--query", file,
                 "--db", diamond_database
@@ -97,18 +96,18 @@ class DiamondSpkgSearcher:
                 with open(fasta_path, 'a') as fasta_file:
                     for line in proc.stdout:
                         try:
-                            qseqid, full_qseq, sseqid = line.strip().split('\t')
+                            qseqid, full_qseq, sseqid, qstart = line.strip().split('\t')
                         except ValueError:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
                     
                         # creating new read index to account for multiple hits
-                        qseqid = qseqid + '~' + sseqid.split('~')[0]
+                        qseqid = qseqid + '~' + qstart
 
-                        # DIAMOND shouldn't return the same qseqid twice, but just in case
+                        # extra check to make sure we're not overwriting a better hit
                         if qseqid in best_hits:
                             continue
 
-                        # store the best hit for each query sequence
+                        # store the best hit for each query sequence to feed into the next steps
                         best_hits[qseqid] = sseqid
 
                         # write the query sequence to a file
@@ -119,7 +118,11 @@ class DiamondSpkgSearcher:
                 if stderr_output:
                     logging.error(f"DIAMOND stderr: {stderr_output}")
                     raise Exception("DIAMOND failed")
-            
+                
+                # check for non-zero return code
+                return_code = proc.wait()
+                if return_code != 0:
+                    raise Exception(f"DIAMOND failed with return code {return_code}, but no stderr output")
 
             diamond_results.append(DiamondSearchResult(fasta_path, best_hits))
 
