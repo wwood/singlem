@@ -636,6 +636,7 @@ class Summariser:
                 for profile in CondensedCommunityProfile.each_sample_wise(f):
                     # First get the total coverage of each taxonomic level, to act as the numerator
                     total_coverage = profile.tree.get_full_coverage()
+                    logging.info(f"In sample {profile.sample}, found total coverage {total_coverage}")
 
                     # Now write out the profile
                     for wn in profile.breadth_first_iter():
