@@ -524,7 +524,7 @@ def main():
     summarise_output_args.add_argument('--strain-overview-table', help="Name of output strains table to generate")
     summarise_output_args.add_argument('--unifrac-by-otu', help="Output UniFrac format file where entries are OTU sequences")
     summarise_output_args.add_argument('--unifrac-by-taxonomy', help="Output UniFrac format file where entries are taxonomies (generally used for phylogeny-driven beta diversity when pipe was run with '--assignment_method diamond_example')")
-    summarise_output_args.add_argument('--clustered-output-otu-table', help="Output an OTU table with extra information about the clusters")
+    summarise_output_args.add_argument('--clustered-output-otu-table', help="Output an OTU table with extra information about the clusters. To simply cluster an OTU table, use --cluster with --output-otu-table instead.")
     summarise_output_args.add_argument('--exclude-off-target-hits', action='store_true', help="Exclude hits that are not in the target domain of each SingleM package")
     summarise_output_args.add_argument('--singlem-packages', nargs='+', help="Packages used in the creation of the OTU tables")
     summarise_output_args.add_argument('--metapackage', help='Metapackage used in the creation of the OTU tables')
@@ -559,6 +559,7 @@ def main():
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
     renew_input_args = renew_parser.add_argument_group('input')
     renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
+    renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
@@ -766,6 +767,7 @@ def main():
         validate_pipe_args(args, subparser='renew')
         Renew().renew(
             input_archive_otu_table=args.input_archive_otu_table,
+            ignore_missing_singlem_packages=args.ignore_missing_singlem_packages,
             otu_table = args.otu_table,
             output_archive_otu_table = args.archive_otu_table,
             threads = args.threads,
@@ -892,15 +894,6 @@ def main():
                             logging.warning("Failed to parse JSON from archive OTU table {}, skipping".format(arc))
             otus.set_target_taxonomy_by_string(args.taxonomy)
 
-        if args.cluster:
-            if args.stream_inputs:
-                raise Exception("Streaming inputs is not currently known to work with cluster.")
-            logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
-            o2 = OtuTableCollection()
-            o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
-            otus = o2
-            logging.info("Finished clustering")
-
         if args.collapse_coupled:
             if not args.output_otu_table:
                 raise Exception("Collapsing is currently only implemented for regular OTU table outputs.")
@@ -933,6 +926,15 @@ def main():
             # doesn't error when extra info is not provided as input.
             o2.otu_table_objects.append(otus.exclude_off_target_hits(pkgs, return_archive_table=True))
             otus = o2
+
+        if args.cluster:
+            if args.stream_inputs:
+                raise Exception("Streaming inputs is not currently known to work with cluster.")
+            logging.info("Clustering OTUs with clustering identity %f.." % args.cluster_id)
+            o2 = OtuTableCollection()
+            o2.otu_table_objects = [list(Clusterer().each_cluster(otus, args.cluster_id))]
+            otus = o2
+            logging.info("Finished clustering")
 
         if args.krona:
             Summariser.write_otu_table_krona(
@@ -1418,3 +1420,6 @@ def main():
 
     else:
         raise Exception("Programming error")
+
+if __name__ == '__main__':
+    main()

@@ -88,7 +88,13 @@ singlem summarise --input-otu-tables otu_table1.csv otu_table2.csv \
 Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:
 ```
 singlem summarise --input-otu-tables otu_table.csv --cluster \
-    --clustered-output-otu-table clustered.otu_table.csv
+    --output-otu-table clustered.otu_table.csv
+```
+
+The `--clustered-output-otu-table` option can be used to output a clustered OTU table that includes information about which sequences have been clustered together:
+```
+singlem summarise --input-otu-tables otu_table.csv --cluster \
+    --clustered-output-otu-table clustered_with_details.otu_table.csv
 ```
 
 Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:
