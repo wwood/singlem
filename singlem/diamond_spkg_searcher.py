@@ -82,6 +82,7 @@ class DiamondSpkgSearcher:
                 "--evalue", "0.01",
                 "--frameshift", "15",
                 "--range-culling",
+                "--range-cover", "1",
                 "--threads", str(self._num_threads),
                 "--query", file,
                 "--db", diamond_database
@@ -101,7 +102,7 @@ class DiamondSpkgSearcher:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
                     
                         # creating new read index to account for multiple hits
-                        qseqid = qseqid + '~' + qstart
+                        qseqid = qseqid + '~' + sseqid.split('~')[0]
 
                         # extra check to make sure we're not overwriting a better hit
                         if qseqid in best_hits:
