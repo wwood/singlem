@@ -82,9 +82,17 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                                     metavar='sequence_file',
                                     help='nucleotide genome sequence(s) to be searched')
         sequence_input_group.add_argument('--sra-files',
-                                    nargs='+',
-                                    metavar='sra_file',
-                                    help='"sra" format files (usually from NCBI SRA) to be searched')
+                        nargs='+',
+                        metavar='sra_file',
+                        help='"sra" format files (usually from NCBI SRA) to be searched')
+        argument_group.add_argument('--read-chunk-size',
+                type=int,
+                metavar='num_reads',
+                help='Size chunk to process at a time (in number of reads). Requires --sra-files.')
+        argument_group.add_argument('--read-chunk-number',
+                type=int,
+                metavar='chunk_number',
+                help='Process only this specific chunk number (1-based index). Requires --sra-files.')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
@@ -221,6 +229,14 @@ def validate_pipe_args(args, subparser='pipe'):
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
         if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
             raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
+        if args.read_chunk_size and not args.sra_files:
+            raise Exception("Can't use --read-chunk-size without --sra-files")
+        if args.read_chunk_number and not args.sra_files:
+            raise Exception("Can't use --read-chunk-number without --sra-files")
+        if bool(args.read_chunk_size) != bool(args.read_chunk_number):
+            raise Exception("Either none or both of --read-chunk-size and --read-chunk-number should be set")
+        if args.read_chunk_size and len(args.sra_files) > 1:
+            raise Exception("Can't use --read-chunk-size with more than one --sra-file")
 
 def add_condense_arguments(parser):
     input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
@@ -724,6 +740,8 @@ def main():
             reverse_read_files = args.reverse,
             genomes = args.genome_fasta_files,
             input_sra_files = args.sra_files,
+            read_chunk_size = args.read_chunk_size,
+            read_chunk_number = args.read_chunk_number,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             sleep_after_mkfifo = args.sleep_after_mkfifo,
