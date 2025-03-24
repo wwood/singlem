@@ -147,6 +147,8 @@ class SearchPipe:
         forward_read_files = kwargs.pop('sequences', [])
         reverse_read_files = kwargs.pop('reverse_read_files', None)
         input_sra_files = kwargs.pop('input_sra_files',None)
+        read_chunk_size = kwargs.pop('read_chunk_size', None)
+        read_chunk_number = kwargs.pop('read_chunk_number', None)
         genome_fasta_files = kwargs.pop('genomes', None)
         sleep_after_mkfifo = kwargs.pop('sleep_after_mkfifo', None)
         num_threads = kwargs.pop('threads')
@@ -302,8 +304,12 @@ class SearchPipe:
         #### Search
         self._singlem_package_database = hmms
         if input_sra_files is not None:
-            logging.info("Using as input %i different .SRA format sequence files e.g. %s" % (
-                len(input_sra_files), input_sra_files[0]))
+            if read_chunk_size is not None and read_chunk_number is not None:
+                logging.info("Using as input %i reads (chunk %i) from an SRA file %s" % (
+                    read_chunk_size, read_chunk_number, input_sra_files[0]))
+            else:
+                logging.info("Using as input %i different .SRA format sequence files e.g. %s" % (
+                    len(input_sra_files), input_sra_files[0]))
         elif analysing_pairs:
             logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
                 len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
@@ -355,9 +361,16 @@ class SearchPipe:
                         time.sleep(sleep_after_mkfifo)
                     forward_read_files.append(new_name)
 
-                    # kingfisher extract --unsorted --stdout -r
-                    cmd = "kingfisher extract --sra {} --stdout -f fasta --unsorted >{}".format(
-                        os.path.abspath(sra), new_name)
+                    cmd0 = "kingfisher extract --sra {} --stdout -f fasta --unsorted ".format(sra)
+                    if read_chunk_size is not None and read_chunk_number is not None:
+                        # Pipe the number of reads specified by read_chunk_size
+                        # x2 since it is fasta format
+                        start_offset = (read_chunk_size * (read_chunk_number - 1)) * 2 + 1
+                        head = read_chunk_size * 2
+                        cmd = cmd0 + " | tail -n +{} | head -n {} >{}".format(
+                            start_offset, head, new_name)
+                    else:
+                        cmd = cmd0 + " >{}".format(new_name)
                     logging.debug("Running kingfisher extraction command: {}".format(cmd))
                     sra_extraction_commands.append(cmd)
 
