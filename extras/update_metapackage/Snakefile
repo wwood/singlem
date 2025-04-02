@@ -481,10 +481,31 @@ rule sra_fractions_assigned_to_each_level:
         "--input-taxonomic-profile {input.profile} "
         "--output-taxonomic-level-coverage {output.breakdown} "
 
+rule sra_microbial_fraction:
+    input:
+        profile = output_dir + "/sra/{sra}_{version}.otu_table.condensed.tsv",
+        sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
+        sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
+    output:
+        smf = output_dir + "/sra/{sra}_{version}.smf.tsv"
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
+    conda:
+        "../../singlem.yml"
+    shell:
+        "{singlem_bin} microbial_fraction "
+        "--forward {input.sra_1} "
+        "--reverse {input.sra_2} "
+        "-p {input.profile} "
+        "> {output.smf} "
+
 rule check_tests:
     input:
         expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
         expand(output_dir + "/sra/{sra}_old.otu_table.tsv", sra=config["sra_seqs_1"]),
         expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["new", "old"]),
+        expand(output_dir + "/sra/{sra}_{version}.smf.tsv", sra=config["sra_seqs_1"], version=["new", "old"]),
     output:
         touch(output_dir + "/sra/done")
