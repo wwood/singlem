@@ -14,7 +14,7 @@ import os
 configfile: "config.yaml"
 
 hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=False)
-singlem_bin = "../../bin/singlem"
+singlem_bin = "../../singlem/main.py"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
 checkm2_output_dirs = config['checkm2_output_dirs'] if 'checkm2_output_dirs' in config else None # not needed for R220 and beyond (actually R220 was missing some data, so using it there too)
