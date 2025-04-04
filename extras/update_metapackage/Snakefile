@@ -296,7 +296,7 @@ rule SingleM_transcripts:
     shell:
         "mkdir -p {params.logs} && "
         "{params.singlem} pipe "
-        "--forward-list {parms.input_files} "
+        "--forward-list {params.input_files} "
         "--metapackage {input.metapackage} "
         "--otu-table {output.otu_table} "
         "--no-assign-taxonomy "
