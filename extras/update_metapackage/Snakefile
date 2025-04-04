@@ -314,14 +314,13 @@ rule assign_taxonomy:
         touch = output_dir + "/transcripts/done"
     output:
         output_dir + "/taxonomy/transcripts.otu_table.tsv"
-    params:
-        bac_metadata = config["gtdb_bac_metadata"],
-        arc_metadata = config["gtdb_arc_metadata"]
     threads: 1
     resources:
         mem_mb = get_mem_mb,
         runtime = 48*60,
     params:
+        bac_metadata = config["gtdb_bac_metadata"],
+        arc_metadata = config["gtdb_arc_metadata"],
         dir = output_dir + "/transcripts",
     conda:
         "../../singlem.yml"
