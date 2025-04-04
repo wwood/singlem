@@ -275,7 +275,7 @@ rule SingleM_transcripts:
         logs_dir + "/transcripts.log"
     shell:
         "mkdir -p {params.logs} "
-        "&& cat <( find {input.dir} -name '*.fna' ) "
+        "&& cat <( find -L {input.dir} \( -name '*.fa.gz' -o -name '*.fna.gz' \) ) "
         "| parallel --halt-on-error 1 --eta -N 50 -j {threads} "
         "{params.singlem} pipe "
         "--forward {{}} "
