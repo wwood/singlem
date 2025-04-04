@@ -287,20 +287,18 @@ rule SingleM_transcripts:
         runtime = 10*60,
     params:
         singlem = singlem_bin,
-        logs = logs_dir + "/transcripts",
         input_files = output_dir + "/transcript_lists/{n}.txt"
     conda:
         "../../singlem.yml"
     log:
         logs_dir + "/transcripts/{n}.log"
     shell:
-        "mkdir -p {params.logs} && "
         "{params.singlem} pipe "
         "--forward-list {params.input_files} "
         "--metapackage {input.metapackage} "
         "--otu-table {output.otu_table} "
         "--no-assign-taxonomy "
-        "&> {params.logs} "
+        "&> {log} "
 
 rule collect_SingleM_transcripts:
     input:
