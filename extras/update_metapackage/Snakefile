@@ -281,8 +281,7 @@ rule SingleM_transcripts:
         lists = output_dir + "/transcript_lists",
     output:
         otu_table = output_dir + "/transcripts/{n}.otu_table.tsv",
-    threads:
-        config["max_threads"]
+    threads: 1
     resources:
         mem_mb = get_mem_mb,
         runtime = 10*60,
