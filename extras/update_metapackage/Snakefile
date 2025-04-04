@@ -270,6 +270,7 @@ rule SingleM_transcripts_genome_lists:
     params:
         size = size_genome_splits,
     shell:
+        "mkdir -p {output.dir} && "
         "find -L {input.dir} \( -name '*.fa.gz' -o -name '*.fna.gz' \) "
         "| parallel --pipe -N{params.size} 'cat > {output_dir}/{{#}}.txt' "
 
