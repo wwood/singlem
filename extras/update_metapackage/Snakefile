@@ -28,6 +28,9 @@ else:
     genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"], followlinks=True) for f in fs if f.endswith(".faa")]
 genomes = [g.removeprefix(config["gtdb_protein_faa_reps"]).removeprefix("/") for g in genome_paths]
 
+size_genome_splits = 50
+n_genome_splits = len(genomes) // size_genome_splits + 1
+
 zenodo_backpack = os.path.join(output_dir, config["new_metapackage"]+'.zb.tar.gz')
 zenodo_backpack_version = config['new_version_number']
 
@@ -254,40 +257,59 @@ rule create_draft_SingleM_metapackage:
         "--threads {threads} "
         "&> {log}"
 
-rule SingleM_transcripts:
+rule SingleM_transcripts_genome_lists:
     input:
         dir = config["gtdb_protein_fna_reps"],
-        metapackage = output_dir + "/draft_metapackage.smpkg"
     output:
-        dir = directory(output_dir + "/transcripts"),
-        touch = touch(output_dir + "/transcripts/done")
+        dir = directory(output_dir + "/transcript_lists"),
     threads:
         config["max_threads"]
     resources:
         mem_mb = get_mem_mb,
-        runtime = 48*60,
+        runtime = 5*60,
+    params:
+        size = size_genome_splits,
+    shell:
+        "find -L {input.dir} \( -name '*.fa.gz' -o -name '*.fna.gz' \) "
+        "| parallel --pipe -N{params.size} 'cat > {output_dir}/{{#}}.txt' "
+
+rule SingleM_transcripts:
+    input:
+        dir = config["gtdb_protein_fna_reps"],
+        metapackage = output_dir + "/draft_metapackage.smpkg",
+        lists = output_dir + "/transcript_lists",
+    output:
+        otu_table = output_dir + "/transcripts/{n}.otu_table.tsv",
+    threads:
+        config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 10*60,
     params:
         singlem = singlem_bin,
-        logs = logs_dir + "/transcripts"
+        logs = logs_dir + "/transcripts",
+        input_files = output_dir + "/transcript_lists/{n}.txt"
     conda:
         "../../singlem.yml"
     log:
-        logs_dir + "/transcripts.log"
+        logs_dir + "/transcripts/{n}.log"
     shell:
-        "mkdir -p {params.logs} "
-        "&& cat <( find -L {input.dir} \( -name '*.fa.gz' -o -name '*.fna.gz' \) ) "
-        "| parallel --halt-on-error 1 --eta -N 50 -j {threads} "
+        "mkdir -p {params.logs} && "
         "{params.singlem} pipe "
-        "--forward {{}} "
+        "--forward-list {parms.input_files} "
         "--metapackage {input.metapackage} "
-        "--otu-table {output.dir}/{{#}}.otu_table.tsv "
+        "--otu-table {output.otu_table} "
         "--no-assign-taxonomy "
-        "'&>' {params.logs}/{{#}}.log "
-        "2> {log}"
+        "&> {params.logs} "
+
+rule collect_SingleM_transcripts:
+    input:
+        expand(output_dir + "/transcripts/{n}.otu_table.tsv", n = range(n_genome_splits))
+    output:
+        touch(output_dir + "/transcripts/done")
 
 rule assign_taxonomy:
     input:
-        dir = output_dir + "/transcripts",
         touch = output_dir + "/transcripts/done"
     output:
         output_dir + "/taxonomy/transcripts.otu_table.tsv"
@@ -298,13 +320,15 @@ rule assign_taxonomy:
     resources:
         mem_mb = get_mem_mb,
         runtime = 48*60,
+    params:
+        dir = output_dir + "/transcripts",
     conda:
         "../../singlem.yml"
     log:
         logs_dir + "/taxonomy.log"
     shell:
         "../assign_gtdb_taxonomy_to_gtdb_genomes.py "
-        "--otu-table-list <( find {input.dir} -name '*.otu_table.tsv' ) "
+        "--otu-table-list <( find {params.dir} -name '*.otu_table.tsv' ) "
         "--gtdb-bac {params.bac_metadata} "
         "--gtdb-arc {params.arc_metadata} "
         "> {output} "
