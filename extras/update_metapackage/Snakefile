@@ -302,7 +302,7 @@ rule SingleM_transcripts:
 
 rule collect_SingleM_transcripts:
     input:
-        expand(output_dir + "/transcripts/{n}.otu_table.tsv", n = range(n_genome_splits))
+        expand(output_dir + "/transcripts/{n}.otu_table.tsv", n = [i + 1 for i in range(n_genome_splits)])
     output:
         touch(output_dir + "/transcripts/done")
 
