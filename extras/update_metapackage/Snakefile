@@ -295,9 +295,9 @@ rule SingleM_transcripts:
         "../../singlem.yml"
     log:
         logs_dir + "/transcripts/{n}.log"
-    shell: #NOTE: Changed below to use genome-fasta-files not forward as a temporary fix while R226 transcripts are being procured.
+    shell:
         "{params.singlem} pipe "
-        "--genome-fasta-files $(cat {params.input_files} | tr '\n' ' ') "
+        "--forward $(cat {params.input_files} | tr '\n' ' ') "
         "--metapackage {input.metapackage} "
         "--otu-table {output.otu_table} "
         "--no-assign-taxonomy "
