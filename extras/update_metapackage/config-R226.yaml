@@ -1,11 +1,11 @@
 max_threads: 64
-#compressed_genome_data: true
-gtdb_protein_fna_reps: /work/microbiome/msingle/mess/192_globdb226/globdb_r226_genome_fasta_gtdb
-output_dir: /work/microbiome/msingle/mess/196_metapackage_r226/update_metapackage_ben
+compressed_genome_data: true
+gtdb_protein_fna_reps: /work/microbiome/msingle/mess/196_metapackage_r226/protein_fna_reps
+output_dir: /work/microbiome/msingle/mess/196_metapackage_r226/update_metapackage_gtdb_transcripts
 metapackage: /work/microbiome/db/singlem/S4.3.0.GTDB_r220.metapackage_20240523.smpkg.zb/payload_directory
 new_metapackage: S5.4.0.GTDB_r226.metapackage_20250331.smpkg
 new_version_number: 5.4.0
-gtdb_protein_faa_reps: /work/microbiome/msingle/mess/192_globdb226/globdb_r226_protein_fasta_gtdb
+gtdb_protein_faa_reps: /work/microbiome/msingle/mess/196_metapackage_r226/protein_faa_reps
 gtdb_bac_tax: /work/microbiome/msingle/mess/196_metapackage_r226/bac120_taxonomy_r226_renamed.tsv
 gtdb_arc_tax: /work/microbiome/msingle/mess/196_metapackage_r226/ar53_taxonomy_r226_renamed.tsv
 pfams: /work/microbiome/msingle/sam/HMMs/Pfam
