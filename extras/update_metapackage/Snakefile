@@ -517,14 +517,20 @@ rule sra_microbial_fraction:
     resources:
         mem_mb = get_mem_mb,
         runtime = 48*60,
+    params:
+        metapackge = lambda wildcards: config["metapackage"] if wildcards.version == "old" else output_dir + "/metapackage/" + config["new_metapackage"],
     conda:
         "../../singlem.yml"
+    log:
+        logs_dir + "/sra/{sra}_{version}_smf.log"
     shell:
         "{singlem_bin} microbial_fraction "
+        "--metapackage {params.metapackge} "
         "--forward {input.sra_1} "
         "--reverse {input.sra_2} "
         "-p {input.profile} "
         "> {output.smf} "
+        "2> {log} "
 
 rule check_tests:
     input:
