@@ -51,9 +51,7 @@ def get_mem_mb(wildcards, threads, attempt):
 rule all:
     input:
         zenodo_backpack,
-        expand(output_dir + "/sra/{sra}_{version}.otu_table.tsv", sra=config["sra_seqs_1"], version=["old","new"]),
-        expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["old","new"]),
-        # output_dir + "/sra/done"
+        output_dir + "/sra/done"
 
 rule zenodo_backpack:
     input:
