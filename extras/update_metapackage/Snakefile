@@ -21,6 +21,9 @@ checkm2_output_dirs = config['checkm2_output_dirs'] if 'checkm2_output_dirs' in 
 taxonomy_database_name = config["taxonomy_database_name"]
 taxonomy_database_version = config["taxonomy_database_version"]
 
+# TODO: This finding genomes at the start is slow, and is run each time
+# snakemake is started up in a queued job. Would be better to do this once, and
+# then reuse cached results.
 print("Finding genomes...")
 if 'compressed_genome_data' in config and config['compressed_genome_data']:
     genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"], followlinks=True) for f in fs if f.endswith(".faa.gz")]
@@ -263,7 +266,7 @@ rule SingleM_transcripts_genome_lists:
     output:
         dir = directory(output_dir + "/transcript_lists"),
     threads:
-        config["max_threads"]
+        1
     resources:
         mem_mb = get_mem_mb,
         runtime = 5*60,
@@ -292,9 +295,9 @@ rule SingleM_transcripts:
         "../../singlem.yml"
     log:
         logs_dir + "/transcripts/{n}.log"
-    shell:
+    shell: #NOTE: Changed below to use genome-fasta-files not forward as a temporary fix while R226 transcripts are being procured.
         "{params.singlem} pipe "
-        "--forward $(cat {params.input_files} | tr '\n' ' ') "
+        "--genome-fasta-files $(cat {params.input_files} | tr '\n' ' ') "
         "--metapackage {input.metapackage} "
         "--otu-table {output.otu_table} "
         "--no-assign-taxonomy "
