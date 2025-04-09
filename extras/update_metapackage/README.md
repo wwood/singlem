@@ -54,3 +54,14 @@ smf <- samples %>%
     select(sample, metapackage, read_fraction = `smf-read_fraction`, average_size = `smf-average_bacterial_archaeal_genome_size`) %>%
     pivot_wider(names_from = metapackage, values_from = c(read_fraction, average_size))
 ```
+
+## Run renew
+
+```bash
+# in mess/198_R226_renew_mach2
+notify /work/microbiome/msingle/mess/195_sandpiper1/novel_genome_finder/bin/find_novel_genomes_by_renew.py renew \
+    --sample-to-archive-tsv /work/microbiome/msingle/mess/198_R226_renew_mach2/final_unannotated_list.tsv \
+    --all-samples  --output-directory renew \
+    --new-metapackage /work/microbiome/msingle/mess/196_metapackage_r226/update_metapackage_gtdb_transcripts/metapackage/S5.4.0.GTDB_r226.metapackage_20250331.smpkg \
+    --run-through-mqsub
+```
