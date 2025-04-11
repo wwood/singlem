@@ -65,3 +65,51 @@ notify /work/microbiome/msingle/mess/195_sandpiper1/novel_genome_finder/bin/find
     --new-metapackage /work/microbiome/msingle/mess/196_metapackage_r226/update_metapackage_gtdb_transcripts/metapackage/S5.4.0.GTDB_r226.metapackage_20250331.smpkg \
     --run-through-mqsub
 ```
+
+## Compare outputs
+
+```r
+library(tidyverse)
+
+old <- read_csv("/work/microbiome/msingle/mess/174_R220_renew/processing_20240531/per_acc_summary.csv") %>%
+    select(sample, old_species_coverage = species_coverage, old_read_fraction = read_fraction)
+new <- read_csv("/work/microbiome/msingle/mess/198_R226_renew_mach2/processing_20250409/per_acc_summary.csv") %>%
+    select(sample, new_species_coverage = species_coverage, new_read_fraction = read_fraction)
+
+comb <- old %>%
+    inner_join(new)
+
+comb %>%
+    ggplot(aes(x = old_species_coverage, y = new_species_coverage)) +
+    geom_point(alpha = 0.1) +
+    geom_abline(slope = 1, intercept = 0, colour = "red") +
+    xlim(0, 1) +
+    ylim(0, 1) +
+    labs(x = "Old known species fraction", y = "New known species fraction") +
+    theme_bw() +
+    theme(
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        plot.title = element_text(size = 16, hjust = 0.5)
+    )
+ggsave("old_vs_new_species_fraction.png", width = 8, height = 6, dpi = 300)
+
+comb %>%
+    ggplot(aes(x = old_read_fraction / 100, y = new_read_fraction / 100)) +
+    geom_point(alpha = 0.1) +
+    geom_abline(slope = 1, intercept = 0, colour = "red") +
+    xlim(0, 1) +
+    ylim(0, 1) +
+    labs(x = "Old microbial fraction", y = "New microbial fraction") +
+    theme_bw() +
+    theme(
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        legend.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        plot.title = element_text(size = 16, hjust = 0.5)
+    )
+ggsave("old_vs_new_microbial_fraction.png", width = 8, height = 6, dpi = 300)
+```
