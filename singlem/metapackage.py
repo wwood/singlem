@@ -14,8 +14,8 @@ from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
 # These constants should be updated in tandem
-DATA_DEFAULT_VERSION = '4.3.0'
-CURRENT_GTDB_DATABASE_VERSION = 'R220'
+DATA_DEFAULT_VERSION = '5.4.0'
+CURRENT_GTDB_DATABASE_VERSION = 'R226'
 
 GTDB_DATABASE_NAME = 'Genome Taxonomy Database (GTDB)'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
@@ -26,6 +26,7 @@ CUSTOM_TAXONOMY_DATABASE_NAME = 'custom_taxonomy_database'
 LYREBIRD_DATA_DEFAULT_VERSION = '0.2.0'
 LYREBIRD_DATA_ENVIRONMENT_VARIABLE = 'LYREBIRD_METAPACKAGE_PATH'
 LYREBIRD_DATA_DOI = '10.5281/zenodo.14768887'
+
 
 class Metapackage:
     '''A class for a set of SingleM packages, plus prefilter DB'''
