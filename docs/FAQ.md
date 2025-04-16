@@ -1,4 +1,7 @@
 # FAQ
+#### What versions of taxonomy are supported?
+SingleM officially supports GTDB taxonomy. It currently supports GTDB versions GTDB 07-RS207 onwards, up to the default metapackage version (GTDB R226 as of writing). See [the data subcommand help](/tools/data) for more information.
+
 #### Can you target the 16S rRNA gene instead of the default set of single copy marker genes with SingleM?
 Yes. By default, SingleM builds OTU tables from protein genes rather than 16S because this in general gives more strain-level resolution due to redundancy in the genetic code. If you are really keen on using 16S, then you can use SingleM with a 16S SingleM package (spkg). There is a [repository of auxiliary packages](https://github.com/wwood/singlem_extra_packages) at which includes a 16S package that is suitable for this purpose. The resolution won't be as high taxonomically, and there are issues around copy number variation, but it could be useful to use 16S for various reasons e.g. linking it to an amplicon study or using the GreenGenes taxonomy. For now there's no 16S spkg that gets installed by default, you have to use the `--singlem-packages` flag in `pipe` mode pointing to a separately downloaded package - see [https://github.com/wwood/singlem_extra_packages](https://github.com/wwood/singlem_extra_packages). Searching for 16S reads is also much slower than searching for protein-encoding reads.
 
