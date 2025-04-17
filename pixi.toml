@@ -1,0 +1,59 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge","bioconda"]
+name = "singlem"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[activation]
+env = {SINGLEM_METAPACKAGE_PATH = "/work/microbiome/db/singlem/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb"}
+
+[dependencies]
+python= ">=3.7"
+diamond = ">=2.1.7,<=2.1.11"  # 2.1.11 segfaults
+biopython = "*"
+hmmer = "*"
+orfm = "*"
+mfqe = "*"
+extern = "*"
+graftm = "*"
+krona = "*"
+pplacer = "*"
+sra-tools = "*"
+ncbi-ngs-sdk = "*"
+sqlite = "*"
+squarify = "*"
+mafft = "*"
+seqmagick = "*"
+expressbetadiversity = "*"
+cd-hit = "*"
+fasttree = "*"
+fastalite = "*"
+jinja2 = "*"
+pip = "*"
+sqlalchemy = "*"
+pandas = "*"
+bird_tool_utils_python = ">=0.4.1"
+smafa = "*"
+pyranges = "*"
+polars = "*"
+prodigal = "*"
+tqdm = "*"
+pyarrow = "*"
+galah = ">=0.4.0"
+sqlparse = "*"  # Required indirectly (e.g. taxtastic)
+zenodo_backpack = ">=0.3.0"
+# Optional (commented out)
+# python-annoy = "*"
+# nmslib = "*"
+
+[pypi-dependencies]
+singlem = {path = ".", editable = true}
+
+[feature.dev.dependencies]
+# Dev/test dependencies only
+pytest = "*"
+ipython = "*"
+
+[environments]
+dev = ["dev"]
