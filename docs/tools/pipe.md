@@ -58,6 +58,16 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 
   \"sra\" format files (usually from NCBI SRA) to be searched
 
+**\--read-chunk-size** num_reads
+
+  Size chunk to process at a time (in number of reads). Requires
+    \--sra-files.
+
+**\--read-chunk-number** chunk_number
+
+  Process only this specific chunk number (1-based index). Requires
+    \--sra-files.
+
 **-p**, **\--taxonomic-profile** FILE
 
   output a \'condensed\' taxonomic profile for each sample based on

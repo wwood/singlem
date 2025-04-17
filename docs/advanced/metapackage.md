@@ -76,6 +76,11 @@ Create or describe a metapackage (i.e. set of SingleM packages)
   DIAMOND sensitivity parameters to use when indexing the prefilter
     DIAMOND db. [default: None]
 
+**\--calculate-average-num-genes-per-species**
+
+  Calculate the average number of genes per species in the
+    metapackage. [default: False]
+
 # OTHER GENERAL OPTIONS
 
 **\--debug**
