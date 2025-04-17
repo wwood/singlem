@@ -15,6 +15,11 @@ Reannotate an OTU table with an updated taxonomy
 
   Renew this table
 
+**\--ignore-missing-singlem-packages**
+
+  Ignore OTUs which have been assigned to packages not in the
+    metapackage being used for renewal [default: croak]
+
 # COMMON ARGUMENTS IN SHARED WITH \'PIPE\'
 
 **-p**, **\--taxonomic-profile** FILE
