@@ -6,42 +6,42 @@ dependencies:
   # NOTE: Ensure setup.py is changed in tandem with this file
   - python>=3.7 #, <3.10 # https://github.com/google-research/google-research/issues/779 means scann (at least 1.2.8) fails to install via pip for 3.10. Older python versions than 3.7 may also work, not tested.
   - diamond>=2.1.7,!=2.1.11 # Getting segmentation fault on test_insert_prefilter otherwise. 2.1.11 seems to segfault
-  - biopython=1.84 # Pinning to be safe, no known issues
-  - hmmer=3.2.1 # Pinning to be safe, no known issues
-  - orfm=1.3 # Pinning to be safe, no known issues
-  - mfqe=0.5.* # Pinning to be safe, no known issues
-  - extern=0.4.* # Pinning to be safe, no known issues
-  - graftm=0.15.* # 0.15.0+ needed for --translation-table
-  - krona=2.8.* # Pinning to be safe, no known issues
-  - pplacer=1.1.alpha19 # Pinning to be safe, no known issues
-  - sra-tools=3.1.* # Pinning to be safe, no known issues
-  - ncbi-ngs-sdk=3.0.* # Pinning to be safe, no known issues
-  - sqlite=3.46.* # Pinning to be safe, no known issues
-  - squarify=0.4.* # Pinning to be safe, no known issues
+  - biopython # Pinning to be safe, no known issues
+  - hmmer # Pinning to be safe, no known issues
+  - orfm # Pinning to be safe, no known issues
+  - mfqe # Pinning to be safe, no known issues
+  - extern # Pinning to be safe, no known issues
+  - graftm # 0.15.0+ needed for --translation-table
+  - krona # Pinning to be safe, no known issues
+  - pplacer # Pinning to be safe, no known issues
+  - sra-tools # Pinning to be safe, no known issues
+  - ncbi-ngs-sdk # Pinning to be safe, no known issues
+  - sqlite # Pinning to be safe, no known issues
+  - squarify # Pinning to be safe, no known issues
   - mafft # mafft has always been good to me, never had changes that broke me
-  - seqmagick=0.8.* # Pinning to be safe, no known issues
-  - expressbetadiversity=1.0.* # Pinning to be safe, no known issues
-  - cd-hit=4.8.* # Pinning to be safe, no known issues
-  - fasttree=2.1.* # Pinning to be safe, no known issues
-  - fastalite=0.4.* # Pinning to be safe, no known issues
-  - jinja2=3.1.* # Pinning to be safe, no known issues
+  - seqmagick # Pinning to be safe, no known issues
+  - expressbetadiversity # Pinning to be safe, no known issues
+  - cd-hit # Pinning to be safe, no known issues
+  - fasttree # Pinning to be safe, no known issues
+  - fastalite # Pinning to be safe, no known issues
+  - jinja2 # Pinning to be safe, no known issues
   - pip
-  - sqlalchemy=2.0.* # Pinning to be safe, no known issues
-  - pandas=2.2.* # Pinning to be safe, no known issues
-  - bird_tool_utils_python>=0.4.1,<0.5.0 # 0.4.1+, 0.5.0 to be safe
-  - smafa=0.8.* # required for new metapackage smafa db format
-  - pyranges=0.1.* # Pinning to be safe, no known issues
-  - polars=1.1.* # supplement with taxon genome length requires this, for strip_chars, and group_by
-  - prodigal=2.6.* # Pinning to be safe, no known issues
-  - tqdm=4.66.* # Pinning to be safe, no known issues
-  - pyarrow=16.1.* # Pinning to be safe, no known issues
-  - galah >= 0.4.0, <0.5.0 # 0.4.0 is the first version with checkm2 quality inputs, 0.5.0 to be safe
+  - sqlalchemy # Pinning to be safe, no known issues
+  - pandas # Pinning to be safe, no known issues
+  - bird_tool_utils_python>=0.4.1 #,<0.5.0 # 0.4.1+, 0.5.0 to be safe
+  - smafa # required for new metapackage smafa db format
+  - pyranges # Pinning to be safe, no known issues
+  - polars # supplement with taxon genome length requires this, for strip_chars, and group_by
+  - prodigal # Pinning to be safe, no known issues
+  - tqdm # Pinning to be safe, no known issues
+  - pyarrow # Pinning to be safe, no known issues
+  - galah >= 0.4.0 #, <0.5.0 # 0.4.0 is the first version with checkm2 quality inputs, 0.5.0 to be safe
   - pytest # For testing only
   - ipython # For testing only
   - sqlparse # Don't understand why, but this isn't being installed before tests are run on GH actions. Required indirectly (by taxtastic).
   # - python-annoy optional
   # - nmslib # optional
-  - zenodo_backpack>=0.3.0, <0.4.0 # required for version specification, <0.4.0 to be safe
+  - zenodo_backpack>=0.3.0 #, <0.4.0 # required for version specification, <0.4.0 to be safe
   # - pip:
   #   - cmake # Required so scann can be installed and run via pip. Without this, get LD_LIBRARY_PATH error when running pipe.
   #   - scann # optional
