@@ -6,10 +6,12 @@ platforms = ["linux-64"]
 version = "0.1.0"
 
 [activation]
-env = {SINGLEM_METAPACKAGE_PATH = "/work/microbiome/db/singlem/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb"}
+# Sets metapackage environment variables, which are assumed to be in the db/ of
+# the base directory (perhaps symlnked).
+scripts = ["admin/set_env_vars.sh"]
 
 [dependencies]
-python= ">=3.7"
+python = ">=3.7"
 diamond = ">=2.1.7,<=2.1.11"  # 2.1.11 segfaults
 biopython = "*"
 hmmer = "*"
@@ -54,6 +56,7 @@ singlem = {path = ".", editable = true}
 # Dev/test dependencies only
 pytest = "*"
 ipython = "*"
+toml = "*"
 
 [environments]
 dev = ["dev"]

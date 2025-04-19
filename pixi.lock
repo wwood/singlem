@@ -429,6 +429,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/tabulate-0.9.0-pyhd8ed1ab_2.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/taxtastic-0.11.0-pyhdfd78af_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h4845f30_101.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/toml-0.10.2-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.2.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tqdm-4.67.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.14.3-pyhd8ed1ab_1.conda
@@ -3041,7 +3042,24 @@ packages:
 - pypi: .
   name: singlem
   version: 0.18.3
-  sha256: 6bfa76e984717d542f004df34f27a17efce7286b43f2a2b5f311591b97a1323b
+  sha256: 2d8cc8e204ae905eec2c62e30ec2fcffeeb2cd6c29121d51b021ab454ef92728
+  requires_dist:
+  - biopython==1.85
+  - extern==0.4.1
+  - fastalite
+  - graftm==0.15.1
+  - jinja2==3.1.6
+  - pandas==2.2.3
+  - pip==25.0.1
+  - polars==1.27.1
+  - pyarrow==16.1.0
+  - pyranges==0.1.4
+  - seqmagick==0.8.6
+  - sqlalchemy==2.0.40
+  - sqlparse==0.5.3
+  - squarify==0.4.3
+  - tqdm==4.67.1
+  - zenodo-backpack==0.3.1
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhd8ed1ab_0.conda
   sha256: 41db0180680cc67c3fa76544ffd48d6a5679d96f4b71d7498a759e94edc9a2db
@@ -3209,6 +3227,17 @@ packages:
   purls: []
   size: 3318875
   timestamp: 1699202167581
+- conda: https://conda.anaconda.org/conda-forge/noarch/toml-0.10.2-pyhd8ed1ab_1.conda
+  sha256: 34f3a83384ac3ac30aefd1309e69498d8a4aa0bf2d1f21c645f79b180e378938
+  md5: b0dd904de08b7db706167240bf37b164
+  depends:
+  - python >=3.9
+  license: MIT
+  license_family: MIT
+  purls:
+  - pkg:pypi/toml?source=hash-mapping
+  size: 22132
+  timestamp: 1734091907682
 - conda: https://conda.anaconda.org/conda-forge/noarch/tomli-2.2.1-pyhd8ed1ab_1.conda
   sha256: 18636339a79656962723077df9a56c0ac7b8a864329eb8f847ee3d38495b863e
   md5: ac944244f1fed2eb49bae07193ae8215

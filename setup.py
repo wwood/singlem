@@ -1,7 +1,8 @@
 from setuptools import setup
 from os.path import dirname, join
 import io
-
+import os
+ 
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
@@ -16,9 +17,10 @@ def get_version(relpath):
 
 # We read requirements from the requirements.txt file, because that can be
 # auto-generated from the pixi toml file.
-with open("requirements.txt") as f:
+base_dir = dirname(__file__)
+with open(os.path.join(base_dir, "admin/requirements.txt")) as f:
     install_requires = f.read().splitlines()
-
+ 
 setup(
     name='singlem',
     version=get_version("singlem/version.py"),
