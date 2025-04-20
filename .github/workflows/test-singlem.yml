@@ -42,7 +42,7 @@ jobs:
 
       - name: Remove lock file
         run: |
-          rm -f pixi.lock requirements.txt environment.yml
+          rm -fv pixi.lock admin/requirements.txt admin/environment.yml
 
       - name: Create dev environment
         run: |
