@@ -7,6 +7,11 @@ class CheckM2Stats:
     completeness: float
     contamination: float
 
+@dataclass
+class CheckM2MoreStats:
+    completeness: float
+    contamination: float
+    genome_size: int
 
 class CheckM2:
     def __init__(self, quality_file):
@@ -41,8 +46,9 @@ class CheckM2:
     def get_all_stats(self):
         stats = {}
         for row in self.qualities.rows(named=True):
-            stats[row['Name']] = CheckM2Stats(
+            stats[row['Name']] = CheckM2MoreStats(
                 completeness=row['Completeness'] / 100.,
-                contamination=row['Contamination'] / 100.
+                contamination=row['Contamination'] / 100.,
+                genome_size=row['Genome_Size'],
             )
         return stats
