@@ -42,9 +42,11 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 singlem_base_directory = os.path.join(os.path.dirname(__file__), '..')
 # TODO: Once GTDBtk can be included in conda env (as of diamond 2.1.7 likely), remove the added PATH entry
 singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
-run_supplement = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
+# run_supplement = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 PATH=$PATH:{singlem_bin_directory} {path_to_script} supplement"
+run_supplement = f"singlem supplement"
 singlem = f"{singlem_bin_directory}/singlem"
 
+@pytest.mark.expensive
 class Tests(unittest.TestCase):
     '''Tests which require a full metapackage installation to run, so can't be run through GitHub actions.'''
     maxDiff = None
@@ -82,7 +84,6 @@ class Tests(unittest.TestCase):
         # sort the rest of the table and compare that
         self.assertEqual(sorted(expected_array[1:]), sorted(observed_array[1:]))        
 
-    @pytest.mark.skipif(os.environ.get("SINGLEM_METAPACKAGE_PATH") is None, reason="Appear to be running in CI")
     def test_condense_cli(self):
         '''Test the condense CLI.'''
         with in_tempdir():
@@ -97,7 +98,6 @@ class Tests(unittest.TestCase):
             self.assert_equal_taxonomic_profile(observed, expected)
 
     # This test takes a long time - like 1+ hours.
-    @pytest.mark.skipif(os.environ.get("SINGLEM_METAPACKAGE_PATH") is None, reason="Appear to be running in CI")
     def test_supplement_with_extra_taxon_genome_lengths(self):
         with in_tempdir():
             # TODO: Once galah 0.4 is released, remove the --no-dereplication flag
