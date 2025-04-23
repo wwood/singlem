@@ -20,7 +20,7 @@ if __name__ == "__main__":
     print("version is {}".format(version))
 
     yes_no = input(
-        "Did you run the non-CI tests first, to make sure everything is OK (y/n)? \n\npytest test/test_outside_ci.py\n\n"
+        "Did you run the non-CI tests first, to make sure everything is OK (y/n)? \n\npytest --run-expensive test/test_outside_ci.py\n\n"
     )
     if yes_no != "y":
         raise Exception("Please run the non-CI tests first")
