@@ -694,14 +694,6 @@ def recalculate_genome_sizes(
     return all_rank_genome_sizes.select(['rank', 'genome_size'])
 
 
-def calculate_genome_length(fasta_path):
-    with open(fasta_path) as f:
-        total_length = 0
-        for name, seq, _ in SeqReader().readfq(f):
-            total_length += len(seq)
-        return total_length
-
-
 def run_prodigal_on_one_genome(params):
     genome_fasta, output_directory = params
     logging.debug("Running prodigal on {}, output {}".format(genome_fasta, output_directory))
