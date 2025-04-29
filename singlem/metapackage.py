@@ -14,6 +14,7 @@ from .sequence_classes import SeqReader
 from .metapackage_read_name_store import MetapackageReadNameStore
 
 # These constants should be updated in tandem
+# When updating, also update the name in the set_env_vars.sh script in admin/
 DATA_DEFAULT_VERSION = '5.4.0'
 CURRENT_GTDB_DATABASE_VERSION = 'R226'
 

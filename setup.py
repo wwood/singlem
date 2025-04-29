@@ -1,7 +1,8 @@
 from setuptools import setup
 from os.path import dirname, join
 import io
-
+import os
+ 
 with open('README.md') as readme_file:
     readme = readme_file.read()
 
@@ -14,6 +15,12 @@ def get_version(relpath):
             return version_dict["singlem"]
 
 
+# We read requirements from the requirements.txt file, because that can be
+# auto-generated from the pixi toml file.
+base_dir = dirname(__file__)
+with open(os.path.join(base_dir, "admin/requirements.txt")) as f:
+    install_requires = f.read().splitlines()
+ 
 setup(
     name='singlem',
     version=get_version("singlem/version.py"),
@@ -40,24 +47,11 @@ setup(
     ],
     keywords="metagenomics bioinformatics",
     # Exclude test (and test data) since they takes up too much space.
-    packages=['singlem','singlem.biolib_lite'],
+    packages=['singlem', 'singlem.biolib_lite'],
     data_files=[(".", ["README.md", "LICENCE.txt"])],
     include_package_data=True,
-    install_requires=(
-        'biopython ~= 1.84',
-        'extern ~= 0.4.0',
-        'graftm ~= 0.15.1',
-        'squarify ~= 0.4.0',
-        'sqlalchemy ~= 2.0.0',
-        'pandas ~= 2.2.0',
-        'bird_tool_utils ~= 0.4.1',
-        'pyranges ~= 0.1.0',
-        'polars ~= 1.1.0',
-        'tqdm ~= 4.66.0',
-        'pyarrow ~= 16.1.0',
-        'zenodo_backpack ~= 0.3.0',
-    ),
-    entry_points = {
+    install_requires=install_requires,
+    entry_points={
         'console_scripts': ['singlem = singlem.main:main',
                             'lyrebird = singlem.lyrebird:main']
     },
