@@ -26,6 +26,15 @@ And more specialised / expert modes:
 * [singlem condense](/advanced/condense) - Given an OTU table, summarise the results into a taxonomic profile.
 * [singlem makedb](/advanced/makedb) & [query](/advanced/query)- Create a database of OTU sequences and query it using various sequence similarity methods e.g. [smafa](https://github.com/wwood/smafa).
 
+## Lyrebird
+Lyrebird is a module of SingleM specialized towards the profiling of viruses in metagenomic data. Currently, Lyrebird is only able to profile dsDNA phages.
+
+The following subcommands are available for Lyrebird:
+
+* [lyrebird pipe](/tools/lyrebird_pipe) - the main workflow which generates OTU tables and [vConTACT3-derived](https://bitbucket.org/MAVERICLab/vcontact3/src/master/) taxonomic profiles.
+* [lyrebird renew](/tools/lyrebird_renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
+* [lyrebird condense](/advanced/lyrebird_condense) - Given an OTU table, summarise the results into a taxonomic profile.
+
 ## Help
 If you have any questions or comments, raise a [GitHib issue](https://github.com/wwood/singlem/issues) or just send us an [email](https://research.qut.edu.au/cmr/team/ben-woodcroft/).
 
