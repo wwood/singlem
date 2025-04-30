@@ -5,6 +5,8 @@ logo: sandpiper.png
 colors:
   main: "#888888"
 navigation:
+  - path: docs/Lyrebird.md
+    title: "Lyrebird (phage profiling)"
   - path: docs/Installation.md
     children:
       - path: docs/tools/data.md
