@@ -61,7 +61,7 @@ if __name__ == '__main__':
 
     for subdir, commands in subdir_and_commands:
         for subcommand in commands:
-            cmd_stub = "singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
+            cmd_stub = "pixi run singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
             man_usage = extern.run(cmd_stub)
 
             subcommand_prelude = 'docs/preludes/{}_prelude.md'.format(subcommand)
