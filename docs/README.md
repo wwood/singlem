@@ -27,7 +27,7 @@ And more specialised / expert modes:
 * [singlem makedb](/advanced/makedb) & [query](/advanced/query)- Create a database of OTU sequences and query it using various sequence similarity methods e.g. [smafa](https://github.com/wwood/smafa).
 
 ## Lyrebird
-Lyrebird is a module of SingleM specialized towards the profiling of viruses in metagenomic data. Currently, Lyrebird is only able to profile dsDNA phages.
+Lyrebird is a module of SingleM specialized towards the profiling of viruses in metagenomic data. Currently, Lyrebird is only able to profile dsDNA phages belonging to the [Caudoviricetes](https://en.wikipedia.org/wiki/Caudoviricetes).
 
 The following subcommands are available for Lyrebird:
 
