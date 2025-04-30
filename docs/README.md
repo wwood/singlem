@@ -1,14 +1,17 @@
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/version.svg)](https://anaconda.org/bioconda/singlem)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/downloads.svg)](https://anaconda.org/bioconda/singlem)
 
-# SingleM
+[![Sandpiper logo](./sandpiper_small.png)](https://sandpiper.qut.edu.au)
+[![BinChicken logo](./binchicken_small.png)](https://aroneys.github.io/binchicken)
+[![Lyrebird logo](./lyrebird_small.png)](/Lyrebird)
+
 Welcome.
 
-SingleM is a tool for profiling shotgun metagenomes, determining the relative abundance of microbial taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see ![Lyrebird logo](./lyrebird_small.png) below).
+At heart, SingleM is a tool for profiling shotgun metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](/Lyrebird)).
 
-It shows good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see the [![BinChicken logo](./binchicken_small.png) documentation](https://aroneys.github.io/binchicken/)).
+It shows good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [BinChicken](https://aroneys.github.io/binchicken/)).
 
-Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website ![Sandpiper logo](./sandpiper_small.png)](https://sandpiper.qut.edu.au).
+Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
 
 The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches ('windows') within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated.
 
@@ -27,24 +30,6 @@ And more specialised / expert modes:
 
 * [singlem condense](/advanced/condense) - Given an OTU table, summarise the results into a taxonomic profile.
 * [singlem makedb](/advanced/makedb) & [query](/advanced/query)- Create a database of OTU sequences and query it using various sequence similarity methods e.g. [smafa](https://github.com/wwood/smafa).
-
-## Lyrebird
-![Lyrebird](./lyrebird_resized.png)
-
-Lyrebird is a module of SingleM specialized towards the profiling of viruses in metagenomic data. Currently, Lyrebird profiles dsDNA phages belonging to the [Caudoviricetes](https://en.wikipedia.org/wiki/Caudoviricetes).
-
-Lyrebird is similar to standard microbial SingleM, with two main conceptual differences: 
-
-1. Since phage lack universal single copy marker genes, Lyrebird uses an expanded set of 630 marker genes, and does not assume each of them is present in each phage. 
-2. Lyrebird uses a more sensitive homology search method to recruit reads to marker gene windows. 
-
-In testing, Lyrebird shows good ability to detect both known and novel phage, and to estimate their relative abundances. In metagenomic datasets, many more phage sequences are detected compared to standard contig-centric methods. A manuscript describing Lyrebird and its applications is in preparation.
-
-The following subcommands are available:
-
-* [lyrebird pipe](/tools/lyrebird_pipe) - the main workflow which generates OTU tables and [vConTACT3-derived](https://bitbucket.org/MAVERICLab/vcontact3/src/master/) taxonomic profiles.
-* [lyrebird renew](/tools/lyrebird_renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
-* [lyrebird condense](/advanced/lyrebird_condense) - Given an OTU table, summarise the results into a taxonomic profile.
 
 ## Help
 If you have any questions or comments, raise a [GitHib issue](https://github.com/wwood/singlem/issues) or just send us an [email](https://research.qut.edu.au/cmr/team/ben-woodcroft/).
