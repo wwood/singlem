@@ -11,7 +11,7 @@ scripts = ["admin/set_env_vars.sh"]
 
 [dependencies]
 python = ">=3.7"
-diamond = ">=2.1.7,<=2.1.11"  # 2.1.11 segfaults
+diamond = ">=2.1.7,<2.1.11"  # 2.1.11 segfaults (on some non-test data)
 biopython = "*"
 hmmer = "*"
 orfm = "*"
@@ -44,6 +44,7 @@ pyarrow = "*"
 galah = ">=0.4.0"
 sqlparse = "*"  # Required indirectly (e.g. taxtastic)
 zenodo_backpack = ">=0.3.0"
+gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
 # Optional (commented out)
 # python-annoy = "*"
 # nmslib = "*"
