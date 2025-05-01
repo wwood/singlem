@@ -100,7 +100,6 @@ class Tests(unittest.TestCase):
     # This test takes a long time - like 1+ hours.
     def test_supplement_with_extra_taxon_genome_lengths(self):
         with in_tempdir():
-            # TODO: Once galah 0.4 is released, remove the --no-dereplication flag
             cmd = f"{run_supplement} --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
             # print(cmd)
             extern.run(cmd)
@@ -136,8 +135,7 @@ class Tests(unittest.TestCase):
     # This test takes a long time - like 1+ hours.
     def test_supplement_nothing_precalculated(self):
         with in_tempdir():
-            # TODO: Once galah 0.4 is released, remove the --no-dereplication flag
-            cmd = f"{run_supplement} --hmmsearch-evalue 1e-5 --dereplicate-with-galah --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
+            cmd = f"{run_supplement} --hmmsearch-evalue 1e-5 --dereplicate-with-galah --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv --threads 8"
             # print(cmd)
             extern.run(cmd)
 
