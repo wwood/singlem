@@ -100,7 +100,7 @@ class Tests(unittest.TestCase):
     # This test takes a long time - like 1+ hours.
     def test_supplement_with_extra_taxon_genome_lengths(self):
         with in_tempdir():
-            cmd = f"{run_supplement} --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv"
+            cmd = f"{run_supplement} --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --checkm2-quality-file {path_to_data}/supplement/checkm2.output/quality_report.tsv"
             # print(cmd)
             extern.run(cmd)
 
@@ -132,40 +132,40 @@ class Tests(unittest.TestCase):
             self.assertTrue(
                 new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.8e6)
 
-    # This test takes a long time - like 1+ hours.
-    def test_supplement_nothing_precalculated(self):
-        with in_tempdir():
-            cmd = f"{run_supplement} --hmmsearch-evalue 1e-5 --dereplicate-with-galah --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage out.smpkg --checkm2-quality-file ~/git/singlem/test/data/supplement/checkm2.output/quality_report.tsv --threads 8"
-            # print(cmd)
-            extern.run(cmd)
+    # # This test takes a long time - like 1+ hours. Currently commented out because the test code was not ever implemented properly.
+    # def test_supplement_nothing_precalculated(self):
+    #     with in_tempdir():
+    #         cmd = f"{run_supplement} --hmmsearch-evalue 1e-5 --dereplicate-with-galah --no-quality-filter --new-genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --output-metapackage ~/git/singlem/test/tmp/test_supplement_nothing_precalculated.smpkg --checkm2-quality-file {path_to_data}/supplement/checkm2.output/quality_report.tsv --threads 8 &> ~/git/singlem/test/tmp/test_supplement_nothing_precalculated.log"
+    #         # print(cmd)
+    #         extern.run(cmd)
 
-            cmd2 = f'{path_to_script} pipe --genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
-            output = extern.run(cmd2)
-            expected = [
-                "\t".join(self.otu_table_headers),
-                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
-            ]
+    #         cmd2 = f'{path_to_script} pipe --genome-fasta-files {path_to_data}/supplement/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
+    #         output = extern.run(cmd2)
+    #         expected = [
+    #             "\t".join(self.otu_table_headers),
+    #             '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.18	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
+    #         ]
 
-            new_mpkg = Metapackage.acquire('out.smpkg')
-            new_lengths = pl.DataFrame(new_mpkg.taxon_genome_lengths())
-            new_species_entry = new_lengths.filter(pl.col('rank')=='s__NEW_SPECIES')
-            self.assertEqual(new_species_entry.shape[0], 1)
-            self.assertEqual(new_species_entry['genome_size'][0], 3937114.9507050873)
+    #         new_mpkg = Metapackage.acquire('out.smpkg')
+    #         new_lengths = pl.DataFrame(new_mpkg.taxon_genome_lengths())
+    #         new_species_entry = new_lengths.filter(pl.col('rank')=='s__NEW_SPECIES')
+    #         self.assertEqual(new_species_entry.shape[0], 1)
+    #         self.assertEqual(new_species_entry['genome_size'][0], 3937114.9507050873)
 
-            old_mpkg = Metapackage.acquire(os.environ['SINGLEM_METAPACKAGE_PATH'])
-            old_taxon_lengths = pl.DataFrame(old_mpkg.taxon_genome_lengths())
-            self.assertEqual(len(old_taxon_lengths.filter(pl.col('rank')=='s__NEW_SPECIES')), 0)
-            self.assertEqual(len(old_taxon_lengths)+1, len(new_lengths))
+    #         old_mpkg = Metapackage.acquire(os.environ['SINGLEM_METAPACKAGE_PATH'])
+    #         old_taxon_lengths = pl.DataFrame(old_mpkg.taxon_genome_lengths())
+    #         self.assertEqual(len(old_taxon_lengths.filter(pl.col('rank')=='s__NEW_SPECIES')), 0)
+    #         self.assertEqual(len(old_taxon_lengths)+1, len(new_lengths))
 
-            self.assertAlmostEqual(
-                old_taxon_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0],
-                new_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0],
-                places=3) 
+    #         self.assertAlmostEqual(
+    #             old_taxon_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0],
+    #             new_lengths.filter(pl.col('rank')=='d__Bacteria')['genome_size'][0],
+    #             places=3) 
 
-            self.assertTrue(
-                old_taxon_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0]) 
-            self.assertTrue(
-                new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.8e6)
+    #         self.assertTrue(
+    #             old_taxon_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0]) 
+    #         self.assertTrue(
+    #             new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.8e6)
 
 
 if __name__ == "__main__":

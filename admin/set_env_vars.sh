@@ -10,8 +10,9 @@ for var in SINGLEM_METAPACKAGE_PATH \
            LYREBIRD_METAPACKAGE_PATH \
            GTDBTK_DATA_PATH; do
     relative_path="${var}_RELATIVE"
-    if [[ -e "${!relative_path}" ]]; then
-        export "$var"="$(realpath "${!relative_path}")"
+    abspath="${PIXI_PROJECT_ROOT}/${!relative_path}"
+    if [[ -e "${abspath}" ]]; then
+        export "$var"="${abspath}"
     else
         echo "File $(basename "${!relative_path}") not found in db/" >&2
     fi
