@@ -8,6 +8,7 @@ import json
 import pandas as pd
 
 import zenodo_backpack
+from zenodo_backpack import ZenodoBackpackMalformedException
 
 from .singlem_package import SingleMPackage
 from .sequence_classes import SeqReader
@@ -118,13 +119,19 @@ class Metapackage:
             from pathlib import Path
             path = Path(original_directory)
             backpack = zenodo_backpack.acquire(path=path.parent, version=DATA_DEFAULT_VERSION)
+        except ZenodoBackpackMalformedException as e:
+            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable.".format(
+                DATA_ENVIRONMENT_VARIABLE,
+                DATA_DEFAULT_VERSION,
+                DATA_ENVIRONMENT_VARIABLE,
+                )) from e
         return backpack
 
     @staticmethod
     def acquire_lyrebird_backpack():
         logging.debug("Acquiring Lyrebird packages from environment variable")
         if LYREBIRD_DATA_ENVIRONMENT_VARIABLE not in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
         try:
             backpack = zenodo_backpack.acquire(env_var_name=LYREBIRD_DATA_ENVIRONMENT_VARIABLE, version=LYREBIRD_DATA_DEFAULT_VERSION)
         except KeyError:
@@ -133,6 +140,12 @@ class Metapackage:
             from pathlib import Path
             path = Path(original_directory)
             backpack = zenodo_backpack.acquire(path=path.parent, version=LYREBIRD_DATA_DEFAULT_VERSION)
+        except ZenodoBackpackMalformedException as e:
+            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable.".format(
+                DATA_ENVIRONMENT_VARIABLE,
+                DATA_DEFAULT_VERSION,
+                DATA_ENVIRONMENT_VARIABLE,
+                )) from e
         return backpack
 
     @staticmethod
