@@ -181,8 +181,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     output_taxonomies_fh.write(
                         '\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
             else:
-                raise Exception("Unexpected taxonomy length found: {}".format(
-                    taxonomy))
+                raise Exception("Unexpected taxonomy length found: {}. An example taxonomy is {}".format(
+                    taxonomy, list(known_taxons)[0]))
         else:
             # Check that the taxonomy provided is a known taxonomy in the current metapackage.
             if not skip_taxonomy_check:
