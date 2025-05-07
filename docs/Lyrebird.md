@@ -20,3 +20,7 @@ The following subcommands are available:
 * [lyrebird pipe](/tools/lyrebird_pipe) - the main workflow which generates OTU tables and [vConTACT3-derived](https://bitbucket.org/MAVERICLab/vcontact3/src/master/) taxonomic profiles.
 * [lyrebird renew](/tools/lyrebird_renew) - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.
 * [lyrebird condense](/advanced/lyrebird_condense) - Given an OTU table, summarise the results into a taxonomic profile.
+
+## FAQ
+### How does Lyrebird handle prophages?
+Lyrebird does not attempt to differentiate between free phage and prophage in the community profiles it generates. Instead,  community profiles contain all phage sequences, regardless of whether they are free or integrated. This is due to the technical limitations of read-centric analysis, where an individual read may be derived from either a free phage or a prophage - determining which is challenging or potentially impossible, at least for short reads.
