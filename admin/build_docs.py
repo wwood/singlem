@@ -17,7 +17,7 @@ def remove_before(marker, string_to_process):
 
 def get_version(relpath):
     """Read version info from a file without importing it"""
-    for line in io.open(join(dirname(__file__), relpath), encoding="cp437"):
+    for line in io.open(join(dirname(__file__), '..', relpath), encoding="cp437"):
         if "__version__" in line:
             if '"' in line:
                 return line.split('"')[1]
@@ -39,6 +39,9 @@ if __name__ == '__main__':
         loglevel = logging.DEBUG
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
+    # Change to parent directory, i.e. the root of the repo
+    os.chdir(dirname(dirname(__file__)))
+
     # Update [RELEASE_TAG] in installation.md
     version = get_version('singlem/version.py')
     logging.info("Updating [RELEASE_TAG] in Installation.md to {}".format(version))
@@ -56,7 +59,7 @@ if __name__ == '__main__':
 
     for subdir, commands in subdir_and_commands:
         for subcommand in commands:
-            cmd_stub = "singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
+            cmd_stub = "pixi run singlem {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(subcommand)
             man_usage = extern.run(cmd_stub)
 
             subcommand_prelude = 'docs/preludes/{}_prelude.md'.format(subcommand)
