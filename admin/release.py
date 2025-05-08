@@ -18,6 +18,7 @@ def get_version(relpath):
 if __name__ == "__main__":
     version = get_version('singlem/version.py')
     print("version is {}".format(version))
+    raise Exception("Is that version right? Check because version.py changed format.")
 
     yes_no = input(
         "Did you run the non-CI tests first, to make sure everything is OK (y/n)? \n\nmqsub -t 8 --hours 6 -- pytest --run-expensive test/test_outside_ci.py\n\n"
@@ -36,3 +37,6 @@ if __name__ == "__main__":
     extern.run('git tag v{}'.format(version))
     print("Now run 'git push && git push --tags' and GitHub actions will build and upload to PyPI".format(version))
     print('You have to run ./build.sh from the docker directory to build the docker image, once the tag is on GitHub')
+    raise Exception("Docker not setup yet for lyrebird")
+
+    print("Once pushed to BioConda, also run https://github.com/wwood/singlem-installation to verify deployment and installation instructions")

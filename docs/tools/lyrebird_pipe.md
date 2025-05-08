@@ -1,26 +1,62 @@
 ---
-title: SingleM renew
+title: Lyrebird pipe
 ---
-# singlem renew
+# lyrebird pipe
+**TLDR**: A viral taxonomic overview of your community can be obtained like so:
+```
+lyrebird pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p \
+   <output.profile.tsv>
+```
+To further convert the generated taxonomic profile to other formats that might be more convenient, see SingleM [`summarise`](/tools/summarise).
 
-# DESCRIPTION
+## Algorithm details
 
-Reannotate an OTU table with an updated taxonomy
+**Details**: In its most common usage, the Lyrebird `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/#glossary).
 
-# OPTIONS
+`pipe` performs three steps:
 
-# INPUT
+1. Find discrete operational taxonomic units (OTUs) from a shotgun metagenome
+2. Assign taxonomy to marker-specific OTU tables
+3. Convert OTU tables into a overall taxonomic profile
 
-**\--input-archive-otu-table** *INPUT_ARCHIVE_OTU_TABLE*
+Workflow for the first 2 steps:
 
-  Renew this table
+![steps 1 and 2](/singlem_pipe_v2.svg)
 
-**\--ignore-missing-singlem-packages**
+In the 1st step, reads that encode conserved single copy marker genes are found. Lyrebird specifically finds reads which cover short highly conserved sections ("*windows*") within those genes. In most species, these windows are 20 amino acids encoded by 60 nucleotides - in rare cases there are inserts or deletions. Sequences covering those small sections are OTU sequences, and these OTU sequences exist independent of taxonomy. By default, Lyrebird currently uses 630 viral single copy marker genes.
 
-  Ignore OTUs which have been assigned to packages not in the
-    metapackage being used for renewal [default: croak]
+In the 2nd step, taxonomy is assigned based on comparing the nucleotide sequence of the window to GTDB species representatives' window sequences. If none are similar enough (i.e. within 96.7% identity or 2bp of the 60bp window), then diamond blastx is used instead.
 
-# COMMON ARGUMENTS IN SHARED WITH \'PIPE\'
+Finally, in the 3rd step, the set of window sequences (i.e. a metagenome's OTU table) is converted into a taxonomic profile, which describes the amount of the microbial community belonging to each species or higher level taxon. This is achieved by considering the OTUs from the 59 different marker genes holistically, using trimmed means and expectation maximisation in a somewhat complicated overall algorithm "*condense*":
+
+![step 3](/singlem_condense_v2.svg)
+
+Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for Lyrebird to use. Adapter trimming is unlikely to be detrimental, but is not needed.
+
+The [examples section](/tools/pipe#examples) may be of use.
+
+For a more detailed explanation of the Lyrebird pipeline, see the Lyrebird paper (coming soon).
+
+
+# COMMON OPTIONS
+
+**-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
+
+  nucleotide read sequence(s) (forward or unpaired) to be searched.
+    Can be FASTA or FASTQ format, GZIP-compressed or not.
+
+**-2**, **\--reverse** sequence_file [sequence_file \...]
+
+  reverse reads to be searched. Can be FASTA or FASTQ format,
+    GZIP-compressed or not.
+
+**\--genome-fasta-files** sequence_file [sequence_file \...]
+
+  nucleotide genome sequence(s) to be searched
+
+**\--sra-files** sra_file [sra_file \...]
+
+  \"sra\" format files (usually from NCBI SRA) to be searched
 
 **-p**, **\--taxonomic-profile** FILE
 
@@ -63,7 +99,7 @@ Reannotate an OTU table with an updated taxonomy
     each OTU was generated from) in the output OTU table [default: not
     set]
 
-# LESS COMMON ARGUMENTS SHARED WITH \'PIPE\'
+# LESS COMMON OPTIONS
 
 **\--archive-otu-table** filename
 
@@ -146,6 +182,84 @@ Reannotate an OTU table with an updated taxonomy
   Minimum coverage to report in a taxonomic profile. [default: 0.35
     for reads, 0.1 for genomes]
 
+**\--working-directory** directory
+
+  use intermediate working directory at a specified location, and do
+    not delete it upon completion [default: not set, use a temporary
+    directory]
+
+**\--working-directory-dev-shm**
+
+  use an intermediate results temporary working directory in /dev/shm
+    rather than the default [default: the usual temporary working
+    directory, currently /tmp]
+
+**\--force**
+
+  overwrite working directory if required [default: not set]
+
+**\--filter-minimum-nucleotide** length
+
+  Ignore reads aligning in less than this many positions to each
+    nucleotide HMM [default: 72]
+
+**\--include-inserts**
+
+  print the entirety of the sequences in the OTU table, not just the
+    aligned nucleotides [default: not set]
+
+**\--known-otu-tables** *KNOWN_OTU_TABLES* [*KNOWN_OTU_TABLES* \...]
+
+  OTU tables previously generated with trusted taxonomies for each
+    sequence [default: unused]
+
+**\--no-assign-taxonomy**
+
+  Do not assign any taxonomy except for those already known [default:
+    not set]
+
+**\--known-sequence-taxonomy** FILE
+
+  A 2-column \"sequence\<tab\>taxonomy\" file specifying some
+    sequences that have known taxonomy [default: unused]
+
+**\--no-diamond-prefilter**
+
+  Do not parse sequence data through DIAMOND blastx using a database
+    constructed from the set of singlem packages. Should be used with
+    \--hmmsearch-package-assignment. NOTE: ignored for nucleotide
+    packages [default: protein packages: use the prefilter, nucleotide
+    packages: do not use the prefilter]
+
+**\--diamond-prefilter-performance-parameters** *DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS*
+
+  Performance-type arguments to use when calling \'diamond blastx\'
+    during the prefiltering. By default, SingleM should run in \<4GB of
+    RAM except in very large (\>100Gbp) metagenomes. [default: use
+    setting defined in metapackage when set, otherwise use
+    \'\--block-size 0.5 \--target-indexed -c1\']
+
+**\--hmmsearch-package-assignment**
+
+  Assign each sequence to a SingleM package using HMMSEARCH, and a
+    sequence may then be assigned to multiple packages. [default: not
+    set]
+
+**\--diamond-prefilter-db** *DIAMOND_PREFILTER_DB*
+
+  Use this DB when running DIAMOND prefilter [default: use the one in
+    the metapackage, or generate one from the SingleM packages]
+
+**\--assignment-threads** *ASSIGNMENT_THREADS*
+
+  Use this many processes in parallel while assigning taxonomy
+    [default: 1]
+
+**\--sleep-after-mkfifo** *SLEEP_AFTER_MKFIFO*
+
+  Sleep for this many seconds after running os.mkfifo [default:
+    None]
+
 # OTHER GENERAL OPTIONS
 
 **\--debug**
@@ -174,3 +288,20 @@ Reannotate an OTU table with an updated taxonomy
 >     Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
 >     Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
 >     Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+
+# EXAMPLES
+
+Get a taxonomic profile from paired read input:
+
+  **\$ lyrebird pipe -1 \<fastq_or_fasta1\> -2 \<fastq_or_fasta2\> -p
+    \<output.profile.tsv\>**
+
+Get a taxonomic profile Krona diagram from single read input:
+
+  **\$ lyrebird pipe -i \<fastq_or_fasta\> \--taxonomic-profile-krona
+    \<output.profile.html\>**
+
+Gather an OTU table (per marker sequence groupings) from paired reads:
+
+  **\$ lyrebird pipe -1 \<fastq_or_fasta1\> -2 \<fastq_or_fasta2\>
+    \--otu-table \<output.otu_table.tsv\>**

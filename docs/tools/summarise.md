@@ -92,7 +92,13 @@ singlem summarise --input-otu-tables otu_table1.csv otu_table2.csv \
 Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:
 ```
 singlem summarise --input-otu-tables otu_table.csv --cluster \
-    --clustered-output-otu-table clustered.otu_table.csv
+    --output-otu-table clustered.otu_table.csv
+```
+
+The `--clustered-output-otu-table` option can be used to output a clustered OTU table that includes information about which sequences have been clustered together:
+```
+singlem summarise --input-otu-tables otu_table.csv --cluster \
+    --clustered-output-otu-table clustered_with_details.otu_table.csv
 ```
 
 Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:
@@ -161,6 +167,11 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 
   Output a taxonomic profile with extra information (coverage,
     \'filled\' coverage, relative abundance, taxonomy level).
+
+**\--num-decimal-places** INT
+
+  Number of decimal places to report in the coverage column of the
+    \--output-taxonomic-profile-with-extras [default: 2].
 
 **\--output-taxonomic-level-coverage** FILE
 
@@ -287,7 +298,9 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 
 **\--clustered-output-otu-table** *CLUSTERED_OUTPUT_OTU_TABLE*
 
-  Output an OTU table with extra information about the clusters
+  Output an OTU table with extra information about the clusters. To
+    simply cluster an OTU table, use \--cluster with \--output-otu-table
+    instead.
 
 **\--exclude-off-target-hits**
 
