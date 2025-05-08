@@ -6,7 +6,7 @@ SingleM can be installed through
 [Bioconda](https://anaconda.org/bioconda/singlem). Lyrebird is installed by installing SingleM, and then using the `lyrebird` command instead of `singlem` e.g. use `lyrebird pipe ...` instead of `singlem pipe ...`.
 
 ```
-conda create -c bioconda -c conda-forge --name singlem singlem'>='singlem
+conda create -c bioconda -c conda-forge --name singlem singlem'>='__version__
 ```
 
 Test if it works by running
@@ -21,55 +21,55 @@ After this, you'll also need to procure the reference data (the "metapackage"). 
 ## Installation via DockerHub
 A docker image generated from the conda package is [available](https://hub.docker.com/r/wwood/singlem) on DockerHub. After installing Docker, run the following:
 ```
-docker pull wwood/singlem:singlem
+docker pull wwood/singlem:__version__
 ```
 
 Test if it works by running
 ```
-docker run wwood/singlem:singlem -h
+docker run wwood/singlem:__version__ -h
 ```
 
 If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
-docker run -v `pwd`:`pwd` wwood/singlem:singlem pipe --sequences \
+docker run -v `pwd`:`pwd` wwood/singlem:__version__ pipe --sequences \
     `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 Two things to note:
 
 1. The default SingleM reference data is included in the docker image, so running [singlem data](/tools/data) is not necessary for this installation method - you can jump straight to using `pipe`.
-2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `docker run wwood/singlem:singlem pipe -h`.
+2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `docker run wwood/singlem:__version__ pipe -h`.
 
 A similar procedure is true for Lyrebird, except that the docker image is [different](https://hub.docker.com/r/wwood/lyrebird), so you need to run:
 ```
-docker pull wwood/lyrebird:singlem
-docker run wwood/lyrebird:singlem -h
+docker pull wwood/lyrebird:__version__
+docker run wwood/lyrebird:__version__ -h
 ```
 
 ## Installation via Singularity / Apptainer
 SingleM can be installed via [Singularity](https://sylabs.io/singularity/) or [Apptainer](https://apptainer.org). After installing Singularity or Apptainer, run the following:
 ```
-singularity pull docker://wwood/singlem:singlem
+singularity pull docker://wwood/singlem:__version__
 ```
 
 Test if it works by running
 ```
-singularity run singlem_singlem.sif -h
+singularity run singlem___version__.sif -h
 ```
 
 If the sequence data to be analyzed is in the current working directory, SingleM `pipe` can be used like so:
 ```
-singularity run -B `pwd`:`pwd` singlem_singlem.sif pipe --sequences \
+singularity run -B `pwd`:`pwd` singlem___version__.sif pipe --sequences \
     `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 Two things to note:
 
 1. The default SingleM reference data is included in the docker image, so running [singlem data](/tools/data) is not necessary for this installation method - you can jump straight to using `pipe`.
-2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `singularity run singlem_singlem.sif pipe -h`.
+2. You should not specify `singlem` in the command line, as this is automatic. Simply use e.g. `singularity run singlem___version__.sif pipe -h`.
 
 A similar procedure is true for Lyrebird, except that the docker image is [different](https://hub.docker.com/r/wwood/lyrebird), so you need to run:
 ```
-singularity pull docker://wwood/lyrebird:singlem
-singularity run -B `pwd`:`pwd` lyrebird_singlem.sif -h
+singularity pull docker://wwood/lyrebird:__version__
+singularity run -B `pwd`:`pwd` lyrebird___version__.sif -h
 ```
 
 ## Installation via PyPI
@@ -82,7 +82,7 @@ You may need super-user privileges.
 SingleM also has several non-Python dependencies, which are documented in the `pixi.toml` file in the base directory of the repository. You'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
 
 
-## Installation via Github, with pixi-managed environment dependencies
+## Installation via Github, with pixi dependency management
 SingleM can be installed from source together with its conda dependencies as follows. You will need to have [pixi](https://pixi.sh) installed first.
 
 ```
