@@ -7,14 +7,13 @@ name = "singlem"
 description = "Novelty-inclusive microbial community profiling of shotgun metagenomes"
 readme = "README.md"
 requires-python = ">=3.7"
-license = { file = "LICENCE.txt" }
+license = "GPL-3.0-or-later"
 authors = [{ name = "Ben Woodcroft" }]
 keywords = ["metagenomics", "bioinformatics"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Topic :: Scientific/Engineering",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
-    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Programming Language :: Python :: 3"
 ]
 dynamic = ["version", "dependencies"]
@@ -34,4 +33,7 @@ include-package-data = true
 dependencies = { file = ["admin/requirements.txt"] }
 
 [tool.setuptools_scm]
-write_to = "singlem/version.py"
+version_file = "singlem/version.py"
+# Otherwise the push to pypi will fail on GitHub actions, because the version is malformed.
+version_scheme = "only-version"
+local_scheme = "no-local-version"

@@ -7,7 +7,6 @@ import io
 from os.path import dirname, join
 import os
 
-
 def remove_before(marker, string_to_process):
     splitter = '\n# ' + marker + '\n'
     if splitter not in string_to_process:
@@ -28,6 +27,8 @@ def get_version(relpath):
 if __name__ == '__main__':
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument('--quiet', help='only output errors', action="store_true")
+    # version
+    parent_parser.add_argument('--version', help='not with v e.g. 0.19.0', required=True)
 
     args = parent_parser.parse_args()
 
@@ -43,7 +44,7 @@ if __name__ == '__main__':
     os.chdir(dirname(dirname(__file__)))
 
     # Update [RELEASE_TAG] in installation.md
-    version = get_version('singlem/version.py')
+    version = args.version
     logging.info("Updating [RELEASE_TAG] in Installation.md to {}".format(version))
     with open('docs/Installation.md.in') as f:
         installation = f.read()

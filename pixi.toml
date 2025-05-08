@@ -57,6 +57,8 @@ singlem = {path = ".", editable = true}
 pytest = "*"
 ipython = "*"
 toml = "*"
+python-build = "*"
+setuptools-scm = "*"
 
 [environments]
 dev = ["dev"]
