@@ -347,7 +347,7 @@ def main():
             "Samuel Aroney, "+CMR,
             "Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark",
             "Rossen Zhao, "+CMR],
-        version=singlem.__version__["singlem"],
+        version=singlem.__version__,
         raw_format=True,
         examples={'pipe': [
             Example(
@@ -731,7 +731,7 @@ def main():
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    logging.info("SingleM v{}".format(singlem.__version__["singlem"]))
+    logging.info("SingleM v{}".format(singlem.__version__))
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
