@@ -36,7 +36,7 @@ if __name__ == "__main__":
     extern.run("python3 admin/build_docs.py")
 
     print(
-        "Checking if repo is clean. If this fails it might be because the docs have changed from the previous command here?"
+        "Checking if repo is clean. If this fails it might be because the docs have changed from the previous command here? If so you need to remove the git tag with 'git tag -d v{}'".format(version)
     )
     extern.run('if [[ $(git diff --shortstat 2> /dev/null | tail -n1) != "" ]]; then exit 1; fi')
 
