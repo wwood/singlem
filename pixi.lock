@@ -3116,8 +3116,8 @@ packages:
   timestamp: 1743775941985
 - pypi: .
   name: singlem
-  version: 0.18.3
-  sha256: 2d8cc8e204ae905eec2c62e30ec2fcffeeb2cd6c29121d51b021ab454ef92728
+  version: 0.18.4.dev64+g435a49d.d20250508
+  sha256: 78b61e92c6d91253f3ede2f81ab5089edf622d22d5030cfd404c473615ae21fe
   requires_dist:
   - biopython==1.85
   - extern==0.4.1
@@ -3135,6 +3135,7 @@ packages:
   - squarify==0.4.3
   - tqdm==4.67.1
   - zenodo-backpack==0.3.1
+  requires_python: '>=3.7'
   editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhd8ed1ab_0.conda
   sha256: 41db0180680cc67c3fa76544ffd48d6a5679d96f4b71d7498a759e94edc9a2db

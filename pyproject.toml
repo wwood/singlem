@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "singlem"
+description = "Novelty-inclusive microbial community profiling of shotgun metagenomes"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { file = "LICENCE.txt" }
+authors = [{ name = "Ben Woodcroft" }]
+keywords = ["metagenomics", "bioinformatics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3"
+]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/wwood/SingleM"
+
+[project.scripts]
+singlem = "singlem.main:main"
+lyrebird = "singlem.lyrebird:main"
+
+[tool.setuptools]
+packages = ["singlem", "singlem.biolib_lite"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["admin/requirements.txt"] }
+
+[tool.setuptools_scm]
+write_to = "singlem/version.py"
