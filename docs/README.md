@@ -1,6 +1,8 @@
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/version.svg)](https://anaconda.org/bioconda/singlem)
 [![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/downloads.svg)](https://anaconda.org/bioconda/singlem)
 
+<!-- NOTE: This intro should manually be kept in sync between the repo README and the docs README -->
+
 [![Sandpiper logo](./sandpiper_small.png)](https://sandpiper.qut.edu.au)
 [![Bin Chicken logo](./binchicken_small.png)](https://aroneys.github.io/binchicken)
 [![Lyrebird logo](./lyrebird_small.png)](/Lyrebird)
@@ -40,6 +42,7 @@ SingleM is developed by the [Woodcroft lab](https://research.qut.edu.au/cmr/team
 The source code is available at [https://github.com/wwood/singlem](https://github.com/wwood/singlem).
 
 ## Citations
+<!-- NOTE: Citations should manually be kept in sync between the repo README and the docs README -->
 ### Profiling microbial communities with SingleM / Sandpiper
 Ben J. Woodcroft, Samuel T. N. Aroney, Rossen Zhao, Mitchell Cunningham, Joshua A. M. Mitchell, Linda Blackall, Gene W Tyson. *SingleM and Sandpiper: Robust microbial taxonomic profiles from metagenomic data.* bioRxiv 2024.01.30.578060; doi: [https://doi.org/10.1101/2024.01.30.578060](https://doi.org/10.1101/2024.01.30.578060).
 ### SingleM microbial_fraction
