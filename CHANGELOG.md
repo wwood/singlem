@@ -1,3 +1,70 @@
+## v0.19.0
+Major new function - profiling of Caudoviricetes (aka "Caudovirales") phage communities (Lyrebird), thanks to @rzhao-2.
+
+![Lyrebird](https://raw.githubusercontent.com/wwood/singlem/refs/tags/v0.19.0/docs/_include/lyrebird_resized.png?raw=1)
+
+Other changes:
+* Update default metapackage to GTDB R226
+* admin: Use pixi instead of conda
+* Use of diamond v2.1.10 specifically, to avoid segfault issues with diamond v2.1.11
+* Clarify non-standard metapackage usage (#220)
+* doc: Improve summarise --cluster (#210)
+
+Thanks @rzhao-2 @AroneyS @ilnamkang Phil Hugenholtz @pchaumeil @zackhenny @thepatientwait
+
+## v0.18.3
+A small patch release
+
+* `summarise`: Fix a regression
+* docs: Minor fixes
+
+## v0.18.1
+A small patch release.
+
+* Updates to singlem `supplement` and other modes for polars >1.0
+* Pin dependencies to help future proof singlem
+
+## v0.18.0
+Combined changelog for v0.17.0 and 0.18.0
+
+* Use of GTDB R220 reference metapackage by default
+* `pipe`/`condense`: Improve algorithm by delaying some filtering steps, leading to more accurate taxonomic profiles
+* `pipe`: update to [smafa](https://github.com/wwood/smafa) v0.8.0 for substantial speed improvement
+* `microbial_fraction`: Remove `%` from column data and add average genome size estimation
+* `supplement`: Change command line options in backwards incompatible way, clarifying their meaning
+* `summarise`: Add `--output-taxonomic-profile-with-extras` output to add relative abundance etc. to taxonomic profiles
+* `summarise`: Add `--output-species-by-site-relative-abundance-prefix` to create taxon-level specific relative abundances from taxonomic profiles
+* `summarise`: Add `--output-taxonomic-level-coverage` to show how much coverage and number of taxa assigned to each level
+* `pipe`: Faster processing when many genome fasta files are input
+* `seqs`: Prioritise high-info HMM positions.
+* dist: Fix singularity container
+* assorted bug and documentation fixes
+
+Thanks @AroneyS @EisenRa @jakobnissen @rzhao-2 @rrohwer @shaze @ellyyuyang @VadimDu @adityabandla @luispedro, and anonymous reviewers, among others.
+
+The `microbial_fraction` mode now has its own citation - https://www.biorxiv.org/content/10.1101/2024.05.16.594470v1
+
+## v0.16.0
+This version tweaks the method which assign taxonomy to OTUs (increasing the species-level threshold) and the method which summarises the OTUs to create a final taxonomic profile (very low abundance lineages are given lower taxonomic resolution, rather than ignored completely). This improves the rate over "overclassification" i.e. when novel species are classified wrongly to the species level, and improves the `read_fraction` (now called `microbial_fraction`) estimates in complex / shallowly sequenced metagenomes.
+
+We suggest recomputing community profiles using `renew` or `pipe` modes.
+
+* pipe/renew: Change default species-level assignment from 3bp or closer, to 2bp or closer.
+* pipe/renew/condense: Assign sub-min-taxon-coverage higher.
+* read_fraction mode renamed to microbial_fraction
+
+Thanks to Yu Yang, Caitlin Singleton, @MadsAlbertsen @EisenRa @BigDataBiology
+
+## v0.15.1
+Mostly minor bugfixes
+
+* pipe: extract: Apply --evalue to hmmsearch thresholding.
+* Fix for appraise --plot
+* pipe: Dedup hmmsearch results during diamond package assignment.
+* pipe/renew/condense: Prevent no_assign_taxonomy and taxonomic profile output.
+
+Thanks @kalonji08 @AroneyS @harmonydouwes
+
 ## v0.15.0
 * Genomes that encode proteins with translation table 4 are now supported. This
   works by assuming all genomes have translation table 4, since regular sequence
