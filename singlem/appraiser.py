@@ -366,6 +366,99 @@ class Appraiser:
             if unaccounted_for_otu_table_io:
                 unaccounted_for_table.write_to(unaccounted_for_otu_table_io, fields_to_print=binned_table.fields)
 
+    def streaming_appraise(self, **kwargs):
+        '''Streaming appraisal function that sinks results to files immediately.'''
+        genome_otu_table_collection = kwargs.pop('genome_otu_table_collection')
+        metagenome_otu_table_collection = kwargs.pop('metagenome_otu_table_collection')
+        sequence_identity = kwargs.pop('sequence_identity', None)
+        output_found_in = kwargs.pop('output_found_in', False)
+        window_size = kwargs.pop('window_size')
+        binned_otu_table_io = kwargs.pop('binned_otu_table_io', None)
+        unbinned_otu_table_io = kwargs.pop('unbinned_otu_table_io', None)
+
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Using streaming mode for appraisal")
+        binned_otu_table_header = True
+        unbinned_otu_table_header = True
+        for otu_table, found in self._appraise_streaming(
+            metagenome_otu_table_collection,
+            genome_otu_table_collection,
+            sequence_identity,
+            output_found_in,
+            window_size
+        ):
+            if output_found_in:
+                if found:
+                    if binned_otu_table_io:
+                        otu_table.write_to(binned_otu_table_io, fields_to_print=otu_table.fields, print_header=binned_otu_table_header)
+                        binned_otu_table_header = False
+                else:
+                    if unbinned_otu_table_io:
+                        otu_table.write_to(unbinned_otu_table_io, fields_to_print=otu_table.fields, print_header=unbinned_otu_table_header)
+                        unbinned_otu_table_header = False
+            else:
+                if found:
+                    if binned_otu_table_io:
+                        otu_table.write_to(binned_otu_table_io, print_header=binned_otu_table_header)
+                        binned_otu_table_header = False
+                else:
+                    if unbinned_otu_table_io:
+                        otu_table.write_to(unbinned_otu_table_io, print_header=unbinned_otu_table_header)
+                        unbinned_otu_table_header = False
+
+    def _appraise_streaming(self, metagenome_otu_table_collection,
+                                found_otu_collection,
+                                sequence_identity,
+                                output_found_in,
+                                window_size):
+            '''Streaming version of appraise to handle large OTU tables with minimal memory usage.'''
+            if sequence_identity:
+                logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
+                max_divergence = window_size * (1 - sequence_identity)
+                max_divergence = round(max_divergence)
+                sys.stdout.write("# Appraised using max divergence %i (%i%% ANI)\n" % (max_divergence, round(100 * sequence_identity)))
+            else:
+                max_divergence = 0
+            logging.info("Using max divergence of %i for appraising" % max_divergence)
+
+            tmp = tempfile.TemporaryDirectory()
+            sdb_path = os.path.join(tmp.name, "tmp.sdb")
+            sequence_database = SequenceDatabase()
+            sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
+            sdb_tmp = sequence_database.acquire(sdb_path)
+
+            querier = Querier()
+            for otu in metagenome_otu_table_collection:
+                queries = querier.query_with_queries([otu], sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
+                queries = [q for q in queries]
+                otu_table = OtuTable()
+                if len(queries) == 0:
+                    if output_found_in:
+                        otu.add_found_data('')
+                        otu_table.add_with_extras([otu], ['found_in'])
+                    else:
+                        otu_table.add([otu])
+                    yield otu_table, False
+                else:
+                    if output_found_in:
+                        for hit in queries:
+                            otu.add_found_data(hit.subject.sample_name)
+                        otu_table.add_with_extras([otu], ['found_in'])
+                    else:
+                        otu_table.add([otu])
+                    yield otu_table, True
+
+            tmp.cleanup()
+
+    def _sink_appraisal_to_files(self, appraisal, binned_io, unbinned_io):
+        '''Helper function to write appraisal results to files.'''
+        if binned_io:
+            binned_io.write(str(appraisal.binned_otus) + '\n')
+        if unbinned_io:
+            unbinned_io.write(str(appraisal.not_found_otus) + '\n')
+
 
 class AppraisalBuildingBlock:
     '''Can represent binned OTUs or assembled OTUs'''

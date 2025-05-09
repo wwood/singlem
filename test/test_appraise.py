@@ -36,7 +36,7 @@ DEFAULT_WINDOW_SIZE = 60
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.appraiser import Appraiser
-from singlem.otu_table_collection import OtuTableCollection
+from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
 from singlem.otu_table import OtuTable
 from singlem.metapackage import Metapackage
 
@@ -1222,6 +1222,95 @@ average d__Bacteria     9.0     4.0     69.2
                 # replace all spaces with tabs
                 expected2 = expected_header + "\n".join(["\t".join(x.split()) for x in expected.split("\n")])
                 self.assertEqual(expected2, extern.run(cmd))
+
+    def test_streaming_otu_table(self):
+        metagenome_otu_table = [
+            self.headers,
+            ['4.12.ribosomal_protein_L11_rplK','minimal','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','7','17.07','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales'],
+            ['4.11.ribosomal_protein_L10','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus']
+            ]
+        metagenomes = "\n".join(["\t".join(x) for x in metagenome_otu_table])
+
+        genomes_otu_table = [
+            self.headers,
+            ['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+            ['4.12.ribosomal_protein_L11_rplK','genome2','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+            ]
+        genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
+
+        appraiser = Appraiser()
+        metagenome_collection = StreamingOtuTableCollection()
+        metagenome_collection.add_otu_table(StringIO(metagenomes))
+        genome_collection = OtuTableCollection()
+        genome_collection.add_otu_table(StringIO(genomes))
+        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
+        output_binned_otu_table_io = StringIO()
+        output_unbinned_otu_table_io = StringIO()
+        appraiser.streaming_appraise(genome_otu_table_collection=genome_collection,
+                                metagenome_otu_table_collection=metagenome_collection,
+                                packages=packages,
+                                window_size=DEFAULT_WINDOW_SIZE,
+                                output_found_in=True,
+                                binned_otu_table_io=output_binned_otu_table_io,
+                                unbinned_otu_table_io=output_unbinned_otu_table_io,
+                                )
+
+        expected_binned = [
+            self.headers + ["found_in"],
+            ["4.12.ribosomal_protein_L11_rplK", "minimal", "GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC", "7", "17.07", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales", "genome,genome2"],
+            ""
+        ]
+        expected_binned = "\n".join(["\t".join(x) for x in expected_binned])
+        observed_binned = output_binned_otu_table_io.getvalue()
+        self.assertEqual(expected_binned, observed_binned)
+
+        expected_unbinned = [
+            self.headers + ["found_in"],
+            ["4.11.ribosomal_protein_L10", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", "4", "9.76", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus", ""],
+            ""
+        ]
+        expected_unbinned = "\n".join(["\t".join(x) for x in expected_unbinned])
+        observed_unbinned = output_unbinned_otu_table_io.getvalue()
+        self.assertEqual(expected_unbinned, observed_unbinned)
+
+    def test_streaming_otu_table_cmdline(self):
+        with in_tempdir():
+            cmd = (
+                "{} appraise --stream-inputs "
+                "--metagenome-otu-tables {}/appraise_example3/reads.otu_table.tsv "
+                "--genome-otu-tables {}/appraise_example3/bins.otu_table.tsv "
+                "--metapackage {}/four_package.smpkg "
+                "--output-binned-otu-table binned.otu_table.tsv "
+                "--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+            ).format(
+                path_to_script,
+                path_to_data,
+                path_to_data,
+                path_to_data
+            )
+            extern.run(cmd)
+
+            expected_binned = [
+                self.headers,
+                ["4.12.ribosomal_protein_L11_rplK", "minimal", "GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC", "7", "17.07", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales"],
+                ""
+            ]
+            expected_binned = "\n".join(["\t".join(x) for x in expected_binned])
+
+            expected_unbinned = [
+                self.headers,
+                ["4.11.ribosomal_protein_L10", "minimal", "CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG", "4", "9.76", "Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus"],
+                ""
+            ]
+            expected_unbinned = "\n".join(["\t".join(x) for x in expected_unbinned])
+
+            with open('binned.otu_table.tsv') as f:
+                observed_binned = "".join(f.readlines())
+            with open('unbinned.otu_table.tsv') as f:
+                observed_unbinned = "".join(f.readlines())
+
+            self.assertEqual(expected_binned, observed_binned)
+            self.assertEqual(expected_unbinned, observed_unbinned)
 
 
 if __name__ == "__main__":

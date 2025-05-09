@@ -417,6 +417,7 @@ def main():
     appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
     appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=OTU_TABLE_OUTPUT_FORMAT,
                                           choices=[OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT])
+    appraise_otu_table_group.add_argument('--stream-inputs', action='store_true', help="Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].")
 
     seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -1157,14 +1158,6 @@ def main():
         if genomes is None and assemblies is None:
             raise Exception("Appraise must be run with genomes and/or assemblies.")
 
-        app = appraiser.appraise(genome_otu_table_collection=genomes,
-                                metagenome_otu_table_collection=metagenomes,
-                                assembly_otu_table_collection=assemblies,
-                                output_found_in = args.output_found_in,
-                                sequence_identity=(args.sequence_identity if args.imperfect else None),
-                                packages=pkgs,
-                                window_size=DEFAULT_WINDOW_SIZE)
-
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
         if args.output_unbinned_otu_table:
@@ -1174,35 +1167,66 @@ def main():
         if args.output_unaccounted_for_otu_table:
             output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
 
-        if args.plot_basename or args.plot:
-            if args.plot and args.plot_basename:
-                raise Exception("Cannot specify both --plot and --plot-basename")
-            if args.plot:
-                app.plot(
-                    cluster_identity=args.sequence_identity,
-                    doing_assembly=assemblies is not None,
-                    doing_binning=genomes is not None,
-                    gene_to_plot=args.plot_marker,
-                    output_svg=args.plot)
-            else:
-                app.plot(
-                    output_svg_base=args.plot_basename,
-                    cluster_identity=args.sequence_identity,
-                    doing_assembly=assemblies is not None,
-                    doing_binning=genomes is not None)
+        if args.stream_inputs:
+            if args.assembly_otu_tables or args.assembly_archive_otu_tables:
+                raise Exception("Streaming inputs is not currently known to work with assembly OTU tables")
+            if args.output_assembled_otu_table:
+                raise Exception("Streaming inputs is not currently known to work with --output-assembled-otu-table")
+            if not (args.output_binned_otu_table and (args.output_unbinned_otu_table or args.output_unaccounted_for_otu_table)):
+                raise Exception("--stream-inputs requires --output-binned-otu-table and --output-unbinned-otu-table to be defined")
+            if args.output_unaccounted_for_otu_table and args.output_unbinned_otu_table:
+                raise Exception("Cannot specify both --output-unaccounted-for-otu-table and --output-unbinned-otu-table")
+            if args.output_unaccounted_for_otu_table:
+                output_unbinned_otu_table_io = output_unaccounted_for_otu_table_io
 
-        appraiser.print_appraisal(
-            app,
-            packages=pkgs,
-            doing_binning = genomes is not None,
-            doing_assembly = assemblies is not None,
-            output_found_in = args.output_found_in,
-            output_style = args.output_style,
-            binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
-            unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
-            assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
-            unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
-            if args.output_unaccounted_for_otu_table else None)
+            appraiser.streaming_appraise(
+                genome_otu_table_collection=genomes,
+                metagenome_otu_table_collection=metagenomes,
+                output_found_in=args.output_found_in,
+                sequence_identity=(args.sequence_identity if args.imperfect else None),
+                window_size=DEFAULT_WINDOW_SIZE,
+                binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
+                unbinned_otu_table_io=output_unbinned_otu_table_io if (args.output_unbinned_otu_table or args.output_unaccounted_for_otu_table) else None,
+            )
+        else:
+            app = appraiser.appraise(genome_otu_table_collection=genomes,
+                                    metagenome_otu_table_collection=metagenomes,
+                                    assembly_otu_table_collection=assemblies,
+                                    output_found_in = args.output_found_in,
+                                    sequence_identity=(args.sequence_identity if args.imperfect else None),
+                                    packages=pkgs,
+                                    window_size=DEFAULT_WINDOW_SIZE)
+
+            if args.plot_basename or args.plot:
+                if args.plot and args.plot_basename:
+                    raise Exception("Cannot specify both --plot and --plot-basename")
+                if args.plot:
+                    app.plot(
+                        cluster_identity=args.sequence_identity,
+                        doing_assembly=assemblies is not None,
+                        doing_binning=genomes is not None,
+                        gene_to_plot=args.plot_marker,
+                        output_svg=args.plot)
+                else:
+                    app.plot(
+                        output_svg_base=args.plot_basename,
+                        cluster_identity=args.sequence_identity,
+                        doing_assembly=assemblies is not None,
+                        doing_binning=genomes is not None)
+
+            appraiser.print_appraisal(
+                app,
+                packages=pkgs,
+                doing_binning = genomes is not None,
+                doing_assembly = assemblies is not None,
+                output_found_in = args.output_found_in,
+                output_style = args.output_style,
+                binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
+                unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
+                assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
+                unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
+                if args.output_unaccounted_for_otu_table else None)
+
         if args.output_binned_otu_table: output_binned_otu_table_io.close()
         if args.output_unbinned_otu_table: output_unbinned_otu_table_io.close()
         if args.output_assembled_otu_table: output_assembled_otu_table_io.close()
