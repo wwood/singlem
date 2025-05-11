@@ -1243,7 +1243,6 @@ average d__Bacteria     9.0     4.0     69.2
         metagenome_collection.add_otu_table(StringIO(metagenomes))
         genome_collection = OtuTableCollection()
         genome_collection.add_otu_table(StringIO(genomes))
-        packages = Metapackage.acquire(os.path.join(path_to_data, 'four_package.smpkg')).singlem_packages
         output_binned_otu_table_io = StringIO()
         output_unbinned_otu_table_io = StringIO()
         appraiser.streaming_appraise(genome_otu_table_collection=genome_collection,
