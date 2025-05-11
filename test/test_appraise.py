@@ -1248,7 +1248,6 @@ average d__Bacteria     9.0     4.0     69.2
         output_unbinned_otu_table_io = StringIO()
         appraiser.streaming_appraise(genome_otu_table_collection=genome_collection,
                                 metagenome_otu_table_collection=metagenome_collection,
-                                packages=packages,
                                 window_size=DEFAULT_WINDOW_SIZE,
                                 output_found_in=True,
                                 binned_otu_table_io=output_binned_otu_table_io,
