@@ -1095,6 +1095,7 @@ def main():
         appraiser = Appraiser()
 
         if args.stream_inputs:
+            logging.info("Preparing file IO for streaming inputs")
             metagenomes = StreamingOtuTableCollection()
             file_io = []
             if args.metagenome_otu_tables:
