@@ -1082,7 +1082,7 @@ def main():
                                 gene_description = args.gene_description,
                                 force = args.force)
     elif args.subparser_name == 'appraise':
-        from singlem.otu_table_collection import OtuTableCollection
+        from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
         from singlem.appraiser import Appraiser
         from singlem.metapackage import Metapackage
 
@@ -1094,29 +1094,46 @@ def main():
 
         appraiser = Appraiser()
 
-        metagenomes = OtuTableCollection()
-        if args.metagenome_otu_tables:
-            for table in args.metagenome_otu_tables:
-                with open(table) as f:
-                    metagenomes.add_otu_table(f)
-        if args.metagenome_archive_otu_tables:
-            for table in args.metagenome_archive_otu_tables:
-                with open(table) as f:
-                    metagenomes.add_archive_otu_table(f)
+        if args.stream_inputs:
+            metagenomes = StreamingOtuTableCollection()
+            file_io = []
+            if args.metagenome_otu_tables:
+                for table in args.metagenome_otu_tables:
+                    table_io = open(table)
+                    metagenomes.add_otu_table(table_io)
+                    file_io.append(open(table))
+            if args.metagenome_archive_otu_tables:
+                for table in args.metagenome_archive_otu_tables:
+                    table_io = open(table)
+                    metagenomes.add_archive_otu_table(table_io)
+                    file_io.append(open(table))
+        else:
+            metagenomes = OtuTableCollection()
+            if args.metagenome_otu_tables:
+                for table in args.metagenome_otu_tables:
+                    with open(table) as f:
+                        metagenomes.add_otu_table(f)
+            if args.metagenome_archive_otu_tables:
+                for table in args.metagenome_archive_otu_tables:
+                    with open(table) as f:
+                        metagenomes.add_archive_otu_table(f)
 
-        logging.info("Removing hits that are not assigned to their target domains")
         if args.metapackage:
             pkgs = Metapackage.acquire(args.metapackage).singlem_packages
         else:
             mpkg = Metapackage.acquire_default()
             pkgs = mpkg.singlem_packages
 
-        o2 = OtuTableCollection()
-        if args.metagenome_archive_otu_tables:
-            o2.archive_table_objects.append(metagenomes.exclude_off_target_hits(pkgs, return_archive_table=True))
+        if args.stream_inputs:
+            logging.info("Removing non-target hits is not compatible with streaming inputs")
         else:
-            o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
-        metagenomes = o2
+            logging.info("Removing hits that are not assigned to their target domains")
+            o2 = OtuTableCollection()
+            if args.metagenome_archive_otu_tables:
+                o2.archive_table_objects.append(metagenomes.exclude_off_target_hits(pkgs, return_archive_table=True))
+            else:
+                o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
+            metagenomes = o2
 
         if args.genome_otu_tables or args.genome_archive_otu_tables:
             genomes = OtuTableCollection()
@@ -1188,6 +1205,8 @@ def main():
                 binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
                 unbinned_otu_table_io=output_unbinned_otu_table_io if (args.output_unbinned_otu_table or args.output_unaccounted_for_otu_table) else None,
             )
+            for f in file_io:
+                f.close()
         else:
             app = appraiser.appraise(genome_otu_table_collection=genomes,
                                     metagenome_otu_table_collection=metagenomes,
