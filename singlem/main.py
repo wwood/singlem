@@ -418,6 +418,7 @@ def main():
     appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=OTU_TABLE_OUTPUT_FORMAT,
                                           choices=[OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT])
     appraise_otu_table_group.add_argument('--stream-inputs', action='store_true', help="Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].")
+    appraise_otu_table_group.add_argument('--threads', type=int, metavar='num_threads', help='Use this many threads when processing streaming inputs [default 1]', default=1)
 
     seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -1205,6 +1206,7 @@ def main():
                 window_size=DEFAULT_WINDOW_SIZE,
                 binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
                 unbinned_otu_table_io=output_unbinned_otu_table_io if (args.output_unbinned_otu_table or args.output_unaccounted_for_otu_table) else None,
+                threads=args.threads,
             )
             for f in file_io:
                 f.close()
