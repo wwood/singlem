@@ -414,6 +414,18 @@ class Appraiser:
                                 output_found_in,
                                 window_size):
             '''Streaming version of appraise to handle large OTU tables with minimal memory usage.'''
+
+            def chunk_collection(iterator, chunk_size):
+                """Helper function to yield chunks from an iterator."""
+                chunk = []
+                for item in iterator:
+                    chunk.append(item)
+                    if len(chunk) == chunk_size:
+                        yield chunk
+                        chunk = []
+                if chunk:
+                    yield chunk
+
             if sequence_identity:
                 logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
                 max_divergence = window_size * (1 - sequence_identity)
@@ -430,25 +442,43 @@ class Appraiser:
             sdb_tmp = sequence_database.acquire(sdb_path)
 
             querier = Querier()
-            for otu in metagenome_otu_table_collection:
-                queries = querier.query_with_queries([otu], sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
-                queries = [q for q in queries]
-                otu_table = OtuTable()
-                if len(queries) == 0:
-                    if output_found_in:
-                        otu.add_found_data('')
-                        otu_table.add_with_extras([otu], ['found_in'])
+            for chunk in chunk_collection(iter(metagenome_otu_table_collection), 1_000_000):
+                otus_with_hits = []
+                otus_without_hits = []
+
+                queries = querier.query_with_queries(chunk, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
+                query_map = {}
+                for query in queries:
+                    if query.query not in query_map:
+                        query_map[query.query] = []
+                    query_map[query.query].append(query.subject.sample_name)
+
+                for otu in chunk:
+                    if otu in query_map:
+                        if output_found_in:
+                            for hit_genome in query_map[otu]:
+                                otu.add_found_data(hit_genome)
+                        otus_with_hits.append(otu)
                     else:
-                        otu_table.add([otu])
-                    yield otu_table, False
-                else:
+                        if output_found_in:
+                            otu.add_found_data('')
+                        otus_without_hits.append(otu)
+
+                if otus_with_hits:
+                    otu_table_with_hits = OtuTable()
                     if output_found_in:
-                        for hit in queries:
-                            otu.add_found_data(hit.subject.sample_name)
-                        otu_table.add_with_extras([otu], ['found_in'])
+                        otu_table_with_hits.add_with_extras(otus_with_hits, ['found_in'])
                     else:
-                        otu_table.add([otu])
-                    yield otu_table, True
+                        otu_table_with_hits.add(otus_with_hits)
+                    yield otu_table_with_hits, True
+
+                if otus_without_hits:
+                    otu_table_without_hits = OtuTable()
+                    if output_found_in:
+                        otu_table_without_hits.add_with_extras(otus_without_hits, ['found_in'])
+                    else:
+                        otu_table_without_hits.add(otus_without_hits)
+                    yield otu_table_without_hits, False
 
             tmp.cleanup()
 
