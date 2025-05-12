@@ -375,6 +375,7 @@ class Appraiser:
         window_size = kwargs.pop('window_size')
         binned_otu_table_io = kwargs.pop('binned_otu_table_io', None)
         unbinned_otu_table_io = kwargs.pop('unbinned_otu_table_io', None)
+        threads=kwargs.pop('threads', 1)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -387,7 +388,8 @@ class Appraiser:
             genome_otu_table_collection,
             sequence_identity,
             output_found_in,
-            window_size
+            window_size,
+            threads=threads
         ):
             if output_found_in:
                 if found:
@@ -412,8 +414,11 @@ class Appraiser:
                                 found_otu_collection,
                                 sequence_identity,
                                 output_found_in,
-                                window_size):
-            '''Streaming version of appraise to handle large OTU tables with minimal memory usage.'''
+                                window_size,
+                                threads=1):
+            '''Streaming version of appraise to handle large OTU tables with minimal memory usage, now with parallel processing.'''
+
+            from concurrent.futures import ThreadPoolExecutor
 
             def chunk_collection(iterator, chunk_size):
                 """Helper function to yield chunks from an iterator."""
@@ -426,23 +431,8 @@ class Appraiser:
                 if chunk:
                     yield chunk
 
-            if sequence_identity:
-                logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
-                max_divergence = window_size * (1 - sequence_identity)
-                max_divergence = round(max_divergence)
-                sys.stdout.write("# Appraised using max divergence %i (%i%% ANI)\n" % (max_divergence, round(100 * sequence_identity)))
-            else:
-                max_divergence = 0
-            logging.info("Using max divergence of %i for appraising" % max_divergence)
-
-            tmp = tempfile.TemporaryDirectory()
-            sdb_path = os.path.join(tmp.name, "tmp.sdb")
-            sequence_database = SequenceDatabase()
-            sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
-            sdb_tmp = sequence_database.acquire(sdb_path)
-
-            querier = Querier()
-            for chunk in chunk_collection(iter(metagenome_otu_table_collection), 1_000_000):
+            def process_chunk(chunk):
+                """Process a single chunk of OTUs."""
                 otus_with_hits = []
                 otus_without_hits = []
 
@@ -464,13 +454,14 @@ class Appraiser:
                             otu.add_found_data('')
                         otus_without_hits.append(otu)
 
+                results = []
                 if otus_with_hits:
                     otu_table_with_hits = OtuTable()
                     if output_found_in:
                         otu_table_with_hits.add_with_extras(otus_with_hits, ['found_in'])
                     else:
                         otu_table_with_hits.add(otus_with_hits)
-                    yield otu_table_with_hits, True
+                    results.append((otu_table_with_hits, True))
 
                 if otus_without_hits:
                     otu_table_without_hits = OtuTable()
@@ -478,7 +469,35 @@ class Appraiser:
                         otu_table_without_hits.add_with_extras(otus_without_hits, ['found_in'])
                     else:
                         otu_table_without_hits.add(otus_without_hits)
-                    yield otu_table_without_hits, False
+                    results.append((otu_table_without_hits, False))
+
+                return results
+
+            if sequence_identity:
+                logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
+                max_divergence = window_size * (1 - sequence_identity)
+                max_divergence = round(max_divergence)
+                sys.stdout.write("# Appraised using max divergence %i (%i%% ANI)\n" % (max_divergence, round(100 * sequence_identity)))
+            else:
+                max_divergence = 0
+            logging.info("Using max divergence of %i for appraising" % max_divergence)
+
+            tmp = tempfile.TemporaryDirectory()
+            sdb_path = os.path.join(tmp.name, "tmp.sdb")
+            sequence_database = SequenceDatabase()
+            sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
+            sdb_tmp = sequence_database.acquire(sdb_path)
+
+            querier = Querier()
+
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                futures = []
+                for chunk in chunk_collection(iter(metagenome_otu_table_collection), 1_000_000):
+                    futures.append(executor.submit(process_chunk, chunk))
+
+                for future in futures:
+                    for result in future.result():
+                        yield result
 
             tmp.cleanup()
 

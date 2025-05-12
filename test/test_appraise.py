@@ -1280,6 +1280,7 @@ average d__Bacteria     9.0     4.0     69.2
                 "--metapackage {}/four_package.smpkg "
                 "--output-binned-otu-table binned.otu_table.tsv "
                 "--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+                "--threads 8 "
             ).format(
                 path_to_script,
                 path_to_data,
