@@ -416,90 +416,74 @@ class Appraiser:
                                 output_found_in,
                                 window_size,
                                 threads=1):
-            '''Streaming version of appraise to handle large OTU tables with minimal memory usage, now with parallel processing.'''
+        '''Streaming version of appraise to handle large OTU tables with minimal memory usage.'''
 
-            from concurrent.futures import ThreadPoolExecutor
-
-            def chunk_collection(iterator, chunk_size):
-                """Helper function to yield chunks from an iterator."""
-                chunk = []
-                for item in iterator:
-                    chunk.append(item)
-                    if len(chunk) == chunk_size:
-                        yield chunk
-                        chunk = []
-                if chunk:
+        def chunk_collection(iterator, chunk_size):
+            """Helper function to yield chunks from an iterator."""
+            chunk = []
+            for item in iterator:
+                chunk.append(item)
+                if len(chunk) == chunk_size:
                     yield chunk
+                    chunk = []
+            if chunk:
+                yield chunk
 
-            def process_chunk(chunk):
-                """Process a single chunk of OTUs."""
-                otus_with_hits = []
-                otus_without_hits = []
+        if sequence_identity:
+            logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
+            max_divergence = window_size * (1 - sequence_identity)
+            max_divergence = round(max_divergence)
+            sys.stdout.write("# Appraised using max divergence %i (%i%% ANI)\n" % (max_divergence, round(100 * sequence_identity)))
+        else:
+            max_divergence = 0
+        logging.info("Using max divergence of %i for appraising" % max_divergence)
 
-                queries = querier.query_with_queries(chunk, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
-                query_map = {}
-                for query in queries:
-                    if query.query not in query_map:
-                        query_map[query.query] = []
-                    query_map[query.query].append(query.subject.sample_name)
+        tmp = tempfile.TemporaryDirectory()
+        sdb_path = os.path.join(tmp.name, "tmp.sdb")
+        sequence_database = SequenceDatabase()
+        sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
+        sdb_tmp = sequence_database.acquire(sdb_path)
 
-                for otu in chunk:
-                    if otu in query_map:
-                        if output_found_in:
-                            for hit_genome in query_map[otu]:
-                                otu.add_found_data(hit_genome)
-                        otus_with_hits.append(otu)
-                    else:
-                        if output_found_in:
-                            otu.add_found_data('')
-                        otus_without_hits.append(otu)
+        querier = Querier()
+        for chunk in chunk_collection(iter(metagenome_otu_table_collection), 64_000):
+            otus_with_hits = []
+            otus_without_hits = []
 
-                results = []
-                if otus_with_hits:
-                    otu_table_with_hits = OtuTable()
+            queries = querier.query_with_queries(chunk, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
+            query_map = {}
+            for query in queries:
+                if query.query not in query_map:
+                    query_map[query.query] = []
+                query_map[query.query].append(query.subject.sample_name)
+
+            for otu in chunk:
+                if otu in query_map:
                     if output_found_in:
-                        otu_table_with_hits.add_with_extras(otus_with_hits, ['found_in'])
-                    else:
-                        otu_table_with_hits.add(otus_with_hits)
-                    results.append((otu_table_with_hits, True))
-
-                if otus_without_hits:
-                    otu_table_without_hits = OtuTable()
+                        for hit_genome in query_map[otu]:
+                            otu.add_found_data(hit_genome)
+                    otus_with_hits.append(otu)
+                else:
                     if output_found_in:
-                        otu_table_without_hits.add_with_extras(otus_without_hits, ['found_in'])
-                    else:
-                        otu_table_without_hits.add(otus_without_hits)
-                    results.append((otu_table_without_hits, False))
+                        otu.add_found_data('')
+                    otus_without_hits.append(otu)
 
-                return results
+            if otus_with_hits:
+                otu_table_with_hits = OtuTable()
+                if output_found_in:
+                    otu_table_with_hits.add_with_extras(otus_with_hits, ['found_in'])
+                else:
+                    otu_table_with_hits.add(otus_with_hits)
+                yield otu_table_with_hits, True
 
-            if sequence_identity:
-                logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
-                max_divergence = window_size * (1 - sequence_identity)
-                max_divergence = round(max_divergence)
-                sys.stdout.write("# Appraised using max divergence %i (%i%% ANI)\n" % (max_divergence, round(100 * sequence_identity)))
-            else:
-                max_divergence = 0
-            logging.info("Using max divergence of %i for appraising" % max_divergence)
+            if otus_without_hits:
+                otu_table_without_hits = OtuTable()
+                if output_found_in:
+                    otu_table_without_hits.add_with_extras(otus_without_hits, ['found_in'])
+                else:
+                    otu_table_without_hits.add(otus_without_hits)
+                yield otu_table_without_hits, False
 
-            tmp = tempfile.TemporaryDirectory()
-            sdb_path = os.path.join(tmp.name, "tmp.sdb")
-            sequence_database = SequenceDatabase()
-            sequence_database.create_from_otu_table(sdb_path, found_otu_collection, sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT])
-            sdb_tmp = sequence_database.acquire(sdb_path)
-
-            querier = Querier()
-
-            with ThreadPoolExecutor(max_workers=threads) as executor:
-                futures = []
-                for chunk in chunk_collection(iter(metagenome_otu_table_collection), 1_000_000):
-                    futures.append(executor.submit(process_chunk, chunk))
-
-                for future in futures:
-                    for result in future.result():
-                        yield result
-
-            tmp.cleanup()
+        tmp.cleanup()
 
     def _sink_appraisal_to_files(self, appraisal, binned_io, unbinned_io):
         '''Helper function to write appraisal results to files.'''
