@@ -445,7 +445,7 @@ class Appraiser:
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         querier = Querier()
-        for chunk in chunk_collection(metagenome_otu_table_collection, 10_000_000):
+        for chunk in chunk_collection(metagenome_otu_table_collection, 50_000_000):
             otus_with_hits = []
             otus_without_hits = []
 
