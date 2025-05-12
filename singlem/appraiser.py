@@ -449,7 +449,7 @@ class Appraiser:
             otus_with_hits = []
             otus_without_hits = []
 
-            queries = querier.query_with_queries(chunk, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None)
+            queries = querier.query_with_queries(chunk, sdb_tmp, max_divergence, SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, True, None, threads=threads)
             query_map = {}
             for query in queries:
                 if query.query not in query_map:
