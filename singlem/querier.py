@@ -342,6 +342,7 @@ class Querier:
 
     def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None, continue_on_missing_genes=False, threads=1):
         logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
+        logging.info(f"{itertools.groupby(queries, lambda x: x.marker)}")
 
         for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
             index = sdb.get_sequence_index(marker, sequence_database.SMAFA_NAIVE_INDEX_FORMAT, sequence_type)
