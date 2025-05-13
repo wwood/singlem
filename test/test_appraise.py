@@ -1234,7 +1234,8 @@ average d__Bacteria     9.0     4.0     69.2
         genomes_otu_table = [
             self.headers,
             ['4.12.ribosomal_protein_L11_rplK','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
-            ['4.12.ribosomal_protein_L11_rplK','genome2','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli']
+            ['4.12.ribosomal_protein_L11_rplK','genome2','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.02','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
+            ['4.11.ribosomal_protein_L10','genome','GGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTGAACATC','1','1.01','Root; d__Bacteria; p__Firmicutes; c__Bacilli'],
             ]
         genomes = "\n".join(["\t".join(x) for x in genomes_otu_table])
 
@@ -1251,6 +1252,7 @@ average d__Bacteria     9.0     4.0     69.2
                                 output_found_in=True,
                                 binned_otu_table_io=output_binned_otu_table_io,
                                 unbinned_otu_table_io=output_unbinned_otu_table_io,
+                                sequence_identity=0.96,
                                 )
 
         expected_binned = [
@@ -1280,6 +1282,7 @@ average d__Bacteria     9.0     4.0     69.2
                 "--metapackage {}/four_package.smpkg "
                 "--output-binned-otu-table binned.otu_table.tsv "
                 "--output-unaccounted-for-otu-table unbinned.otu_table.tsv "
+                "--imperfect --sequence-identity 0.96 "
                 "--threads 8 "
             ).format(
                 path_to_script,
