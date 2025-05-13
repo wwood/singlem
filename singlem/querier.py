@@ -456,6 +456,7 @@ class Querier:
 
                 return results
 
+            logging.info(f"Preparing to query {len(marker_queries)} queries for marker {marker} ..")
             with ThreadPoolExecutor(max_workers=threads) as executor:
                 futures = [executor.submit(process_chunk, chunk) for chunk in iterable_chunks(marker_queries, 1000)]
                 for future in futures:
