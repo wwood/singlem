@@ -383,7 +383,6 @@ class Appraiser:
         logging.info("Using streaming mode for appraisal")
         binned_otu_table_header = True
         unbinned_otu_table_header = True
-        otu_table_count = 0
         for otu_table, found in self._appraise_streaming(
             metagenome_otu_table_collection,
             genome_otu_table_collection,
@@ -411,13 +410,10 @@ class Appraiser:
                         otu_table.write_to(unbinned_otu_table_io, print_header=unbinned_otu_table_header)
                         unbinned_otu_table_header = False
 
-            if otu_table_count > 10_000:
-                if binned_otu_table_io:
-                    binned_otu_table_io.flush()
-                if unbinned_otu_table_io:
-                    unbinned_otu_table_io.flush()
-                otu_table_count = 0
-            otu_table_count += 1
+            if binned_otu_table_io:
+                binned_otu_table_io.flush()
+            if unbinned_otu_table_io:
+                unbinned_otu_table_io.flush()
 
     def _appraise_streaming(self, metagenome_otu_table_collection,
                                 found_otu_collection,
