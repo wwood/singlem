@@ -456,8 +456,11 @@ class Appraiser:
             otus_with_hits = []
             otus_without_hits = []
 
+            # Sort queries by marker to ensure proper grouping
+            sorted_chunk = sorted(chunk, key=lambda x: x.marker)
+
             queries = querier.query_with_queries(
-                chunk, sdb_tmp, max_divergence,
+                sorted_chunk, sdb_tmp, max_divergence,
                 SMAFA_NAIVE_INDEX_FORMAT, SequenceDatabase.NUCLEOTIDE_TYPE,
                 1, None, True, None,
                 threads=threads, continue_on_missing_genes=True
