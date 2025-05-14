@@ -451,7 +451,6 @@ class Appraiser:
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         querier = Querier()
-        chunk_num = 1
         for chunk in chunk_collection(metagenome_otu_table_collection, 50_000_000):
             otus_with_hits = []
             otus_without_hits = []
@@ -465,8 +464,6 @@ class Appraiser:
                 1, None, True, None,
                 threads=threads, continue_on_missing_genes=True
                 )
-            logging.info(f"Query completed for chunk {chunk_num}")
-            chunk_num += 1
 
             query_map = {}
             for query in queries:
