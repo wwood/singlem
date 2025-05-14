@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import tempfile
+from bird_tool_utils import iterable_chunks
 
 from .otu_table import OtuTable
 from .archive_otu_table import ArchiveOtuTable
@@ -423,18 +424,6 @@ class Appraiser:
                                 threads=1):
         '''Streaming version of appraise to handle large OTU tables with minimal memory usage.'''
 
-        def chunk_collection(iterator, chunk_size):
-            """Helper function to yield chunks from an iterator."""
-            chunk = []
-            for item in iterator:
-                chunk.append(item)
-                if len(chunk) == chunk_size:
-                    logging.info("Yielding chunk of size %i" % len(chunk))
-                    yield chunk
-                    chunk = []
-            if chunk:
-                yield chunk
-
         if sequence_identity:
             logging.info("Appraising with %i sequence identity cutoff " % sequence_identity)
             max_divergence = window_size * (1 - sequence_identity)
@@ -451,12 +440,13 @@ class Appraiser:
         sdb_tmp = sequence_database.acquire(sdb_path)
 
         querier = Querier()
-        for chunk in chunk_collection(metagenome_otu_table_collection, 50_000_000):
+        for chunk in iterable_chunks(metagenome_otu_table_collection, 50_000_000):
             otus_with_hits = []
             otu_table_with_hits = OtuTable()
             otus_without_hits = []
             otu_table_without_hits = OtuTable()
 
+            chunk = [o for o in chunk if o is not None]
             # Sort queries by marker to ensure proper grouping
             sorted_chunk = sorted(chunk, key=lambda x: x.marker)
 
@@ -499,13 +489,6 @@ class Appraiser:
                 yield otu_table_without_hits, False
 
         tmp.cleanup()
-
-    def _sink_appraisal_to_files(self, appraisal, binned_io, unbinned_io):
-        '''Helper function to write appraisal results to files.'''
-        if binned_io:
-            binned_io.write(str(appraisal.binned_otus) + '\n')
-        if unbinned_io:
-            unbinned_io.write(str(appraisal.not_found_otus) + '\n')
 
 
 class AppraisalBuildingBlock:
