@@ -453,7 +453,9 @@ class Appraiser:
         querier = Querier()
         for chunk in chunk_collection(metagenome_otu_table_collection, 50_000_000):
             otus_with_hits = []
+            otu_table_with_hits = OtuTable()
             otus_without_hits = []
+            otu_table_without_hits = OtuTable()
 
             # Sort queries by marker to ensure proper grouping
             sorted_chunk = sorted(chunk, key=lambda x: x.marker)
@@ -483,7 +485,6 @@ class Appraiser:
                     otus_without_hits.append(otu)
 
             if otus_with_hits:
-                otu_table_with_hits = OtuTable()
                 if output_found_in:
                     otu_table_with_hits.add_with_extras(otus_with_hits, ['found_in'])
                 else:
@@ -491,7 +492,6 @@ class Appraiser:
                 yield otu_table_with_hits, True
 
             if otus_without_hits:
-                otu_table_without_hits = OtuTable()
                 if output_found_in:
                     otu_table_without_hits.add_with_extras(otus_without_hits, ['found_in'])
                 else:
