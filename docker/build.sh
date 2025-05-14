@@ -1,7 +1,10 @@
 
 #!/bin/bash -eo pipefail
 
-export SINGLEM_VERSION=6502e775a69 #`singlem --version`
+# To execute this script, ensure that the databases are up to date in db/, and the tag has been pushed to GitHub. Then:
+# pixi run bash ./build.sh
+
+export SINGLEM_VERSION=`singlem --version`
 export SINGLEM_DOCKER_VERSION=wwood/singlem:$SINGLEM_VERSION
 export SINGLEM_DB_BASENAME=`basename $SINGLEM_METAPACKAGE_PATH`
 
@@ -28,7 +31,7 @@ docker run -v `pwd`:`pwd` $SINGLEM_DOCKER_VERSION pipe --sequences `pwd`/test.fn
 
 
 
-sed 's/SINGLEM_VERSION/'$SINGLEM_VERSION'/g; s/LYREBIRD_DB_BASENAME/'$LYREBIRD_DB_BASENAME'/g; s/SINGLEM_COMMAND/lyrebird/g; s/SINGLEM_ENV_VAR/LYREBIRD_METAPACKAGE_PATH/g' Dockerfile.in > Dockerfile && \
+sed 's/SINGLEM_VERSION/'$SINGLEM_VERSION'/g; s/SINGLEM_DB_BASENAME/'$LYREBIRD_DB_BASENAME'/g; s/SINGLEM_COMMAND/lyrebird/g; s/SINGLEM_ENV_VAR/LYREBIRD_METAPACKAGE_PATH/g' Dockerfile.in > Dockerfile && \
 DOCKER_BUILDKIT=1 docker build -t $LYREBIRD_DOCKER_VERSION . && \
 docker run -v `pwd`:`pwd` $LYREBIRD_DOCKER_VERSION pipe --genome-fasta-file `pwd`/lambda_phage.fna --otu-table /dev/stdout --output-extras && \
 \

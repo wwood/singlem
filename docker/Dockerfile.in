@@ -21,14 +21,13 @@ RUN curl -fsSL https://pixi.sh/install.sh | bash
 # Add Pixi to PATH
 ENV PATH="/root/.pixi/bin:${PATH}"
 
-# re-add the first line when setup here - the second line enables running 
+# re-add the first line when setup here - the second line enables running from arbitrary commits rather than a tag
 RUN git clone https://github.com/wwood/singlem . && git checkout vSINGLEM_VERSION
 # RUN git clone https://github.com/wwood/singlem . && git checkout SINGLEM_VERSION
 
-RUN pixi run --no-lockfile-update
-
-# Remove bundled singlem packages
-RUN rm -rfv singlem/singlem/data singlem/.git singlem/appraise_plot.png singlem/test
+# We install through pip, because installing via pip install -e . causes issues for apptainer
+# https://github.com/prefix-dev/pixi/issues/1387
+RUN pixi run --no-lockfile-update pip install singlem==SINGLEM_VERSION
 
 # Download default metapackage
 # Make the directory and its contents readable by others https://github.com/wwood/singlem/issues/155
@@ -44,7 +43,7 @@ RUN pixi run --frozen SINGLEM_COMMAND data --verify
 RUN pixi run --frozen SINGLEM_COMMAND --version
 RUN pixi run --frozen SINGLEM_COMMAND pipe --full-help 
 
-# Remove all the build dependencies / image layers for a smaller image overall
+# # Remove all the build dependencies / image layers for a smaller image overall
 FROM scratch
 COPY --from=0 / /
 
@@ -52,4 +51,11 @@ WORKDIR /data
 # Add Pixi to PATH
 ENV PATH="/root/.pixi/bin:${PATH}"
 ENV SINGLEM_ENV_VAR=/singlem/db/SINGLEM_DB_BASENAME
-ENTRYPOINT ["pixi", "run", "--frozen", "--manifest-path", "/singlem/pixi.toml", "SINGLEM_COMMAND"]
+
+RUN pixi shell-hook --frozen --no-install --manifest-path /singlem/pixi.toml |grep -v set_env_vars.sh >>/run_via_pixi.profile
+RUN echo 'source /run_via_pixi.profile' >/run_via_pixi.bash
+RUN echo 'exec "$@"' >>/run_via_pixi.bash
+RUN chmod +x /run_via_pixi.bash
+
+CMD ["bash"]
+ENTRYPOINT ["bash", "/run_via_pixi.bash", "SINGLEM_COMMAND"]
