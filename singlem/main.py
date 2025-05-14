@@ -418,7 +418,8 @@ def main():
     appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=OTU_TABLE_OUTPUT_FORMAT,
                                           choices=[OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT])
     appraise_otu_table_group.add_argument('--stream-inputs', action='store_true', help="Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].")
-    appraise_otu_table_group.add_argument('--threads', type=int, metavar='num_threads', help='Use this many threads when processing streaming inputs [default 1]', default=1)
+    default_appraise_threads = 1
+    appraise_otu_table_group.add_argument('--threads', type=int, metavar='num_threads', help='Use this many threads when processing streaming inputs [default %i]' % default_appraise_threads, default=default_appraise_threads)
 
     seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
