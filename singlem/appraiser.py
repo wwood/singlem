@@ -441,6 +441,7 @@ class Appraiser:
 
         querier = Querier()
         for chunk in iterable_chunks(metagenome_otu_table_collection, 50_000_000):
+            logging.info("Processing chunk of %i OTUs" % len(chunk))
             otus_with_hits = []
             otu_table_with_hits = OtuTable()
             otus_without_hits = []
