@@ -26,6 +26,7 @@ class OtuTableEntry:
 
     def add_found_data(self, found_in):
         if 'found_in' not in self.fields:
+            self.fields = self.fields.copy()  # Create a copy to avoid global modifications
             self.fields.append('found_in')
             self.data.append(found_in)
         else:
