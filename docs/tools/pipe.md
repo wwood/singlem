@@ -11,7 +11,7 @@ To further convert the generated taxonomic profile to other formats that might b
 
 ## Algorithm details
 
-**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/#glossary).
+**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/Glossary).
 
 `pipe` performs three steps:
 
@@ -57,6 +57,16 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 **\--sra-files** sra_file [sra_file \...]
 
   \"sra\" format files (usually from NCBI SRA) to be searched
+
+**\--read-chunk-size** num_reads
+
+  Size chunk to process at a time (in number of reads). Requires
+    \--sra-files.
+
+**\--read-chunk-number** chunk_number
+
+  Process only this specific chunk number (1-based index). Requires
+    \--sra-files.
 
 **-p**, **\--taxonomic-profile** FILE
 

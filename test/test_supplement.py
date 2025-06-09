@@ -25,7 +25,6 @@ import unittest
 import extern
 import os.path
 import pytest
-import shutil
 import tempfile
 import sys
 
@@ -40,8 +39,9 @@ path_to_data = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', '
 singlem_base_directory = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 singlem_bin_directory = os.path.join(singlem_base_directory, 'bin')
 
-# TODO: Once GTDBtk can be included in conda env (as of diamond 2.1.7 likely), remove the added PATH entry
-run = f"GTDBTK_DATA_PATH=/work/microbiome/db/gtdb/gtdb_release207_v2 singlem supplement"
+# In pixi environments, GTDBtk is setup correctly with data, so no need to set GTDBTK_DATA_PATH here
+# gtdbtk-running tests are skipped anyway unless --run-expensive is set
+run = f"singlem supplement"
 singlem = "singlem"
 
 
@@ -83,7 +83,7 @@ class Tests(unittest.TestCase):
             self.assertEqual('test_supplement', mpkg.taxonomy_database_name())
             self.assertEqual('1.0', mpkg.taxonomy_database_version())
 
-    @pytest.mark.skipif(not shutil.which('gtdbtk'), reason="GTDBtk not installed")
+    @pytest.mark.expensive
     def test_auto_taxonomy(self):
         with in_tempdir():
             cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg"
@@ -97,7 +97,7 @@ class Tests(unittest.TestCase):
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
-    @pytest.mark.skipif(not shutil.which('gtdbtk'), reason="GTDBtk not installed")
+    @pytest.mark.expensive
     def test_auto_taxonomy_with_not_all_new(self):
         with in_tempdir():
             cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna {path_to_data}/GCA_011373445.1_genomic.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg"

@@ -40,7 +40,7 @@ def main():
             "Samuel Aroney, "+CMR,
             "Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark",
             "Rossen Zhao, "+CMR],
-        version=singlem.__version__["lyrebird"],
+        version=singlem.__version__,
         raw_format=True,
         examples={'pipe': [
             Example(
@@ -100,7 +100,7 @@ def main():
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    logging.info("Lyrebird v{}".format(singlem.__version__["lyrebird"]))
+    logging.info("Lyrebird v{}".format(singlem.__version__))
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
@@ -152,6 +152,7 @@ def main():
         validate_pipe_args(args, subparser='renew')
         Renew().renew(
             input_archive_otu_table=args.input_archive_otu_table,
+            ignore_missing_singlem_packages=args.ignore_missing_singlem_packages,
             otu_table = args.otu_table,
             output_archive_otu_table = args.archive_otu_table,
             threads = args.threads,

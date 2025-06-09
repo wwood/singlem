@@ -1,0 +1,27 @@
+max_threads: 64
+compressed_genome_data: true
+gtdb_protein_fna_reps: /work/microbiome/msingle/mess/196_metapackage_r226/protein_fna_reps
+output_dir: /work/microbiome/msingle/mess/196_metapackage_r226/update_metapackage_gtdb_transcripts
+metapackage: /work/microbiome/db/singlem/S4.3.0.GTDB_r220.metapackage_20240523.smpkg.zb/payload_directory
+new_metapackage: S5.4.0.GTDB_r226.metapackage_20250331.smpkg
+new_version_number: 5.4.0
+gtdb_protein_faa_reps: /work/microbiome/msingle/mess/196_metapackage_r226/protein_faa_reps
+gtdb_bac_tax: /work/microbiome/msingle/mess/196_metapackage_r226/bac120_taxonomy_r226.tsv
+gtdb_arc_tax: /work/microbiome/msingle/mess/196_metapackage_r226/ar53_taxonomy_r226.tsv
+pfams: /work/microbiome/msingle/sam/HMMs/Pfam
+tigrfams: /work/microbiome/msingle/sam/HMMs/TIGRfams.HMM
+uniprot_seq: /work/microbiome/msingle/mess/196_metapackage_r226/uniprot_sprot.fa
+uniprot_tax: /work/microbiome/msingle/mess/196_metapackage_r226/uniprot_sprot_taxonomy.tsv
+sra_seqs_1:
+  DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_1.fastq
+  SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_1.fastq
+  SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_1.fastq
+sra_seqs_2:
+  DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_2.fastq
+  SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_2.fastq
+  SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_2.fastq
+gtdb_arc_metadata: /work/microbiome/msingle/mess/196_metapackage_r226/metadata_r226_combined.tsv
+gtdb_bac_metadata: /work/microbiome/msingle/mess/196_metapackage_r226/metadata_r226_combined.tsv
+# These 2 constants must jive with those in Metapackage
+taxonomy_database_name: Genome Taxonomy Database (GTDB)
+taxonomy_database_version: R226

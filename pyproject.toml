@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "setuptools_scm"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "singlem"
+description = "Novelty-inclusive microbial community profiling of shotgun metagenomes"
+readme = "README.md"
+requires-python = ">=3.7"
+license = "GPL-3.0-or-later"
+authors = [{ name = "Ben Woodcroft" }]
+keywords = ["metagenomics", "bioinformatics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Programming Language :: Python :: 3"
+]
+dynamic = ["version", "dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/wwood/SingleM"
+
+[project.scripts]
+singlem = "singlem.main:main"
+lyrebird = "singlem.lyrebird:main"
+
+[tool.setuptools]
+packages = ["singlem", "singlem.biolib_lite"]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["admin/requirements.txt"] }
+
+[tool.setuptools_scm]
+version_file = "singlem/version.py"
+# Otherwise the push to pypi will fail on GitHub actions, because the version is malformed.
+version_scheme = "only-version"
+local_scheme = "no-local-version"

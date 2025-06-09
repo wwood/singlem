@@ -5,7 +5,7 @@
 Steps:
 Create and activate base environment (update_metapackage.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda --scheduler greedy`
+Run `snakemake --cores 64 --use-conda`
 """
 
 import pandas as pd
@@ -14,19 +14,25 @@ import os
 configfile: "config.yaml"
 
 hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=False)
-singlem_bin = "../../bin/singlem"
+singlem_bin = "../../singlem/main.py"
 output_dir = config["output_dir"]
 logs_dir = output_dir + "/logs"
 checkm2_output_dirs = config['checkm2_output_dirs'] if 'checkm2_output_dirs' in config else None # not needed for R220 and beyond (actually R220 was missing some data, so using it there too)
 taxonomy_database_name = config["taxonomy_database_name"]
 taxonomy_database_version = config["taxonomy_database_version"]
 
+# TODO: This finding genomes at the start is slow, and is run each time
+# snakemake is started up in a queued job. Would be better to do this once, and
+# then reuse cached results.
 print("Finding genomes...")
 if 'compressed_genome_data' in config and config['compressed_genome_data']:
-    genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa.gz")]
+    genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"], followlinks=True) for f in fs if f.endswith(".faa.gz")]
 else:
-    genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"]) for f in fs if f.endswith(".faa")]
-genomes = ["/".join(g.split("/")[-2:]) for g in genome_paths]
+    genome_paths = [os.path.join(d, f) for d, _, fs in os.walk(config["gtdb_protein_faa_reps"], followlinks=True) for f in fs if f.endswith(".faa")]
+genomes = [g.removeprefix(config["gtdb_protein_faa_reps"]).removeprefix("/") for g in genome_paths]
+
+size_genome_splits = 50
+n_genome_splits = len(genomes) // size_genome_splits + 1
 
 zenodo_backpack = os.path.join(output_dir, config["new_metapackage"]+'.zb.tar.gz')
 zenodo_backpack_version = config['new_version_number']
@@ -37,14 +43,15 @@ print("Found {} genomes.".format(len(genomes)))
 if not "max_threads" in config: config["max_threads"] = 8
 
 wildcard_constraints:
-    genome = "(archaea|bacteria)/\w+.\d+_protein.faa"
+    genome = r"(archaea|bacteria)/\w+.\d+_protein.faa"
+
+def get_mem_mb(wildcards, threads, attempt):
+    return 8 * 1000 * threads * attempt
 
 rule all:
     input:
         zenodo_backpack,
-        expand(output_dir + "/sra/{sra}_{version}.otu_table.tsv", sra=config["sra_seqs_1"], version=["old","new"]),
-        expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["old","new"]),
-        # output_dir + "/sra/done"
+        output_dir + "/sra/done"
 
 rule zenodo_backpack:
     input:
@@ -71,6 +78,9 @@ rule pfam_search:
         output_dir = output_dir,
     threads:
         config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     log:
         logs_dir + "/pfam_search.log" #"/hmmsearch/pfam/{genome}.log"
     conda:
@@ -90,6 +100,9 @@ rule tigrfam_search:
         genome_ids = genomes,
     threads:
         config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     conda:
         "envs/tigrfam_search.yml"
     script:
@@ -110,6 +123,9 @@ rule get_matches_no_dup:
         genome_ids = genomes,
     threads:
         config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     conda:
         "envs/get_matches_no_dup.yml"
     script:
@@ -128,12 +144,14 @@ rule mfqe:
         genome_ids = genomes,
     output:
         done=output_dir + "/mfqe.done",
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     # log:
     #     logs_dir + "/hmmsearch/matches/{genome}_mfqe.log"
     conda:
         "../../singlem.yml"
-    threads:
-        config["max_threads"]
     script:
         "scripts/mfqe_all.py"
 
@@ -153,6 +171,9 @@ rule transpose_hmms_with_sequences:
         genome_ids = genomes,
     threads:
         config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     conda:
         "envs/transpose_hmms_with_sequences.yml"
     script:
@@ -168,6 +189,10 @@ rule concatenate_seqs_and_taxonomies:
         concat_dir = output_dir + "/hmmseq_concat/",
         spkg_seq = output_dir + "/hmmseq_concat/{spkg}.faa",
         spkg_tax = output_dir + "/hmmseq_concat/{spkg}_taxonomy.tsv",
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     shell:
         "mkdir -p {params.concat_dir} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep .faa$ |parallel -j1 --ungroup cat {{}} >{params.spkg_seq} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep _taxonomy.tsv$ |parallel -j1 --ungroup cat {{}} >{params.spkg_tax} && touch {output.done}"
 
@@ -186,6 +211,10 @@ rule create_SingleM_packages:
         spkg_seq = output_dir + "/hmmseq_concat/{spkg}.faa",
         spkg_tax = output_dir + "/hmmseq_concat/{spkg}_taxonomy.tsv",
         spkg_name = lambda wildcards: hmms_and_names.loc[wildcards.spkg, "name_without_number"]
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     log:
         logs_dir + "/packages/{spkg}.log"
     conda:
@@ -213,6 +242,9 @@ rule create_draft_SingleM_metapackage:
         singlem = singlem_bin
     threads:
         config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     log:
         logs_dir + "/draft_metapackage.log"
     conda:
@@ -226,49 +258,75 @@ rule create_draft_SingleM_metapackage:
         "--threads {threads} "
         "&> {log}"
 
+rule SingleM_transcripts_genome_lists:
+    input:
+        dir = config["gtdb_protein_fna_reps"],
+    output:
+        dir = directory(output_dir + "/transcript_lists"),
+    threads:
+        1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 5*60,
+    params:
+        size = size_genome_splits,
+    shell:
+        "mkdir -p {output.dir} && "
+        "find -L {input.dir} \\( -name '*.fa.gz' -o -name '*.fna.gz' \\) "
+        "| parallel --pipe -N{params.size} 'cat > {output.dir}/{{#}}.txt' "
+
 rule SingleM_transcripts:
     input:
         dir = config["gtdb_protein_fna_reps"],
-        metapackage = output_dir + "/draft_metapackage.smpkg"
+        metapackage = output_dir + "/draft_metapackage.smpkg",
+        lists = output_dir + "/transcript_lists",
     output:
-        dir = directory(output_dir + "/transcripts"),
-        touch = touch(output_dir + "/transcripts/done")
-    threads: 64
+        otu_table = output_dir + "/transcripts/{n}.otu_table.tsv",
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 10*60,
     params:
         singlem = singlem_bin,
-        logs = logs_dir + "/transcripts"
+        input_files = output_dir + "/transcript_lists/{n}.txt"
     conda:
         "../../singlem.yml"
     log:
-        logs_dir + "/transcripts.log"
+        logs_dir + "/transcripts/{n}.log"
     shell:
-        "mkdir -p {params.logs} "
-        "&& cat <( find {input.dir} -name '*.fna' ) "
-        "| parallel --halt-on-error 1 --eta -N 50 -j {threads} "
         "{params.singlem} pipe "
-        "--forward {{}} "
+        "--forward $(cat {params.input_files} | tr '\n' ' ') "
         "--metapackage {input.metapackage} "
-        "--otu-table {output.dir}/{{#}}.otu_table.tsv "
+        "--otu-table {output.otu_table} "
         "--no-assign-taxonomy "
-        "'&>' {params.logs}/{{#}}.log "
-        "2> {log}"
+        "&> {log} "
+
+rule collect_SingleM_transcripts:
+    input:
+        expand(output_dir + "/transcripts/{n}.otu_table.tsv", n = [i + 1 for i in range(n_genome_splits)])
+    output:
+        touch(output_dir + "/transcripts/done")
 
 rule assign_taxonomy:
     input:
-        dir = output_dir + "/transcripts",
         touch = output_dir + "/transcripts/done"
     output:
         output_dir + "/taxonomy/transcripts.otu_table.tsv"
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     params:
         bac_metadata = config["gtdb_bac_metadata"],
-        arc_metadata = config["gtdb_arc_metadata"]
+        arc_metadata = config["gtdb_arc_metadata"],
+        dir = output_dir + "/transcripts",
     conda:
         "../../singlem.yml"
     log:
         logs_dir + "/taxonomy.log"
     shell:
         "../assign_gtdb_taxonomy_to_gtdb_genomes.py "
-        "--otu-table-list <( find {input.dir} -name '*.otu_table.tsv' ) "
+        "--otu-table-list <( find {params.dir} -name '*.otu_table.tsv' ) "
         "--gtdb-bac {params.bac_metadata} "
         "--gtdb-arc {params.arc_metadata} "
         "> {output} "
@@ -279,7 +337,11 @@ rule make_sdb:
         output_dir + "/taxonomy/transcripts.otu_table.tsv"
     output:
         directory(output_dir + "/taxonomy/transcripts.sdb")
-    threads: 32
+    threads:
+        config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     params:
         singlem = singlem_bin
     log:
@@ -304,6 +366,9 @@ rule create_SingleM_metapackage:
         singlem = singlem_bin
     threads:
         config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     log:
         logs_dir + "/metapackage.log"
     conda:
@@ -346,6 +411,9 @@ rule calculate_mean_genome_size:
         gtdb_arc_metadata = config["gtdb_arc_metadata"],
         checkm2_grep_arg = '--checkm2-grep ' + output_dir + "/gtdb_checkm2_grepped.tsv" if checkm2_output_dirs else ''
     threads: 8
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = '1h',
     log:
         logs_dir + "/calculate_mean_genome_size.log"
     conda:
@@ -370,8 +438,10 @@ rule test_metapackage:
         profile_krona = output_dir + "/sra/{sra}_new.otu_table.condensed.krona.html"
     params:
         singlem = singlem_bin
-    threads:
-        8
+    threads: 8
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     log:
         logs_dir + "/sra/{sra}_new_test.log"
     conda:
@@ -400,8 +470,10 @@ rule test_old_metapackage:
     params:
         singlem = singlem_bin,
         metapackge = config["metapackage"],
-    threads:
-        8
+    threads: 8
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     log:
         logs_dir + "/sra/{sra}_old_test.log"
     conda:
@@ -423,6 +495,10 @@ rule sra_fractions_assigned_to_each_level:
         profile = output_dir + "/sra/{sra}_{version}.otu_table.condensed.tsv",
     output:
         breakdown = output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv"
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
     conda:
         "../../singlem.yml"
     shell:
@@ -430,10 +506,37 @@ rule sra_fractions_assigned_to_each_level:
         "--input-taxonomic-profile {input.profile} "
         "--output-taxonomic-level-coverage {output.breakdown} "
 
+rule sra_microbial_fraction:
+    input:
+        profile = output_dir + "/sra/{sra}_{version}.otu_table.condensed.tsv",
+        sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
+        sra_2 = lambda wildcards: config["sra_seqs_2"][wildcards.sra],
+    output:
+        smf = output_dir + "/sra/{sra}_{version}.smf.tsv"
+    threads: 1
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
+    params:
+        metapackge = lambda wildcards: config["metapackage"] if wildcards.version == "old" else output_dir + "/metapackage/" + config["new_metapackage"],
+    conda:
+        "../../singlem.yml"
+    log:
+        logs_dir + "/sra/{sra}_{version}_smf.log"
+    shell:
+        "{singlem_bin} microbial_fraction "
+        "--metapackage {params.metapackge} "
+        "--forward {input.sra_1} "
+        "--reverse {input.sra_2} "
+        "-p {input.profile} "
+        "> {output.smf} "
+        "2> {log} "
+
 rule check_tests:
     input:
         expand(output_dir + "/sra/{sra}_new.otu_table.tsv", sra=config["sra_seqs_1"]),
         expand(output_dir + "/sra/{sra}_old.otu_table.tsv", sra=config["sra_seqs_1"]),
         expand(output_dir + "/sra/{sra}_{version}.taxonomic_coverage.tsv", sra=config["sra_seqs_1"], version=["new", "old"]),
+        expand(output_dir + "/sra/{sra}_{version}.smf.tsv", sra=config["sra_seqs_1"], version=["new", "old"]),
     output:
         touch(output_dir + "/sra/done")

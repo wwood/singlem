@@ -82,9 +82,17 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                                     metavar='sequence_file',
                                     help='nucleotide genome sequence(s) to be searched')
         sequence_input_group.add_argument('--sra-files',
-                                    nargs='+',
-                                    metavar='sra_file',
-                                    help='"sra" format files (usually from NCBI SRA) to be searched')
+                        nargs='+',
+                        metavar='sra_file',
+                        help='"sra" format files (usually from NCBI SRA) to be searched')
+        argument_group.add_argument('--read-chunk-size',
+                type=int,
+                metavar='num_reads',
+                help='Size chunk to process at a time (in number of reads). Requires --sra-files.')
+        argument_group.add_argument('--read-chunk-number',
+                type=int,
+                metavar='chunk_number',
+                help='Process only this specific chunk number (1-based index). Requires --sra-files.')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
@@ -222,6 +230,14 @@ def validate_pipe_args(args, subparser='pipe'):
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
         if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
             raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
+        if args.read_chunk_size and not args.sra_files:
+            raise Exception("Can't use --read-chunk-size without --sra-files")
+        if args.read_chunk_number and not args.sra_files:
+            raise Exception("Can't use --read-chunk-number without --sra-files")
+        if bool(args.read_chunk_size) != bool(args.read_chunk_number):
+            raise Exception("Either none or both of --read-chunk-size and --read-chunk-number should be set")
+        if args.read_chunk_size and len(args.sra_files) > 1:
+            raise Exception("Can't use --read-chunk-size with more than one --sra-file")
 
 def add_condense_arguments(parser):
     input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
@@ -332,7 +348,7 @@ def main():
             "Samuel Aroney, "+CMR,
             "Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark",
             "Rossen Zhao, "+CMR],
-        version=singlem.__version__["singlem"],
+        version=singlem.__version__,
         raw_format=True,
         examples={'pipe': [
             Example(
@@ -402,6 +418,9 @@ def main():
     appraise_otu_table_group.add_argument('--output-found-in', action='store_true', help="Output sample name (genome or assembly) the hit was found in")
     appraise_otu_table_group.add_argument('--output-style', help="Style of output OTU tables", default=OTU_TABLE_OUTPUT_FORMAT,
                                           choices=[OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT])
+    appraise_otu_table_group.add_argument('--stream-inputs', action='store_true', help="Stream input OTU tables, saving RAM. Only works with --output-otu-table and transformation options do not work [expert option].")
+    default_appraise_threads = 1
+    appraise_otu_table_group.add_argument('--threads', type=int, metavar='num_threads', help='Use this many threads when processing streaming inputs [default %i]' % default_appraise_threads, default=default_appraise_threads)
 
     seqs_description = 'Find the best window position for a SingleM package'
     seqs_parser = bird_argparser.new_subparser('seqs', seqs_description)
@@ -716,7 +735,7 @@ def main():
         os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
     logging.basicConfig(level=loglevel, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
-    logging.info("SingleM v{}".format(singlem.__version__["singlem"]))
+    logging.info("SingleM v{}".format(singlem.__version__))
 
     if args.subparser_name=='pipe':
         validate_pipe_args(args)
@@ -725,6 +744,8 @@ def main():
             reverse_read_files = args.reverse,
             genomes = args.genome_fasta_files,
             input_sra_files = args.sra_files,
+            read_chunk_size = args.read_chunk_size,
+            read_chunk_number = args.read_chunk_number,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             sleep_after_mkfifo = args.sleep_after_mkfifo,
@@ -1064,7 +1085,7 @@ def main():
                                 gene_description = args.gene_description,
                                 force = args.force)
     elif args.subparser_name == 'appraise':
-        from singlem.otu_table_collection import OtuTableCollection
+        from singlem.otu_table_collection import OtuTableCollection, StreamingOtuTableCollection
         from singlem.appraiser import Appraiser
         from singlem.metapackage import Metapackage
 
@@ -1076,29 +1097,47 @@ def main():
 
         appraiser = Appraiser()
 
-        metagenomes = OtuTableCollection()
-        if args.metagenome_otu_tables:
-            for table in args.metagenome_otu_tables:
-                with open(table) as f:
-                    metagenomes.add_otu_table(f)
-        if args.metagenome_archive_otu_tables:
-            for table in args.metagenome_archive_otu_tables:
-                with open(table) as f:
-                    metagenomes.add_archive_otu_table(f)
+        if args.stream_inputs:
+            logging.info("Preparing file IO for streaming inputs")
+            metagenomes = StreamingOtuTableCollection()
+            file_io = []
+            if args.metagenome_otu_tables:
+                for table in args.metagenome_otu_tables:
+                    table_io = open(table)
+                    metagenomes.add_otu_table(table_io)
+                    file_io.append(open(table))
+            if args.metagenome_archive_otu_tables:
+                for table in args.metagenome_archive_otu_tables:
+                    table_io = open(table)
+                    metagenomes.add_archive_otu_table(table_io)
+                    file_io.append(open(table))
+        else:
+            metagenomes = OtuTableCollection()
+            if args.metagenome_otu_tables:
+                for table in args.metagenome_otu_tables:
+                    with open(table) as f:
+                        metagenomes.add_otu_table(f)
+            if args.metagenome_archive_otu_tables:
+                for table in args.metagenome_archive_otu_tables:
+                    with open(table) as f:
+                        metagenomes.add_archive_otu_table(f)
 
-        logging.info("Removing hits that are not assigned to their target domains")
         if args.metapackage:
             pkgs = Metapackage.acquire(args.metapackage).singlem_packages
         else:
             mpkg = Metapackage.acquire_default()
             pkgs = mpkg.singlem_packages
 
-        o2 = OtuTableCollection()
-        if args.metagenome_archive_otu_tables:
-            o2.archive_table_objects.append(metagenomes.exclude_off_target_hits(pkgs, return_archive_table=True))
+        if args.stream_inputs:
+            logging.info("Removing non-target hits is not compatible with streaming inputs")
         else:
-            o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
-        metagenomes = o2
+            logging.info("Removing hits that are not assigned to their target domains")
+            o2 = OtuTableCollection()
+            if args.metagenome_archive_otu_tables:
+                o2.archive_table_objects.append(metagenomes.exclude_off_target_hits(pkgs, return_archive_table=True))
+            else:
+                o2.otu_table_objects.append(metagenomes.exclude_off_target_hits(pkgs))
+            metagenomes = o2
 
         if args.genome_otu_tables or args.genome_archive_otu_tables:
             genomes = OtuTableCollection()
@@ -1140,14 +1179,6 @@ def main():
         if genomes is None and assemblies is None:
             raise Exception("Appraise must be run with genomes and/or assemblies.")
 
-        app = appraiser.appraise(genome_otu_table_collection=genomes,
-                                metagenome_otu_table_collection=metagenomes,
-                                assembly_otu_table_collection=assemblies,
-                                output_found_in = args.output_found_in,
-                                sequence_identity=(args.sequence_identity if args.imperfect else None),
-                                packages=pkgs,
-                                window_size=DEFAULT_WINDOW_SIZE)
-
         if args.output_binned_otu_table:
             output_binned_otu_table_io = open(args.output_binned_otu_table,'w')
         if args.output_unbinned_otu_table:
@@ -1157,35 +1188,69 @@ def main():
         if args.output_unaccounted_for_otu_table:
             output_unaccounted_for_otu_table_io = open(args.output_unaccounted_for_otu_table,'w')
 
-        if args.plot_basename or args.plot:
-            if args.plot and args.plot_basename:
-                raise Exception("Cannot specify both --plot and --plot-basename")
-            if args.plot:
-                app.plot(
-                    cluster_identity=args.sequence_identity,
-                    doing_assembly=assemblies is not None,
-                    doing_binning=genomes is not None,
-                    gene_to_plot=args.plot_marker,
-                    output_svg=args.plot)
-            else:
-                app.plot(
-                    output_svg_base=args.plot_basename,
-                    cluster_identity=args.sequence_identity,
-                    doing_assembly=assemblies is not None,
-                    doing_binning=genomes is not None)
+        if args.stream_inputs:
+            if args.assembly_otu_tables or args.assembly_archive_otu_tables:
+                raise Exception("Streaming inputs is not currently known to work with assembly OTU tables")
+            if args.output_assembled_otu_table:
+                raise Exception("Streaming inputs is not currently known to work with --output-assembled-otu-table")
+            if not (args.output_binned_otu_table and (args.output_unbinned_otu_table or args.output_unaccounted_for_otu_table)):
+                raise Exception("--stream-inputs requires --output-binned-otu-table and --output-unbinned-otu-table to be defined")
+            if args.output_unaccounted_for_otu_table and args.output_unbinned_otu_table:
+                raise Exception("Cannot specify both --output-unaccounted-for-otu-table and --output-unbinned-otu-table")
+            if args.output_unaccounted_for_otu_table:
+                output_unbinned_otu_table_io = output_unaccounted_for_otu_table_io
 
-        appraiser.print_appraisal(
-            app,
-            packages=pkgs,
-            doing_binning = genomes is not None,
-            doing_assembly = assemblies is not None,
-            output_found_in = args.output_found_in,
-            output_style = args.output_style,
-            binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
-            unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
-            assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
-            unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
-            if args.output_unaccounted_for_otu_table else None)
+            appraiser.streaming_appraise(
+                genome_otu_table_collection=genomes,
+                metagenome_otu_table_collection=metagenomes,
+                output_found_in=args.output_found_in,
+                sequence_identity=(args.sequence_identity if args.imperfect else None),
+                window_size=DEFAULT_WINDOW_SIZE,
+                binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
+                unbinned_otu_table_io=output_unbinned_otu_table_io if (args.output_unbinned_otu_table or args.output_unaccounted_for_otu_table) else None,
+                threads=args.threads,
+            )
+            for f in file_io:
+                f.close()
+        else:
+            app = appraiser.appraise(genome_otu_table_collection=genomes,
+                                    metagenome_otu_table_collection=metagenomes,
+                                    assembly_otu_table_collection=assemblies,
+                                    output_found_in = args.output_found_in,
+                                    sequence_identity=(args.sequence_identity if args.imperfect else None),
+                                    packages=pkgs,
+                                    window_size=DEFAULT_WINDOW_SIZE)
+
+            if args.plot_basename or args.plot:
+                if args.plot and args.plot_basename:
+                    raise Exception("Cannot specify both --plot and --plot-basename")
+                if args.plot:
+                    app.plot(
+                        cluster_identity=args.sequence_identity,
+                        doing_assembly=assemblies is not None,
+                        doing_binning=genomes is not None,
+                        gene_to_plot=args.plot_marker,
+                        output_svg=args.plot)
+                else:
+                    app.plot(
+                        output_svg_base=args.plot_basename,
+                        cluster_identity=args.sequence_identity,
+                        doing_assembly=assemblies is not None,
+                        doing_binning=genomes is not None)
+
+            appraiser.print_appraisal(
+                app,
+                packages=pkgs,
+                doing_binning = genomes is not None,
+                doing_assembly = assemblies is not None,
+                output_found_in = args.output_found_in,
+                output_style = args.output_style,
+                binned_otu_table_io=output_binned_otu_table_io if args.output_binned_otu_table else None,
+                unbinned_otu_table_io=output_unbinned_otu_table_io if args.output_unbinned_otu_table else None,
+                assembled_otu_table_io=output_assembled_otu_table_io if args.output_assembled_otu_table else None,
+                unaccounted_for_otu_table_io=output_unaccounted_for_otu_table_io \
+                if args.output_unaccounted_for_otu_table else None)
+
         if args.output_binned_otu_table: output_binned_otu_table_io.close()
         if args.output_unbinned_otu_table: output_unbinned_otu_table_io.close()
         if args.output_assembled_otu_table: output_assembled_otu_table_io.close()

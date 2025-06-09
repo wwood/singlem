@@ -65,7 +65,7 @@ parser.add_argument('--output', type=str, metavar='<OUTPUT>', help='path to outp
 
 args = parser.parse_args()
 input_path = getattr(args, 'input_fasta')
-genome_id = re.findall(r'(.*)_protein', os.path.basename(input_path))[0]
+genome_id = re.findall(r'(.*)\.faa', os.path.basename(input_path))[0].removesuffix("_protein")
 bac_taxonomy = getattr(args, 'bacterial_taxonomy')
 arch_taxonomy = getattr(args, 'archaeal_taxonomy')
 HMM_seq_list = getattr(args, 'hmm_seq')

@@ -1,5 +1,0 @@
----
-title: "SUBCOMMAND"
-author: "Ben Woodcroft, Centre for Microbiome Research, Queensland University of Technology"
-date: "`r Sys.Date()` (`r system('bin/singlem --version',intern=T)`)"
----
