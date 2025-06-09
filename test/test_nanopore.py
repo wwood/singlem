@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 #=======================================================================
-# Authors: Ben Woodcroft, Tim Lamberton.
+# Authors: Ben Woodcroft, Tim Lamberton, Joshua Mitchell.
 #
 # Unit tests.
 #
