@@ -3,3 +3,4 @@ channels:
   - defaults
 dependencies:
   - zenodo_backpack >= 0.2.0
+  - tqdm

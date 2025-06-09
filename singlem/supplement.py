@@ -181,8 +181,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                     output_taxonomies_fh.write(
                         '\t'.join([genome_name, 'Root; ' + '; '.join(taxonomy)]) + '\n')
             else:
-                raise Exception("Unexpected taxonomy length found: {}".format(
-                    taxonomy))
+                raise Exception("Unexpected taxonomy length found: {}. An example taxonomy is {}".format(
+                    taxonomy, list(known_taxons)[0]))
         else:
             # Check that the taxonomy provided is a known taxonomy in the current metapackage.
             if not skip_taxonomy_check:
@@ -669,10 +669,9 @@ def recalculate_genome_sizes(
     new_taxon_lengths = {}
     all_stats = checkm2.get_all_stats()
     for genome_fasta in new_genome_fasta_files:
-        observed_length = calculate_genome_length(genome_fasta)
         checkm_stats = all_stats[FastaNameToSampleName.fasta_to_name(genome_fasta)]
 
-        corrected_length = GenomeSizes.corrected_genome_size(observed_length, checkm_stats.completeness, checkm_stats.contamination)
+        corrected_length = GenomeSizes.corrected_genome_size(checkm_stats.genome_size, checkm_stats.completeness, checkm_stats.contamination)
         taxonomy = genome_to_taxonomy[FastaNameToSampleName.fasta_to_name(genome_fasta)]
 
         new_taxon_lengths[taxonomy] = corrected_length
@@ -694,14 +693,6 @@ def recalculate_genome_sizes(
 
     # Return dataframe of taxon lengths in same shape as metapackage.generate expects
     return all_rank_genome_sizes.select(['rank', 'genome_size'])
-
-
-def calculate_genome_length(fasta_path):
-    with open(fasta_path) as f:
-        total_length = 0
-        for name, seq, _ in SeqReader().readfq(f):
-            total_length += len(seq)
-        return total_length
 
 
 def run_prodigal_on_one_genome(params):

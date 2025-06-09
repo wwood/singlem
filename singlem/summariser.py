@@ -386,7 +386,7 @@ class Summariser:
         if gzip_archive_otu_table_list:
             with open(gzip_archive_otu_table_list) as f:
                 lines = f.readlines()
-                logging.debug(f"Found {len(lines)} in achive otu table list.")
+                logging.debug(f"Found {len(lines)} lines in achive otu table list.")
                 for a in lines:
                     logging.debug("Reading gzip archive table {} ..".format(a))
                     with gzip.open(a.strip()) as g:

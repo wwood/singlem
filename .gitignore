@@ -11,3 +11,7 @@ extras/update_metapackage/env_master
 untracked
 build
 extras/new_package_creation/singlem_new_metapackage_working_directory/
+
+# pixi environments
+.pixi
+*.egg-info
