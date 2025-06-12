@@ -6,7 +6,7 @@ SingleM can be installed through
 [Bioconda](https://anaconda.org/bioconda/singlem). Lyrebird is installed by installing SingleM, and then using the `lyrebird` command instead of `singlem` e.g. use `lyrebird pipe ...` instead of `singlem pipe ...`.
 
 ```
-conda create -c bioconda -c conda-forge --name singlem singlem'>='0.19.0
+conda create -c conda-forge -c bioconda --override-channels --name singlem singlem'>='0.19.0
 ```
 
 Test if it works by running
