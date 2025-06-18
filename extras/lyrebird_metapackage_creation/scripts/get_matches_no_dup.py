@@ -25,11 +25,11 @@ output_path = getattr(args, 'output')
 
 # Read in HMM IDs
 logging.info("Reading in HMM IDs...")
-hmms_to_vogs = {}
+hmms_to_phrogs = {}
 with open(HMM_id_list, 'r') as hmm_list_file:
     for line in hmm_list_file.readlines()[1:]:
-        vog, hmm = line.split()[:2]
-        hmms_to_vogs[hmm] = vog
+        phrog, hmm = line.split()[:2]
+        hmms_to_phrogs[hmm] = phrog
 logging.info("Creating match list...")
 match_list = []
 hmm_hit_scores = defaultdict(list)
@@ -38,7 +38,7 @@ hit_count = 0
 with open(hmmsearch_input, 'r') as hmmsearch_file:
     for qresult in HmmerIO.hmmer3_tab.Hmmer3TabParser(hmmsearch_file):
         hmm_count += 1
-        hmm = hmms_to_vogs[qresult.id]
+        hmm = hmms_to_phrogs[qresult.id]
         for hit in qresult.hits:
             match_list.append((hit.id, hmm, hit.bitscore))
             hmm_hit_scores[hit.id].append(hit.bitscore)

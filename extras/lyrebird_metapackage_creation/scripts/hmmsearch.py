@@ -27,7 +27,7 @@ def process_a_chunk(param_set):
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 pathlib.Path(script_dir).mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
+logging.basicConfig(filename=snakemake.log[0],level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
 
 param_list = []
 param_set = []

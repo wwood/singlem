@@ -281,7 +281,6 @@ rule singlem_regenerate:
     output:
         spkg = directory(output_dir + "/regenerate/{spkg}.spkg"),
         done = output_dir + "/regenerate/{spkg}.done",
-        # alignment = output_dir + "/regenerate/{spkg}.spkg/{spkg}.gpkg/{spkg}.gpkg.refpkg/{spkg}_deduplicated_aligned.fasta"
     params:
         sequence_prefix = "{spkg}~",
     resources:
