@@ -1,0 +1,9 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - extern
+  - python
+  - hmmer
+  - parallel
