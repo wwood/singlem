@@ -11,7 +11,7 @@ output_dir = snakemake.params.output_dir
 
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
+logging.basicConfig(filename=snakemake.log[0],level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
 
 proteins_to_hmm = {}
 hmm_to_proteins = {}

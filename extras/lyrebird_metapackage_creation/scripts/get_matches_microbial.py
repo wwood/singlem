@@ -36,11 +36,11 @@ if genomad_db:
 
 # Read in HMM IDs
 logging.info("Reading in HMM IDs...")
-hmms_to_vogs = {}
+hmms_to_phrogs = {}
 with open(hmms_and_names, 'r') as hmm_list_file:
     for line in hmm_list_file.readlines()[1:]:
-        vog, hmm = line.split()[:2]
-        hmms_to_vogs[hmm] = vog
+        phrog, hmm = line.split()[:2]
+        hmms_to_phrogs[hmm] = phrog
 logging.info("Creating match list...")
 match_list = []
 hmm_hit_scores = defaultdict(list)
@@ -49,7 +49,7 @@ hit_count = 0
 hits_in_provirus = 0
 with open(hmmsearch_input, 'r') as hmmsearch_file:
     for qresult in HmmerIO.hmmer3_tab.Hmmer3TabParser(hmmsearch_file):
-        hmm = hmms_to_vogs[qresult.id]
+        hmm = hmms_to_phrogs[qresult.id]
         hmm_count += 1
         for hit in qresult.hits:
             genome = hit.id.split('_')[0]
@@ -77,21 +77,6 @@ logging.info("Found {} hits for {} HMMs, skipping {} hits found in proviruses db
 
 gene_counter = Counter([seq_id for seq_id,__,__ in match_list])
 logging.info("Removing duplicate hits...")
-# undup_list = [] 
-# for seq_id, hmm_id, score in match_list:
-#     if gene_counter[seq_id] == 1:
-#         undup_list.append([seq_id, hmm_id, score])
-#     else:
-#         hmm_hit_scores[seq_id].remove(score)
-#         if len(hmm_hit_scores[seq_id]) == 0:
-#             del hmm_hit_scores[seq_id]
-# derep_list = [[seq_id, hmm_id] for seq_id, hmm_id, score in undup_list if score == max(hmm_hit_scores[seq_id])]
-
-# logging.info("Removing HMMs with multiple gene hits...")
-# hmm_counter = Counter([hmm_id for __, hmm_id in derep_list])
-# output_list = [[seq_id, hmm_id] for seq_id, hmm_id in derep_list if hmm_counter[hmm_id] == 1]
-# derep_list = [[seq_id, hmm_id] for seq_id, hmm_id, score in match_list if 
-#                 gene_counter[seq_id] == 1 or score == max(hmm_hit_scores[seq_id])]
 
 #### We actually want to keep multiple gene hits for decoy sequences since we want the decoys no matter what
 #### Currently hoping that multi-copy genes are more similar to each other within the same genome than to other genomes

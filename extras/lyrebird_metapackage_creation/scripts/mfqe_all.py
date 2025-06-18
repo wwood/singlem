@@ -19,7 +19,7 @@ output_dir = snakemake.params.output_dir
 num_threads = snakemake.threads
 logs_dir = snakemake.params.logs_dir
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
+logging.basicConfig(filename=snakemake.log[0],level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
 
 count = 0
 basename_to_filepath = {}
