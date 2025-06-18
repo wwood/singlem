@@ -1,11 +1,12 @@
 import os
 import csv
+import gc
 import argparse
 from Bio import Phylo
 from io import StringIO
 import logging
 
-tree_dir = snakemake.input.trees
+tree_paths = snakemake.input.trees
 viral_fp = snakemake.input.viral_faa_list
 fscore_list = snakemake.output.fscore_list
 resolved_trees_list = snakemake.output.resolved_trees_list
@@ -102,7 +103,7 @@ with open(resolved_trees_list, "w+") as csvfile1:
         writer2 = csv.writer(csvfile2, delimiter='\t')
         writer1.writerow(["gene", "first_fscore", "sum_best_three", "count_iterations"])
         writer2.writerow(["gene", "first_fscore", "sum_best_three", "count_iterations"])
-        for filename in tree_dir:
+        for filename in tree_paths:
             if filename.endswith(".tre"):
                 try:
                     tree = Phylo.read(filename, "newick")
@@ -111,6 +112,8 @@ with open(resolved_trees_list, "w+") as csvfile1:
                     logging.error("Error reading " + filename)
                     continue
                 fmeasures, iterations = get_all_fscores(tree, BETA)
+                del tree
+                gc.collect()
                 if len(fmeasures) == 0:
                     continue
                 writer2.writerow([os.path.basename(filename)[:-4], fmeasures[0], sum(sorted(fmeasures, reverse=True)[:3]), iterations])
