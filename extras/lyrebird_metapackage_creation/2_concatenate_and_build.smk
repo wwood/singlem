@@ -42,7 +42,7 @@ rule mfqe_viral:
         logs_dir = logs_dir + "/mfqe_viral"
     threads: workflow.cores
     resources:
-        mem_mb = 128 * 1024,
+        mem_mb = 16 * 1024,
         runtime = 12 * 60
     log:
         logs_dir + "/mfqe_viral.log"
@@ -200,7 +200,7 @@ rule get_matches_off_target:
         logs_dir = logs_dir + "/get_matches_off_target"
     threads: workflow.cores
     resources:
-        mem_mb = 128 * 1024,
+        mem_mb = 16 * 1024,
         runtime = 8 * 60
     log:
         logs_dir + "/get_matches_off_target.log"
@@ -221,7 +221,7 @@ rule mfqe_off_target:
         logs_dir = logs_dir + "/mfqe_off_target"
     threads: workflow.cores
     resources:
-        mem_mb = 128 * 1024,
+        mem_mb = 16 * 1024,
         runtime = 8 * 60
     log:
         logs_dir + "/mfqe_off_target.log"

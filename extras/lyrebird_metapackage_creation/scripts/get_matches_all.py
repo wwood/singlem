@@ -1,4 +1,5 @@
 import os
+import extern
 import logging
 import pathlib
 from tqdm.contrib.concurrent import process_map
@@ -11,7 +12,7 @@ def process_a_genome(params):
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
     cmd = f"python scripts/get_matches_no_dup.py --hmmsearch-file {hmmsearch_path} --hmm-list {hmms_and_names} --output {output_tsv} &> {log}"
-    os.system(cmd)
+    extern.run(cmd)
 
 def process_a_microbe(params):
     hmmsearch_path, output_tsv, log, proviruses = params
@@ -21,7 +22,7 @@ def process_a_microbe(params):
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
     cmd = f"python scripts/get_matches_microbial.py --hmmsearch-file {hmmsearch_path} --hmm-list {hmms_and_names} --output {output_tsv} --genomad-db {proviruses} &> {log}"
-    os.system(cmd)
+    extern.run(cmd)
 
 hmmsearch_directory = snakemake.params.hmmsearch_directory
 hmms_and_names = snakemake.params.hmms_and_names

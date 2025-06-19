@@ -2,6 +2,7 @@ import os
 import logging
 import pathlib
 from tqdm.contrib.concurrent import process_map
+import extern
 
 def process_a_genome(params):
     fasta, matches, output, log = params
@@ -11,7 +12,7 @@ def process_a_genome(params):
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
     cmd = f"cut -f1 {matches} | mfqe  --input-fasta {fasta} --sequence-name-lists /dev/stdin --output-fasta-files {output} --output-uncompressed &> {log}"
-    os.system(cmd)
+    extern.run(cmd)
 
 protein_filepaths = snakemake.params.protein_filepaths
 match_directory = snakemake.params.match_directory
