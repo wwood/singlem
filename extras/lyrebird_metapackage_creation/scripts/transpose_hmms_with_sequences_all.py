@@ -14,6 +14,14 @@ def process_a_genome(params):
     cmd = f"python scripts/transpose_hmms_with_sequences.py --input-fasta {matches_fasta} --taxonomy {' '.join(taxfiles)} --hmm-seq {mfqe} --hmm-spkg {hmms_and_names} --output {output} &> {log}"
     extern.run(cmd)
 
+def async_lustre_cleanup(target_dir):
+    if not os.path.exists(target_dir):
+        return
+    logging.info(f"Cleaning up {target_dir} on Lustre filesystem")
+    os.rename(target_dir, target_dir + ".old")
+    cmd = f'mqsub -t 8 -m 16 --hours 12 --no-email --segregated-log-files --name async-rm -- "lfs find {target_dir}.old -type f | xargs -n 1000 -P 8 rm -f; lfs find {target_dir}.old -depth -type d | xargs -n 1000 -P 8 rmdir; rmdir {target_dir}.old"'
+    extern.run(cmd)
+
 protein_filepaths = [prot_filepath.strip('\n') for prot_filepath in open(snakemake.params.protein_filepaths)]
 matches_dir = snakemake.params.matches_dir
 mfqe_dir = snakemake.params.mfqe_dir
@@ -31,8 +39,7 @@ logging.info(os.path.basename(__file__) + ": Processing {} genomes with {} threa
 
 # delete output directory if it exists, or you will have problems with appending duplicates to existing files
 if os.path.exists(output_dir):
-    logging.info(f"Removing existing output directory: {output_dir}")
-    extern.run(f"rm -rf {output_dir}")
+    async_lustre_cleanup(output_dir)
 
 pathlib.Path(os.path.dirname(output_dir)).mkdir(parents=True, exist_ok=True)
 
