@@ -293,12 +293,12 @@ rule off_target_dup_rename:
 
 rule singlem_regenerate:
     input:
-        off_target_touch = output_dir + "/hmmseq_concat/off_target_renamed/{spkg}.done",
+        off_target_touch = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done",
         singlem_spkg = output_dir + "/initial_spkgs/{spkg}.spkg",
         seqs = output_dir + "/hmmseq_concat/viral/{spkg}.faa",
         taxonomy = output_dir + "/hmmseq_concat/viral/{spkg}_taxonomy.tsv",
-        off_target_seqs = output_dir + "/hmmseq_concat/off_target_renamed/{spkg}.faa",
-        off_target_taxonomy = output_dir + "/hmmseq_concat/off_target_renamed/{spkg}_taxonomy.tsv",
+        off_target_seqs = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.faa",
+        off_target_taxonomy = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}_taxonomy.tsv",
     output:
         spkg = directory(output_dir + "/regenerate/{spkg}.spkg"),
         done = output_dir + "/regenerate/{spkg}.done",

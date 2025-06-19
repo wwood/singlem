@@ -18,8 +18,8 @@ def async_lustre_cleanup(target_dir):
     if not os.path.exists(target_dir):
         return
     logging.info(f"Cleaning up {target_dir} on Lustre filesystem")
-    os.rename(target_dir, target_dir + ".old")
-    cmd = f'mqsub -t 8 -m 16 --hours 12 --no-email --segregated-log-files --name async-rm -- "lfs find {target_dir}.old -type f | xargs -n 1000 -P 8 rm -f; lfs find {target_dir}.old -depth -type d | xargs -n 1000 -P 8 rmdir; rmdir {target_dir}.old"'
+    os.rename(target_dir, target_dir[:-1] + ".old")
+    cmd = f'mqsub -t 8 -m 16 --hours 12 --no-email --segregated-log-files --bg --name async-rm -- "lfs find {target_dir[:-1]}.old -type f | xargs -n 1000 -P 8 rm -f; lfs find {target_dir[:-1]}.old -depth -type d | xargs -n 1000 -P 8 rmdir; rmdir {target_dir}.old"'
     extern.run(cmd)
 
 protein_filepaths = [prot_filepath.strip('\n') for prot_filepath in open(snakemake.params.protein_filepaths)]
