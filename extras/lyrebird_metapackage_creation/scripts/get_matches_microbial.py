@@ -75,24 +75,8 @@ with open(hmmsearch_input, 'r') as hmmsearch_file:
                 hit_count += 1
 logging.info("Found {} hits for {} HMMs, skipping {} hits found in proviruses db".format(hit_count, hmm_count, hits_in_provirus))
 
-gene_counter = Counter([seq_id for seq_id,__,__ in match_list])
-logging.info("Removing duplicate hits...")
-
-#### We actually want to keep multiple gene hits for decoy sequences since we want the decoys no matter what
-#### Currently hoping that multi-copy genes are more similar to each other within the same genome than to other genomes
-derep_dict = {}
-for seq_id, hmm_id, score in match_list:
-    if gene_counter[seq_id] == 1:
-        derep_dict[seq_id] = hmm_id
-    elif score == max(hmm_hit_scores[seq_id]):
-        # if there are multiple hits with the same top score, just keep the first one
-        if seq_id not in derep_dict:
-            derep_dict[seq_id] = hmm_id
-        else:
-            # If we already have a hit for this seq_id, we can skip adding it again
-            continue
-
-output_list = [[seq_id, hmm_id] for seq_id, hmm_id in derep_dict.items()]
+#### We actually want to keep multiple gene hits for decoy sequences since we want the decoys no matter what, no dereplication
+output_list = [[seq_id, hmm_id] for seq_id, hmm_id, __ in match_list]
 
 output_dict = defaultdict(list)
 for seq_id, hmm_id in output_list:

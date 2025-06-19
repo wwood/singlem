@@ -270,14 +270,35 @@ rule concatenate_seqs_and_taxonomies_off_target:
         "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
         "find {params.hmmseq_dir} -name {wildcards.spkg}_taxonomy.tsv |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_tax} && touch {output.done}"
 
+rule off_target_dup_rename:
+    input:
+        done = output_dir + "/hmmseq_concat/off_target/{spkg}.done",
+        seqs = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
+        taxonomy = output_dir + "/hmmseq_concat/off_target/{spkg}_taxonomy.tsv",
+    output:
+        seqs = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.faa",
+        taxonomy = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}_taxonomy.tsv",
+        done = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done",
+    params:
+        output_dir = output_dir + "/hmmseq_concat/off_target_renamed_dups",
+    conda:
+        "envs/singlem.yml"
+    resources:
+        mem_mb = 8 * 1024,
+        runtime = 2 * 60
+    log:
+        log = output_dir + "/logs/off_target_renamed_dups/{spkg}.log"
+    script:
+        "scripts/rename_off_target_dups.py"
+
 rule singlem_regenerate:
     input:
-        off_target_touch = output_dir + "/hmmseq_concat/off_target/{spkg}.done",
+        off_target_touch = output_dir + "/hmmseq_concat/off_target_renamed/{spkg}.done",
         singlem_spkg = output_dir + "/initial_spkgs/{spkg}.spkg",
         seqs = output_dir + "/hmmseq_concat/viral/{spkg}.faa",
         taxonomy = output_dir + "/hmmseq_concat/viral/{spkg}_taxonomy.tsv",
-        off_target_seqs = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
-        off_target_taxonomy = output_dir + "/hmmseq_concat/off_target/{spkg}_taxonomy.tsv",
+        off_target_seqs = output_dir + "/hmmseq_concat/off_target_renamed/{spkg}.faa",
+        off_target_taxonomy = output_dir + "/hmmseq_concat/off_target_renamed/{spkg}_taxonomy.tsv",
     output:
         spkg = directory(output_dir + "/regenerate/{spkg}.spkg"),
         done = output_dir + "/regenerate/{spkg}.done",
