@@ -86,7 +86,7 @@ rule get_matches_viral:
         logs_dir = logs_dir + "/get_matches_viral"
     threads: workflow.cores
     resources:
-        mem_mb = 128 * 1024,
+        mem_mb = 16 * 1024,
         runtime = 8 * 60
     log:
         logs_dir + "/get_matches_viral.log"
