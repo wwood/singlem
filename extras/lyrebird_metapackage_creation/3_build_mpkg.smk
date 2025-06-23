@@ -107,6 +107,8 @@ rule assign_taxonomy:
         viral_taxonomy = config["viral_tax"],
     conda:
         "envs/singlem.yml"
+    log:
+        logs = logs_dir + "/assign_taxonomy.log"
     resources:
         mem_mb = 8 * 1024,
         runtime = 8 * 60
@@ -145,7 +147,7 @@ rule create_Lyrebird_metapackage:
     threads:
         workflow.cores
     resources:
-        mem_mb = 128 * 1024
+        mem_mb = 128 * 1024,
         runtime = 24 * 2 * 60
     conda:
         "singlem"

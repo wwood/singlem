@@ -10,6 +10,9 @@ input_files = [f for f in os.listdir(input_dir)]
 metapackage = snakemake.input.metapackage
 included_ids = set()
 id_to_tax = {}
+
+logging.basicConfig(filename=snakemake.log[0], level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
+
 # read in viral taxonomy file
 with open(snakemake.params.viral_taxonomy) as r:
     for line in r:

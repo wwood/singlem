@@ -265,6 +265,9 @@ rule concatenate_seqs_and_taxonomies_off_target:
     params:
         hmmseq_dir = output_dir + "/hmmseq/off_target/",
         concat_dir = output_dir + "/hmmseq_concat/off_target",
+    resources:
+        mem_mb = 8 * 1024,
+        runtime = 4 * 60
     shell:
         "mkdir -p {params.concat_dir} && "
         "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
@@ -285,7 +288,7 @@ rule off_target_dup_rename:
         "envs/singlem.yml"
     resources:
         mem_mb = 8 * 1024,
-        runtime = 2 * 60
+        runtime = 4 * 60
     log:
         log = output_dir + "/logs/off_target_renamed_dups/{spkg}.log"
     script:
@@ -356,7 +359,7 @@ rule resolve_tree:
     log:
         log = output_dir + "/logs/resolve_trees.log"
     resources:
-        mem_mb = 16 * 1024,
+        mem_mb = 64 * 1024,
         runtime = 24 * 2 * 60
     conda:
         "envs/singlem.yml"
