@@ -5,11 +5,11 @@
 Steps:
 Create and activate base environment (env.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda --scheduler greedy`
+Run `snakemake --cores 64 --use-conda --retries 2`
 """
 
 localrules:
-    all, acquire_and_concat_hmms, hmmsearch_off_target, roundrobin
+    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin
 
 import pandas as pd
 import os
@@ -348,23 +348,45 @@ rule run_fasttree_mp:
         "mkdir -p {params.outdir} && "
         "OMP_NUM_THREADS={threads} FastTreeMP < {params.deduplicated_aligned_fasta} > {output.tree} 2> {log}"
 
-rule resolve_tree:
+rule get_fscore:
     input:
-        trees = expand(output_dir + "/trees/{spkg}.tre", spkg=hmms_and_names.index),
+        tree = output_dir + "/trees/{spkg}.tre",
         viral_faa_list = config["viral_faa_list"],
     output:
-        resolved_trees_list = output_dir + "/resolved_trees_list.tsv",
-        fscore_list = output_dir + "/fscore_list.tsv",
-        done = output_dir + "/resolved_trees.done"
+        fscore = temp(output_dir + "/fscore/{spkg}.fscore"),
+        done = temp(output_dir + "/fscore/{spkg}.done")
     log:
-        log = output_dir + "/logs/resolve_trees.log"
+        log = output_dir + "/logs/fscore/{spkg}.log"
     resources:
-        mem_mb = 64 * 1024,
-        runtime = 24 * 2 * 60
+        mem_mb = 1 * 1024,
+        runtime = 1 * 60
     conda:
         "envs/singlem.yml"
     script:
-        "scripts/resolve_tree.py"
+        "scripts/get_best_fscore.py"
+
+rule concat_fscores:
+    input:
+        fscores = expand(output_dir + "/fscore/{spkg}.fscore", spkg=hmms_and_names.index),
+        done = expand(output_dir + "/fscore/{spkg}.done", spkg=hmms_and_names.index)
+    output:
+        fscore_list = output_dir + "/fscore_list.tsv",
+        done = output_dir + "/concat_fscores.done"
+    conda:
+        "envs/singlem.yml"
+    script:
+        "scripts/concat_fscores.py"
+        
+rule resolve_fscores:
+    input:
+        fscore_list = output_dir + "/fscore_list.tsv",
+    output:
+        resolved_fscores = output_dir + "/resolved_trees_list.tsv",
+        done = output_dir + "/resolved_trees.done"
+    conda:
+        "envs/singlem.yml"
+    script:
+        "scripts/resolve_fscores.py"
 
 rule roundrobin:
     input:
