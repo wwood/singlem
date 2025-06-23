@@ -31,6 +31,7 @@ logging.info(f"Total number of sequences in fasta: {num_seqs}")
 seq_id_mapping = {}
 for seq_id, count in seq_id_counts.items():
     if count > 1:
+        logging.info(f"Found {count} duplicates for sequence ID {seq_id}, renaming them.")
         for i in range(1, count + 1):
             new_seq_id = f"{seq_id}-{i}"
             seq_id_mapping[seq_id] = new_seq_id
