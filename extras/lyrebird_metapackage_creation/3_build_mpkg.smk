@@ -34,7 +34,7 @@ rule chainsaw:
         log = output_dir + "/logs/chainsaw/{spkg}.log"
     resources:
         mem_mb = 4 * 1024,
-        runtime = 1 * 60
+        runtime = 8 * 60
     conda:
         "envs/singlem.yml"
     shell:
