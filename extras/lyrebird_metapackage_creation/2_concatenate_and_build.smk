@@ -308,7 +308,7 @@ rule singlem_regenerate:
     params:
         sequence_prefix = "{spkg}~",
     resources:
-        mem_mb = 32 * 1024,
+        mem_mb = lambda wildcards, attempt: 32 * 1024 * (2 ** (attempt - 1)),
         runtime = 24 * 2 * 60
     log:
         log = output_dir + "/logs/regenerate/{spkg}.singlem_regenerate.log"
