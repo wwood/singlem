@@ -5,7 +5,7 @@
 Steps:
 Create and activate base environment (env.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda --retries 2`
+Run `snakemake --cores 64 --use-conda --retries 2 --group-components group_concatenate_seqs_and_taxonomies_off_target=20 group_off_target_dup_rename=20 group_get_fscore=20`
 """
 
 localrules:
@@ -268,6 +268,7 @@ rule concatenate_seqs_and_taxonomies_off_target:
     resources:
         mem_mb = 8 * 1024,
         runtime = 4 * 60
+    group: "group_concatenate_seqs_and_taxonomies_off_target"
     shell:
         "mkdir -p {params.concat_dir} && "
         "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
@@ -288,9 +289,10 @@ rule off_target_dup_rename:
         "envs/singlem.yml"
     resources:
         mem_mb = 8 * 1024,
-        runtime = 4 * 60
+        runtime = 1 * 60
     log:
         log = output_dir + "/logs/off_target_renamed_dups/{spkg}.log"
+    group: "group_off_target_dup_rename"
     script:
         "scripts/rename_off_target_dups.py"
 
@@ -307,7 +309,7 @@ rule singlem_regenerate:
         done = output_dir + "/regenerate/{spkg}.done",
     params:
         sequence_prefix = "{spkg}~",
-    resources:
+    resources: # can get *very* memory intensive if there are many off-target sequences
         mem_mb = lambda wildcards, attempt: 32 * 1024 * (2 ** (attempt - 1)),
         runtime = 24 * 2 * 60
     log:
@@ -362,6 +364,7 @@ rule get_fscore:
         runtime = 1 * 60
     conda:
         "envs/singlem.yml"
+    group: "group_get_fscore"
     script:
         "scripts/get_best_fscore.py"
 

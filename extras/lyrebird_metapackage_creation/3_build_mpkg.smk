@@ -5,7 +5,7 @@
 Steps:
 Create and activate base environment (env.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda --scheduler greedy`
+Run `snakemake --cores 64 --use-conda --group-components group_chainsaw=20`
 """
 
 import pandas as pd
@@ -37,6 +37,8 @@ rule chainsaw:
         runtime = 8 * 60
     conda:
         "envs/singlem.yml"
+    group:
+        "group_chainsaw"
     shell:
         "singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output} 2> {log}"
 
@@ -46,8 +48,7 @@ rule create_draft_metapackage:
     output:
         metapackage = directory(output_dir + "/draft_metapackage.smpkg"),
         done = output_dir + "/draft_metapackage.done"
-    threads:
-        workflow.cores
+    threads: int(workflow.cores / 4)
     log:
         logs_dir + "/draft_metapackage.log"
     resources:
@@ -78,8 +79,7 @@ rule Lyrebird_transcripts:
         logs = logs_dir + "/transcripts",
     conda:
         "envs/singlem.yml"
-    threads:
-        workflow.cores
+    threads: workflow.cores
     resources:
         mem_mb = 16 * 1024,
         runtime = 24 * 60
@@ -120,7 +120,7 @@ rule make_sdb:
         output_dir + "/assign_taxonomy/transcripts.otu_table.tsv"
     output:
         directory(output_dir + "/taxonomy/transcripts.sdb")
-    threads: config["max_threads"]
+    threads: int(workflow.cores / 4)
     log:
         logs_dir + "/taxonomy/makedb.log"
     conda:
@@ -144,8 +144,7 @@ rule create_Lyrebird_metapackage:
         done = output_dir + "/metapackage.done"
     log:
         logs_dir + "/metapackage.log"
-    threads:
-        workflow.cores
+    threads: int(workflow.cores / 4)
     resources:
         mem_mb = 128 * 1024,
         runtime = 24 * 2 * 60
