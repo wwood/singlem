@@ -82,7 +82,7 @@ rule Lyrebird_transcripts:
         workflow.cores
     resources:
         mem_mb = 16 * 1024,
-        runtime = 12 * 60
+        runtime = 24 * 60
     shell:
         "mkdir -p {params.logs} "
         "&& mkdir -p {output.dir} "
