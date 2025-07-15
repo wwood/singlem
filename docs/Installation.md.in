@@ -96,7 +96,7 @@ lyrebird -h
 
 After this, you'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
 
-This prcedure also installs lyrebird, but the reference metapackage is different. See [lyrebird data](/tools/lyrebird_data) for more information.
+This procedure also installs lyrebird, but the reference metapackage is different. See [lyrebird data](/tools/lyrebird_data) for more information.
 
 # Example data
 
