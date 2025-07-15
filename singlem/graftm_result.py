@@ -19,7 +19,8 @@ class GraftMResult:
         NB: Only return hits when there is at least 1 hit sequence.
 
         '''
-        if not require_hits: raise NotImplementedException()
+        if not require_hits:
+            raise NotImplementedError()
         paths = {}
         for sample in self.sample_names():
             if self._analysing_pairs:
@@ -52,7 +53,9 @@ class GraftMResult:
 
     def hmmout_paths_from_sample_name(self, sample_name):
         if self._search_hmm_files is None:
-            raise NotImplementedException("Coder needs to grab this from the graftm_package I guess")
+            raise NotImplementedError(
+                "Coder needs to grab this from the graftm_package I guess"
+            )
         elif len(self._search_hmm_files) == 1:
             return [os.path.join(self.output_directory,
                                  sample_name,
