@@ -102,6 +102,8 @@ class DiamondSpkgSearcher:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
                     
                         # creating new read index to account for multiple hits
+                        # by concating the read_name with the marker_gene_name, we can ensure only 1 gene copy per read
+                        # TODO: add an option to let all unique genes through with range-uclling 
                         qseqid = qseqid + '~' + sseqid.split('~')[0]
 
                         # extra check to make sure we're not overwriting a better hit
