@@ -185,14 +185,3 @@ class OtuTable:
         for d in self.data:
             if d[sample_column] in renaming_dict:
                 d[sample_column] = renaming_dict[d[sample_column]]
-
-    # def get_original_seq_names(self):
-    #     for sequence in readset.unknown_sequences:
-    #         sequence.name = sequence.name.rpartition('~')[0]
-
-    #     for readset in extracted_reads:
-    #         if analysing_pairs:
-    #             original_seq_names(readset[0])
-    #             original_seq_names(readset[1])
-    #         else:
-    #             original_seq_names(readset)
