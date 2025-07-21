@@ -175,12 +175,6 @@ class Clusters:
     def __init__(self, clusters):
         self.clusters = clusters
 
-    def each_otu(self):
-        '''Iterate over all OTUs from each clustered_otus'''
-        for clustered_otu in self.clustered_otus:
-            for otu in clustered_otu.otus:
-                yield otu
-
     def __iter__(self):
         '''Iterate over clusters'''
         for cluster in self.clusters:

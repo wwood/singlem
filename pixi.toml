@@ -62,3 +62,11 @@ setuptools-scm = "*"
 
 [environments]
 dev = ["dev"]
+
+[tasks]
+test-base = "pytest test"
+
+[tasks.test]
+depends-on = [
+    {task = "test-base", environment = "dev"},
+]
