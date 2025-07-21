@@ -81,12 +81,6 @@ class UnalignedAlignedNucleotideSequence:
            (len(self.unaligned_sequence) - self.aligned_length + 1)
             )
     
-        # ## with mild correction for multiple hits
-        # return float(
-        #     len(self.unaligned_sequence) /
-        #    (len(self.unaligned_sequence) - ((self.aligned_length + 1) * self.num_hits_on_read))
-        #     )
-    
 
 class SeqReader:
     # Stolen from https://github.com/lh3/readfq/blob/master/readfq.py
