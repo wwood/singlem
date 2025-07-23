@@ -354,8 +354,8 @@ def main():
                 'Get a taxonomic profile from paired read input:',
                 'singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p <output.profile.tsv>'),
             Example(
-                'Get a taxonomic profile Krona diagram from single read input:',
-                'singlem pipe -i <fastq_or_fasta> --taxonomic-profile-krona <output.profile.html>'),
+                'Get a taxonomic profile Krona diagram from single read input (long or short read):',
+                'singlem pipe -1 <fastq_or_fasta> --taxonomic-profile-krona <output.profile.html>'),
             Example(
                 'Gather an OTU table (per marker sequence groupings) from paired reads:',
                 'singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> --otu-table <output.otu_table.tsv>'),
