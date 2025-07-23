@@ -213,6 +213,7 @@ def _generate_package_specific_fasta_input(
     count = 0
     example = None
 
+
     for (qseqid, seq) in _yield_target_sequences(target_sequence_ids, prefilter_result):
         count += 1
         if example is not None:
@@ -220,6 +221,31 @@ def _generate_package_specific_fasta_input(
         output_io.write(">{}\n{}\n".format(qseqid, seq).encode())
 
     return count, example
+
+
+# Function to chunk sequences by max bp
+# there is an edge case where a sequence is longer than the max bp
+# in this case, the sequence will be in a chunk by itself
+def chunk_sequences_by_bp(sequences, soft_max_bp):
+    chunks = []
+    current_chunk = []
+    current_bp = 0
+
+    for seq in sequences:
+        seq_length = len(seq.seq)
+        
+        if current_bp + seq_length > soft_max_bp:
+            chunks.append(current_chunk)
+            current_chunk = []
+            current_bp = 0
+
+        current_chunk.append(seq)
+        current_bp += seq_length
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
 
 
 def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
@@ -236,12 +262,14 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     # Sequences have to be run through hmmsearch, because sometimes DIAMOND
     # returns some less than good quality hits, and taking those hits directly
     # to hmmalign causes odd sequences to be counted in.
+
     sequences = list(_filter_sequences_through_hmmsearch(
         spkg,
         prefilter_result,
         min_orf_length,
         translation_table,
         hmmsearch_evalue))
+
     # On very rare occasions, the same sequence can be returned twice, causing
     # hmmalign to give unexpected format output. So dedup. For instance using
     # S3.2.1 and
@@ -249,46 +277,60 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     # &
     # /home/woodcrob/m/abisko/data/flat20230929_all/201607_SubstrateInc_9to19.G_F_S_T50.2.fq.gz
     # causes the eventual bug.
+
     sequences = list(set(sequences))
 
-    # Run orfm |hmmalign
-    #
-    # hmmalign can require a lot more memory than you'd expect, and the amount
-    # used increases with amount of sequence provided to it. To counter this, we
-    # chunk the sequences up only giving hmmalign a subset of sequences at a
-    # time.
-    chunk_size = 5000 #=> Appoximately 100MB of RAM needed
+    # limit the number of bp per chunk to avoid memory issues
+    soft_max_bp_per_chunk = 1000000
     window_seqs = []
-    # For each chunk
-    for i in range(0, len(sequences), chunk_size):
-        chunk_sequences = sequences[i:i + chunk_size]
-        cmd = "orfm -c {} -m {} | hmmalign '{}' /dev/stdin".format(
-            translation_table, min_orf_length, spkg.graftm_package().alignment_hmm_path()
-        )
-        stdin = '\n'.join(
-            [">{}\n{}".format(s.name, s.seq) for s in chunk_sequences])
-        logging.debug("Running command: {}, with {} sequences as input".format(cmd, len(chunk_sequences)))
-        output = extern.run(cmd, stdin=">dummy\n{}\n{}".format('A'*min_orf_length,stdin))
-        logging.debug("Finished command: {}".format(cmd))
+    
+    # to help debug when multi-processing
+    pid = os.getpid()
+    logging.debug("PID: {}".format(pid))
 
-        # Convert to AlignedProteinSequence
-        protein_alignment = []
-        for record in SeqIO.parse(StringIO(output), 'stockholm'):
-            protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
+    # Chunk sequences by max bp
+    sequence_chunks = chunk_sequences_by_bp(sequences, soft_max_bp_per_chunk)
+
+    logging.debug("[PID: {}] Processing {} chunks".format(pid, len(sequence_chunks)))
+    for chunk_sequences in sequence_chunks:
+        # create temporary files to store input seqs and output alignment
+        with tempfile.NamedTemporaryFile(prefix='singlem_hmmalign') as output_tempfile, \
+             tempfile.NamedTemporaryFile(prefix='singlem_input') as input_tempfile:
+            
+            # write sequences to input file
+            input_tempfile.write(">dummy\n{}\n".format('A'*min_orf_length).encode())
+            for s in chunk_sequences:
+                input_tempfile.write(">{}\n{}\n".format(s.name, s.seq).encode())
+            input_tempfile.flush()      
+            
+            # define command
+            cmd = "orfm -c {} -m {} {} | hmmalign -o '{}' '{}' /dev/stdin".format( 
+                translation_table, 
+                min_orf_length, 
+                input_tempfile.name,
+                output_tempfile.name,
+                spkg.graftm_package().alignment_hmm_path())
+            
+            # run command
+            extern.run(cmd)
+
+            # Convert to AlignedProteinSequence
+            protein_alignment = []
+            for record in SeqIO.parse(output_tempfile.name, 'stockholm'):
+                protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
 
         if len(protein_alignment) > 0:
-            logging.debug("Read in %i aligned sequences from this chunk e.g. %s %s" % (
+            logging.debug("[PID: %s] Read in %i aligned sequences from this chunk e.g. %s %s" % (
+                pid,
                 len(protein_alignment),
                 protein_alignment[0].name,
                 protein_alignment[0].seq))
         else:
-            logging.debug("No aligned sequences found for this HMM")
+            logging.debug("[PID: {}] No aligned sequences found for this HMM".format(pid))
 
         # Extract OTU sequences
-        nucleotide_sequence_hash = {}
-        for s in sequences:
-            nucleotide_sequence_hash[s.name] = s.seq
-        logging.debug("First sequence: {} / {}".format(protein_alignment[0].name, protein_alignment[0].seq))
+        nucleotide_sequence_hash = {s.name: s.seq for s in sequences}
+        logging.debug("[PID: {}] First sequence: {} / {}".format(pid, protein_alignment[0].name, protein_alignment[0].seq))
         # Window sequences must be found for each chunk, otherwise the
         # alignments won't line up re insert characters, between chunks.
         window_seqs.extend(MetagenomeOtuFinder().find_windowed_sequences(
@@ -299,7 +341,8 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
             spkg.is_protein_package(), # Always true
             best_position=spkg.singlem_position()))
 
-    logging.debug("Found {} window sequences for spkg {}".format(len(window_seqs),spkg.base_directory()))
+
+    logging.debug("[PID: {}] Found {} window sequences for spkg {}".format(pid, len(window_seqs),spkg.base_directory()))
     return ExtractedReadSet(
         sample_name, spkg,
         sequences, [], window_seqs
@@ -344,6 +387,7 @@ class PipeSequenceExtractor:
 
         return extracted_reads
 
+
     def extract_relevant_reads_from_diamond_prefilter(self,
         num_threads, singlem_package_database,
         diamond_forward_search_results, diamond_reverse_search_results,
@@ -366,6 +410,7 @@ class PipeSequenceExtractor:
             pool = None
 
         logging.debug("Aligning and extracting forward reads ..")
+        logging.debug("Extracting reads from {} forward search results".format(len(diamond_forward_search_results)))
         forward_extraction_process_lists_per_sample = []
         for diamond_search_result in diamond_forward_search_results:
             extraction_processes = self._extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
@@ -382,6 +427,9 @@ class PipeSequenceExtractor:
                 )
                 reverse_extraction_process_lists_per_sample.append(extraction_processes)
 
+        # Could pickle the extracted reads an instead return a list of the files 
+        # to read from, or write to a fasta.
+        # This could improve memory even more, but might slow it down.
         if analysing_pairs:
             for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
                 for (fwd, rev) in zip(fwds, revs):
@@ -404,7 +452,14 @@ class PipeSequenceExtractor:
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
-            self, pool, singlem_package_database, diamond_search_result, include_inserts, min_orf_length, translation_table, hmmsearch_evalue):
+        self, 
+        pool, 
+        singlem_package_database, 
+        diamond_search_result, 
+        include_inserts, 
+        min_orf_length, 
+        translation_table, 
+        hmmsearch_evalue):
         '''Return results for one search result (sample). If pool is a
         multiprocessing pool, run individual extractions with that, otherwise it
         should be None, which means just run each extraction serially without
@@ -417,6 +472,13 @@ class PipeSequenceExtractor:
         # Determine sample name. In order to have compatible sample names with
         # the hmmsearch mode, remove filename suffixes.
         sample_name = diamond_search_result.sample_name()
+
+        # TODO: I think there are some efficiency gains to be made here as many 
+        # of the processes started here have no reads and just exit.
+        # This requires starting up processes for no reason.
+        # Would just need to check if there are any reads for the singlem 
+        # package before starting the process.
+
 
         # Align each read via hmmsearch and pick windowed sequences
         extraction_of_read_set_processes = []

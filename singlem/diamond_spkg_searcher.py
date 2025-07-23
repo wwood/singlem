@@ -1,9 +1,9 @@
 import os
 import logging
-import extern
+
+from subprocess import Popen, PIPE
 
 from .utils import FastaNameToSampleName
-from .run_via_os_system import run_via_os_system
 
 class DiamondSpkgSearcher:
     def __init__(self, num_threads, working_directory):
@@ -54,14 +54,16 @@ class DiamondSpkgSearcher:
         Array of DiamondSearchResult objects, one for each read file
         '''
         diamond_results = []
+
         if is_reverse_reads:
-            # running on reverse reads
             prefilter_dir = os.path.join(self._working_directory, 'prefilter_reverse')
         else:
             prefilter_dir = os.path.join(self._working_directory, 'prefilter_forward')
         os.mkdir(prefilter_dir)
+
         
         for file in read_files:
+
             fasta_path = os.path.join(prefilter_dir,
                                       os.path.basename(file))
             if fasta_path[-3:] == '.gz':
@@ -70,41 +72,63 @@ class DiamondSpkgSearcher:
             
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
-            
-            cmd = "diamond blastx " \
-                  "--outfmt 6 qseqid full_qseq sseqid " \
-                  "--max-target-seqs 1 " \
-                  "--evalue 0.01 " \
-                  "%s " \
-                  "--threads %i " \
-                  "--query %s " \
-                  "--db %s " \
-                  "| tee >(sed 's/^/>/; s/\\t/\\n/; s/\\t.*//' > %s) " \
-                  "| awk '{print $1,$3}'" % (
-                      performance_parameters,
-                      self._num_threads,
-                      file,
-                      diamond_database,
-                      fasta_path)
-            logging.debug(cmd)
 
-            # Originially, we ran here via os.system rather than normal extern
-            # so reads can be piped in to singlem. However, this meant that
-            # errors and failed commands were ignored, sometimes causing
-            # successful return of singlem but an empty OTU table.
-            qseqid_sseqid = extern.run(cmd)
+            # DIAMOND command
+            # now with range culling, etc
+            cmd = [ 
+                "diamond", "blastx",
+                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart",
+                "--max-target-seqs", "1",
+                "--evalue", "0.01",
+                "--frameshift", "15",
+                "--range-culling",
+                "--range-cover", "1",
+                "--threads", str(self._num_threads),
+                "--query", file,
+                "--db", diamond_database
+            ]
+
+            cmd.extend(performance_parameters.split())
+            logging.debug(' '.join(cmd))
+
             best_hits = {}
-            for line in qseqid_sseqid.splitlines():
-                try:
-                    (qseqid,sseqid) = line.split(' ')
-                except ValueError:
-                    raise Exception("Unexpected line format for DIAMOND output line '{}'".format(line))
-                if qseqid in best_hits and best_hits[qseqid] != sseqid:
-                    raise Exception("Multiple DIAMOND best hits detected for '{}'. This likely indicates that the input reads have non-unique names, possibly due to the same read appearing twice in a single input file".format(qseqid))
-                best_hits[qseqid] = sseqid
+            # using Popen to stream the output
+            with Popen(cmd, stdout=PIPE, stderr=PIPE, text=True) as proc:
+                with open(fasta_path, 'a') as fasta_file:
+                    for line in proc.stdout:
+                        try:
+                            qseqid, full_qseq, sseqid, qstart = line.strip().split('\t')
+                        except ValueError:
+                            raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
+                    
+                        # creating new read index to account for multiple hits
+                        # by concating the read_name with the marker_gene_name, we can ensure only 1 gene copy per read
+                        # TODO: add an option to let all unique genes through with range-uclling 
+                        qseqid = qseqid + '~' + sseqid.split('~')[0]
+
+                        # extra check to make sure we're not overwriting a better hit
+                        if qseqid in best_hits:
+                            continue
+
+                        # store the best hit for each query sequence to feed into the next steps
+                        best_hits[qseqid] = sseqid
+
+                        # write the query sequence to a file
+                        fasta_file.write(f'>{qseqid}\n{full_qseq}\n')    
+
+                # check for DIAMOND errors
+                stderr_output = proc.stderr.read()
+                if stderr_output:
+                    logging.error(f"DIAMOND stderr: {stderr_output}")
+                    raise Exception("DIAMOND failed")
+                
+                # check for non-zero return code
+                return_code = proc.wait()
+                if return_code != 0:
+                    raise Exception(f"DIAMOND failed with return code {return_code}, but no stderr output")
 
             diamond_results.append(DiamondSearchResult(fasta_path, best_hits))
-            
+
         return diamond_results
 
 class DiamondSearchResult:
