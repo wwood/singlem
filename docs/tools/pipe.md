@@ -15,9 +15,9 @@ To further convert the generated taxonomic profile to other formats that might b
 
 `pipe` performs three steps:
 
-1. Find discrete operational taxonomic units (OTUs) from a shotgun metagenome
-2. Assign taxonomy to marker-specific OTU tables
-3. Convert OTU tables into a overall taxonomic profile
+1. Find discrete operational taxonomic units (OTUs) from a shotgun metagenome.
+2. Assign taxonomy to marker-specific OTU tables.
+3. Convert OTU tables into an overall taxonomic profile (otherwise known as a condensed profile). This step happens when the `-p` or `--taxonomic-profile` option of `pipe` is used.
 
 Workflow for the first 2 steps:
 
@@ -31,7 +31,7 @@ Finally, in the 3rd step, the set of window sequences (i.e. a metagenome's OTU t
 
 ![step 3](/singlem_condense_v2.svg)
 
-Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for SingleM to use. Adapter trimming is unlikely to be detrimental, but is not needed.
+Please use **raw** metagenomic reads, not quality trimmed reads, if possible. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads can make them too short for SingleM to use, particularly if they are trimmed to be shorter than 100 bp. Adapter trimming is unlikely to be detrimental, but is not needed.
 
 The [examples section](/tools/pipe#examples) may be of use.
 
