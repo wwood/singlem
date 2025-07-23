@@ -69,14 +69,18 @@ class UnalignedAlignedNucleotideSequence:
         self.aligned_sequence = aligned_sequence
         self.unaligned_sequence = unaligned_sequence
         self.aligned_length = aligned_length
+        # self.num_hits_on_read = 1
 
     def coverage_increment(self):
         '''Given the alignment came from a read of length
         original_nucleotide_sequence_length, how much coverage does the
-        observation of this aligned sequence indicate?'''
-        return float(len(self.unaligned_sequence))/\
-            (len(self.unaligned_sequence)-self.aligned_length+1)
-
+        observation of this aligned sequence indicate?'''   
+        # original calculation
+        return float(
+            len(self.unaligned_sequence) /
+           (len(self.unaligned_sequence) - self.aligned_length + 1)
+            )
+    
 
 class SeqReader:
     # Stolen from https://github.com/lh3/readfq/blob/master/readfq.py
