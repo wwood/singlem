@@ -3,7 +3,7 @@ import sys
 import argparse
 import logging
 
-import pandas as pd
+import polars as pl
 
 input_dir = snakemake.params.input_dir
 input_files = [f for f in os.listdir(input_dir)]
@@ -29,7 +29,7 @@ for spkg in os.listdir(metapackage):
             included_ids.add(key.split('~')[1]) 
 
 #for each input file, read in first line as header, change taxonomy column in all rows to viral taxonomy based on filename, concatenate to single output file
-output = pd.DataFrame()
+output = pl.DataFrame()
 i = 0
 j = 0
 for f in input_files:
@@ -45,12 +45,10 @@ for f in input_files:
         continue
     taxonomy = id_to_tax[id_]
     logging.info(f"Reading {f}")
-    df = pd.read_csv(os.path.join(input_dir, f), sep="\t", header=0, dtype=str)
-
-    for row in df.itertuples():
-        df.at[row.Index, "taxonomy"] = taxonomy
-    output = pd.concat([output, df])
+    df = pl.read_csv(os.path.join(input_dir, f), separator="\t")
+    df = df.with_columns([pl.lit(taxonomy).alias("taxonomy")])
+    output = pl.concat([output, df])
 logging.info(f"Skipped {j} files, of which {i} were not empty.")
 
 logging.info(f"Writing output to {snakemake.output[0]}")
-output.to_csv(snakemake.output[0], sep="\t", index=False)
+output.write_csv(snakemake.output[0], separator="\t")
