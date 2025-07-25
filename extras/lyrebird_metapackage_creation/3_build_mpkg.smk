@@ -5,7 +5,7 @@
 Steps:
 Create and activate base environment (env.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda --group-components group_chainsaw=20`
+Run `snakemake --cores 64 --use-conda`
 """
 
 import pandas as pd
@@ -20,6 +20,8 @@ if not os.path.exists(logs_dir):
     os.mkdir(logs_dir)
 scripts_dir = output_dir + "/qsub_scripts"
 hmms_and_names = pd.read_csv(output_dir + "/hmms_and_names_roundrobin.tsv", sep="\t").set_index("gene", drop=False)
+
+localrules: all, lyrebird_transcripts
 
 rule all:
     input:
@@ -37,8 +39,6 @@ rule chainsaw:
         runtime = 8 * 60
     conda:
         "envs/singlem.yml"
-    group:
-        "group_chainsaw"
     shell:
         "singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output} 2> {log}"
 
@@ -46,13 +46,13 @@ rule create_draft_metapackage:
     input:
         packages = expand(output_dir + "/chainsaw/{spkg}.spkg", spkg=hmms_and_names.index),
     output:
-        metapackage = directory(output_dir + "/draft_metapackage.smpkg"),
+        metapackage = directory(output_dir + "/draft_" + config["output_metapackage"]),
         done = output_dir + "/draft_metapackage.done"
-    threads: int(workflow.cores / 4)
+    threads: 1
     log:
         logs_dir + "/draft_metapackage.log"
     resources:
-        mem_mb = 128 * 1024,
+        mem_mb = 32 * 1024,
         runtime = 24 * 2 * 60
     conda:
         "singlem"
@@ -76,25 +76,15 @@ rule Lyrebird_transcripts:
         dir = directory(output_dir + "/transcripts"),
         touch = output_dir + "/transcripts.done"
     params:
+        script_dir = output_dir + "/transcript_scripts",
         logs = logs_dir + "/transcripts",
+    threads: 64
     conda:
         "envs/singlem.yml"
-    threads: workflow.cores
-    resources:
-        mem_mb = 16 * 1024,
-        runtime = 24 * 60
-    shell:
-        "mkdir -p {params.logs} "
-        "&& mkdir -p {output.dir} "
-        "&& cat <( find {input.dir} -name '*.fna' ) "
-        "| parallel --will-cite --eta -j {threads} "
-        "singlem pipe "
-        "--forward {{}} "
-        "--metapackage {input.metapackage} "
-        "--otu-table {output.dir}/{{/.}}.otu_table.tsv "
-        "--no-assign-taxonomy "
-        "'&>' {params.logs}/{{/.}}.log; "
-        "touch {output.touch}"
+    log:
+        logs = logs_dir + "/lyrebird_transcripts.log",
+    script:
+        "scripts/lyrebird_transcripts.py"
 
 rule assign_taxonomy:
     input:
@@ -120,14 +110,14 @@ rule make_sdb:
         output_dir + "/assign_taxonomy/transcripts.otu_table.tsv"
     output:
         directory(output_dir + "/taxonomy/transcripts.sdb")
-    threads: int(workflow.cores / 4)
+    threads: 1
     log:
         logs_dir + "/taxonomy/makedb.log"
     conda:
         "envs/singlem.yml"
     resources:
         mem_mb = 8 * 1024,
-        runtime = 2 * 60
+        runtime = 1 * 60
     shell:
         "singlem makedb "
         "--otu-table {input} "
@@ -144,9 +134,9 @@ rule create_Lyrebird_metapackage:
         done = output_dir + "/metapackage.done"
     log:
         logs_dir + "/metapackage.log"
-    threads: int(workflow.cores / 4)
+    threads: 1
     resources:
-        mem_mb = 128 * 1024,
+        mem_mb = 32 * 1024,
         runtime = 24 * 2 * 60
     conda:
         "singlem"
