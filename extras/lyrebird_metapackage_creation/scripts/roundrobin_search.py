@@ -64,7 +64,7 @@ while iterations <= num_iterations:
                 for s in gene_to_species[gene]:
                     species_coverage[s] += 1
                 break
-    logging.info(os.path.basename(__file__) + ": Iteration {}: Picked {} genes".format(iterations, len(picked_genes)))
+    logging.info(os.path.basename(__file__) + ": Iteration {}: Picked {} genes for an average of {} genes per species".format(iterations, len(picked_genes), sum(species_coverage.values()) / len(species_coverage)))
     iterations += 1
 
 logging.info(os.path.basename(__file__) + ": Picked a total of {} genes from greedy search".format(len(picked_genes)))
