@@ -1,0 +1,10 @@
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_003697165.2_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_000742135.1_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_001027105.1_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_000006945.2_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_001457615.1_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_009759685.1_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_001457635.1_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_001544255.1_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_000195955.2_protein.faa
+/mnt/hpccs01/work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps/bacteria/RS_GCF_001077535.1_protein.faa
