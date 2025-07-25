@@ -11,7 +11,7 @@ def process_a_genome(params):
     pathlib.Path(os.path.dirname(output_tsv)).mkdir(parents=True, exist_ok=True)
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
-    cmd = f"python scripts/get_matches_no_dup.py --hmmsearch-file {hmmsearch_path} --hmm-list {hmms_and_names} --output {output_tsv} &> {log}"
+    cmd = f"python scripts/get_matches_no_dup.py --hmmsearch-file {hmmsearch_path} --hmm-list {hmms_and_names} --output {output_tsv} --log {log}"
     extern.run(cmd)
 
 def process_a_microbe(params):
@@ -21,7 +21,7 @@ def process_a_microbe(params):
     pathlib.Path(os.path.dirname(output_tsv)).mkdir(parents=True, exist_ok=True)
     pathlib.Path(os.path.dirname(log)).mkdir(parents=True, exist_ok=True)
 
-    cmd = f"python scripts/get_matches_microbial.py --hmmsearch-file {hmmsearch_path} --hmm-list {hmms_and_names} --output {output_tsv} --genomad-db {proviruses} &> {log}"
+    cmd = f"python scripts/get_matches_microbial.py --hmmsearch-file {hmmsearch_path} --hmm-list {hmms_and_names} --output {output_tsv} --genomad-db {proviruses} --log {log}"
     extern.run(cmd)
 
 hmmsearch_directory = snakemake.params.hmmsearch_directory

@@ -6,8 +6,6 @@
 
 import argparse
 import csv
-import re
-import os
 import Bio.SearchIO.HmmerIO as HmmerIO
 import logging
 from collections import Counter
@@ -17,6 +15,13 @@ parser = argparse.ArgumentParser(description='Search HMMER output for matching H
 parser.add_argument('--hmmsearch-file', type=str, metavar='<HMMSEARCH TBLOUT>', help='path to pfam output file')
 parser.add_argument('--hmm-list', type=str, metavar='<HMMS>', help='path HMM list')
 parser.add_argument('--output', type=str, metavar='<OUTPUT>', help='path to output file')
+parser.add_argument('--log', type=str, metavar='<LOG>', help='path to log file')
+
+logging.basicConfig(
+    filename=getattr(args, 'log'),
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
 
 args = parser.parse_args()
 HMM_id_list = getattr(args, 'hmm_list')

@@ -6,8 +6,6 @@
 
 import argparse
 import csv
-# import re
-# import os
 import Bio.SearchIO.HmmerIO as HmmerIO
 import logging
 from collections import Counter
@@ -18,6 +16,13 @@ parser.add_argument('--hmmsearch-file', type=str, metavar='<HMMSEARCH TBLOUT>', 
 parser.add_argument('--hmm-list', type=str, metavar='<HMMS>', help='path HMM list')
 parser.add_argument('--output', type=str, metavar='<OUTPUT>', help='path to output file')
 parser.add_argument('--genomad-db', type=str, metavar='<GENOMAD DB>', help='path to genomad database', required=False)
+parser.add_argument('--log', type=str, metavar='<LOG>', help='path to log file')
+
+logging.basicConfig(
+    filename=getattr(args, 'log'),
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
 
 args = parser.parse_args()
 hmms_and_names = getattr(args, 'hmm_list')
@@ -27,12 +32,22 @@ genomad_db = getattr(args, 'genomad_db')
 
 logging.info("Reading in provirus db...")
 proviruses = {}
+contamination = set()
 if genomad_db:
     with open(genomad_db, 'r') as genomad_file:
         for line in csv.DictReader(genomad_file, delimiter='\t'):
-            if line["source_seq"] not in proviruses:
-                proviruses[line["source_seq"]] = []
-            proviruses[line["source_seq"]].append((int(line["start"]),int(line["end"])))
+            virus_name = line["seq_name"]
+            if line["topology"] == "Provirus":
+                virus_name = virus_name.split('|')[0]
+                coordinates = tuple(map(int, line["coordinates"].split('-')))
+                if virus_name not in proviruses:
+                    proviruses[virus_name] = []
+                proviruses[virus_name].append(coordinates)
+            else:
+                contamination.add(virus_name)
+
+logging.info("Found {} proviruses in db".format(len(proviruses)))
+logging.info("Found {} viral contamination sequences in db".format(len(contamination)))
 
 # Read in HMM IDs
 logging.info("Reading in HMM IDs...")
@@ -52,7 +67,10 @@ with open(hmmsearch_input, 'r') as hmmsearch_file:
         hmm = hmms_to_phrogs[qresult.id]
         hmm_count += 1
         for hit in qresult.hits:
-            genome = hit.id.split('_')[0]
+            genome = hit.id.rsplit('_', 1)[0]
+            if genome in contamination:
+                hits_in_provirus += 1
+                continue
             if genome in proviruses:
                 start = int(hit.description.replace('# ', '').split()[0])
                 end = int(hit.description.replace('# ', '').split()[1])
