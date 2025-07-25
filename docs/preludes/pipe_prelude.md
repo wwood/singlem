@@ -13,7 +13,7 @@ To further convert the generated taxonomic profile to other formats that might b
 
 1. Find discrete operational taxonomic units (OTUs) from a shotgun metagenome.
 2. Assign taxonomy to marker-specific OTU tables.
-3. Convert OTU tables into an overall taxonomic profile (otherwise known as a condensed profile). This step happens when the `-p` or `--taxonomic-profile` option of `pipe` is used.
+3. Convert OTU tables into an overall taxonomic profile (otherwise known as a condensed profile). This step happens when the `-p` / `--taxonomic-profile` option of `pipe` is used.
 
 Workflow for the first 2 steps:
 
