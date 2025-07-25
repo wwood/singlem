@@ -5,7 +5,7 @@
 Steps:
 Create and activate base environment (env.yml)
 Update config.yaml
-Run `snakemake --cores 64 --use-conda --retries 2 --group-components group_concatenate_seqs_and_taxonomies_off_target=20 group_off_target_dup_rename=20 group_get_fscore=20`
+Run `snakemake --cores 64 --use-conda --retries 2`
 """
 
 localrules:
@@ -268,7 +268,7 @@ rule concatenate_seqs_and_taxonomies_off_target:
     resources:
         mem_mb = 8 * 1024,
         runtime = 4 * 60
-    group: "group_concatenate_seqs_and_taxonomies_off_target"
+    group: "concat_and_rename_off_target"
     shell:
         "mkdir -p {params.concat_dir} && "
         "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
@@ -292,7 +292,7 @@ rule off_target_dup_rename:
         runtime = 1 * 60
     log:
         log = output_dir + "/logs/off_target_renamed_dups/{spkg}.log"
-    group: "group_off_target_dup_rename"
+    group: "concat_and_rename_off_target"
     script:
         "scripts/rename_off_target_dups.py"
 
@@ -364,7 +364,6 @@ rule get_fscore:
         runtime = 1 * 60
     conda:
         "envs/singlem.yml"
-    group: "group_get_fscore"
     script:
         "scripts/get_best_fscore.py"
 
