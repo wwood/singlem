@@ -4,19 +4,19 @@ title: SingleM summarise
 # singlem summarise
 The SingleM `summarise` subcommand transforms taxonomic profiles and OTU tables into a variety of different formats. The `summarise` subcommand is useful for transforming the default output formats of `pipe`, visualising the results of a SingleM analysis, and for performing some downstream analyses.
 
-# Converting a taxonomic profile to a more convenient format
+# Converting a taxonomic profile to other formats
 
 By default, the `pipe` command outputs a taxonomic profile in the format of a CSV file, when run with `-p`/`--taxonomic-profile`, which looks like this:
 ```
-sample  coverage        taxonomy
-marine0.1       3.64    Root; d__Archaea
-marine0.1       0.02    Root; d__Bacteria
-marine0.1       0.56    Root; d__Archaea; p__Thermoproteota
-marine0.1       0.8     Root; d__Bacteria; p__Desulfobacterota
-marine0.1       2.17    Root; d__Bacteria; p__Proteobacteria
+sample     coverage  taxonomy
+marine0.1  3.64      Root; d__Archaea
+marine0.1  0.02      Root; d__Bacteria
+marine0.1  0.56      Root; d__Archaea; p__Thermoproteota
+marine0.1  0.8       Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      Root; d__Bacteria; p__Proteobacteria
 ...
 ```
-The coverage is the estimated per-base read coverage of genomes in that taxon (or actually their sum). Importantly, it is not inclusive of its descendents' coverage. For instance, the coverage of `Root; d__Bacteria` (`0.02`) does not include the coverage assigned to `p__Desulfobacterota` (`0.8`) or `p__Proteobacteria` (`2.17`).
+The coverage is the estimated per-base read coverage of a species genome (or, for higher level taxons, the sum of their constituent species). Importantly, it is not inclusive of its descendents' coverage. For instance, the coverage of `Root; d__Bacteria` (`0.02`) does not include the coverage assigned to `p__Desulfobacterota` (`0.8`) or `p__Proteobacteria` (`2.17`). For more information on coverage, see the [Glossary](/Glossary#coverage-unfilled-coverage-and-filled-coverage).
 
 For many applications, this format is inconvenient, so `summarise` mode provides some conversion options.
 
@@ -56,7 +56,7 @@ If you wish to generate a species-by-site table for each taxonomic level, you ca
 singlem summarise --input-taxonomic-profile doco_example.profile \
     --output-species-by-site-relative-abundance-prefix myprefix
 ```
-which will generate these 2 files:
+Usually, this will generate a different file for each taxonomic level (domain, phylum, .., species), with the prefix you specified. However, since the table here has only 2 taxonomic levels (domain and phylum), it will only generate those two files:
 ```
 myprefix-domain.tsv
 myprefix-phylum.tsv
@@ -64,7 +64,7 @@ myprefix-phylum.tsv
 More files will usually be generated (all the way down to species level), but the example only contains domain and phylum level taxonomic assignments.
 
 ## Long form with extras
-In some cases, it is more convenient to keep the long form, but add some additional columns:
+In some cases, it is more convenient to keep the long form, but add some additional columns, including relative abundance and the [filled coverage](/Glossary#coverage-unfilled-coverage-and-filled-coverage):
 ```
 singlem summarise --input-taxonomic-profile doco_example.profile \
     --output-taxonomic-profile-with-extras doco_example.with_extras.tsv
@@ -81,6 +81,7 @@ marine0.1  2.17      2.17           30.18               phylum  Root; d__Bacteri
 ```
 
 # Summarising OTU tables
+The following describes how summarise can be used to transform [OTU tables](/Glossary#otu-table), rather than [taxonomomic profiles](/Glossary#taxonomic-profile). 
 
 ## Summarising OTU tables by rarefying, clustering, etc.
 Once an OTU table has been generated with the `pipe` command, it can be further processed in various ways using `summarise`:

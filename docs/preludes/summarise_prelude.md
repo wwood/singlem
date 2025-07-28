@@ -12,7 +12,7 @@ marine0.1  0.8       Root; d__Bacteria; p__Desulfobacterota
 marine0.1  2.17      Root; d__Bacteria; p__Proteobacteria
 ...
 ```
-The coverage is the estimated per-base read coverage of a species genome (or, for higher level taxons, the sum of their constituent species). Importantly, it is not inclusive of its descendents' coverage. For instance, the coverage of `Root; d__Bacteria` (`0.02`) does not include the coverage assigned to `p__Desulfobacterota` (`0.8`) or `p__Proteobacteria` (`2.17`). For more information on coverage, see the [Glossary](#coverage-unfilled-coverage-and-filled-coverage).
+The coverage is the estimated per-base read coverage of a species genome (or, for higher level taxons, the sum of their constituent species). Importantly, it is not inclusive of its descendents' coverage. For instance, the coverage of `Root; d__Bacteria` (`0.02`) does not include the coverage assigned to `p__Desulfobacterota` (`0.8`) or `p__Proteobacteria` (`2.17`). For more information on coverage, see the [Glossary](/Glossary#coverage-unfilled-coverage-and-filled-coverage).
 
 For many applications, this format is inconvenient, so `summarise` mode provides some conversion options.
 
@@ -60,7 +60,7 @@ myprefix-phylum.tsv
 More files will usually be generated (all the way down to species level), but the example only contains domain and phylum level taxonomic assignments.
 
 ## Long form with extras
-In some cases, it is more convenient to keep the long form, but add some additional columns, including relative abundance and the [filled coverage](#coverage-unfilled-coverage-and-filled-coverage):
+In some cases, it is more convenient to keep the long form, but add some additional columns, including relative abundance and the [filled coverage](/Glossary#coverage-unfilled-coverage-and-filled-coverage):
 ```
 singlem summarise --input-taxonomic-profile doco_example.profile \
     --output-taxonomic-profile-with-extras doco_example.with_extras.tsv
