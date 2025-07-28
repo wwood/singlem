@@ -44,6 +44,13 @@ Root; d__Bacteria; p__Proteobacteria    30.18
 ```
 If there are multiple samples in the input files, then there will be multiple columns, one for each sample.
 
+If you wish to generate a species-by-site table for another taxonomic level e.g. genus, you can specify the `--output-species-by-site-level` option:
+```
+singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-species-by-site-relative-abundance doco_example.species_by_site.csv \
+    --output-species-by-site-level genus
+```
+
 If you wish to generate a species-by-site table for each taxonomic level, you can use `--output-species-by-site-relative-abundance-prefix`:
 ```
 singlem summarise --input-taxonomic-profile doco_example.profile \
