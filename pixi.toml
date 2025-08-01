@@ -11,6 +11,8 @@ scripts = ["admin/set_env_vars.sh"]
 
 [dependencies]
 python = ">=3.7"
+coreutils = "*" # So sort --parallel works
+bash = "*"
 diamond = ">=2.1.7,<2.1.11"  # 2.1.11 segfaults (on some non-test data)
 biopython = "*"
 hmmer = "*"
