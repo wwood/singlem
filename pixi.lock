@@ -24,6 +24,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-checksums-0.1.18-h83b837d_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.26.9-he3a8b3b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-sdk-cpp-1.11.329-hba8bd5f_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/bash-5.2.37-h4be8908_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/biom-format-2.1.16-py312h66e93f0_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/biopython-1.85-py312h66e93f0_1.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/bird_tool_utils_python-0.4.1-pyhdfd78af_0.tar.bz2
@@ -43,6 +44,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/click-8.1.8-pyh707e725_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/colorama-0.4.6-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.3.2-py312h68727a3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/coreutils-9.5-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/curl-8.8.0-he654da7_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/dashing-0.4.0-h735f0e5_3.tar.bz2
@@ -219,7 +221,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.2.13-h4ab18f5_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.23.0-py312h66e93f0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.6-ha6fb4c9_0.conda
-      - pypi: .
+      - pypi: ./
   dev:
     channels:
     - url: https://conda.anaconda.org/conda-forge/
@@ -245,6 +247,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-checksums-0.1.18-h83b837d_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-crt-cpp-0.26.9-he3a8b3b_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/aws-sdk-cpp-1.11.329-hba8bd5f_3.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/bash-5.2.37-h4be8908_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/biom-format-2.1.16-py312h66e93f0_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/biopython-1.85-py312h66e93f0_1.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/bird_tool_utils_python-0.4.1-pyhdfd78af_0.tar.bz2
@@ -264,6 +267,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/click-8.1.8-pyh707e725_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/colorama-0.4.6-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/contourpy-1.3.2-py312h68727a3_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/linux-64/coreutils-9.5-hd590300_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/curl-8.8.0-he654da7_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/cycler-0.12.1-pyhd8ed1ab_1.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/dashing-0.4.0-h735f0e5_3.tar.bz2
@@ -464,7 +468,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.2.13-h4ab18f5_6.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstandard-0.23.0-py312h66e93f0_1.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.6-ha6fb4c9_0.conda
-      - pypi: .
+      - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_libgcc_mutex-0.1-conda_forge.tar.bz2
   sha256: fe51de6107f9edc7aa4f786a70f4a883943bc9d39b3bb7307c04c41410990726
@@ -690,6 +694,19 @@ packages:
   purls: []
   size: 3638342
   timestamp: 1716466127210
+- conda: https://conda.anaconda.org/conda-forge/linux-64/bash-5.2.37-h4be8908_0.conda
+  sha256: a0ce6ed2b346501be1fcae415e4df04618f822834902dc22174a350ae39c791e
+  md5: c918f7141733d412f5c579d07f437690
+  depends:
+  - readline
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=13
+  - readline >=8.2,<9.0a0
+  license: GPL-3.0-or-later
+  license_family: GPL
+  purls: []
+  size: 1929937
+  timestamp: 1748631191479
 - conda: https://conda.anaconda.org/conda-forge/linux-64/biom-format-2.1.16-py312h66e93f0_2.conda
   sha256: db6bf3fa7778c6d128ba92e883c1ce8ac8e5e5268b3a71b6d445fbaf91aa4f7e
   md5: 65e5dd22088478d2beca0ac782532868
@@ -932,6 +949,16 @@ packages:
   - pkg:pypi/contourpy?source=hash-mapping
   size: 276533
   timestamp: 1744743235779
+- conda: https://conda.anaconda.org/conda-forge/linux-64/coreutils-9.5-hd590300_0.conda
+  sha256: 7cd3b0f55aa55bb27b045c30f32b3f6b874ecc006f3abcb274c71a3bcbacb358
+  md5: 126d457e0e7a535278e808a7d8960015
+  depends:
+  - libgcc-ng >=12
+  license: GPL-3.0-or-later
+  license_family: GPL
+  purls: []
+  size: 3014238
+  timestamp: 1711655132451
 - conda: https://conda.anaconda.org/conda-forge/linux-64/curl-8.8.0-he654da7_1.conda
   sha256: a7bb4f8d1cba26c238cd0469b7bdcdc032cf06b0ac0de09992638744eaab9954
   md5: 78678b2ddfd9bd7c7861b8d2e3b7473b
@@ -2825,7 +2852,8 @@ packages:
   - python
   license: BSD-3-Clause
   license_family: BSD
-  purls: []
+  purls:
+  - pkg:pypi/pycparser?source=hash-mapping
   size: 110100
   timestamp: 1733195786147
 - conda: https://conda.anaconda.org/conda-forge/linux-64/pydantic-1.10.21-py312h30e4e5e_0.conda
@@ -3163,9 +3191,9 @@ packages:
   - pkg:pypi/setuptools-scm?source=compressed-mapping
   size: 38426
   timestamp: 1745450953205
-- pypi: .
+- pypi: ./
   name: singlem
-  version: 0.18.3
+  version: 0.19.0
   sha256: 02f7d50b8fb0afd29122360abd90e1d08fd3a7acfebb1c0e15daf6daa0aa187f
   requires_dist:
   - biopython==1.85
