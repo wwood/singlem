@@ -43,17 +43,18 @@ if not os.path.exists(output_dir):
     os.mkdir(output_dir)
 logs_dir = os.path.join(output_dir, "logs")
 
-# if not "max_threads" in config:
-#     config["max_threads"] = 64
-
 rule all:
     input:
         output_dir + "/resolve_conflicts.done"
 
-###################################
-# Initial GraftM package creation #
-###################################
+##########################################################
+# Initial HMM sequence filtering and conflict resolution #
+##########################################################
 rule hmmsearch_viral:
+    """
+    Runs hmmsearch on the viral protein sequences against the concatenated HMM file.
+    Outputs a directory with the results of hmmsearch.
+    """
     input:
         hmm = hmm_file,
         genome_proteins = config["viral_faa_list"]
@@ -74,6 +75,9 @@ rule hmmsearch_viral:
         "scripts/hmmsearch.py"
 
 rule get_matches_viral:
+    """
+    Gets the matches for the viral protein sequences against the HMMs.
+    """
     input:
         touch = output_dir + "/hmmsearch_viral.done"
     output:
@@ -96,7 +100,11 @@ rule get_matches_viral:
         "scripts/get_matches_all.py"
 
 rule resolve_conflicts:
-    # take all sequences, if multiple spkgs have the same sequence, take the one with the highest coverage, return list of non-conflict spkgs
+    """
+    Takes the viral protein sequences and their matches to hmms. If multiple HMMs match to the 
+    same sequence, choose the HMM with the highest coverage.
+    Outputs a TSV file of HMMs that do not have do not match to the same protein sequence.
+    """
     input:
         touch = output_dir + "/get_matches_viral.done"
     output:
