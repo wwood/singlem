@@ -28,8 +28,13 @@ gtdb_proviruses = config["gtdb_proviruses"]
 rule all:
     input:
         output_dir + "/roundrobin.done",
-        expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index)
+        expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index),
+        output_dir + "/cleanup.done",
 
+#########################################
+# Extract and group viral sequences and #
+# taxonomies to create initial spkgs.   #
+#########################################
 rule mfqe_viral:
     input:
         touch = output_dir + "/resolve_conflicts.done"
@@ -109,11 +114,10 @@ rule graftm_create:
     shell:
         "graftM create --min_aligned_percent 0 --force --sequences {input.aa_sequences_file} --hmm {params.hmm_arg} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {input.taxonomy_file} 2> {log}"
 
-##########################
-# SingleM window finding #
-##########################
-
 rule singlem_seqs:
+    """
+    Extracts the alignment from the GraftM package and generates a window position file for SingleM.
+    """
     input:
         alignment = output_dir + "/gpkgs/{spkg}.gpkg/{spkg}.gpkg.refpkg/{spkg}_deduplicated_aligned.fasta",
     output:
@@ -128,8 +132,10 @@ rule singlem_seqs:
     shell:
         "singlem seqs --alignment {input.alignment} --alignment-type aa > {output.window_position_file} 2> {log}"
 
-# make_initial_spkgs:
 rule singlem_create:
+    """
+    Creates an initial SingleM package from the GraftM package and the window position file.
+    """
     input:
         gpkg = os.path.join(output_dir, "gpkgs", "{spkg}.gpkg"),
         window_position_file = output_dir + "/singlem_seqs/{spkg}.window_position.txt",
@@ -152,7 +158,6 @@ rule singlem_create:
 ################################
 # Acquire off-target sequences #
 ################################
-
 rule acquire_and_concat_hmms: 
     # fixes weird singlem regenerate crashing from mfqe sequence count mismatch, acquire new search hmms from gpkgs
     input:
@@ -231,7 +236,6 @@ rule mfqe_off_target:
         "scripts/mfqe_all.py"
 
 rule transpose_hmms_with_offtarget:
-    # make sure to clear output directory if rerunning
     input:
         touch = output_dir + "/mfqe_off_target.done"
     output:
@@ -275,6 +279,9 @@ rule concatenate_seqs_and_taxonomies_off_target:
         "find {params.hmmseq_dir} -name {wildcards.spkg}_taxonomy.tsv |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_tax} && touch {output.done}"
 
 rule off_target_dup_rename:
+    """
+    GraftM requires unique sequence names, off-target homologs are not necessarily single copy.
+    """
     input:
         done = output_dir + "/hmmseq_concat/off_target/{spkg}.done",
         seqs = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
@@ -297,6 +304,9 @@ rule off_target_dup_rename:
         "scripts/rename_off_target_dups.py"
 
 rule singlem_regenerate:
+    """
+    Add off-target sequences to the initial SingleM packages.
+    """
     input:
         off_target_touch = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done",
         singlem_spkg = output_dir + "/initial_spkgs/{spkg}.spkg",
@@ -319,16 +329,42 @@ rule singlem_regenerate:
     script:
         "scripts/regenerate.py"
 
+rule cleanup_folders:
+    """
+    Cleans up temporary folders and files created during the workflow.
+    """
+    input:
+        off_target_rename = expand(output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done", spkg=hmms_and_names.index),
+    params:
+        mfqe_viral = output_dir + "/mfqe_viral",
+        mfqe_off_target = output_dir + "/mfqe_off_target",
+        hmmseq_viral = output_dir + "/hmmseq/viral",
+        hmmseq_off_target = output_dir + "/hmmseq/off_target",
+    output:
+        done = touch(output_dir + "/cleanup.done"),
+    log:
+        log = output_dir + "/logs/cleanup.log"
+    shell:
+        "rm -rf {params.mfqe_viral} {params.mfqe_off_target} {params.hmmseq_viral} {params.hmmseq_off_target} && "
+        "rm -rf {output_dir}/hmmsearch_viral {output_dir}/hmmsearch_off_target && "
+        "rm -rf {output_dir}/get_matches_viral {output_dir}/get_matches_off_target && "
+        "rm -rf {output_dir}/transpose_hmms_viral {output_dir}/transpose_hmms_off_target && "
+        "rm -rf {output_dir}/hmmseq_concat/viral {output_dir}/hmmseq_concat/off_target && "
+        "rm -rf {output_dir}/hmmseq_concat/off_target_renamed_dups"
 
-##################
-# spkg selection #
-##################
+#######################################
+# Final selection of SingleM packages #
+#######################################
 def get_deduplicated_aligned_fastas(spkg):
     gpkg = spkg.split('/')[-1].rsplit('.',1)[0]
     return os.path.join(spkg, gpkg, f"{gpkg}_final.gpkg.refpkg", f"{gpkg}_final_sequences_deduplicated_aligned.fasta")
 
 # would run chainsaw here but chainsaw removes the deduplicated aligned fasta for some reason
 rule run_fasttree_mp:
+    """
+    Runs FastTreeMP on the deduplicated aligned fasta from the SingleM package.
+    Outputs a tree file for each SingleM package.
+    """
     input: 
         done = output_dir + "/regenerate/{spkg}.done",
     params:
@@ -351,6 +387,10 @@ rule run_fasttree_mp:
         "OMP_NUM_THREADS={threads} FastTreeMP < {params.deduplicated_aligned_fasta} > {output.tree} 2> {log}"
 
 rule get_fscore:
+    """
+    Calculates the F-score fidelity between viral and off-target sequences.
+    Outputs a file with the F-score for each SingleM package.
+    """
     input:
         tree = output_dir + "/trees/{spkg}.tre",
         viral_faa_list = config["viral_faa_list"],
@@ -380,6 +420,9 @@ rule concat_fscores:
         "scripts/concat_fscores.py"
         
 rule resolve_fscores:
+    """
+    Chooses the best HMMs based on the F-score fidelity.
+    """
     input:
         fscore_list = output_dir + "/fscore_list.tsv",
     output:
@@ -391,6 +434,11 @@ rule resolve_fscores:
         "scripts/resolve_fscores.py"
 
 rule roundrobin:
+    """
+    Greedy algorithm to maximize viral coverage. Iterates through a list of viral species, 
+    selecting the SingleM package that covers the most species not already covered.
+    Outputs a TSV file of the selected SingleM packages and their coverages.
+    """
     input:
         spkgs = expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index),
         match_directory = output_dir + "/resolved_matches",
