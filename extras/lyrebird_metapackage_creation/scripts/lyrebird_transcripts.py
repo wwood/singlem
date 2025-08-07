@@ -5,7 +5,7 @@ import pathlib
 from tqdm.contrib.concurrent import thread_map
 import extern
 
-input_directory = snakemake.input.dir
+transcript_files = snakemake.input.transcript_fastas
 script_directory = snakemake.params.script_dir
 output_directory = snakemake.output.dir
 log_directory = snakemake.params.logs
@@ -20,25 +20,12 @@ metapackage = snakemake.input.metapackage
 def process_a_chunk(param_set):
     i = param_set[0][3]
     script_file = join(script_directory, f"lyrebird_transcripts_{i}.sh")
-    if os.path.exists(f'{script_file}.done'):
-        # check if metapackage is the same as the one in the script - just check the first line
-        input_path, output_path, log_path, __ = param_set[0]
-        with open(script_file, 'r') as f:
-            first_line = f.readline().strip()
-        if first_line.startswith(f"singlem pipe -1 {input_path} --metapackage {metapackage}"):
-            logging.info(f"Skipping {script_file} as it already exists and metapackage is the same")
-            return
-        else:
-            logging.warning(f"Metapackage in {script_file} is different from the one in the input - will overwrite")
-            os.remove(f'{script_file}.done')
-            os.remove(script_file)
-            logging.info(f"Removed {script_file} and {script_file}.done to regenerate with new metapackage")
     with open(script_file, 'w+') as f:
         for params in param_set:
             input_path, output_path, log_path, __ = params
             f.write(f"singlem pipe -1 {input_path} --metapackage {metapackage} --otu-table {output_path} --no-assign-taxonomy &> {log_path}\n")
         logging.info(f"Finished writing script {script_file}")
-    cmd = f"mqsub -t 16 -m 16 --no-email --hours 4 --name lyrebird_transcripts_{i} --segregated-log-files -- 'cat {script_file} | parallel -j16 --will-cite' && touch {script_file}.done"
+    cmd = f"mqsub -t 16 -m 16 --no-email --hours 4 --name lyrebird_transcripts_{i} --segregated-log-files -- 'cat {script_file} | parallel -j16 --will-cite'"
     extern.run(cmd)
 
 logging.basicConfig(
@@ -46,16 +33,17 @@ logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
-logging.info("Running lyrebird pipe to generate transcript OTUs from input directory: {}".format(input_directory))
+logging.info("Running lyrebird pipe to generate transcript OTUs from input transcript list: {}".format(transcript_files))
 
 param_list = []
 param_set = []
 i = 0
-for input_file in os.listdir(input_directory):
-    if input_file.endswith('.fna'):
-        input_path = join(input_directory, input_file)
-        output_path = join(output_directory, input_file.replace('.fna', '.otu_table.tsv'))
-        log_path = join(log_directory, f"{input_file.replace('.fna', '.log')}")
+
+for input_file in [f for f in open(transcript_files, 'r').readlines()]:
+    input_path = input_file.strip()
+    if input_path.endswith('.fna'):
+        output_path = join(output_directory, os.path.basename(input_path).replace('.fna', '.otu_table.tsv'))
+        log_path = join(log_directory, f"{os.path.basename(input_path).replace('.fna', '.log')}")
         i += 1
         if len(param_set) >= 1000:
             param_list.append(param_set)

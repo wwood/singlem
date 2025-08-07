@@ -1,15 +1,13 @@
-hmms_and_names: /home/n10927662/singlem-dev/extras/lyrebird_metapackage_creation/hmms_and_names_example.tsv
+hmms_and_names: hmms_and_names_example.tsv
 
-viral_faa_list: /home/n10927662/singlem-dev/extras/lyrebird_metapackage_creation/viral_protein_faa_reps_example.txt
-viral_protein_faa_reps: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/prodigal-gv/proteins
-viral_genome_fna_reps: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/prodigal-gv/transcripts
-viral_tax: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/final_reconstructed_taxonomy.tsv
+viral_faa_list: viral_protein_faa_reps_example.txt
+viral_genome_fna_reps: viral_transcript_fna_reps_example.txt
+viral_tax: viral_taxonomy_example.tsv
 
-off_target_faa_list: /home/n10927662/singlem-dev/extras/lyrebird_metapackage_creation/off_target_faa_reps_example.txt
-gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release214/genomic_files_reps/protein_faa_reps
+off_target_faa_list: off_target_faa_reps_example.txt
 gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release214/bac120_taxonomy_r214.tsv
 gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release214/ar53_taxonomy_r214.tsv
-gtdb_proviruses: /home/n10927662/singlem-dev/extras/lyrebird_metapackage_creation/gtdb_r214_virus_summary_example.tsv
+gtdb_proviruses: gtdb_r214_virus_summary_example.tsv
 
-output_dir: outdir
-output_metapackage: phrog4.1_v0.3.2025_06_12.smpkg
+output_dir: outdir # Placeholder directory where all output files will be stored
+output_metapackage: output_example.smpkg

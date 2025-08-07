@@ -19,6 +19,8 @@ logs_dir = output_dir + "/logs"
 if not os.path.exists(logs_dir):
     os.mkdir(logs_dir)
 scripts_dir = output_dir + "/qsub_scripts"
+if not os.path.exists(scripts_dir):
+    os.mkdir(scripts_dir)
 hmms_and_names = pd.read_csv(output_dir + "/hmms_and_names_roundrobin.tsv", sep="\t").set_index("gene", drop=False)
 
 localrules: all, lyrebird_transcripts
@@ -27,6 +29,9 @@ rule all:
     input:
         output_dir + "/metapackage.done"
 
+##############################
+# Final metapackage creation #
+##############################
 rule chainsaw:
     input:
         spkg = output_dir + "/regenerate/{spkg}.spkg",
@@ -68,15 +73,19 @@ rule create_draft_metapackage:
         "touch {output.done}"
 
 rule Lyrebird_transcripts:
+    """
+    Run lyrebird on transcript sequences to generate a 
+    sequence database for nucleotide-level taxonomy assignment.
+    """
     input:
-        dir = config["viral_genome_fna_reps"],
+        transcript_fastas = config["viral_genome_fna_reps"],
         metapackage = output_dir + "/draft_metapackage.smpkg",
         done = output_dir + "/draft_metapackage.done"
     output:
-        dir = directory(output_dir + "/transcripts"),
+        dir = temp(directory(output_dir + "/transcripts")),
+        script_dir = temp(directory(scripts_dir + "/lyrebird_transcripts")),
         touch = output_dir + "/transcripts.done"
     params:
-        script_dir = output_dir + "/transcript_scripts",
         logs = logs_dir + "/transcripts",
     threads: 64
     conda:
