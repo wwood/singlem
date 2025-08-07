@@ -15,3 +15,5 @@ The viral taxonomy file is generated as a tab-separated genome ID to taxonomy li
 ```
 
 To generate the gtdb_proviruses file, run genomad end-to-end on all GTDB genome representatives, and concatenate the resulting {genome}virus_summary.tsv file. This is required for masking proviral regions and viral contamination for off-target sequences. 
+
+Off-target protein sequences and taxonomy were sourced from GTDB r214. 
