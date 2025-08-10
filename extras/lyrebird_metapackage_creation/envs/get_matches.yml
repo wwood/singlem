@@ -8,3 +8,4 @@ dependencies:
   - biopython>=1.64
   - extern
   - pandas>=0.24.2
+  - tqdm

@@ -1,6 +1,6 @@
 Update config.yaml and other relevant files, then run each pipeline as follows:
 ```
-snakemake --snakefile <pipeline> --configfile config.yaml --threads 64 --use-conda
+snakemake --snakefile <pipeline> --cores 64 --use-conda --configfile config.yaml
 ```
 In short, run in this order: 
 1. 1_initial_filtering.smk
