@@ -18,17 +18,17 @@ parser.add_argument('--output', type=str, metavar='<OUTPUT>', help='path to outp
 parser.add_argument('--genomad-db', type=str, metavar='<GENOMAD DB>', help='path to genomad database', required=False)
 parser.add_argument('--log', type=str, metavar='<LOG>', help='path to log file')
 
-logging.basicConfig(
-    filename=getattr(args, 'log'),
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-)
-
 args = parser.parse_args()
 hmms_and_names = getattr(args, 'hmm_list')
 hmmsearch_input = getattr(args, 'hmmsearch_file')
 output_path = getattr(args, 'output')
 genomad_db = getattr(args, 'genomad_db')
+
+logging.basicConfig(
+    filename=getattr(args, 'log'),
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+)
 
 logging.info("Reading in provirus db...")
 proviruses = {}
