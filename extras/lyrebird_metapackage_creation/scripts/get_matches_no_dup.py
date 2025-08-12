@@ -17,16 +17,16 @@ parser.add_argument('--hmm-list', type=str, metavar='<HMMS>', help='path HMM lis
 parser.add_argument('--output', type=str, metavar='<OUTPUT>', help='path to output file')
 parser.add_argument('--log', type=str, metavar='<LOG>', help='path to log file')
 
+args = parser.parse_args()
+HMM_id_list = getattr(args, 'hmm_list')
+hmmsearch_input = getattr(args, 'hmmsearch_file')
+output_path = getattr(args, 'output')
+
 logging.basicConfig(
     filename=getattr(args, 'log'),
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s',
 )
-
-args = parser.parse_args()
-HMM_id_list = getattr(args, 'hmm_list')
-hmmsearch_input = getattr(args, 'hmmsearch_file')
-output_path = getattr(args, 'output')
 
 # Read in HMM IDs
 logging.info("Reading in HMM IDs...")
