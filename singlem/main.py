@@ -77,14 +77,24 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                                     nargs='+',
                                     metavar='sequence_file',
                                     help='reverse reads to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
-        sequence_input_group.add_argument('--genome-fasta-files',
+        sequence_input_group.add_argument('-f', '--genome-fasta-files',
                                     nargs='+',
-                                    metavar='sequence_file',
-                                    help='nucleotide genome sequence(s) to be searched')
+                                    metavar='PATH',
+                                    help='Path(s) to FASTA files of each genome e.g. pathA/genome1.fna pathB/genome2.fa.')
+        sequence_input_group.add_argument('-d', '--genome-fasta-directory',
+                                    metavar='PATH',
+                                    help='Directory containing FASTA files of each genome.')
+        sequence_input_group.add_argument('--genome-fasta-list',
+                                    metavar='PATH',
+                                    help='File containing FASTA file paths, one per line.')
         sequence_input_group.add_argument('--sra-files',
                         nargs='+',
                         metavar='sra_file',
                         help='"sra" format files (usually from NCBI SRA) to be searched')
+        argument_group.add_argument('-x', '--genome-fasta-extension',
+                                    metavar='EXT',
+                                    help='File extension of genomes in the directory specified with -d/--genome-fasta-directory. [default: fna]',
+                                    default='fna')
         argument_group.add_argument('--read-chunk-size',
                 type=int,
                 metavar='num_reads',
@@ -339,6 +349,21 @@ def get_min_taxon_coverage(args, subparser='pipe'):
         return CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
     else:
         return CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
+
+def parse_genome_fasta_files(args):
+    genomes = []
+    if getattr(args, 'genome_fasta_files', None):
+        genomes.extend(args.genome_fasta_files)
+    if getattr(args, 'genome_fasta_directory', None):
+        extension = getattr(args, 'genome_fasta_extension', 'fna')
+        for fn in sorted(os.listdir(args.genome_fasta_directory)):
+            if fn.endswith('.' + extension):
+                genomes.append(os.path.join(args.genome_fasta_directory, fn))
+    if getattr(args, 'genome_fasta_list', None):
+        with open(args.genome_fasta_list) as f:
+            genomes.extend([line.strip() for line in f if line.strip()])
+    args.genome_fasta_files = genomes if genomes else None
+    return args
 
 def main():
     bird_argparser = BirdArgparser(
@@ -721,6 +746,7 @@ def main():
     supplement_rare_group.add_argument('--new-taxonomy-database-version', help='Version of the taxonomy database to use [default: None]')
 
     args = bird_argparser.parse_the_args()
+    parse_genome_fasta_files(args)
 
     if args.debug:
         loglevel = logging.DEBUG
