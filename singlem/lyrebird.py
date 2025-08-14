@@ -22,7 +22,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sy
 
 import singlem
 import singlem.pipe as pipe
-from singlem.main import add_common_pipe_arguments, add_less_common_pipe_arguments, validate_pipe_args, add_condense_arguments, generate_streaming_otu_table_from_args, get_min_orf_length, get_min_taxon_coverage
+from singlem.main import add_common_pipe_arguments, add_less_common_pipe_arguments, validate_pipe_args, add_condense_arguments, generate_streaming_otu_table_from_args, get_min_orf_length, get_min_taxon_coverage, parse_genome_fasta_files
 from singlem.pipe import SearchPipe
 from singlem.condense import Condenser
 from singlem.metapackage import LYREBIRD_DATA_ENVIRONMENT_VARIABLE, CUSTOM_TAXONOMY_DATABASE_NAME
@@ -86,6 +86,7 @@ def main():
     add_condense_arguments(condense_parser)
 
     args = bird_argparser.parse_the_args()
+    parse_genome_fasta_files(args)
 
     if args.debug:
         loglevel = logging.DEBUG
