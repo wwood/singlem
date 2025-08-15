@@ -1,9 +1,0 @@
-gene	spkg_name	filepath	description
-phrog_2	phrog_2	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_2.hmm	terminase large subunit
-phrog_5	phrog_5	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_5.hmm	tail completion or Neck1 protein
-phrog_6	phrog_6	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_6.hmm	baseplate wedge subunit
-phrog_7	phrog_7	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_7.hmm	endolysin
-phrog_9	phrog_9	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_9.hmm	terminase large subunit
-phrog_10	phrog_10	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_10.hmm	major head protein
-phrog_11	phrog_11	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_11.hmm	baseplate spike
-phrog_12	phrog_12	/mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms/phrog_12.hmm	portal protein
