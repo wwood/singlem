@@ -9,7 +9,7 @@ Run `snakemake --cores 64 --use-conda --retries 2`
 """
 
 localrules:
-    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin
+    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin, shorten_vcontact_taxonomy
 
 import pandas as pd
 import os
@@ -56,9 +56,22 @@ rule mfqe_viral:
     script:
         "scripts/mfqe_all.py"
 
+rule shorten_vcontact_taxonomy:
+    output:
+        viral_taxonomy = output_dir + "/shortened_vcontact_taxonomy.tsv"
+    params:
+        taxonomy = config["viral_tax"],
+        prefix = f"lyrebird{config['output_metapackage_version']}",
+    shell:
+        "scripts/shorten_vcontact_taxonomy.py "
+        " --vcontact-taxonomy {params.taxonomy}"
+        " --output {output.viral_taxonomy}"
+        " --prefix {params.prefix}"
+
 rule transpose_hmms_viral:
     input:
-        touch = output_dir + "/mfqe_viral.done"
+        touch = output_dir + "/mfqe_viral.done",
+        taxfiles = [output_dir + "/shortened_vcontact_taxonomy.tsv"],
     output:
         touch = output_dir + "/transpose_hmms_viral.done",
     params:
@@ -66,7 +79,6 @@ rule transpose_hmms_viral:
         matches_dir = output_dir + "/resolved_matches",
         mfqe_dir = output_dir + "/mfqe_viral",
         output_dir = directory(output_dir + "/hmmseq/viral/"), # output is file for each spkg
-        taxfiles = [config["viral_tax"]],
         hmms_and_names = output_dir + "/hmms_and_names_noconflict.tsv",
         logs_dir = logs_dir + "/transpose_hmms_viral"
     threads: workflow.cores
