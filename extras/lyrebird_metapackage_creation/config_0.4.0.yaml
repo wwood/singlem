@@ -1,0 +1,13 @@
+hmms_and_names: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/phrogs_v4.1/hmms_and_names_phrog.tsv
+
+viral_faa_list: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/prodigal-gv/viral_protein_faa_reps.txt
+viral_genome_fna_reps: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/prodigal-gv/viral_transcript_fna_reps.txt
+viral_tax: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/vcontact3.1.3/exports/final_reconstructed_taxonomy.tsv
+
+off_target_faa_list: /mnt/hpccs01/work/microbiome/msingle/rossenzhao/ictv-imgvr/off_target_faa_reps.txt
+gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release214/bac120_taxonomy_r214.tsv
+gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release214/ar53_taxonomy_r214.tsv
+gtdb_proviruses: /work/microbiome/msingle/rossenzhao/genomad_full_gtdb/gtdb_r214_provirus_summary.tsv
+
+output_dir: outdir # Placeholder directory where all output files will be stored
+output_metapackage: lyrebird_v0.4.0_phrog_v4.1_YYYYMMDD.smpkg
