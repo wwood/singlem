@@ -99,11 +99,11 @@ rule assign_taxonomy:
     input:
         touch = output_dir + "/transcripts.done",
         metapackage = output_dir + "/draft_metapackage.smpkg",
+        viral_taxonomy = output_dir + "/shortened_vcontact_taxonomy.tsv",
     output:
         output_dir + "/assign_taxonomy/transcripts.otu_table.tsv"
     params:
         input_dir = output_dir + "/transcripts",
-        viral_taxonomy = config["viral_tax"],
     conda:
         "envs/singlem.yml"
     log:
