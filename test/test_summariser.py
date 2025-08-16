@@ -154,6 +154,11 @@ S1.5.ribosomal_protein_L11_rplK\tsmall\tCCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAG
                                  table_collection=table_collection)
             self.assertTrue(os.path.exists(os.path.join(tmp,'KronaOK.html')))
 
+    def test_krona_with_taxonomic_profile_input(self):
+        with self.assertRaises(Exception) as cm:
+            extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/profile1.tsv --krona /dev/null')
+        self.assertIn('--output-taxonomic-profile-krona', str(cm.exception))
+
     def test_wide_format(self):
         e = [['gene','sample','sequence','num_hits','coverage','taxonomy'],
             ['4.11.ribosomal_protein_L10','minimal','TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA','2','4.88','Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Staphylococcaceae; g__Staphylococcus'],

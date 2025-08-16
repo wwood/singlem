@@ -886,6 +886,8 @@ def main():
                 raise Exception("--collapse-paired-with-unpaired-archive-otu-table currently only works with archive tables")
             elif not len(args.input_archive_otu_tables) == 2:
                 raise Exception("--collapse-paired-with-unpaired-archive-otu-table requires exactly two archive tables")
+        if args.krona and args.input_taxonomic_profiles:
+            raise Exception("--krona generates a krona file from an OTU table. Use --output-taxonomic-profile-krona when providing taxonomic profiles")
         if args.output_taxonomic_profile_krona and not args.input_taxonomic_profiles:
             raise Exception("--output-taxonomic-profile-krona requires --input-taxonomic-profiles to be defined")
         if args.output_archive_otu_table and not args.collapse_to_sample_name:
