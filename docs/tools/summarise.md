@@ -284,8 +284,7 @@ ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
 **\--krona** *KRONA*
 
   Name of krona file to generate. Note that this generates a krona
-    file from the OTU table, not the taxonomic profile. To create a krona
-    diagram from taxonomic profiles, use --output-taxonomic-profile-krona
+    file from the OTU table, not the taxonomic profile
 
 **\--wide-format-otu-table** *WIDE_FORMAT_OTU_TABLE*
 
