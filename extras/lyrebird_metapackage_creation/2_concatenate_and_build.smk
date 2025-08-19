@@ -272,7 +272,6 @@ rule concatenate_seqs_and_taxonomies_off_target:
     resources:
         mem_mb = 8 * 1024,
         runtime = 4 * 60
-    group: "concat_and_rename_off_target"
     shell:
         "mkdir -p {params.concat_dir} && "
         "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
@@ -299,7 +298,6 @@ rule off_target_dup_rename:
         runtime = 1 * 60
     log:
         log = output_dir + "/logs/off_target_renamed_dups/{spkg}.log"
-    group: "concat_and_rename_off_target"
     script:
         "scripts/rename_off_target_dups.py"
 
