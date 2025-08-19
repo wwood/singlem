@@ -7,6 +7,8 @@ title: SingleM supplement
 
 Create a new metapackage from a vanilla one plus new genomes
 
+Note that [GTDB-Tk](https://github.com/Ecogenomics/GTDBTk) is required but not installed by default. Install it separately, for example with `conda install gtdbtk`.
+
 # OPTIONS
 
 **\--new-genome-fasta-files** *NEW_GENOME_FASTA_FILES* [*NEW_GENOME_FASTA_FILES* \...]

@@ -3,7 +3,6 @@ biopython==1.85
 extern==0.4.1
 fastalite
 graftm==0.15.1
-gtdbtk==2.4.1
 Jinja2==3.1.6
 pandas==2.2.3
 pip==25.0.1
