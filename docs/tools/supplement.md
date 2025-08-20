@@ -3,6 +3,13 @@ title: SingleM supplement
 ---
 # singlem supplement
 
+**TLDR**: Supplement a metapackage with new genomes like so:
+```
+singlem supplement --new-genome-fasta-files <genome1.fna> <genome2.fna> \
+    --output-metapackage <supplemented.smpkg>
+```
+GTDB-Tk may be needed to assign taxonomy to the new genomes. If required, install it separately (e.g. `conda install gtdbtk`) and ensure its version matches the GTDB release of the metapackage.
+
 # DESCRIPTION
 
 Create a new metapackage from a vanilla one plus new genomes
