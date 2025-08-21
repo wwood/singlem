@@ -63,7 +63,7 @@ rule shorten_vcontact_taxonomy:
         taxonomy = config["viral_tax"],
         prefix = f"lyrebird{config['output_metapackage_version']}",
     shell:
-        "scripts/shorten_vcontact_taxonomy.py "
+        "scripts/rename_vcontact_taxonomy.py "
         " --vcontact-taxonomy {params.taxonomy}"
         " --output {output.viral_taxonomy}"
         " --prefix {params.prefix}"
@@ -249,7 +249,8 @@ rule mfqe_off_target:
 
 rule transpose_hmms_with_offtarget:
     input:
-        touch = output_dir + "/mfqe_off_target.done"
+        touch = output_dir + "/mfqe_off_target.done",
+        taxfiles = [config["gtdb_arc_tax"], config["gtdb_bac_tax"]],
     output:
         touch = output_dir + "/transpose_hmms_off_target.done"
     params:
@@ -257,7 +258,6 @@ rule transpose_hmms_with_offtarget:
         matches_dir = output_dir + "/get_matches_off_target",
         mfqe_dir= output_dir + "/mfqe_off_target",
         output_dir = directory(output_dir + "/hmmseq/off_target/"), 
-        taxfiles = [config["gtdb_arc_tax"], config["gtdb_bac_tax"]],
         hmms_and_names = output_dir + "/new_hmms_ids.tsv",
         logs_dir = logs_dir + "/transpose_hmms_off_target"
     threads: workflow.cores
@@ -275,19 +275,19 @@ rule concatenate_seqs_and_taxonomies_off_target:
     input:
         touch = output_dir + "/transpose_hmms_off_target.done"
     output:
-        done = output_dir + "/hmmseq_concat/off_target/{spkg}.done",
+        done = touch(output_dir + "/hmmseq_concat/off_target/{spkg}.done"),
         spkg_seq = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
         spkg_tax = output_dir + "/hmmseq_concat/off_target/{spkg}_taxonomy.tsv"
     params:
         hmmseq_dir = output_dir + "/hmmseq/off_target/",
         concat_dir = output_dir + "/hmmseq_concat/off_target",
     resources:
-        mem_mb = 8 * 1024,
+        mem_mb = 16 * 1024,
         runtime = 4 * 60
     shell:
         "mkdir -p {params.concat_dir} && "
         "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
-        "find {params.hmmseq_dir} -name {wildcards.spkg}_taxonomy.tsv |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_tax} && touch {output.done}"
+        "find {params.hmmseq_dir} -name {wildcards.spkg}_taxonomy.tsv |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_tax}"
 
 rule off_target_dup_rename:
     """

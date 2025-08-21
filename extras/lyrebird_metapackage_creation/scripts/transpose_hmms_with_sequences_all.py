@@ -25,7 +25,7 @@ def async_lustre_cleanup(target_dir):
 protein_filepaths = [prot_filepath.strip('\n') for prot_filepath in open(snakemake.params.protein_filepaths)]
 matches_dir = snakemake.params.matches_dir
 mfqe_dir = snakemake.params.mfqe_dir
-taxfiles = snakemake.params.taxfiles
+taxfiles = snakemake.input.taxfiles
 output_dir = snakemake.params.output_dir
 
 hmms_and_names = snakemake.params.hmms_and_names

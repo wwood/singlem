@@ -21,7 +21,7 @@ def process_a_chunk(param_set):
         for params in param_set:
             genome_filepath, hmmsearch_output, __ = params
             f.write(f"hmmsearch -E 0.00001 --cpu 1 --tblout {hmmsearch_output} {hmm} {genome_filepath} > /dev/null\n")
-    cmd = f"mqsub -t 32 -m 16 --no-email --hours 4 --name hmmsearch_{i} --segregated-log-files -- 'cat {script_file} | parallel -j32' && touch {script_file}.done"
+    cmd = f"mqsub -t 32 -m 16 --no-email --hours 24 --name hmmsearch_{i} --segregated-log-files -- 'cat {script_file} | parallel -j32' && touch {script_file}.done"
     extern.run(cmd)
 
 pathlib.Path(output_dir).mkdir(parents=True, exist_ok=True)

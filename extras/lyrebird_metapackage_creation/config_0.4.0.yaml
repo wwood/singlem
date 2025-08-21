@@ -9,6 +9,6 @@ gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release214/bac120_taxonomy_r214.tsv
 gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release214/ar53_taxonomy_r214.tsv
 gtdb_proviruses: /work/microbiome/msingle/rossenzhao/genomad_full_gtdb/gtdb_r214_provirus_summary.tsv
 
-output_dir: outdir # Placeholder directory where all output files will be stored
+output_dir: /scratch/microbiome/woodcrob/lyrebird_outdir # Placeholder directory where all output files will be stored
 output_metapackage_version: 0.4.0
 output_metapackage: lyrebird_v0.4.0_phrog_v4.1_YYYYMMDD.smpkg
