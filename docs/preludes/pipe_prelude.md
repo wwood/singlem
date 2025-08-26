@@ -7,7 +7,9 @@ To further convert the generated taxonomic profile to other formats that might b
 
 ## Algorithm details
 
-**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/Glossary).
+**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/Glossary).
+
+It can also take as input whole genomes (or contigs) via `--genome-fasta-files`, `--genome-fasta-directory` or `--genome-fasta-list`. These options behave the same as providing sequences with `--forward`, except that different defaults for `--min-taxon-coverage` and `--min-orf-length` are used.
 
 `pipe` performs three steps:
 

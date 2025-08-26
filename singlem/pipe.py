@@ -24,7 +24,6 @@ from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
-from .genome_fasta_mux import GenomeFastaMux
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -151,7 +150,6 @@ class SearchPipe:
         input_sra_files = kwargs.pop('input_sra_files',None)
         read_chunk_size = kwargs.pop('read_chunk_size', None)
         read_chunk_number = kwargs.pop('read_chunk_number', None)
-        genome_fasta_files = kwargs.pop('genomes', None)
         sleep_after_mkfifo = kwargs.pop('sleep_after_mkfifo', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables', None)
@@ -205,8 +203,6 @@ class SearchPipe:
         if diamond_prefilter_db:
             hmms.set_prefilter_db_path(diamond_prefilter_db)
 
-        if genome_fasta_files and forward_read_files:
-            raise Exception("Cannot process reads and genomes in the same run")
 
         analysing_pairs = reverse_read_files is not None
         if analysing_pairs:
@@ -274,26 +270,6 @@ class SearchPipe:
         os.mkdir(tempfile_directory)
         tempfile.tempdir = tempfile_directory
 
-        #### Preprocess genomes into transcripts to speed the rest of the pipeline
-        if genome_fasta_files:
-            logging.info("Calling rough transcriptome of genome FASTA files")
-            genome_fasta_mux = GenomeFastaMux(genome_fasta_files)  # to deal with mux and demux of sequence names
-
-            # Create a single tempfile with ORFs from all genomes, and then
-            # demultiplex later, because this saves a bunch of syscalls.
-            #
-            # Make a tempfile with delete=False because it is in a tmpdir already, and useful for debug to keep around with --working-directory
-            transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-orfs', suffix='.fasta', delete=False)
-            transcripts_path.close()
-            for fasta in genome_fasta_files:
-                extern.run("orfm -c {} -m {} -t >(sed 's/>/>{}|/' >>{}) {} >/dev/null".format(
-                    self._translation_table,
-                    self._min_orf_length,
-                    genome_fasta_mux.fasta_to_prefix(fasta),
-                    transcripts_path.name,
-                    fasta))
-            forward_read_files = [transcripts_path.name]
-
         def return_cleanly():
             if using_temporary_working_directory and not working_directory_dev_shm:
                 # Directly setting tempdir in this way is not recommended, but
@@ -315,9 +291,6 @@ class SearchPipe:
         elif analysing_pairs:
             logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
                 len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
-        elif genome_fasta_files:
-            logging.info("Using as input %i different genomes e.g. %s" % (
-                len(genome_fasta_files), genome_fasta_files[0]))
         else:
             logging.info("Using as input %i different sequence files e.g. %s" % (
                 len(forward_read_files), forward_read_files[0]))
@@ -491,16 +464,6 @@ class SearchPipe:
 
 
 
-        #### Remove duplications which happen when OrfM hits the same sequence more than once.
-        if genome_fasta_files:
-            logging.info("Removing duplicate sequences from rough transcriptome ..")
-            for readset in extracted_reads:
-                # the read~gene format introduced for long read compatibility 
-                # breaks genome_fasta_files mode, so need to remove it
-                for sequence in readset.unknown_sequences:
-                    sequence.name = sequence.name.split('~')[0]
-                readset.remove_duplicate_sequences()
-
         #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
         if diamond_taxonomy_assignment_performance_parameters == None:
             diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
@@ -519,11 +482,7 @@ class SearchPipe:
             known_taxes=known_taxes,
             output_jplace=output_jplace,
             assignment_singlem_db=assignment_singlem_db,
-            genome_fasta_files=genome_fasta_files
         )
-
-        if genome_fasta_files:
-            otu_table_object = genome_fasta_mux.demux_otu_table(otu_table_object)
 
         return_cleanly()
         return otu_table_object
@@ -539,7 +498,6 @@ class SearchPipe:
         known_taxes = kwargs.pop('known_taxes')
         output_jplace = kwargs.pop('output_jplace')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
-        genome_fasta_files = kwargs.pop('genome_fasta_files', False)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -577,8 +535,7 @@ class SearchPipe:
                 known_sequence_tax if known_sequence_taxonomy else None,
                 # outputs
                 otu_table_object,
-                package_to_taxonomy_bihash,
-                genome_fasta_files)
+                package_to_taxonomy_bihash)
 
         return otu_table_object
 
@@ -620,8 +577,7 @@ class SearchPipe:
             known_sequence_tax,
             # outputs
             otu_table_object,
-            package_to_taxonomy_bihash,
-            genome_fasta_files):
+            package_to_taxonomy_bihash):
 
         # To deal with paired reads, process each. Then exclude second reads
         # from pairs where both match.
