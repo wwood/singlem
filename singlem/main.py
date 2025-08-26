@@ -80,13 +80,13 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
         sequence_input_group.add_argument('-f', '--genome-fasta-files',
                                     nargs='+',
                                     metavar='PATH',
-                                    help='Path(s) to FASTA files of each genome e.g. pathA/genome1.fna pathB/genome2.fa.')
+                                    help='Path(s) to genome FASTA files. These are processed like input given with --forward, but use higher default values for --min-taxon-coverage and --min-orf-length.')
         sequence_input_group.add_argument('-d', '--genome-fasta-directory',
                                     metavar='PATH',
-                                    help='Directory containing FASTA files of each genome.')
+                                    help='Directory containing genome FASTA files. Treated identically to --forward input with higher default values for --min-taxon-coverage and --min-orf-length.')
         sequence_input_group.add_argument('--genome-fasta-list',
                                     metavar='PATH',
-                                    help='File containing FASTA file paths, one per line.')
+                                    help='File containing genome FASTA paths, one per line. Behaviour matches --forward with higher default values for --min-taxon-coverage and --min-orf-length.')
         sequence_input_group.add_argument('--sra-files',
                         nargs='+',
                         metavar='sra_file',
@@ -151,7 +151,7 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
                                 help='HMMSEARCH e-value cutoff to use for sequence gathering [default: %s]' % SearchPipe.DEFAULT_HMMSEARCH_EVALUE, default=SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
     argument_group.add_argument('--min-orf-length',
                                 metavar='length',
-                                help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i when input is reads, %i when input is genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH, SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
+                                help='When predicting ORFs require this many base pairs uninterrupted by a stop codon [default: %i for reads, %i for genomes]' % (SearchPipe.DEFAULT_MIN_ORF_LENGTH, SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH),
                                 type=int)
     argument_group.add_argument('--restrict-read-length',
                                 metavar='length',
@@ -333,11 +333,9 @@ def generate_streaming_otu_table_from_args(args,
 def get_min_orf_length(args, subparser='pipe'):
     if args.min_orf_length:
         return args.min_orf_length
-    elif subparser=='pipe' and (args.forward or args.sra_files):
-        return SearchPipe.DEFAULT_MIN_ORF_LENGTH
-    elif subparser=='pipe' and args.genome_fasta_files:
+    elif subparser == 'pipe' and args.genome_fasta_files:
         return SearchPipe.DEFAULT_GENOME_MIN_ORF_LENGTH
-    elif subparser=='renew':
+    elif subparser in ('pipe', 'renew'):
         return SearchPipe.DEFAULT_MIN_ORF_LENGTH
     else:
         raise Exception("Programming error")
@@ -363,6 +361,8 @@ def parse_genome_fasta_files(args):
         with open(args.genome_fasta_list) as f:
             genomes.extend([line.strip() for line in f if line.strip()])
     args.genome_fasta_files = genomes if genomes else None
+    if args.genome_fasta_files:
+        args.forward = args.genome_fasta_files
     return args
 
 def main():
@@ -768,7 +768,6 @@ def main():
         singlem.pipe.SearchPipe().run(
             sequences = args.forward,
             reverse_read_files = args.reverse,
-            genomes = args.genome_fasta_files,
             input_sra_files = args.sra_files,
             read_chunk_size = args.read_chunk_size,
             read_chunk_number = args.read_chunk_number,
