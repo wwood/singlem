@@ -8,9 +8,12 @@
 
 
 [![Current Build](https://github.com/wwood/singlem/actions/workflows/test-singlem.yml/badge.svg)](https://github.com/wwood/singlem/actions)
-[![PyPI version](https://img.shields.io/pypi/v/singlem)](https://pypi.org/project/singlem/)
-[![image](https://anaconda.org/bioconda/singlem/badges/version.svg)](https://anaconda.org/bioconda/singlem)
-[![image](https://anaconda.org/bioconda/singlem/badges/downloads.svg)](https://anaconda.org/bioconda/singlem)
+[![Conda version](https://img.shields.io/conda/vn/bioconda/singlem?label=Conda&color=43b02a)](https://anaconda.org/bioconda/singlem)
+[![Conda downloads](https://img.shields.io/conda/dn/bioconda/singlem?label=Downloads&color=43b02a)](https://anaconda.org/bioconda/singlem)
+[![Docker version](https://img.shields.io/docker/v/wwood/singlem?label=Docker&color=1D63ED)](https://hub.docker.com/r/wwood/singlem/tags)
+[![Docker pulls](https://img.shields.io/docker/pulls/wwood/singlem.svg?label=Pulls&color=1D63ED)](https://hub.docker.com/r/wwood/singlem)
+[![PyPI version](https://img.shields.io/pypi/v/singlem.svg?label=PyPI&color=ffd43b)](https://pypi.org/project/singlem/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/singlem.svg?label=Downloads&color=ffd43b)](https://pypi.org/project/singlem/)
 
 Welcome.
 
