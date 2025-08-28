@@ -9,15 +9,13 @@
 
 Welcome.
 
-At heart, SingleM is a tool for profiling shotgun metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](/Lyrebird)).
+At heart, SingleM is a tool for profiling shotgun and long-read metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](https://wwood.github.io/singlem/Lyrebird)). Long-read compatibility was added in version 0.19.1, but requires `Nanopore >= R10.4.1` or `PacBio HiFi` reads to ensure high enough base-pair calling accuracy for reliable taxonomic profiling.
 
 It [shows](https://doi.org/10.1101/2024.01.30.578060) good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [Bin Chicken](https://aroneys.github.io/binchicken/)).
 
 Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
 
 The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches ("*windows*") within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated.
-
-It is currently aimed at the analysis of metagenomes sequenced using Illumina short read technology.
 
 There are several tools (subcommands) which can be used after [installation](/Installation):
 
