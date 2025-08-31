@@ -9,7 +9,7 @@ Run `snakemake --cores 64 --use-conda --retries 2`
 """
 
 localrules:
-    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin, shorten_vcontact_taxonomy
+    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin, shorten_vcontact_taxonomy, off_target_dup_rename
 
 import pandas as pd
 import os
@@ -271,38 +271,56 @@ rule transpose_hmms_with_offtarget:
     script:
         "scripts/transpose_hmms_with_sequences_all.py"
 
-rule concatenate_seqs_and_taxonomies_off_target:
+rule generate_off_target_hmmseq_file_list:
     input:
         touch = output_dir + "/transpose_hmms_off_target.done"
     output:
-        done = touch(output_dir + "/hmmseq_concat/off_target/{spkg}.done"),
-        spkg_seq = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
-        spkg_tax = output_dir + "/hmmseq_concat/off_target/{spkg}_taxonomy.tsv"
+        faa_file_list = output_dir + "/hmmseq/off_target/hmmseq_file_list.txt",
+        taxonomy_file_list = output_dir + "/hmmseq/off_target/hmmseq_taxonomy_file_list.txt",
+        done = touch(output_dir + "/hmmseq/off_target/hmmseq_file_list.done"),
+    params:
+        hmmseq_dir = output_dir + "/hmmseq/off_target/",
+    shell:
+        """
+        find {params.hmmseq_dir} -name '*.faa' > {output.faa_file_list} && \
+        find {params.hmmseq_dir} -name '*_taxonomy.tsv' > {output.taxonomy_file_list}
+        """
+
+rule concatenate_seqs_and_taxonomies_off_target:
+    input:
+        touch = output_dir + "/transpose_hmms_off_target.done",
+        faa_file_list = output_dir + "/hmmseq/off_target/hmmseq_file_list.txt",
+        taxonomy_file_list = output_dir + "/hmmseq/off_target/hmmseq_taxonomy_file_list.txt",
+    output:
+        done = touch(output_dir + "/hmmseq_concat/off_target.done"),
     params:
         hmmseq_dir = output_dir + "/hmmseq/off_target/",
         concat_dir = output_dir + "/hmmseq_concat/off_target",
+        spkgs = '\n'.join(hmms_and_names.index),
+        spkgs_file = output_dir + "/hmms_and_names_noconflict.tsv"
     resources:
-        mem_mb = 16 * 1024,
-        runtime = 4 * 60
-    shell:
-        "mkdir -p {params.concat_dir} && "
-        "find {params.hmmseq_dir} -name {wildcards.spkg}.faa |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_seq} && "
-        "find {params.hmmseq_dir} -name {wildcards.spkg}_taxonomy.tsv |parallel --will-cite -j1 --ungroup cat {{}} > {output.spkg_tax}"
+        mem_mb = 8 * 1024,
+        runtime = 48 * 60
+    shell: # ( grep x || [ "$?" == "1" ] ) to avoid grep returning non-zero exitstatus just because there is no match
+        # Use {{}}.faa so phrog_5 doesn't match phrog_50
+        "mkdir -p {params.concat_dir} && echo starting== && "
+        "cut -f1 {params.spkgs_file} |tail -n+2 |parallel --eta --will-cite -j8 --ungroup '(' grep {{}}.faa {input.faa_file_list} '||' '[' '\"$?\"' == '\"1\"' ']' ')' '|' parallel --xargs --will-cite -j1 --ungroup cat '>' {params.concat_dir}/{{}}.faa && "
+        "cut -f1 {params.spkgs_file} |tail -n+2 |parallel --eta --will-cite -j8 --ungroup '(' grep {{}}_taxonomy.tsv {input.taxonomy_file_list} '||' '[' '\"$?\"' == '\"1\"' ']' ')' '|' parallel --xargs --will-cite -j1 --ungroup cat '>' {params.concat_dir}/{{}}_taxonomy.tsv"
 
 rule off_target_dup_rename:
     """
     GraftM requires unique sequence names, off-target homologs are not necessarily single copy.
     """
     input:
-        done = output_dir + "/hmmseq_concat/off_target/{spkg}.done",
-        seqs = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
-        taxonomy = output_dir + "/hmmseq_concat/off_target/{spkg}_taxonomy.tsv",
+        done = output_dir + "/hmmseq_concat/off_target.done",
     output:
         seqs = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.faa",
         taxonomy = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}_taxonomy.tsv",
         done = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done",
     params:
         output_dir = output_dir + "/hmmseq_concat/off_target_renamed_dups",
+        seqs = output_dir + "/hmmseq_concat/off_target/{spkg}.faa",
+        taxonomy = output_dir + "/hmmseq_concat/off_target/{spkg}_taxonomy.tsv",
     conda:
         "envs/singlem.yml"
     resources:

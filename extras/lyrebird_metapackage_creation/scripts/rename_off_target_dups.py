@@ -9,8 +9,8 @@ import extern
 
 logging.basicConfig(filename=snakemake.log[0], level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
 
-fasta = snakemake.input.seqs
-taxon_file = snakemake.input.taxonomy
+fasta = snakemake.params.seqs
+taxon_file = snakemake.params.taxonomy
 
 output_fasta = snakemake.output.seqs
 output_taxon_file = snakemake.output.taxonomy
