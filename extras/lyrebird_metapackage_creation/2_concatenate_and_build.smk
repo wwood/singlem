@@ -9,7 +9,7 @@ Run `snakemake --cores 64 --use-conda --retries 2`
 """
 
 localrules:
-    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin, shorten_vcontact_taxonomy, off_target_dup_rename
+    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin, shorten_vcontact_taxonomy, off_target_dup_rename, filter_off_target_ratio
 
 import pandas as pd
 import os
@@ -25,10 +25,16 @@ scripts_dir = output_dir + "/qsub_scripts"
 hmms_and_names = pd.read_csv(output_dir + "/hmms_and_names_noconflict.tsv", sep="\t").set_index("gene", drop=False)
 gtdb_proviruses = config["gtdb_proviruses"]
 
+def get_filtered_spkgs(wildcards):
+    """Return spkgs that pass the off-target ratio filter."""
+    filtered = checkpoints.filter_off_target_ratio.get().output.spkgs
+    with open(filtered) as f:
+        return [line.strip() for line in f if line.strip()]
+
 rule all:
     input:
         output_dir + "/roundrobin.done",
-        expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index),
+        expand(output_dir + "/regenerate/{spkg}.spkg", spkg=get_filtered_spkgs),
         output_dir + "/cleanup.done",
 
 #########################################
@@ -331,6 +337,28 @@ rule off_target_dup_rename:
     script:
         "scripts/rename_off_target_dups.py"
 
+checkpoint filter_off_target_ratio:
+    """Exclude spkgs with excessive off-target sequences."""
+    input:
+        rename_done = expand(output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done", spkg=hmms_and_names.index),
+    output:
+        spkgs = output_dir + "/filtered_spkgs.txt"
+    run:
+        def count_seqs(fp):
+            with open(fp) as handle:
+                return sum(1 for line in handle if line.startswith('>'))
+
+        with open(output.spkgs, "w") as out:
+            for spkg in hmms_and_names.index:
+                viral = os.path.join(output_dir, "hmmseq_concat", "viral", f"{spkg}.faa")
+                off = os.path.join(output_dir, "hmmseq_concat", "off_target_renamed_dups", f"{spkg}.faa")
+                if not os.path.exists(off):
+                    continue
+                viral_count = count_seqs(viral)
+                off_count = count_seqs(off)
+                if viral_count >= 100 * off_count:
+                    out.write(f"{spkg}\n")
+
 rule singlem_regenerate:
     """
     Add off-target sequences to the initial SingleM packages.
@@ -437,8 +465,8 @@ rule get_fscore:
 
 rule concat_fscores:
     input:
-        fscores = expand(output_dir + "/fscore/{spkg}.fscore", spkg=hmms_and_names.index),
-        done = expand(output_dir + "/fscore/{spkg}.done", spkg=hmms_and_names.index)
+        fscores = lambda wildcards: expand(output_dir + "/fscore/{spkg}.fscore", spkg=get_filtered_spkgs(wildcards)),
+        done = lambda wildcards: expand(output_dir + "/fscore/{spkg}.done", spkg=get_filtered_spkgs(wildcards))
     output:
         fscore_list = output_dir + "/fscore_list.tsv",
         done = output_dir + "/concat_fscores.done"
@@ -468,7 +496,7 @@ rule roundrobin:
     Outputs a TSV file of the selected SingleM packages and their coverages.
     """
     input:
-        spkgs = expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index),
+        spkgs = lambda wildcards: expand(output_dir + "/regenerate/{spkg}.spkg", spkg=get_filtered_spkgs(wildcards)),
         match_directory = output_dir + "/resolved_matches",
         resolved_trees_list = output_dir + "/resolved_trees_list.tsv",
         done = output_dir + "/resolved_trees.done"
