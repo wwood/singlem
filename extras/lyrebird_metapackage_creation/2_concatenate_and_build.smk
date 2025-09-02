@@ -9,7 +9,7 @@ Run `snakemake --cores 64 --use-conda --retries 2`
 """
 
 localrules:
-    all, acquire_and_concat_hmms, hmmsearch_off_target, concat_fscores, resolve_fscores, roundrobin, shorten_vcontact_taxonomy, off_target_dup_rename
+    all, acquire_and_concat_hmms, hmmsearch_off_target, shorten_vcontact_taxonomy, off_target_dup_rename, filter_off_target_ratio
 
 import pandas as pd
 import os
@@ -27,9 +27,7 @@ gtdb_proviruses = config["gtdb_proviruses"]
 
 rule all:
     input:
-        output_dir + "/roundrobin.done",
-        expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index),
-        output_dir + "/cleanup.done",
+        output_dir + "/filtered_spkgs.txt",
 
 #########################################
 # Extract and group viral sequences and #
@@ -331,159 +329,24 @@ rule off_target_dup_rename:
     script:
         "scripts/rename_off_target_dups.py"
 
-rule singlem_regenerate:
-    """
-    Add off-target sequences to the initial SingleM packages.
-    """
+rule filter_off_target_ratio:
+    """Exclude spkgs with excessive off-target sequences."""
     input:
-        off_target_touch = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done",
-        singlem_spkg = output_dir + "/initial_spkgs/{spkg}.spkg",
-        seqs = output_dir + "/hmmseq_concat/viral/{spkg}.faa",
-        taxonomy = output_dir + "/hmmseq_concat/viral/{spkg}_taxonomy.tsv",
-        off_target_seqs = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.faa",
-        off_target_taxonomy = output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}_taxonomy.tsv",
+        rename_done = expand(output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done", spkg=hmms_and_names.index),
     output:
-        spkg = directory(output_dir + "/regenerate/{spkg}.spkg"),
-        done = output_dir + "/regenerate/{spkg}.done",
-    params:
-        sequence_prefix = "{spkg}~",
-    resources: # can get *very* memory intensive if there are many off-target sequences
-        mem_mb = lambda wildcards, attempt: 32 * 1024 * (2 ** (attempt - 1)),
-        runtime = 24 * 2 * 60
-    log:
-        log = output_dir + "/logs/regenerate/{spkg}.singlem_regenerate.log"
-    conda:
-        "envs/singlem.yml"
-    script:
-        "scripts/regenerate.py"
+        spkgs = output_dir + "/filtered_spkgs.txt"
+    run:
+        def count_seqs(fp):
+            with open(fp) as handle:
+                return sum(1 for line in handle if line.startswith('>'))
 
-rule cleanup_folders:
-    """
-    Cleans up temporary folders and files created during the workflow.
-    """
-    input:
-        off_target_rename = expand(output_dir + "/hmmseq_concat/off_target_renamed_dups/{spkg}.done", spkg=hmms_and_names.index),
-    params:
-        mfqe_viral = output_dir + "/mfqe_viral",
-        mfqe_off_target = output_dir + "/mfqe_off_target",
-        hmmseq_viral = output_dir + "/hmmseq/viral",
-        hmmseq_off_target = output_dir + "/hmmseq/off_target",
-    output:
-        done = touch(output_dir + "/cleanup.done"),
-    log:
-        log = output_dir + "/logs/cleanup.log"
-    shell:
-        "rm -rf {params.mfqe_viral} {params.mfqe_off_target} {params.hmmseq_viral} {params.hmmseq_off_target} && "
-        "rm -rf {output_dir}/hmmsearch_viral {output_dir}/hmmsearch_off_target && "
-        "rm -rf {output_dir}/get_matches_viral {output_dir}/get_matches_off_target && "
-        "rm -rf {output_dir}/transpose_hmms_viral {output_dir}/transpose_hmms_off_target && "
-        "rm -rf {output_dir}/hmmseq_concat/viral {output_dir}/hmmseq_concat/off_target && "
-        "rm -rf {output_dir}/hmmseq_concat/off_target_renamed_dups"
-
-#######################################
-# Final selection of SingleM packages #
-#######################################
-def get_deduplicated_aligned_fastas(spkg):
-    gpkg = spkg.split('/')[-1].rsplit('.',1)[0]
-    return os.path.join(spkg, gpkg, f"{gpkg}_final.gpkg.refpkg", f"{gpkg}_final_sequences_deduplicated_aligned.fasta")
-
-# would run chainsaw here but chainsaw removes the deduplicated aligned fasta for some reason
-rule run_fasttree_mp:
-    """
-    Runs FastTreeMP on the deduplicated aligned fasta from the SingleM package.
-    Outputs a tree file for each SingleM package.
-    """
-    input: 
-        done = output_dir + "/regenerate/{spkg}.done",
-    params:
-        deduplicated_aligned_fasta = get_deduplicated_aligned_fastas(directory(output_dir + "/regenerate/{spkg}.spkg")),
-        outdir = output_dir + "/trees"
-    output:
-        tree = output_dir + "/trees/{spkg}.tre",
-    log:
-        log = output_dir + "/logs/trees/{spkg}.log"
-    benchmark:
-        output_dir + "/benchmarking/trees/{spkg}.tre.benchmark"
-    threads: lambda wildcards, attempt: 2 ** (attempt - 1) 
-    resources:
-        mem_mb = lambda wildcards, attempt: 8 * 1024 * (2 ** (attempt - 1)),
-        runtime = 24 * 2 * 60
-    conda:
-        "envs/singlem.yml"
-    shell:
-        "mkdir -p {params.outdir} && "
-        "OMP_NUM_THREADS={threads} FastTreeMP < {params.deduplicated_aligned_fasta} > {output.tree} 2> {log}"
-
-rule get_fscore:
-    """
-    Calculates the F-score fidelity between viral and off-target sequences.
-    Outputs a file with the F-score for each SingleM package.
-    """
-    input:
-        tree = output_dir + "/trees/{spkg}.tre",
-        viral_faa_list = config["viral_faa_list"],
-    output:
-        fscore = temp(output_dir + "/fscore/{spkg}.fscore"),
-        done = temp(output_dir + "/fscore/{spkg}.done")
-    log:
-        log = output_dir + "/logs/fscore/{spkg}.log"
-    resources:
-        mem_mb = 1 * 1024,
-        runtime = 1 * 60
-    conda:
-        "envs/singlem.yml"
-    script:
-        "scripts/get_best_fscore.py"
-
-rule concat_fscores:
-    input:
-        fscores = expand(output_dir + "/fscore/{spkg}.fscore", spkg=hmms_and_names.index),
-        done = expand(output_dir + "/fscore/{spkg}.done", spkg=hmms_and_names.index)
-    output:
-        fscore_list = output_dir + "/fscore_list.tsv",
-        done = output_dir + "/concat_fscores.done"
-    conda:
-        "envs/singlem.yml"
-    script:
-        "scripts/concat_fscores.py"
-        
-rule resolve_fscores:
-    """
-    Chooses the best HMMs based on the F-score fidelity.
-    """
-    input:
-        fscore_list = output_dir + "/fscore_list.tsv",
-    output:
-        resolved_fscores = output_dir + "/resolved_trees_list.tsv",
-        done = output_dir + "/resolved_trees.done"
-    conda:
-        "envs/singlem.yml"
-    script:
-        "scripts/resolve_fscores.py"
-
-rule roundrobin:
-    """
-    Greedy algorithm to maximize viral coverage. Iterates through a list of viral species, 
-    selecting the SingleM package that covers the most species not already covered.
-    Outputs a TSV file of the selected SingleM packages and their coverages.
-    """
-    input:
-        spkgs = expand(output_dir + "/regenerate/{spkg}.spkg", spkg=hmms_and_names.index),
-        match_directory = output_dir + "/resolved_matches",
-        resolved_trees_list = output_dir + "/resolved_trees_list.tsv",
-        done = output_dir + "/resolved_trees.done"
-    params:
-        hmms_and_names = output_dir + "/hmms_and_names_noconflict.tsv",
-    output:
-        hmms_and_names_roundrobin = output_dir + "/hmms_and_names_roundrobin.tsv",
-        coverages = output_dir + "/roundrobin_species_coverage.tsv",
-        done = output_dir + "/roundrobin.done"
-    log:
-        log = output_dir + "/logs/chosen_spkgs.log"
-    resources:
-        mem_mb = 4 * 1024,
-        runtime = 1 * 60
-    conda:
-        "envs/singlem.yml"
-    script:
-        "scripts/roundrobin_search.py"
+        with open(output.spkgs, "w") as out:
+            for spkg in hmms_and_names.index:
+                viral = os.path.join(output_dir, "hmmseq_concat", "viral", f"{spkg}.faa")
+                off = os.path.join(output_dir, "hmmseq_concat", "off_target_renamed_dups", f"{spkg}.faa")
+                if not os.path.exists(off):
+                    continue
+                viral_count = count_seqs(viral)
+                off_count = count_seqs(off)
+                if viral_count >= 100 * off_count:
+                    out.write(f"{spkg}\n")

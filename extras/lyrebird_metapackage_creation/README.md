@@ -2,10 +2,11 @@ Update config.yaml and other relevant files, then run each pipeline as follows:
 ```
 snakemake --snakefile <pipeline> --cores 64 --use-conda --configfile config.yaml
 ```
-In short, run in this order: 
+In short, run in this order:
 1. 1_initial_filtering.smk
 2. 2_concatenate_and_build.smk
-3. 3_build_mpkg.smk
+3. 3_regenerate_and_select.smk
+4. 4_build_mpkg.smk
 
 To generate viral proteins and transcripts, run prodigal-gv on all viral genome representatives.
 

@@ -51,7 +51,7 @@ rule create_draft_metapackage:
     input:
         packages = expand(output_dir + "/chainsaw/{spkg}.spkg", spkg=hmms_and_names.index),
     output:
-        metapackage = directory(output_dir + "/draft_" + config["output_metapackage"]),
+        metapackage = directory(output_dir + "/draft_metapackage.smpkg"),
         done = output_dir + "/draft_metapackage.done"
     threads: 1
     log:
@@ -60,7 +60,7 @@ rule create_draft_metapackage:
         mem_mb = 32 * 1024,
         runtime = 24 * 2 * 60
     conda:
-        "singlem"
+        "envs/singlem.yml"
     shell:
         "singlem metapackage "
         "--singlem-packages {input.packages} "
@@ -72,7 +72,7 @@ rule create_draft_metapackage:
         "&> {log}; "
         "touch {output.done}"
 
-rule Lyrebird_transcripts:
+rule lyrebird_transcripts:
     """
     Run lyrebird on transcript sequences to generate a 
     sequence database for nucleotide-level taxonomy assignment.
@@ -82,9 +82,9 @@ rule Lyrebird_transcripts:
         metapackage = output_dir + "/draft_metapackage.smpkg",
         done = output_dir + "/draft_metapackage.done"
     output:
-        dir = temp(directory(output_dir + "/transcripts")),
-        script_dir = temp(directory(scripts_dir + "/lyrebird_transcripts")),
-        touch = output_dir + "/transcripts.done"
+        dir = directory(output_dir + "/transcripts"),
+        script_dir = directory(output_dir + '/lyrebird_transcripts_scripts'), # Must be available when on mqsub
+        touch = touch(output_dir + "/transcripts.done")
     params:
         logs = logs_dir + "/transcripts",
     threads: 64

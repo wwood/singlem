@@ -4,9 +4,12 @@ import logging
 import pathlib
 from tqdm.contrib.concurrent import thread_map
 import extern
+import tempfile
+import atexit
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 transcript_files = snakemake.input.transcript_fastas
-script_directory = snakemake.params.script_dir
+script_directory = snakemake.output.script_dir
 output_directory = snakemake.output.dir
 log_directory = snakemake.params.logs
 num_threads = snakemake.threads
@@ -53,9 +56,19 @@ if len(param_set) > 0:
     param_list.append(param_set)
 logging.info(f"Processing {len(param_list)} chunks with {num_threads} threads")
 
-thread_map(process_a_chunk, param_list, max_workers=num_threads, chunksize=1)
+with ThreadPoolExecutor(max_workers=num_threads) as executor:
+    futures = [executor.submit(process_a_chunk, chunk) for chunk in param_list]
+    try:
+        for future in as_completed(futures):
+            # re-raise any exception that happened in worker
+            future.result()
+    except Exception:
+        # try to cancel remaining work and propagate the error to main process
+        for f in futures:
+            try:
+                f.cancel()
+            except Exception:
+                pass
+        raise
 
 logging.info("Finished processing lyrebird transcripts.")
-
-with open(snakemake.output.touch, 'w') as _:
-    pass
