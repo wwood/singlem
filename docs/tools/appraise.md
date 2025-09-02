@@ -19,7 +19,7 @@ To assess how well a set of sequences represent a metagenome, first run `pipe`
 on both the genomes and the raw reads, and then use `appraise`:
 ```
 singlem pipe --sequences raw.fq.gz --otu-table metagenome.otu_table.csv
-singlem pipe --sequences my-genomes/*.fasta --otu-table \
+singlem pipe --genome-fasta-files my-genomes/*.fasta --otu-table \
     genomes.otu_table.csv
 singlem appraise --metagenome-otu-tables metagenome.otu_table.csv \
     --genome-otu-tables genomes.otu_table.csv
