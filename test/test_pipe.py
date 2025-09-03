@@ -24,6 +24,7 @@
 import unittest
 import os.path
 import tempfile
+import shutil
 import extern
 import sys
 import json
@@ -1002,6 +1003,41 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    def test_genome_directory_input(self):
+        expected = [
+            "\t".join(self.headers),
+            'S1.13.ribosomal_protein_S15P_S13e\tuap2\tAAGGATTTGAGTGCAAAAAGAGGACTCGATTTTACAGAGGCAAAGATAAGAAAACTTGGA\t1\t1.00\tRoot; d__Archaea; p__Halobacterota; c__Methanomicrobia; o__Methanomicrobiales; f__Methanocullaceae; g__Methanoculleus',
+            ''
+        ]
+        with tempfile.TemporaryDirectory() as d:
+            shutil.copy(os.path.join(path_to_data, 'uap2.fna'), os.path.join(d, 'uap2.fa'))
+            cmd = '{} pipe --genome-fasta-directory {} --genome-fasta-extension fa --singlem-packages {}/S1.13.chainsaw.gpkg.spkg --otu-table /dev/stdout --assignment-method diamond'.format(
+                path_to_script,
+                d,
+                path_to_data,
+            )
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
+
+    def test_genome_fasta_list_input(self):
+        expected = [
+            "\t".join(self.headers),
+            'S1.13.ribosomal_protein_S15P_S13e\tuap2\tAAGGATTTGAGTGCAAAAAGAGGACTCGATTTTACAGAGGCAAAGATAAGAAAACTTGGA\t1\t1.00\tRoot; d__Archaea; p__Halobacterota; c__Methanomicrobia; o__Methanomicrobiales; f__Methanocullaceae; g__Methanoculleus',
+            ''
+        ]
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.lst') as lst:
+            lst.write(os.path.join(path_to_data, 'uap2.fna'))
+            lst.flush()
+            cmd = '{} pipe --genome-fasta-list {} --singlem-packages {}/S1.13.chainsaw.gpkg.spkg --otu-table /dev/stdout --assignment-method diamond'.format(
+                path_to_script,
+                lst.name,
+                path_to_data,
+            )
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
+
     def test_prefilter_piped_in_input(self):
         with tempfile.NamedTemporaryFile(suffix='.mkfifo.fna') as fifo:
             with tempfile.NamedTemporaryFile(suffix='.mkfifo.fna') as script:
@@ -1158,7 +1194,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
 
     def test_genome_input_dereplication(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.00    '
+            '4.12.22seqs     GCA_000309865.1_genomic  CCGGCTTTTCAGATCGCACCGGATCCAACAGTTGCATTCACAGTTGGCTATTTAGGAGTG    1       1.00    '
         # ~/git/singlem/bin/singlem pipe --genome-fasta-files genomes/GCA_000309865.1_genomic.fna --singlem-package ../4.12.22seqs.spkg/ --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96
         cmd = '{} pipe --translation-table 11 --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
             path_to_script,

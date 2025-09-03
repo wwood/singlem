@@ -11,6 +11,8 @@ scripts = ["admin/set_env_vars.sh"]
 
 [dependencies]
 python = ">=3.7"
+coreutils = "*" # So sort --parallel works
+bash = "*"
 diamond = ">=2.1.7,<2.1.11"  # 2.1.11 segfaults (on some non-test data)
 biopython = "*"
 hmmer = "*"
@@ -44,7 +46,6 @@ pyarrow = "*"
 galah = ">=0.4.0"
 sqlparse = "*"  # Required indirectly (e.g. taxtastic)
 zenodo_backpack = ">=0.3.0"
-gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
 # Optional (commented out)
 # python-annoy = "*"
 # nmslib = "*"
@@ -59,6 +60,7 @@ ipython = "*"
 toml = "*"
 python-build = "*"
 setuptools-scm = "*"
+gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
 
 [environments]
 dev = ["dev"]
