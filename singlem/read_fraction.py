@@ -140,7 +140,7 @@ class ReadFractionEstimator:
                     average_genome_size_denominator += node.coverage
 
                     if '__' not in taxonomy or node.calculate_level() > 7:
-                        raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for microbial_fraction, since microbial_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
+                        raise Exception("It appears that a condensed profile with a non-standard taxonomy was used. This is not supported for prokaryotic_fraction (microbial_fraction), since prokaryotic_fraction relies on knowing whether the taxon has been assigned to the species level or not.")
                     if 's__' not in taxonomy:
                         if node.coverage > min_unknown_taxon_priority:
                             if len(highest_unknown_taxon_names) < num_unknown_taxa_accounted_for:

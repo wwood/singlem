@@ -1,3 +1,7 @@
+## Unreleased
+
+* `microbial_fraction` subcommand renamed to `prokaryotic_fraction` (old name retained as synonym)
+
 ## v0.19.0
 Major new function - profiling of Caudoviricetes (aka "Caudovirales") phage communities (Lyrebird), thanks to @rzhao-2.
 
