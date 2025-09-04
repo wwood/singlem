@@ -1,4 +1,4 @@
-name: Test SingleM with Pixi
+name: Current Build
 on: [push, pull_request]
 
 jobs:

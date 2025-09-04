@@ -42,17 +42,17 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
-  nucleotide read sequence(s) (forward or unpaired) to be searched.
-    Can be FASTA or FASTQ format, GZIP-compressed or not.
+  nucleotide short/long read or sequence(s) (forward or unpaired) to be searched.  
+    Can be FASTA or FASTQ format, GZIP-compressed or not.  
 
 **-2**, **\--reverse** sequence_file [sequence_file \...]
 
-  reverse reads to be searched. Can be FASTA or FASTQ format,
+  reverse short/long reads to be searched. Can be FASTA or FASTQ format,
     GZIP-compressed or not.
 
 **\--genome-fasta-files** sequence_file [sequence_file \...]
 
-  nucleotide genome sequence(s) to be searched
+  nucleotide genome sequence(s) to be searched  
 
 **\--sra-files** sra_file [sra_file \...]
 

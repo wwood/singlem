@@ -1,5 +1,4 @@
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/version.svg)](https://anaconda.org/bioconda/singlem)
-[![Anaconda-Server Badge](https://anaconda.org/bioconda/singlem/badges/downloads.svg)](https://anaconda.org/bioconda/singlem)
+
 
 <!-- NOTE: This intro should manually be kept in sync between the repo README and the docs README -->
 
@@ -7,17 +6,27 @@
 [![Bin Chicken logo](./binchicken_small.png)](https://aroneys.github.io/binchicken)
 [![Lyrebird logo](./lyrebird_small.png)](/Lyrebird)
 
+
+[![Current Build](https://github.com/wwood/singlem/actions/workflows/test-singlem.yml/badge.svg)](https://github.com/wwood/singlem/actions)
+[![Conda version](https://img.shields.io/conda/vn/bioconda/singlem?label=Conda&color=43b02a)](https://anaconda.org/bioconda/singlem)
+[![Conda downloads](https://img.shields.io/conda/dn/bioconda/singlem?label=Downloads&color=43b02a)](https://anaconda.org/bioconda/singlem)
+[![Docker version](https://img.shields.io/docker/v/wwood/singlem?label=Docker&color=1D63ED)](https://hub.docker.com/r/wwood/singlem/tags)
+[![Docker pulls](https://img.shields.io/docker/pulls/wwood/singlem.svg?label=Pulls&color=1D63ED)](https://hub.docker.com/r/wwood/singlem)
+[![PyPI version](https://img.shields.io/pypi/v/singlem.svg?label=PyPI&color=ffd43b)](https://pypi.org/project/singlem/)
+[![PyPI downloads](https://img.shields.io/pypi/dm/singlem.svg?label=Downloads&color=ffd43b)](https://pypi.org/project/singlem/)
+
 Welcome.
 
-At heart, SingleM is a tool for profiling shotgun metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](/Lyrebird)).
+***💉 Now works on dsDNA phages!***  
+***🧬 Now works with long reads!***
+
+At heart, SingleM is a tool for profiling shotgun (both short and long-read) metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](https://wwood.github.io/singlem/Lyrebird)). Long-read compatibility was added in version 0.20.0, but requires `Nanopore >= R10.4.1` or `PacBio HiFi` reads to ensure high enough base-pair calling accuracy for reliable taxonomic profiling.
 
 It [shows](https://doi.org/10.1101/2024.01.30.578060) good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [Bin Chicken](https://aroneys.github.io/binchicken/)).
 
 Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
 
 The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches ("*windows*") within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated.
-
-It is currently aimed at the analysis of metagenomes sequenced using Illumina short read technology.
 
 There are several tools (subcommands) which can be used after [installation](/Installation):
 
