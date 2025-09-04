@@ -1,6 +1,6 @@
-The SingleM `microbial_fraction` ('SMF') subcommand estimates the fraction of reads in a metagenome that are microbial, compared to everything else e.g. eukaryote- or phage-derived. Here we define 'microbial' as either bacterial or archaeal, including their plasmids. It can help prioritise samples for deeper sequencing, forecast how much sequencing is required for a given set of samples, and identify problematic steps in genome-resolved metagenomic pipelines, for instance.
+The SingleM `prokaryotic_fraction` subcommand (also available as `microbial_fraction`) estimates the fraction of reads in a metagenome that are microbial, compared to everything else e.g. eukaryote- or phage-derived. Here we define 'microbial' as either bacterial or archaeal, including their plasmids. It can help prioritise samples for deeper sequencing, forecast how much sequencing is required for a given set of samples, and identify problematic steps in genome-resolved metagenomic pipelines, for instance.
 
-SingleM `microbial_fraction` also estimates the average genome size (AGS) of microbial cells in the sample.
+SingleM `prokaryotic_fraction` also estimates the average genome size (AGS) of microbial cells in the sample.
 
 The main conceptual advantage of this method over other tools is that it does not require reference sequences of the non-microbial genomes that may be present (e.g. those of an animal host). Instead, it uses a SingleM taxonomic profile of the metagenome to "add up" the components of the community which are microbial. The remaining components are non-microbial e.g. host, diet, or phage. 
 
@@ -8,15 +8,15 @@ Roughly, the number of microbial bases is estimated by summing the genome sizes 
 
 ## Usage
 
-To run `microbial_fraction`, first run `pipe` on your metagenome.
+To run `prokaryotic_fraction`, first run `pipe` on your metagenome.
 
 ```bash
 $ singlem pipe --forward SRR9841429_1.fastq.gz --reverse SRR9841429_2.fastq.gz --threads 32 -p SRR9841429.profile
 ```
-Then run `microbial_fraction` on the profile.
+Then run `prokaryotic_fraction` on the profile.
 
 ```bash
-singlem microbial_fraction --forward SRR9841429_1.fastq.gz --reverse SRR9841429_2.fastq.gz -p SRR9841429.profile >SRR9841429.smf.tsv
+singlem prokaryotic_fraction --forward SRR9841429_1.fastq.gz --reverse SRR9841429_2.fastq.gz -p SRR9841429.profile >SRR9841429.smf.tsv
 ```
 
 The output you get is a tab-separated values file containing (with some columns omitted):
@@ -62,6 +62,6 @@ Note that the `read_fraction` and `relative_abundance` columns are percentages, 
 
 The method is least reliable in simple communities consisting of a small number of species that are missing from the reference database. The main challenge in these cases is that the genome sizes of novel species are hard to estimate accurately. Multiplying a coverage from the taxonomic profile against an uncertain genome length equals an uncertain number of bases assigned as microbial.
 
-To detect such situations SingleM `microbial_fraction` emits a warning when a sample's microbial_fraction estimate could under- or overestimate the read fraction. Specifically, the warning is emitted when the 3 highest abundance lineages not classified to the species level would change the estimated read fraction of the sample by >2% if their genome size is halved or doubled. Microbial fractions are also capped at 100% since values greater than this are impossible, but the original value can be recovered from the output if you calculate `bacterial_archaeal_bases / metagenome_size`.
+To detect such situations SingleM `prokaryotic_fraction` emits a warning when a sample's prokaryotic_fraction estimate could under- or overestimate the read fraction. Specifically, the warning is emitted when the 3 highest abundance lineages not classified to the species level would change the estimated read fraction of the sample by >2% if their genome size is halved or doubled. Prokaryotic fractions are also capped at 100% since values greater than this are impossible, but the original value can be recovered from the output if you calculate `bacterial_archaeal_bases / metagenome_size`.
 
-One current limitation of the approach relates to multi-copy plasmids. In `microbial_fraction`, the genome size of each microbial species is estimated as the sum of the chromosome and plasmid sizes, since these are the sequences available for each genome. However, in a metagenome, a species' plasmid may occur in multiple copies per cell (e.g. if the plasmid is 'high copy number'). SingleM `microbial_fraction` does not account for plasmid copy number, leading to an underestimation of the microbial fraction when plasmids are multi-copy. However, we consider this to be a minor issue, since plasmids are typically small compared to chromosomes. The average genome size estimate is unaffected by this limitation since by definition each plasmid counts only once regardless of its copy number.
+One current limitation of the approach relates to multi-copy plasmids. In `prokaryotic_fraction`, the genome size of each microbial species is estimated as the sum of the chromosome and plasmid sizes, since these are the sequences available for each genome. However, in a metagenome, a species' plasmid may occur in multiple copies per cell (e.g. if the plasmid is 'high copy number'). SingleM `prokaryotic_fraction` does not account for plasmid copy number, leading to an underestimation of the prokaryotic fraction when plasmids are multi-copy. However, we consider this to be a minor issue, since plasmids are typically small compared to chromosomes. The average genome size estimate is unaffected by this limitation since by definition each plasmid counts only once regardless of its copy number.

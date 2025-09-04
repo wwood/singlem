@@ -37,7 +37,7 @@ class Tests(unittest.TestCase):
     maxDiff = None
 
     def test_marine0(self):
-        cmd = "{} microbial_fraction -p {}/read_fraction/marine0.profile  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
+        cmd = "{} prokaryotic_fraction -p {}/read_fraction/marine0.profile  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
             path_to_script,
             path_to_data,
             path_to_data,
@@ -46,7 +46,7 @@ class Tests(unittest.TestCase):
         self.assertEqual('\t'.join(self.output_headers) + '\n' + '\t'.join(str.split('marine0.1       16593586562      17858646300.0   92.92   3718692') + [''] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58')) + '\n', obs)
 
     def test_smafa_count_unpaired(self):
-        cmd = "{} microbial_fraction -p {}/read_fraction/marine0.profile  --forward {}/read_fraction/marine0.1.fa --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
+        cmd = "{} prokaryotic_fraction -p {}/read_fraction/marine0.profile  --forward {}/read_fraction/marine0.1.fa --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
             path_to_script,
             path_to_data,
             path_to_data,
@@ -55,7 +55,7 @@ class Tests(unittest.TestCase):
         self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      3       100.00  3718692')+['WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate.'] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58'))+'\n', obs)
 
     def test_smafa_count_paired(self):
-        cmd = "{} microbial_fraction -p {}/read_fraction/marine0.profile  --forward {}/read_fraction/marine0.1.fa --reverse {}/read_fraction/marine0.2.fa --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
+        cmd = "{} prokaryotic_fraction -p {}/read_fraction/marine0.profile  --forward {}/read_fraction/marine0.1.fa --reverse {}/read_fraction/marine0.2.fa --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
             path_to_script,
             path_to_data,
             path_to_data,
@@ -65,7 +65,7 @@ class Tests(unittest.TestCase):
         self.assertEqual('\t'.join(self.output_headers)+'\n' + '\t'.join(str.split('marine0.1       16593586562      6       100.00    3718692')+['WARNING: The most abundant taxons not assigned to the species level account for a large fraction of the total estimated read fraction. This may mean that the read_fraction estimate is inaccurate.'] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58'))+'\n', obs)
 
     def test_output_per_taxon_read_fractions(self):
-        cmd = "{} microbial_fraction -p <(head -5 {}/read_fraction/marine0.profile) --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv --output-tsv /dev/null --output-per-taxon-read-fractions /dev/stdout".format(
+        cmd = "{} prokaryotic_fraction -p <(head -5 {}/read_fraction/marine0.profile) --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv --output-tsv /dev/null --output-per-taxon-read-fractions /dev/stdout".format(
             path_to_script,
             path_to_data,
             path_to_data,
@@ -81,7 +81,7 @@ marine0.1	p__Proteobacteria	7151244.856821437
     def test_average_genome_size(self):
         '''Here the ave genome size has been checked by hand'''
 
-        cmd = "{} microbial_fraction -p <(head -5 {}/read_fraction/marine0.profile)  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
+        cmd = "{} prokaryotic_fraction -p <(head -5 {}/read_fraction/marine0.profile)  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
             path_to_script,
             path_to_data,
             path_to_data,
@@ -91,6 +91,15 @@ marine0.1	p__Proteobacteria	7151244.856821437
 
 
 
+
+    def test_alias_microbial_fraction(self):
+        cmd = "{} microbial_fraction -p {}/read_fraction/marine0.profile  --input-metagenome-sizes {}/read_fraction/marine0.num_bases --taxon-genome-lengths-file {}/read_fraction/gtdb_mean_genome_sizes.tsv".format(
+            path_to_script,
+            path_to_data,
+            path_to_data,
+            path_to_data)
+        obs = extern.run(cmd)
+        self.assertEqual('\t'.join(self.output_headers) + '\n' + '\t'.join(str.split('marine0.1       16593586562      17858646300.0   92.92   3718692') + [''] + str.split('0.08    0.22    0.43    0.55    2.08    6.06    90.58')) + '\n', obs)
 
 if __name__ == "__main__":
     unittest.main()

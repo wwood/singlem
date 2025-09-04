@@ -111,5 +111,5 @@ comb %>%
         legend.title = element_text(size = 14),
         plot.title = element_text(size = 16, hjust = 0.5)
     )
-ggsave("old_vs_new_microbial_fraction.png", width = 8, height = 6, dpi = 300)
+ggsave("old_vs_new_prokaryotic_fraction.png", width = 8, height = 6, dpi = 300)
 ```
