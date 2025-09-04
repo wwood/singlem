@@ -576,28 +576,34 @@ def main():
         help="Output unaligned sequences from in put archive OTU table to this file. After each read name '~N' is added which corresponds to the order of the read in the archive OTU table, so that no two sequences have the same read name. N>1 can happen e.g. when the input file contains paired reads. ~0 does not necessarily correspond to the first read in the original input sequence set, but instead to the order in the input archive OTU table.")
 
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage. Also estimate average genome size.'
-    read_fraction_parser = bird_argparser.new_subparser('microbial_fraction', read_fraction_description, parser_group='Tools')
-    read_fraction_io_args = read_fraction_parser.add_argument_group('input')
-    read_fraction_io_args.add_argument('-p', '--input-profile', help="Input taxonomic profile file [required]", required=True)
-    read_fraction_sequence_input_group1 = read_fraction_parser.add_argument_group('Read information [1+ args required]')
-    read_fraction_sequence_input_group = read_fraction_sequence_input_group1.add_mutually_exclusive_group(required=True)
-    # Keep parity of these arguments with the 'pipe' command
-    read_fraction_sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
+
+    def add_prokaryotic_fraction_parser(name, description, deprecated=False):
+        parser = bird_argparser.new_subparser(name, description, parser_group='Tools')
+        read_fraction_io_args = parser.add_argument_group('input')
+        read_fraction_io_args.add_argument('-p', '--input-profile', help="Input taxonomic profile file [required]", required=True)
+        read_fraction_sequence_input_group1 = parser.add_argument_group('Read information [1+ args required]')
+        read_fraction_sequence_input_group = read_fraction_sequence_input_group1.add_mutually_exclusive_group(required=True)
+        # Keep parity of these arguments with the 'pipe' command
+        read_fraction_sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
                                 nargs='+',
                                 metavar='sequence_file',
                                 help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not. These must be the same ones that were used to generate the input profile.')
-    read_fraction_sequence_input_group1.add_argument('-2', '--reverse',
+        read_fraction_sequence_input_group1.add_argument('-2', '--reverse',
                                 nargs='+',
                                 metavar='sequence_file',
                                 help='reverse reads to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not. These must be the same reads that were used to generate the input profile.')
-    read_fraction_sequence_input_group.add_argument('--input-metagenome-sizes', help="TSV file with 'sample' and 'num_bases' as a header, where sample matches the input profile name, and num_reads is the total number (forward+reverse) of bases in the metagenome that was analysed with 'pipe'. These must be the same reads that were used to generate the input profile.")
-    read_fraction_database_args = read_fraction_parser.add_argument_group('database')
-    read_fraction_database_args.add_argument('--taxon-genome-lengths-file', help="TSV file with 'rank' and 'genome_size' as headers [default: Use genome lengths from the default metapackage]")
-    read_fraction_database_args.add_argument('--metapackage', help="Metapackage containing genome lengths [default: Use genome lengths from the default metapackage]")
-    read_fraction_uncommon_args = read_fraction_parser.add_argument_group('other options')
-    read_fraction_uncommon_args.add_argument('--accept-missing-samples', action='store_true', help="If a sample is missing from the input-metagenome-sizes file, skip analysis of it without croaking.")
-    read_fraction_uncommon_args.add_argument('--output-tsv', help="Output file [default: stdout]")
-    read_fraction_uncommon_args.add_argument('--output-per-taxon-read-fractions', help="Output a fraction for each taxon to this TSV [default: Do not output anything]")
+        read_fraction_sequence_input_group.add_argument('--input-metagenome-sizes', help="TSV file with 'sample' and 'num_bases' as a header, where sample matches the input profile name, and num_reads is the total number (forward+reverse) of bases in the metagenome that was analysed with 'pipe'. These must be the same reads that were used to generate the input profile.")
+        read_fraction_database_args = parser.add_argument_group('database')
+        read_fraction_database_args.add_argument('--taxon-genome-lengths-file', help="TSV file with 'rank' and 'genome_size' as headers [default: Use genome lengths from the default metapackage]")
+        read_fraction_database_args.add_argument('--metapackage', help="Metapackage containing genome lengths [default: Use genome lengths from the default metapackage]")
+        read_fraction_uncommon_args = parser.add_argument_group('other options')
+        read_fraction_uncommon_args.add_argument('--accept-missing-samples', action='store_true', help="If a sample is missing from the input-metagenome-sizes file, skip analysis of it without croaking.")
+        read_fraction_uncommon_args.add_argument('--output-tsv', help="Output file [default: stdout]")
+        read_fraction_uncommon_args.add_argument('--output-per-taxon-read-fractions', help="Output a fraction for each taxon to this TSV [default: Do not output anything]")
+        return parser
+
+    add_prokaryotic_fraction_parser('prokaryotic_fraction', read_fraction_description)
+    add_prokaryotic_fraction_parser('microbial_fraction', read_fraction_description + ' [deprecated; use prokaryotic_fraction]')
 
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
@@ -1462,7 +1468,7 @@ def main():
                 output_directory = args.output_directory,
             )
 
-    elif args.subparser_name=='microbial_fraction':
+    elif args.subparser_name in ('prokaryotic_fraction', 'microbial_fraction'):
         from singlem.read_fraction import ReadFractionEstimator
         ReadFractionEstimator().calculate_and_report_read_fraction(
             input_profile = args.input_profile,

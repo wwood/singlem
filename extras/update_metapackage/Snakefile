@@ -506,7 +506,7 @@ rule sra_fractions_assigned_to_each_level:
         "--input-taxonomic-profile {input.profile} "
         "--output-taxonomic-level-coverage {output.breakdown} "
 
-rule sra_microbial_fraction:
+rule sra_prokaryotic_fraction:
     input:
         profile = output_dir + "/sra/{sra}_{version}.otu_table.condensed.tsv",
         sra_1 = lambda wildcards: config["sra_seqs_1"][wildcards.sra],
@@ -524,7 +524,7 @@ rule sra_microbial_fraction:
     log:
         logs_dir + "/sra/{sra}_{version}_smf.log"
     shell:
-        "{singlem_bin} microbial_fraction "
+        "{singlem_bin} prokaryotic_fraction "
         "--metapackage {params.metapackge} "
         "--forward {input.sra_1} "
         "--reverse {input.sra_2} "
