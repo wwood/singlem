@@ -1,8 +1,15 @@
 **TLDR**: A taxonomic overview of your community can be obtained like so:
 ```
-singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p \
-   <output.profile.tsv>
+singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> \
+   -p <output.profile.tsv>
 ```
+or, if you have long reads (or single-end short reads):
+```
+singlem pipe -1 <fastq_or_fasta1> \
+   -p <output.profile.tsv>
+```
+Nanopore reads >= R10.4.1 or PacBio HiFi reads are recommended so reads covering marker gene windows are not missed due to sequencing error.
+
 To further convert the generated taxonomic profile to other formats that might be more convenient, see [`summarise`](/tools/summarise).
 
 ## Algorithm details

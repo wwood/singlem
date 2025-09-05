@@ -1,5 +1,7 @@
-## Unreleased
+## v0.20.0
 
+* Long-read input support (Nanopore >= R10.4.1 or PacBio HiFi recommended)
+* Lyrebird database updated to v0.3.1, improving exclusion of off-target (non-phage) sequences
 * `microbial_fraction` subcommand renamed to `prokaryotic_fraction` (old name retained as synonym)
 
 ## v0.19.0

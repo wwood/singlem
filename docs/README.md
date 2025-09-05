@@ -17,14 +17,15 @@
 
 Welcome.
 
-***💉 Now works on dsDNA phages!***  
-***🧬 Now works with long reads!***
+At heart, SingleM is a tool for profiling shotgun (both short and long-read) metagenomes. It [shows](https://doi.org/10.1038/s41587-025-02738-1) good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages.
 
-At heart, SingleM is a tool for profiling shotgun (both short and long-read) metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](https://wwood.github.io/singlem/Lyrebird)). Long-read compatibility was added in version 0.20.0, but requires `Nanopore >= R10.4.1` or `PacBio HiFi` reads to ensure high enough base-pair calling accuracy for reliable taxonomic profiling.
+It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
 
-It [shows](https://doi.org/10.1101/2024.01.30.578060) good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [Bin Chicken](https://aroneys.github.io/binchicken/)).
+Recent versions have added features:
+* Long-read input support (v0.20.0). Either Nanopore >= R10.4.1 or PacBio HiFi reads are recommended to ensure reliable taxonomic profiling.
+* Profiling of dsDNA phages (v0.19.0, updated DB in v0.20.0). See [Lyrebird](/Lyrebird).
 
-Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
+The method it uses also it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [Bin Chicken](https://aroneys.github.io/binchicken/)).
 
 The main idea of SingleM is to profile metagenomes by targeting short 20 amino acid stretches ("*windows*") within single copy marker genes. It finds reads which cover an entire window, and analyses these further. By constraining analysis to these short windows, it becomes possible to know how novel each read is compared to known genomes. Then, using the fact that each analysed gene is (almost always) found exactly once in each genome, the abundance of each lineage can be accurately estimated.
 
@@ -46,7 +47,7 @@ And more specialised / expert modes:
 If you have any questions or comments, raise a [GitHib issue](https://github.com/wwood/singlem/issues) or just send us an [email](https://research.qut.edu.au/cmr/team/ben-woodcroft/).
 
 ## License
-SingleM is developed by the [Woodcroft lab](https://research.qut.edu.au/cmr/team/ben-woodcroft/) at the [Centre for Microbiome Research](https://research.qut.edu.au/cmr), School of Biomedical Sciences, QUT, with contributions from many helpful people including [Samuel Aroney](https://github.com/AroneyS), [Rossen Zhao](https://github.com/rzhao-2), [Raphael Eisenhofer](https://github.com/EisenRa). It is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
+SingleM is developed by the [Woodcroft lab](https://research.qut.edu.au/cmr/team/ben-woodcroft/) at the [Centre for Microbiome Research](https://research.qut.edu.au/cmr), School of Biomedical Sciences, QUT, with contributions from many helpful people including [Samuel Aroney](https://github.com/AroneyS), [Rossen Zhao](https://github.com/rzhao-2), and [Raphael Eisenhofer](https://github.com/EisenRa). It is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
 
 The source code is available at [https://github.com/wwood/singlem](https://github.com/wwood/singlem).
 

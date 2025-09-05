@@ -23,7 +23,6 @@ navigation:
     - path: docs/tools/appraise.md
     - path: docs/tools/lyrebird_data.md
     - path: docs/tools/lyrebird_pipe.md
-    - path: docs/tools/lyrebird_renew.md
   - path: docs/advanced
     children: 
     - path: docs/advanced/query.md
@@ -33,3 +32,4 @@ navigation:
     - path: docs/advanced/create.md
     - path: docs/advanced/metapackage.md
     - path: docs/advanced/lyrebird_condense.md
+    - path: docs/advanced/lyrebird_renew.md

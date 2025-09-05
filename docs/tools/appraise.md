@@ -129,6 +129,16 @@ unassembled.
 
   Style of output OTU tables
 
+**\--stream-inputs**
+
+  Stream input OTU tables, saving RAM. Only works with
+    \--output-otu-table and transformation options do not work [expert
+    option].
+
+**\--threads** num_threads
+
+  Use this many threads when processing streaming inputs [default 1]
+
 # OTHER GENERAL OPTIONS
 
 **\--debug**

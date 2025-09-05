@@ -4,14 +4,23 @@ title: SingleM pipe
 # singlem pipe
 **TLDR**: A taxonomic overview of your community can be obtained like so:
 ```
-singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p \
-   <output.profile.tsv>
+singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> \
+   -p <output.profile.tsv>
 ```
+or, if you have long reads (or single-end short reads):
+```
+singlem pipe -1 <fastq_or_fasta1> \
+   -p <output.profile.tsv>
+```
+Nanopore reads >= R10.4.1 or PacBio HiFi reads are recommended so reads covering marker gene windows are not missed due to sequencing error.
+
 To further convert the generated taxonomic profile to other formats that might be more convenient, see [`summarise`](/tools/summarise).
 
 ## Algorithm details
 
-**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/Glossary).
+**Details**: In its most common usage, the SingleM `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/Glossary).
+
+It can also take as input whole genomes (or contigs) via `--genome-fasta-files`, `--genome-fasta-directory` or `--genome-fasta-list`. These options behave the same as providing sequences with `--forward`, except that different defaults for `--min-taxon-coverage` and `--min-orf-length` are used.
 
 `pipe` performs three steps:
 
@@ -42,31 +51,36 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
-  nucleotide short/long read or sequence(s) (forward or unpaired) to be searched.  
-    Can be FASTA or FASTQ format, GZIP-compressed or not.  
+  nucleotide read sequence(s) (forward or unpaired) to be searched.
+    Can be FASTA or FASTQ format, GZIP-compressed or not.
 
 **-2**, **\--reverse** sequence_file [sequence_file \...]
 
-  reverse short/long reads to be searched. Can be FASTA or FASTQ format,
+  reverse reads to be searched. Can be FASTA or FASTQ format,
     GZIP-compressed or not.
 
-**\--genome-fasta-files** sequence_file [sequence_file \...]
+**-f**, **\--genome-fasta-files** PATH [PATH \...]
 
-  nucleotide genome sequence(s) to be searched  
+  Path(s) to genome FASTA files. These are processed like input given
+    with \--forward, but use higher default values for
+    \--min-taxon-coverage and \--min-orf-length.
 
-**\--sra-files** sra_file [sra_file \...]
+**-d**, **\--genome-fasta-directory** PATH
 
-  \"sra\" format files (usually from NCBI SRA) to be searched
+  Directory containing genome FASTA files. Treated identically to
+    \--forward input with higher default values for
+    \--min-taxon-coverage and \--min-orf-length.
 
-**\--read-chunk-size** num_reads
+**\--genome-fasta-list** PATH
 
-  Size chunk to process at a time (in number of reads). Requires
-    \--sra-files.
+  File containing genome FASTA paths, one per line. Behaviour matches
+    \--forward with higher default values for \--min-taxon-coverage and
+    \--min-orf-length.
 
-**\--read-chunk-number** chunk_number
+**-x**, **\--genome-fasta-extension** EXT
 
-  Process only this specific chunk number (1-based index). Requires
-    \--sra-files.
+  File extension of genomes in the directory specified with
+    -d/\--genome-fasta-directory. [default: fna]
 
 **-p**, **\--taxonomic-profile** FILE
 
@@ -116,15 +130,29 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
   output OTU table in archive format for making DBs etc. [default:
     unused]
 
+**\--metapackage** *METAPACKAGE*
+
+  Set of SingleM packages to use [default: use the default set]
+
+**\--sra-files** sra_file [sra_file \...]
+
+  \"sra\" format files (usually from NCBI SRA) to be searched
+
+**\--read-chunk-size** num_reads
+
+  Size chunk to process at a time (in number of reads). Requires
+    \--sra-files.
+
+**\--read-chunk-number** chunk_number
+
+  Process only this specific chunk number (1-based index). Requires
+    \--sra-files.
+
 **\--output-jplace** filename
 
   Output a jplace format file for each singlem package to a file
     starting with this string, each with one entry per OTU. Requires
     \'pplacer\' as the \--assignment_method [default: unused]
-
-**\--metapackage** *METAPACKAGE*
-
-  Set of SingleM packages to use [default: use the default set]
 
 **\--singlem-packages** *SINGLEM_PACKAGES* [*SINGLEM_PACKAGES* \...]
 
@@ -151,8 +179,7 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 **\--min-orf-length** length
 
   When predicting ORFs require this many base pairs uninterrupted by a
-    stop codon [default: 72 when input is reads, 300 when input is
-    genomes]
+    stop codon [default: 72 for reads, 300 for genomes]
 
 **\--restrict-read-length** length
 
