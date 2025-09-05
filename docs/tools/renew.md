@@ -70,15 +70,29 @@ Reannotate an OTU table with an updated taxonomy
   output OTU table in archive format for making DBs etc. [default:
     unused]
 
+**\--metapackage** *METAPACKAGE*
+
+  Set of SingleM packages to use [default: use the default set]
+
+**\--sra-files** sra_file [sra_file \...]
+
+  \"sra\" format files (usually from NCBI SRA) to be searched
+
+**\--read-chunk-size** num_reads
+
+  Size chunk to process at a time (in number of reads). Requires
+    \--sra-files.
+
+**\--read-chunk-number** chunk_number
+
+  Process only this specific chunk number (1-based index). Requires
+    \--sra-files.
+
 **\--output-jplace** filename
 
   Output a jplace format file for each singlem package to a file
     starting with this string, each with one entry per OTU. Requires
     \'pplacer\' as the \--assignment_method [default: unused]
-
-**\--metapackage** *METAPACKAGE*
-
-  Set of SingleM packages to use [default: use the default set]
 
 **\--singlem-packages** *SINGLEM_PACKAGES* [*SINGLEM_PACKAGES* \...]
 
@@ -105,8 +119,7 @@ Reannotate an OTU table with an updated taxonomy
 **\--min-orf-length** length
 
   When predicting ORFs require this many base pairs uninterrupted by a
-    stop codon [default: 72 when input is reads, 300 when input is
-    genomes]
+    stop codon [default: 72 for reads, 300 for genomes]
 
 **\--restrict-read-length** length
 

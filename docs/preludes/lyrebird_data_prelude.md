@@ -3,6 +3,8 @@ The `data` subcommand downloads (or verifies) the reference data used by Lyrebir
 Once it has been downloaded, the environment variable LYREBIRD_METAPACKAGE_PATH
 can be used to specify the location of the reference data.
 
+Database versions are documented in the [main Lyrebird documentation page](/Lyrebird).
+
 ## Example usage
 
 ```

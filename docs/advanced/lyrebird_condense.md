@@ -6,9 +6,9 @@ title: Lyrebird condense
 # DESCRIPTION
 
 Combine OTU tables across different markers into a single taxonomic
-profile. This is a customized method for Lyrebird metapackages. 
-Note that while this mode can be run independently, it is often
-more straightforward to invoke its methodology by specifying -p /
+profile. Modified for non-universal markers and requires a Lyrebird
+metapackage. Note that while this mode can be run independently, it is
+often more straightforward to invoke its methodology by specifying -p /
 \--taxonomic- profile when running pipe mode.
 
 # OPTIONS

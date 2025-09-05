@@ -87,22 +87,10 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
         sequence_input_group.add_argument('--genome-fasta-list',
                                     metavar='PATH',
                                     help='File containing genome FASTA paths, one per line. Behaviour matches --forward with higher default values for --min-taxon-coverage and --min-orf-length.')
-        sequence_input_group.add_argument('--sra-files',
-                        nargs='+',
-                        metavar='sra_file',
-                        help='"sra" format files (usually from NCBI SRA) to be searched')
-        argument_group.add_argument('-x', '--genome-fasta-extension',
+        sequence_input_group.add_argument('-x', '--genome-fasta-extension',
                                     metavar='EXT',
                                     help='File extension of genomes in the directory specified with -d/--genome-fasta-directory. [default: fna]',
                                     default='fna')
-        argument_group.add_argument('--read-chunk-size',
-                type=int,
-                metavar='num_reads',
-                help='Size chunk to process at a time (in number of reads). Requires --sra-files.')
-        argument_group.add_argument('--read-chunk-number',
-                type=int,
-                metavar='chunk_number',
-                help='Process only this specific chunk number (1-based index). Requires --sra-files.')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
@@ -140,8 +128,20 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
 
 def add_less_common_pipe_arguments(argument_group, extra_args=False):
     argument_group.add_argument('--archive-otu-table', metavar='filename', help='output OTU table in archive format for making DBs etc. [default: unused]')
-    argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
     argument_group.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
+    argument_group.add_argument('--sra-files',
+            nargs='+',
+            metavar='sra_file',
+            help='"sra" format files (usually from NCBI SRA) to be searched')
+    argument_group.add_argument('--read-chunk-size',
+            type=int,
+            metavar='num_reads',
+            help='Size chunk to process at a time (in number of reads). Requires --sra-files.')
+    argument_group.add_argument('--read-chunk-number',
+            type=int,
+            metavar='chunk_number',
+            help='Process only this specific chunk number (1-based index). Requires --sra-files.')
+    argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
     argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
     argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
     argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
@@ -578,7 +578,8 @@ def main():
     read_fraction_description = 'Estimate the fraction of reads from a metagenome that are assigned to Bacteria and Archaea compared to e.g. eukaryote or phage. Also estimate average genome size.'
 
     def add_prokaryotic_fraction_parser(name, description, deprecated=False):
-        parser = bird_argparser.new_subparser(name, description, parser_group='Tools')
+        parser_group = 'exclude' if name == "microbial_fraction" else 'Tools'
+        parser = bird_argparser.new_subparser(name, description, parser_group=parser_group)
         read_fraction_io_args = parser.add_argument_group('input')
         read_fraction_io_args.add_argument('-p', '--input-profile', help="Input taxonomic profile file [required]", required=True)
         read_fraction_sequence_input_group1 = parser.add_argument_group('Read information [1+ args required]')

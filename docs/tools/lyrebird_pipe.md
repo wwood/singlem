@@ -2,61 +2,48 @@
 title: Lyrebird pipe
 ---
 # lyrebird pipe
-**TLDR**: A viral taxonomic overview of your community can be obtained like so:
-```
-lyrebird pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> -p \
-   <output.profile.tsv>
-```
-To further convert the generated taxonomic profile to other formats that might be more convenient, see SingleM [`summarise`](/tools/summarise).
 
-## Algorithm details
+# DESCRIPTION
 
-**Details**: In its most common usage, the Lyrebird `pipe` subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are [not the same thing](/#glossary).
+Generate a taxonomic profile or OTU table for dsDNA phages from raw
+sequences
 
-`pipe` performs three steps:
-
-1. Find discrete operational taxonomic units (OTUs) from a shotgun metagenome
-2. Assign taxonomy to marker-specific OTU tables
-3. Convert OTU tables into a overall taxonomic profile
-
-Workflow for the first 2 steps:
-
-![steps 1 and 2](/singlem_pipe_v2.svg)
-
-In the 1st step, reads that encode conserved single copy marker genes are found. Lyrebird specifically finds reads which cover short highly conserved sections ("*windows*") within those genes. In most species, these windows are 20 amino acids encoded by 60 nucleotides - in rare cases there are inserts or deletions. Sequences covering those small sections are OTU sequences, and these OTU sequences exist independent of taxonomy. By default, Lyrebird currently uses 630 viral single copy marker genes.
-
-In the 2nd step, taxonomy is assigned based on comparing the nucleotide sequence of the window to GTDB species representatives' window sequences. If none are similar enough (i.e. within 96.7% identity or 2bp of the 60bp window), then diamond blastx is used instead.
-
-Finally, in the 3rd step, the set of window sequences (i.e. a metagenome's OTU table) is converted into a taxonomic profile, which describes the amount of the microbial community belonging to each species or higher level taxon. This is achieved by considering the OTUs from the 59 different marker genes holistically, using trimmed means and expectation maximisation in a somewhat complicated overall algorithm "*condense*":
-
-![step 3](/singlem_condense_v2.svg)
-
-Please use **raw** metagenomic reads, not quality trimmed reads. Quality trimming with e.g. [Trimmomatic](https://doi.org/10.1093/bioinformatics/btu170) reads often makes them too short for Lyrebird to use. Adapter trimming is unlikely to be detrimental, but is not needed.
-
-The [examples section](/tools/pipe#examples) may be of use.
-
-For a more detailed explanation of the Lyrebird pipeline, see the Lyrebird paper (coming soon).
-
+# OPTIONS
 
 # COMMON OPTIONS
 
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
-  nucleotide short/long read sequence(s) (forward or unpaired) to be searched.  
-    Can be FASTA or FASTQ format, GZIP-compressed or not.  
+  nucleotide read sequence(s) (forward or unpaired) to be searched.
+    Can be FASTA or FASTQ format, GZIP-compressed or not.
 
 **-2**, **\--reverse** sequence_file [sequence_file \...]
 
-  reverse short/long reads to be searched. Can be FASTA or FASTQ format,
+  reverse reads to be searched. Can be FASTA or FASTQ format,
     GZIP-compressed or not.
 
-**\--genome-fasta-files** sequence_file [sequence_file \...]
+**-f**, **\--genome-fasta-files** PATH [PATH \...]
 
-  nucleotide genome sequence(s) to be searched
+  Path(s) to genome FASTA files. These are processed like input given
+    with \--forward, but use higher default values for
+    \--min-taxon-coverage and \--min-orf-length.
 
-**\--sra-files** sra_file [sra_file \...]
+**-d**, **\--genome-fasta-directory** PATH
 
-  \"sra\" format files (usually from NCBI SRA) to be searched
+  Directory containing genome FASTA files. Treated identically to
+    \--forward input with higher default values for
+    \--min-taxon-coverage and \--min-orf-length.
+
+**\--genome-fasta-list** PATH
+
+  File containing genome FASTA paths, one per line. Behaviour matches
+    \--forward with higher default values for \--min-taxon-coverage and
+    \--min-orf-length.
+
+**-x**, **\--genome-fasta-extension** EXT
+
+  File extension of genomes in the directory specified with
+    -d/\--genome-fasta-directory. [default: fna]
 
 **-p**, **\--taxonomic-profile** FILE
 
@@ -106,15 +93,29 @@ For a more detailed explanation of the Lyrebird pipeline, see the Lyrebird paper
   output OTU table in archive format for making DBs etc. [default:
     unused]
 
+**\--metapackage** *METAPACKAGE*
+
+  Set of SingleM packages to use [default: use the default set]
+
+**\--sra-files** sra_file [sra_file \...]
+
+  \"sra\" format files (usually from NCBI SRA) to be searched
+
+**\--read-chunk-size** num_reads
+
+  Size chunk to process at a time (in number of reads). Requires
+    \--sra-files.
+
+**\--read-chunk-number** chunk_number
+
+  Process only this specific chunk number (1-based index). Requires
+    \--sra-files.
+
 **\--output-jplace** filename
 
   Output a jplace format file for each singlem package to a file
     starting with this string, each with one entry per OTU. Requires
     \'pplacer\' as the \--assignment_method [default: unused]
-
-**\--metapackage** *METAPACKAGE*
-
-  Set of SingleM packages to use [default: use the default set]
 
 **\--singlem-packages** *SINGLEM_PACKAGES* [*SINGLEM_PACKAGES* \...]
 
@@ -141,8 +142,7 @@ For a more detailed explanation of the Lyrebird pipeline, see the Lyrebird paper
 **\--min-orf-length** length
 
   When predicting ORFs require this many base pairs uninterrupted by a
-    stop codon [default: 72 when input is reads, 300 when input is
-    genomes]
+    stop codon [default: 72 for reads, 300 for genomes]
 
 **\--restrict-read-length** length
 
@@ -291,12 +291,12 @@ For a more detailed explanation of the Lyrebird pipeline, see the Lyrebird paper
 
 # EXAMPLES
 
-Get a taxonomic profile from paired read input:
+Get a taxonomic profile for dsDNA phages from paired read input:
 
   **\$ lyrebird pipe -1 \<fastq_or_fasta1\> -2 \<fastq_or_fasta2\> -p
     \<output.profile.tsv\>**
 
-Get a taxonomic profile Krona diagram from single read input:
+Get a taxonomic profile Krona diagram for dsDNA phages from single read input:
 
   **\$ lyrebird pipe -i \<fastq_or_fasta\> \--taxonomic-profile-krona
     \<output.profile.html\>**

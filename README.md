@@ -17,16 +17,17 @@
 
 Welcome.
 
-***💉 Now works on dsDNA phages!***  
-***🧬 Now works with long reads!***
+At heart, SingleM is a tool for profiling shotgun (both short and long-read) metagenomes. It [shows](https://doi.org/10.1101/2024.01.30.578060) good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages.
 
-At heart, SingleM is a tool for profiling shotgun (both short and long-read) metagenomes. It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. As of version 0.19.0, it can also be used to profile dsDNA phages (see [Lyrebird](https://wwood.github.io/singlem/Lyrebird)). Long-read compatibility was added in version 0.20.0, but requires `Nanopore >= R10.4.1` or `PacBio HiFi` reads to ensure high enough base-pair calling accuracy for reliable taxonomic profiling.
+It was originally designed to determine the relative abundance of bacterial and archaeal taxa in a sample. Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
 
-It [shows](https://doi.org/10.1101/2024.01.30.578060) good accuracy in estimating the relative abundances of community members, and has a particular strength in dealing with novel lineages. The method it uses also makes it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [Bin Chicken](https://aroneys.github.io/binchicken/)).
+Recent versions have added features:
+* Long-read input support (v0.20.0). Either Nanopore >= R10.4.1 or PacBio HiFi reads are recommended to ensure reliable taxonomic profiling.
+* Profiling of dsDNA phages (v0.19.0, updated DB in v0.20.0). See [Lyrebird](https://wwood.github.io/singlem/Lyrebird).
 
-Microbial SingleM has been applied to ~700,000 public metagenomes. The resulting data are available at the [Sandpiper companion website](https://sandpiper.qut.edu.au).
+The method it uses also it suitable for some related tasks, such as assessing eukaryotic contamination, finding bias in genome recovery, and lineage-targeted MAG recovery. It can also be used as the basis for choosing metagenomes which, when coassembled, maximise the recovery of novel MAGs (see [Bin Chicken](https://aroneys.github.io/binchicken/)).
 
-Documentation can be found at https://wwood.github.io/singlem/
+Documentation can be found at https://wwood.github.io/singlem/.
 
 ## Citations
 <!-- NOTE: Citations should manually be kept in sync between the repo README and the docs README -->
