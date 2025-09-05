@@ -72,7 +72,7 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
         sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
                                     nargs='+',
                                     metavar='sequence_file',
-                                    help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not.')
+                                    help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not, short or long (but Nanopore >=10.4.1 or PacBio HiFi reads recommended).')
         argument_group.add_argument('-2', '--reverse',
                                     nargs='+',
                                     metavar='sequence_file',
@@ -87,7 +87,7 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
         sequence_input_group.add_argument('--genome-fasta-list',
                                     metavar='PATH',
                                     help='File containing genome FASTA paths, one per line. Behaviour matches --forward with higher default values for --min-taxon-coverage and --min-orf-length.')
-        sequence_input_group.add_argument('-x', '--genome-fasta-extension',
+        argument_group.add_argument('-x', '--genome-fasta-extension',
                                     metavar='EXT',
                                     help='File extension of genomes in the directory specified with -d/--genome-fasta-directory. [default: fna]',
                                     default='fna')
