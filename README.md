@@ -13,7 +13,6 @@
 [![Docker version](https://img.shields.io/docker/v/wwood/singlem?label=Docker&color=1D63ED)](https://hub.docker.com/r/wwood/singlem/tags)
 [![Docker pulls](https://img.shields.io/docker/pulls/wwood/singlem.svg?label=Pulls&color=1D63ED)](https://hub.docker.com/r/wwood/singlem)
 [![PyPI version](https://img.shields.io/pypi/v/singlem.svg?label=PyPI&color=ffd43b)](https://pypi.org/project/singlem/)
-[![PyPI downloads](https://img.shields.io/pypi/dm/singlem.svg?label=Downloads&color=ffd43b)](https://pypi.org/project/singlem/)
 
 Welcome.
 
