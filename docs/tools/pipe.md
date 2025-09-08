@@ -52,7 +52,8 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 **-1**, **\--forward**, **\--reads**, **\--sequences** sequence_file [sequence_file \...]
 
   nucleotide read sequence(s) (forward or unpaired) to be searched.
-    Can be FASTA or FASTQ format, GZIP-compressed or not.
+    Can be FASTA or FASTQ format, GZIP-compressed or not, short or long
+    (but Nanopore \>=10.4.1 or PacBio HiFi reads recommended).
 
 **-2**, **\--reverse** sequence_file [sequence_file \...]
 
