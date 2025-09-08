@@ -74,7 +74,7 @@ if __name__ == '__main__':
                 final_path = 'docs/{}/{}.md'.format(subdir, subcommand)
                 title = 'SingleM'
             else:
-                subcommand_prelude = 'docs/preludes/{}_{}/prelude.md'.format(exe, subcommand)
+                subcommand_prelude = 'docs/preludes/{}_{}_prelude.md'.format(exe, subcommand)
                 final_path = 'docs/{}/{}_{}.md'.format(subdir, exe, subcommand)
                 title = exe.capitalize()
             if os.path.exists(subcommand_prelude):
