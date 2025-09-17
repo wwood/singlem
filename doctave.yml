@@ -31,5 +31,6 @@ navigation:
     - path: docs/advanced/seqs.md
     - path: docs/advanced/create.md
     - path: docs/advanced/metapackage.md
+    - path: docs/advanced/regenerate.md
     - path: docs/advanced/lyrebird_condense.md
     - path: docs/advanced/lyrebird_renew.md

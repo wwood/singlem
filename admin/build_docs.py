@@ -56,7 +56,7 @@ if __name__ == '__main__':
     subdir_and_commands = [
         ['tools', ['data','pipe','appraise','summarise','renew','supplement','prokaryotic_fraction',
                    ['lyrebird','data'], ['lyrebird','pipe']]],
-        ['advanced', ['makedb','query','condense','seqs','create','metapackage',
+        ['advanced', ['makedb','query','condense','seqs','create','metapackage','regenerate',
                       ['lyrebird','condense'], ['lyrebird','renew']]]
     ]
 
