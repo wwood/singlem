@@ -75,6 +75,7 @@ if __name__ == '__main__':
                     'appraise': 'INPUT OTU TABLE OPTIONS',
                     'seqs': 'OPTIONS',
                     'metapackage': 'OPTIONS',
+                    'supplement': 'OPTIONS',
                 }
                 logging.info("For ROFF for command {}, removing everything before '{}'".format(
                     subcommand, splitters[subcommand]))

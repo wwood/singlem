@@ -127,6 +127,8 @@ def generate_taxonomy_for_new_genomes(**kwargs):
                 # run gtdbtk to temporary output directory
                 gtdbtk_output = os.path.join(working_directory, 'gtdbtk_output')
                 logging.info("Running GTDBtk to generate taxonomy for new genomes ..")
+                if not shutil.which("gtdbtk"):
+                    raise Exception("gtdbtk is not installed by default; install it (e.g. 'conda install gtdbtk').")
                 # logging.warning("mash_db used is specific to QUT's CMR cluster, will fix this in future")
                 cmd = f'gtdbtk classify_wf --cpus {threads} --batchfile {batchfile.name} --out_dir {gtdbtk_output} --mash_db {working_directory}/gtdbtk_mash.msh'
                 if pplacer_threads:
