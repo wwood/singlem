@@ -636,15 +636,15 @@ def main():
     regenerate_parser.add_argument('--min-aligned-percent', metavar='percent', help="remove sequences from the alignment which do not cover this percentage of the HMM [default: {}]".format(current_default), type=int, default=current_default)
     regenerate_parser.add_argument('--window-position', help="change window position of output package [default: do not change]", type=int, default=False)
     regenerate_parser.add_argument('--sequence-prefix', help="add a prefix to sequence names", type=str, default="")
-    regenerate_parser.add_argument('--candidate-decoy-sequences', '--euk-sequences', help='candidate amino acid sequences to search for decoys')
-    regenerate_parser.add_argument('--candidate-decoy-taxonomy', '--euk-taxonomy', help='sequence taxonomy of candidate decoy sequences')
+    regenerate_parser.add_argument('--candidate-decoy-sequences', '--euk-sequences', help='candidate amino acid sequences fasta file to search for decoys')
+    regenerate_parser.add_argument('--candidate-decoy-taxonomy', '--euk-taxonomy', help='tab-separated sequence ID to taxonomy file of candidate decoy sequences')
     regenerate_parser.add_argument('--no-candidate-decoy-sequences', '--no-further-euks', help='Do not include any euk sequences beyond what is already in the current SingleM package', action='store_true')
 
     required_regenerate_arguments = regenerate_parser.add_argument_group('required arguments')
-    required_regenerate_arguments.add_argument('--input-singlem-package', metavar="PATH", help="input package", required=True)
-    required_regenerate_arguments.add_argument('--output-singlem-package', metavar="PATH", help="output package", required=True)
-    required_regenerate_arguments.add_argument('--input-sequences', required=True, help='all amino acid sequences for new package')
-    required_regenerate_arguments.add_argument('--input-taxonomy', required=True, help='input sequence taxonomy')
+    required_regenerate_arguments.add_argument('--input-singlem-package', metavar="PATH", help="input package path", required=True)
+    required_regenerate_arguments.add_argument('--output-singlem-package', metavar="PATH", help="output package path", required=True)
+    required_regenerate_arguments.add_argument('--input-sequences', required=True, help='all on-target amino acid sequences fasta file for new package')
+    required_regenerate_arguments.add_argument('--input-taxonomy', required=True, help='tab-separated sequence ID to taxonomy file of on-target sequence taxonomy')
 
     metapackage_description = 'Create or describe a metapackage (i.e. set of SingleM packages)'
     metapackage_parser = bird_argparser.new_subparser('metapackage', metapackage_description)
