@@ -108,7 +108,6 @@ def main():
         singlem.pipe.SearchPipe().run(
             sequences = args.forward,
             reverse_read_files = args.reverse,
-            genomes = args.genome_fasta_files,
             input_sra_files = args.sra_files,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
