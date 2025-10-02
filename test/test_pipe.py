@@ -926,6 +926,39 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
+
+    def test_paired_reads_one_read_query_reverse_diamond(self):
+        # See issue 252
+        # Reads should be merged
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTC	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTCCGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	singlem_query_based',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTCCGTCGTGCAGCTGAA
+'''
+#------------------------WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW---------------
+        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
+''' # reverse complement of the forward, so should collapse.
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
+                n2.write(inseqs_reverse)
+                n2.flush()
+
+                cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --output-extras --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond".format(
+                    path_to_script,
+                    n.name,
+                    n2.name,
+                    os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
+                    os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
+                    )
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
     def test_two_orfs_in_same_read(self):
         # Read finds 2 ORFs, pretty rare for reads (but happens for genomes
         # more frequently)
