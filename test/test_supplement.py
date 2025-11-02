@@ -235,6 +235,17 @@ class Tests(unittest.TestCase):
                 "GCA_011373445.1_genomic.fna	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__DRVV01 sp011373445\n"
             self.assertEqual(expected, taxonomy)
 
+    def test_tilde_in_genome_name(self):
+        with in_tempdir():
+            cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12.fna.taxonomy --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+
+            # expect error due to tilde in genome name
+            with self.assertRaises(extern.ExternCalledProcessError) as cm:
+                try:
+                    extern.run(cmd)
+                except extern.ExternCalledProcessError as e:
+                    self.assertIn("offending genome name is:", str(e))
+                    raise
 
 if __name__ == "__main__":
     unittest.main()

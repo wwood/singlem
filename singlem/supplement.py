@@ -533,8 +533,17 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
     read_name_field = ArchiveOtuTable.READ_NAME_FIELD_INDEX
     new_genomes_otu_table = ArchiveOtuTable()
     sequence_to_genome = {}
+
+    bad_chars = ['=', '~']
+    # raise if there are bad chars in genome names
+    for g in genome_to_taxonomy.keys():
+        if any(char in g for char in bad_chars):
+            raise ValueError("Because they are used as delimiters within SingleM, the '=' or '~'  characters cannot be used in genome names, or transcript names. The offending genome name is: {}".format(g))
+    
     for otu in new_genomes_otu_table_unassigned:
         for read_name in otu.data[6]:
+            if any(char in read_name for char in bad_chars):
+                raise ValueError("Because they are used as delimiters within SingleM, the '=' or '~'  characters cannot be used in genome names, or transcript names. The offending read name is: {}".format(read_name))
             genome, _ = read_name.split('=')
             sequence_to_genome[read_name] = FastaNameToSampleName.fasta_to_name(genome)
 
