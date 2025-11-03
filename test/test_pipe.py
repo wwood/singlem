@@ -1240,7 +1240,31 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             expected,
             extern.run(cmd))
 
+    def test_read_name_parsing(self):
+        # ensures that the read name does not become corrupted during processing
+        # e.g. read~name used to get split due to internal string parsing
 
+        # all non-space, standard ASCII characters, see https://www.ascii-code.com/ for details
+        all_ascii_chars = ''.join(chr(i) for i in list(range(33, 127)) + list(range(161, 255)))
+        expected = [
+            "\t".join(self.headers_with_extras),
+            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	{all_ascii_chars}	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_000817105.1\']	diamond',
+            '']
+        inseqs = inseqs = (
+            f'>{all_ascii_chars}\n'
+            f'CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT\n'
+        )
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --output-extras --assignment-method diamond".format(
+                path_to_script,
+                n.name,
+                os.path.join(path_to_data, 'S1.12.ribosomal_protein_S12_S23.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
 
 if __name__ == "__main__":

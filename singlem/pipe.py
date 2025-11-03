@@ -463,7 +463,6 @@ class SearchPipe:
                 self._remove_single_sequence_duplicates(readset)
 
 
-
         #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
         if diamond_taxonomy_assignment_performance_parameters == None:
             diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
@@ -594,7 +593,7 @@ class SearchPipe:
             for info in infos:
                 # correcting the read~gene format (introduced for long read compatibility)
                 # before printing otu table
-                names = [name.split('~')[0] for name in info.names]
+                names = [name.split('••')[0] for name in info.names]
 
                 names_and_sequences = list(sorted(
                     list(zip(names, info.unaligned_sequences)),
