@@ -238,14 +238,16 @@ class Tests(unittest.TestCase):
     def test_tilde_in_genome_name(self):
         with in_tempdir():
             cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12.fna --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12.fna.taxonomy --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+            extern.run(cmd)
 
-            # expect error due to tilde in genome name
-            with self.assertRaises(extern.ExternCalledProcessError) as cm:
-                try:
-                    extern.run(cmd)
-                except extern.ExternCalledProcessError as e:
-                    self.assertIn("offending genome name is:", str(e))
-                    raise
+            cmd2 = f'{singlem} pipe --translation-table 11 --genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --metapackage out.smpkg/ --otu-table /dev/stdout'
+            output = extern.run(cmd2)
+            expected = [
+                "\t".join(self.headers),
+                '4.11.22seqs	GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps	CTTAAAAAGAAACTAAAAGGTGCCGGCGCTCACATGAGGGTTCTAAAAAACACTCTAATT	1	1.00	Root; d__Archaea; p__Thermoproteota; c__Bathyarchaeia; o__B26-1; f__UBA233; g__DRVV01; s__NEW_SPECIES'
+            ]
+            self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
+
 
 if __name__ == "__main__":
     unittest.main()
