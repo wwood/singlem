@@ -498,7 +498,7 @@ class SearchPipe:
                 # the read~gene format introduced for long read compatibility 
                 # breaks genome_fasta_files mode, so need to remove it
                 for sequence in readset.unknown_sequences:
-                    sequence.name = sequence.name.split('~')[0]
+                    sequence.name = sequence.name.split('••')[0]
                 readset.remove_duplicate_sequences()
 
         #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
@@ -638,7 +638,7 @@ class SearchPipe:
             for info in infos:
                 # correcting the read~gene format (introduced for long read compatibility)
                 # before printing otu table
-                names = [name.split('~')[0] for name in info.names]
+                names = [name.split('••')[0] for name in info.names]
 
                 names_and_sequences = list(sorted(
                     list(zip(names, info.unaligned_sequences)),
