@@ -13,7 +13,7 @@ scripts = ["admin/set_env_vars.sh"]
 python = ">=3.7"
 coreutils = "*" # So sort --parallel works
 bash = "*"
-diamond = ">=2.1.7,<2.1.11"  # 2.1.11 segfaults (on some non-test data)
+diamond = ">=2.1.15"  # 2.1.11 segfaults (on some non-test data)
 biopython = "*"
 hmmer = "*"
 orfm = "*"
@@ -36,7 +36,7 @@ jinja2 = "*"
 pip = "*"
 sqlalchemy = "*"
 pandas = "*"
-bird_tool_utils_python = ">=0.4.1"
+bird_tool_utils_python = ">=0.6.0"
 smafa = "*"
 pyranges = "*"
 polars = "*"
@@ -45,7 +45,7 @@ tqdm = "*"
 pyarrow = "*"
 galah = ">=0.4.0"
 sqlparse = "*"  # Required indirectly (e.g. taxtastic)
-zenodo_backpack = ">=0.3.0"
+zenodo_backpack = ">=0.4.0"
 # Optional (commented out)
 # python-annoy = "*"
 # nmslib = "*"
