@@ -24,11 +24,12 @@ Update a SingleM package with new sequences and taxonomy (expert mode).
 
 **\--candidate-decoy-sequences**, **\--euk-sequences** *CANDIDATE_DECOY_SEQUENCES*
 
-  candidate amino acid sequences to search for decoys
+  candidate amino acid sequences fasta file to search for decoys
 
 **\--candidate-decoy-taxonomy**, **\--euk-taxonomy** *CANDIDATE_DECOY_TAXONOMY*
 
-  sequence taxonomy of candidate decoy sequences
+  tab-separated sequence ID to taxonomy file of candidate decoy
+    sequences
 
 **\--no-candidate-decoy-sequences**, **\--no-further-euks**
 
@@ -39,19 +40,20 @@ Update a SingleM package with new sequences and taxonomy (expert mode).
 
 **\--input-singlem-package** PATH
 
-  input package
+  input package path
 
 **\--output-singlem-package** PATH
 
-  output package
+  output package path
 
 **\--input-sequences** *INPUT_SEQUENCES*
 
-  all amino acid sequences for new package
+  all on-target amino acid sequences fasta file for new package
 
 **\--input-taxonomy** *INPUT_TAXONOMY*
 
-  input sequence taxonomy
+  tab-separated sequence ID to taxonomy file of on-target sequence
+    taxonomy
 
 # OTHER GENERAL OPTIONS
 
