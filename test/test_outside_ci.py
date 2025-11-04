@@ -94,7 +94,7 @@ class Tests(unittest.TestCase):
             observed = extern.run(cmd)
             expected = '\n'.join(
                 ['sample  coverage        taxonomy',
-                'GB_GCA_000309865.1_protein      1.0    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n'])
+                'GB_GCA_000309865.1_protein      1.12    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium; s__Methanobacterium sp000309865\n'])
             self.assert_equal_taxonomic_profile(observed, expected)
 
     # This test takes a long time - like 1+ hours.
