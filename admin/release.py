@@ -32,7 +32,7 @@ if __name__ == "__main__":
     extern.run('if [[ $(git diff --shortstat 2> /dev/null | tail -n1) != "" ]]; then exit 1; fi')
 
     # Generate the version file based on the git tag
-    extern.run("pixi run -e dev SETUPTOOLS_SCM_PRETEND_VERSION={} python -m setuptools_scm --force-write-version-files".format(version))
+    extern.run("pixi run -e dev bash -c 'SETUPTOOLS_SCM_PRETEND_VERSION={} python -m setuptools_scm --force-write-version-files'".format(version))
 
     raise Exception("A version commit should be made here, so that version.py is right? That should be the only change I guess.")
 
