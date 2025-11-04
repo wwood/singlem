@@ -9,7 +9,7 @@ platforms = ["linux-64"]
 # the base directory (perhaps symlnked).
 scripts = ["admin/set_env_vars.sh"]
 
-[dependencies]
+[feature.main.dependencies]
 python = ">=3.7"
 coreutils = "*" # So sort --parallel works
 bash = "*"
@@ -50,7 +50,10 @@ zenodo_backpack = ">=0.4.0"
 # python-annoy = "*"
 # nmslib = "*"
 
-[pypi-dependencies]
+[feature.dev.pypi-dependencies]
+singlem = {path = ".", editable = true}
+
+[feature.main.pypi-dependencies]
 singlem = {path = ".", editable = true}
 
 [feature.dev.dependencies]
@@ -62,8 +65,12 @@ python-build = "*"
 setuptools-scm = "*"
 gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
 
+[feature.singlem0190.dependencies]
+singlem = "=0.19.0"
+
 [environments]
-dev = ["dev"]
+dev = ["dev", "main"]
+singlem0190 = ["singlem0190"]
 
 [tasks]
 test-base = "pytest test"
