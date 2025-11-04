@@ -792,6 +792,35 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
+    def test_full_seqs_reported_in_extras(self):
+        # C then stop codons in each frame - we are testing the full seq is reported
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.11	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	[\'2524614704\']	diamond',
+            '']
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --output-extras".format(
+                path_to_script,
+                n.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+            
+            cmd = "{} pipe --genome-fasta-files {} --min-orf-length 72 --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --output-extras".format(
+                path_to_script,
+                n.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+            
     def test_paired_reads_one_read_each(self):
         # Reads should be merged
         expected = [
