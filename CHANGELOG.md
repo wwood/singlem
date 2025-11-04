@@ -1,8 +1,14 @@
 ## v0.20.0
 
-* Long-read input support (Nanopore >= R10.4.1 or PacBio HiFi recommended)
+Major new function - Long-read input support (Nanopore >= R10.4.1 or PacBio HiFi recommended), thanks to @thepatientwait.
+
 * Lyrebird database updated to v0.3.1, improving exclusion of off-target (non-phage) sequences
 * `microbial_fraction` subcommand renamed to `prokaryotic_fraction` (old name retained as synonym)
+* More flexible options for specifying genome input in `pipe` mode
+* `appriase` mode: Add `--stream-inputs`
+* [GlobDB R226 metapackage](https://fileshare.lisc.univie.ac.at/globdb/globdb_r226/taxonomic_profiling/globdb_r226_SingleM_metapackage.tar.gz) released
+
+Thanks to @AroneyS, @rzhao-2, @EisenRa, @thepatientwait, @dspeth, @Anna-MarieSeelen, @luigallucci, @ilnamkang and others for contributions and testing.
 
 ## v0.19.0
 Major new function - profiling of Caudoviricetes (aka "Caudovirales") phage communities (Lyrebird), thanks to @rzhao-2.
