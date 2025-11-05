@@ -1,4 +1,4 @@
-## v0.20.0
+## v0.20.0 / 0.20.1
 
 Major new function - Long-read input support (Nanopore >= R10.4.1 or PacBio HiFi recommended), thanks to @thepatientwait.
 

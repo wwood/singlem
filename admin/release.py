@@ -23,6 +23,9 @@ if __name__ == "__main__":
     
     print("version is {}".format(version))
 
+    print("Building dependency definition files based on pixi.toml and pixi.lock") # TODO: Do we need to update pixi.lock first?
+    extern.run('pixi run admin/build_dep_defs_from_pixi.py')
+
     print("building docs")
     extern.run("pixi run python3 admin/build_docs.py --version {}".format(version))
 

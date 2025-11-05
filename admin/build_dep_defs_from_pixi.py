@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import yaml
-import toml
+import tomllib
 import subprocess
 import json
 import os
@@ -13,8 +13,8 @@ with open(os.path.join(base_dir, "pixi.lock"), "rb") as f:
     lock_data = yaml.safe_load(f)
 
 # Load explicitly listed dependencies from pixi.toml
-with open(os.path.join(base_dir, "pixi.toml"), "r") as f:
-    pixi_data = toml.load(f)
+with open(os.path.join(base_dir, "pixi.toml"), "rb") as f:
+    pixi_data = tomllib.load(f)
 
 # Gather conda packages and versions from "pixi list --json"
 result = subprocess.run(
@@ -39,8 +39,15 @@ pip_list = sorted(pip_list, key=lambda x: x["name"].lower())
 
 # Explicitly declared packages in pixi.toml
 declared_conda = set()
-for section in ["dependencies", "host-dependencies"]:
-    for pkg, val in pixi_data.get(section, {}).items():
+for section in ["dependencies", "host-dependencies", ["feature","main","dependencies"], ["feature","main","host-dependencies"]]:
+    if isinstance(section, list):
+        d = pixi_data
+        for subsec in section:
+            d = d.get(subsec, {})
+    else:
+        d = pixi_data.get(section, {})
+    print(f"Found {len(d)} declared packages in section {section}.")
+    for pkg, val in d.items():
         pkg_lower = pkg.lower()
         declared_conda.add(pkg_lower)
 
