@@ -27,7 +27,7 @@ RUN git clone https://github.com/wwood/singlem . && git checkout vSINGLEM_VERSIO
 
 # We install through pip, because installing via pip install -e . causes issues for apptainer
 # https://github.com/prefix-dev/pixi/issues/1387
-RUN pixi run --no-lockfile-update pip install singlem==SINGLEM_VERSION
+RUN pixi run --frozen bash -c 'pip install singlem==SINGLEM_VERSION'
 
 # Download default metapackage
 # Make the directory and its contents readable by others https://github.com/wwood/singlem/issues/155
