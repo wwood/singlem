@@ -617,11 +617,9 @@ class Summariser:
     def write_taxonomic_profile_with_extras(**kwargs):
         input_taxonomic_profile_files = kwargs.pop('input_taxonomic_profile_files')
         output_io = kwargs.pop('output_taxonomic_profile_extras_io')
-        num_decimal_places = kwargs.pop('num_decimal_places') # Default to 2 below
+        num_decimal_places = kwargs.pop('num_decimal_places', 2)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
-        if num_decimal_places is None:
-            num_decimal_places = 2
 
         logging.info("Writing taxonomic profile with extras")
 
