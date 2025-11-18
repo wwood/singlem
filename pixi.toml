@@ -65,13 +65,13 @@ python-build = "*"
 setuptools-scm = "*"
 gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
 
-[feature.singlem0190.dependencies]
-singlem = "=0.19.0"
+# [feature.singlem0190.dependencies]
+# singlem = "=0.19.0"
 
 [environments]
 default = ["main"]
 dev = ["dev", "main"]
-singlem0190 = ["singlem0190"]
+# singlem0190 = ["singlem0190"]
 
 [tasks]
 test-base = "pytest test"
