@@ -615,13 +615,19 @@ class Summariser:
 
     @staticmethod
     def write_taxonomic_profile_with_extras(**kwargs):
+        NUM_DECIMAL_PLACES_DEFAULT = 2
         input_taxonomic_profile_files = kwargs.pop('input_taxonomic_profile_files')
         output_io = kwargs.pop('output_taxonomic_profile_extras_io')
-        num_decimal_places = kwargs.pop('num_decimal_places', 2)
+        num_decimal_places = kwargs.pop('num_decimal_places', NUM_DECIMAL_PLACES_DEFAULT) # Needs to align with argparse default
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
         logging.info("Writing taxonomic profile with extras")
+
+        if num_decimal_places < 0:
+            raise Exception("num_decimal_places must be non-negative")
+        elif num_decimal_places is None:
+            num_decimal_places = NUM_DECIMAL_PLACES_DEFAULT
 
         print("\t".join(["sample", "coverage", "full_coverage", "relative_abundance", "level", "taxonomy"]), file=output_io)
 
