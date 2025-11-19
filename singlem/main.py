@@ -536,7 +536,7 @@ def main():
     summarise_taxonomic_profile_output_args.add_argument('--output-filled-taxonomic-profile', metavar='FILE', help="Output a taxonomic profile where the coverage of each taxon includes the coverage of each of its descendent taxons e.g. the d__Bacteria entry includes the p__Patescibacteria entry.")
     summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-profile-with-extras', metavar='FILE', help="Output a taxonomic profile with extra information (coverage, 'filled' coverage, relative abundance, taxonomy level).")
     # Note: num decimal places default should align with the default in summariser.py
-    summarise_taxonomic_profile_output_args.add_argument('--num-decimal-places', metavar='INT', default=2, type=int, help="Number of decimal places to report in the coverage column of the --output-taxonomic-profile-with-extras [default: 2].")
+    summarise_taxonomic_profile_output_args.add_argument('--num-decimal-places', metavar='INT', type=int, help="Number of decimal places to report in the coverage column of the --output-taxonomic-profile-with-extras [default: 2].")
     summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-level-coverage', metavar='FILE', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file.")
     
     summarise_otu_table_input_args = summarise_parser.add_argument_group('OTU table input')
