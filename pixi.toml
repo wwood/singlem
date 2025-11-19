@@ -13,7 +13,7 @@ scripts = ["admin/set_env_vars.sh"]
 python = ">=3.7"
 coreutils = "*" # So sort --parallel works
 bash = "*"
-diamond = ">=2.1.15"  # 2.1.11 segfaults (on some non-test data)
+diamond = ">=2.1.16"  # 2.1.11 segfaults (on some non-test data)
 biopython = "*"
 hmmer = "*"
 orfm = "*"
