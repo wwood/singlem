@@ -1,3 +1,9 @@
+## v0.20.3
+
+Minor bugfix release. Rare sequences tripped a bug in `pipe` mode.
+
+Thanks to @asuq for reporting #265.
+
 ## v0.20.0 / 0.20.1 / 0.20.2
 
 Major new function - Long-read input support (Nanopore >= R10.4.1 or PacBio HiFi recommended), thanks to @thepatientwait.
