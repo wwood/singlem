@@ -1243,8 +1243,6 @@ class SearchPipe:
             else:
                 logging.info("Finished running singlem query-based taxonomic assignment, now running diamond ..")
 
-
-
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
         # fewer open files are needed, so that the open file count limit is
@@ -1261,19 +1259,16 @@ class SearchPipe:
                         SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
 
-                        # Only assign taxonomy to the sequences that are
-                        # still "unknown" after the query.
+                        # Only assign taxonomy to the sequences that are still
+                        # "unknown" after the query. If modifying the below
+                        # code, watch for situations where the forward and
+                        # reverse read have the same name, which causes
+                        # downstream problems.
                         still_unknown_sequences = [\
                             [u for u in readset[0].unknown_sequences if not \
-                                query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 0) \
-                                and not \
-                                query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1)
-                            ],
+                                query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 0)],
                             [u for u in readset[1].unknown_sequences if not \
-                                query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1) \
-                                and not \
-                                query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 0)
-                            ]]
+                                query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1)]]
 
                         if len(still_unknown_sequences[0] + still_unknown_sequences[1]) > 0:
                             logging.info("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({}% and {}%) for sample {}, package {}".format(
