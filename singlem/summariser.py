@@ -624,10 +624,10 @@ class Summariser:
 
         logging.info("Writing taxonomic profile with extras")
 
-        if num_decimal_places < 0:
-            raise Exception("num_decimal_places must be non-negative")
-        elif num_decimal_places is None:
+        if num_decimal_places is None:
             num_decimal_places = NUM_DECIMAL_PLACES_DEFAULT
+        elif num_decimal_places < 0:
+            raise Exception("num_decimal_places must be non-negative")
 
         print("\t".join(["sample", "coverage", "full_coverage", "relative_abundance", "level", "taxonomy"]), file=output_io)
 
