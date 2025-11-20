@@ -3,7 +3,7 @@
 ## **Taxonomic profile**
 A tab-separated table containing the estimated abundances of GTDB taxons in a metagenome. It is in TSV format with 3 columns, with each row corresponding to a taxon. A taxonomic profile may also be called a **condensed profile**, since it is the output of the `condense` algorithm within the main `pipe` workflow. Taxonomic profiles can be converted to other formats using `singlem summarise`. Columns:
   1. sample name. A taxonomic profile can consist of more than one sample. Usually all the taxons in the first sample are listed, and then the taxons in the second sample, and so on.
-  2. coverage of that taxon. This is an approximation of the total read coverage of all genomes from this taxon. However, note that this coverage does not include the coverage of sub-taxons (It is [*unfilled*](/Glossary#Coverage, unfilled coverage and filled coverage)). For instance, the coverage of a species is not included in the coverage shown for its genus.
+  2. coverage of that taxon. This is an approximation of the total read coverage of all genomes from this taxon. However, note that this coverage does not include the coverage of sub-taxons (It is [*unfilled*](/Glossary#coverage,-unfilled-coverage-and-filled-coverage)). For instance, the coverage of a species is not included in the coverage shown for its genus.
   3. taxonomy string of the taxon
 ```
 sample      coverage  taxonomy
@@ -51,10 +51,10 @@ First, to define *coverage*. Coverage of a single species is defined in the stan
 In a standard taxonomic profile output by [pipe](/tools/pipe), the coverage column is *unfilled* coverage. This means that the coverage of a taxon does not include the coverage of its sub-taxons. For example, in this profile:
 ```
 sample	    coverage  taxonomy
-ERR1914274	0         Root
-ERR1914274	3.1	      Root; d__Bacteria
-ERR1914274	4.0	      Root; d__Bacteria; p__Pseudomonadota
-ERR1914274	2.9	      Root; d__Archaea
+ERR1914274  0         Root
+ERR1914274  3.1	      Root; d__Bacteria
+ERR1914274  4.0	      Root; d__Bacteria; p__Pseudomonadota
+ERR1914274  2.9	      Root; d__Archaea
 ```
 The *unfilled* coverage of `d__Bacteria` is 3.1. This means that SingleM estimates that 3.1x read coverage of bacterial genomes that do not belong to `p__Pseudomonadota` (the only sub-taxon of `d__Bacteria` listed). 
 
