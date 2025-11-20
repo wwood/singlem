@@ -520,8 +520,13 @@ class Condenser:
                 else:
                     num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
-                trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
-                next_genus_to_coverage[tax] = trimmed_mean
+                try:
+                    trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
+                    next_genus_to_coverage[tax] = trimmed_mean
+                except:
+                    # breakpoint()
+                    print(f"When calculating trimmed mean for tax {tax}, the ZeroDivisionError occurred\
+                          . Consider empty genes_per_domain which has no genes listed for the taxon's domain.", file=sys.stderr)
 
             # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
