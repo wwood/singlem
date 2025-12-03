@@ -1,0 +1,119 @@
+import os
+from Bio import SeqIO
+
+rule all:
+    input:
+        "prodigal_gv.done",
+        #TODO: fill in final output files
+
+rule get_ictv_genomes:
+    input:
+        url = 'https://ictv.global/vmr/current'
+    output:
+        done = touch("ictv/done"),
+        outdir = directory("ictv")
+    log:
+        "logs/get_ictv_genomes.log"
+    conda:
+        "envs/ictv-download.yml"
+    shell:
+        "python {workflow.basedir}/scripts/ictv-download.py --url {input.url} --outdir {input.outdir} &> {log}"
+
+rule get_metavr_genomes: #TODO: switch to local files as the downloads are huge
+    input:
+        metadata_download = 'https://www.meta-virome.org/DownloadUvigMetadata',
+        genome_download = 'https://www.meta-virome.org/DownloadUvigFasta',
+    output:
+        done = touch("metavr/done"),
+        outdir = directory("metavr")
+    log:
+        "logs/get_metavr_genomes.log"
+    conda:
+        "envs/ictv-download.yml"
+    shell:
+        "python {workflow.basedir}/scripts/metavr-download.py "\
+        "--metadata-download {input.metadata_download} " \
+        "--genome-download {input.genome_download} " \
+        "--outdir {input.outdir} &> {log}"
+
+rule order_genomes_fps:
+    input:
+        ictv_dir = directory("ictv"),
+        metavr_dir = directory("metavr")
+    output:
+        done = touch("ordered_genomes.done"),
+        ordered_filepaths = "ordered_genome_filepaths.txt"
+    run:
+        import os
+        from Bio import SeqIO
+        # order ictv first, then metavr by length descending
+        ictv_fps = []
+        for filepath in os.listdir(input.ictv_dir + "/genomes"):
+            if filepath.endswith('.fasta') or filepath.endswith('.fa') or filepath.endswith('.fna'):
+                with open(os.path.join(input.ictv_dir, filepath), 'r') as handle:
+                    for record in SeqIO.parse(handle, 'fasta'):
+                        ictv_fps.append( (len(record.seq), os.path.join(input.ictv_dir, "genomes", filepath)) )
+        metavr_fps = []
+        for filepath in os.listdir(input.metavr_dir + "/genomes"):
+            if filepath.endswith('.fasta') or filepath.endswith('.fa') or filepath.endswith('.fna'):
+                with open(os.path.join(input.metavr_dir, "genomes", filepath), 'r') as handle:
+                    for record in SeqIO.parse(handle, 'fasta'):
+                        metavr_fps.append( (len(record.seq), os.path.join(input.metavr_dir, "genomes", filepath)) )
+        # sort by length descending
+        ictv_fps.sort(key=lambda x: x[0], reverse=True)
+        metavr_fps.sort(key=lambda x: x[0], reverse=True)
+        with open(output.ordered_filepaths, 'w') as outfh:
+            for length, fp in ictv_fps:
+                outfh.write(f"{fp}\n")
+            for length, fp in metavr_fps:
+                outfh.write(f"{fp}\n")
+
+rule galah_cluster:
+    input:
+        genome_filepaths = "ordered_genome_filepaths.txt",
+        ordered_genomes_done = "ordered_genomes.done"
+    output:
+        done = touch("galah_clustering.done"),
+        cluster_rep_tsv = "galah_cluster_representatives.tsv",
+        cluster_dir = directory("galah_clusters")
+    log:
+        "logs/galah_clustering.log"
+    threads: 32
+    resources:
+        mem_mb = 250 * 1024,
+    conda:
+        "envs/galah.yml"
+    shell:
+        "galah cluster --genome-fasta-list {input.genome_filepaths} "\
+        "--ani 95 --min-aligned-fraction 85 --fragment-length 500 "\
+        "--output-cluster-definition {output.cluster_rep_tsv} "\
+        "--output-representative-fasta-directory {output.cluster_dir} "\
+        "&> {log}"
+
+rule prodigal_gv:
+    input:
+        cluster_dir = directory("galah_clusters")
+    params:
+        log_dir = "logs/prodigal_gv"
+    output:
+        done = touch("prodigal_gv.done"),
+        transcripts_dir = directory("prodigal_transcripts"),
+        proteins_dir = directory("prodigal_proteins")
+    threads: 64
+    resources:
+        mem_mb = 500 * 1024,
+    conda:
+        "envs/prodigal-gv.yml"
+    shell: # use GNU parallel to speed this up
+        "mkdir -p {params.log_dir} ; " \
+        "mkdir -p {output.transcripts_dir} ; " \
+        "mkdir -p {output.proteins_dir} ; " \
+        "find {input.cluster_dir} -name '*.fasta' | " \
+        "parallel -j {threads} 'prodigal-gv -i {{}} -a {output.proteins_dir}/{{/}}_protein.faa -d {output.transcripts_dir}/{{/}}_transcript.fna -p meta &> {params.log_dir}/{{/}}.log'" \
+
+rule vcontact3:
+    pass
+
+rule process_taxonomy:
+    pass
+
