@@ -1,9 +1,33 @@
+"""
+Steps:
+1. Create base environment:
+    conda env create -f ../envs/create_metapackage.yml -n lyrebird-metapackage
+2. Install vcontact3 and download the latest vcontact3 database
+    conda env create -f /envs/vcontact3.yml -n vcontact3
+    conda activate vcontact3
+    vcontact3 prepare_databases --get-version 230 --set-location ./db (or use --get-version latest)
+3. Update the variables vcontact_env and vcontact_db_path below with your conda environment name and database path
+4. Download metaVR metadata and genomes, and update the variables (this is a >77GB download, ensure you have enough space)
+    wget https://www.meta-virome.org/DownloadUvigMetadata
+    wget https://www.meta-virome.org/DownloadUvigFasta
+5. Run the Snakefile:
+    conda activate lyrebird-metapackage
+    snakemake --use-conda --conda-frontend mamba --cores 64 --profile aqua --directory <output_directory> --conda-prefix <path_to_conda_envs>  
+"""
 import os
 from Bio import SeqIO
+
+vcontact_env = "" # Specify your pre-installed vcontact3 conda environment
+vcontact_db_path = "" # Specify your downloaded vcontact3 database path
+metavr_metadata_fp = "" # Specify your downloaded metaVR metadata file path
+metavr_genomes_fp = "" # Specify your downloaded metaVR genomes file path
+
+localrules: get_ictv_genomes, get_metavr_genomes, order_genomes_fps, process_taxonomy
 
 rule all:
     input:
         "prodigal_gv.done",
+        # "vcontact3.done",
         #TODO: fill in final output files
 
 rule get_ictv_genomes:
@@ -19,10 +43,10 @@ rule get_ictv_genomes:
     shell:
         "python {workflow.basedir}/scripts/ictv-download.py --url {input.url} --outdir {input.outdir} &> {log}"
 
-rule get_metavr_genomes: #TODO: switch to local files as the downloads are huge
+rule get_metavr_genomes:
     input:
-        metadata_download = 'https://www.meta-virome.org/DownloadUvigMetadata',
-        genome_download = 'https://www.meta-virome.org/DownloadUvigFasta',
+        metadata_fp = metavr_metadata_fp,
+        genomes_fp = metavr_genomes_fp,
     output:
         done = touch("metavr/done"),
         outdir = directory("metavr")
@@ -32,8 +56,8 @@ rule get_metavr_genomes: #TODO: switch to local files as the downloads are huge
         "envs/ictv-download.yml"
     shell:
         "python {workflow.basedir}/scripts/metavr-download.py "\
-        "--metadata-download {input.metadata_download} " \
-        "--genome-download {input.genome_download} " \
+        "--metadata-file {input.metadata_fp} " \
+        "--genome-file {input.genomes_fp} " \
         "--outdir {input.outdir} &> {log}"
 
 rule order_genomes_fps:
@@ -111,9 +135,53 @@ rule prodigal_gv:
         "find {input.cluster_dir} -name '*.fasta' | " \
         "parallel -j {threads} 'prodigal-gv -i {{}} -a {output.proteins_dir}/{{/}}_protein.faa -d {output.transcripts_dir}/{{/}}_transcript.fna -p meta &> {params.log_dir}/{{/}}.log'" \
 
-rule vcontact3:
+rule make_metadata:
     pass
 
-rule process_taxonomy:
-    pass
+rule prepare_for_vcontact3:
+    input:
+        galah_dir = directory("galah_clusters"),
+        galah_done = "galah_clustering.done",
+    output:
+        done = touch("vcontact3_prepared.done"),
+        concat_genomes = "vcontact3_concat_genomes.fna",
+    shell: # there are many files, so use cat with find
+        "find {input.galah_dir} -name '*.fna' -exec cat {{}} + > {output.concat_genomes}"
+
+rule vcontact3:
+    input:
+        genomes_fna = "vcontact3_concat_genomes.fna",
+        vcontact_prep_done = "vcontact3_prepared.done"
+    params:
+        vcontact3_db = vcontact_db_path
+    output:
+        done = touch("vcontact3.done"),
+        vcontact_output_dir = directory("vcontact3_output")
+    threads: 64
+    resources:
+        mem_mb = 500 * 1024,
+    log:
+        "logs/vcontact3.log"
+    conda:
+        vcontact_env
+    shell:
+        "vcontact3 run -n {input.genomes_fna} "\
+        "-d {params.vcontact3_db} "\
+        "-t {threads} "\
+        "-o {output.vcontact_output_dir} "\
+        "&> {log}"
+
+rule process_taxonomy: #TODO: script for processing vcontact3 taxonomy
+    input:
+        vcontact_output_dir = directory("vcontact3_output"),
+        vcontact_done = "vcontact3.done"
+    output:
+        done = touch("vcontact3_taxonomy_processed.done"),
+        taxonomy_tsv = "final_reconstructed_taxonomy.tsv"
+    resources:
+        mem_mb = 12 * 1024,
+    log:
+        "logs/process_vcontact3_taxonomy.log"
+    script:
+        "{workflow.basedir}/scripts/process_vcontact3_taxonomy.py"
 
