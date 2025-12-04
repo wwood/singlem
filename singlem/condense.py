@@ -1,6 +1,7 @@
 import logging
 import tempfile
 import csv
+# from gReLU.build.lib.grelu.sequence.utils import trim
 import numpy as np
 import extern
 import sys
@@ -98,13 +99,13 @@ class Condenser:
                     target_domains["Viruses"] += [marker_name]
                 else:
                     raise Exception("Domain: {} not supported.".format(domain))
-                
+        
+        # breakpoint()
         for domain in target_domains:
             if target_domains[domain] in [1, 2]:
                 raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. Only {} markers for domain '{}' found".format(target_domains[domain], domain))
 
         for sample, sample_otus in input_otu_table.each_sample_otus(generate_archive_otu_table=True):
-
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
@@ -113,7 +114,6 @@ class Condenser:
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
             output_after_em_otu_table, viral_mode):
-
 
         # Remove off-target OTUs genes
         logging.debug("Total OTU coverage by query: {}".format(sum([o.coverage for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD])))
@@ -199,6 +199,8 @@ class Condenser:
 
         num_otus_changed = 0
         sequence_ids = set()
+
+        target_domain = [metapackage.singlem_packages[i].target_domains() for i in range(len(metapackage.singlem_packages))]
         # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
@@ -220,8 +222,15 @@ class Condenser:
                     for seq_id in seq_id_list:
                         taxon_name = sequence_id_to_taxon[seq_id]
                         if not taxon_name[-2].startswith('g__'):
+                            # This part expect bacterial and archaeal sequences as on-target and eukaryotes as off-targets.
                             if not taxon_name[0] == 'd__Eukaryota':
-                                raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
+                                # add one check to ensure the target taxon to be d__Eukaryota for all metapackages.
+                                if all("Eukaryota" in domain for domain in target_domain):
+                                    # then the bacterial/archaeal sequences are off-target this time. 
+                                    logging.debug("Ignoring off-target prokaryotic taxon {}".format(taxon_name))
+                                    continue
+                                else:
+                                    raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
                             else:
                                 # This can happen when taxonomy is overall
                                 # Archaea so not previously filtered out, but
@@ -401,7 +410,8 @@ class Condenser:
                 raise Exception("Stopping: sample {} had too many unassigned OTUs".format(list(sample_otus)[0].sample_name))
         table.data = [otu.data for otu in sample_otus if \
             self._is_targeted_by_marker(otu, otu.taxonomy_array(), markers) and \
-            otu.taxonomy_assignment_method() is not None]
+            otu.taxonomy_assignment_method() is not None] # This code is removing OTUs that have unmatched taxonomy domain.
+    
         num_no_assignment_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in table if otu.taxonomy_assignment_method() is None])
         num_assigned_otus = sum([otu.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX] for otu in table if otu.taxonomy_assignment_method() is not None])
         logging.info("After removing off-target OTUs, found {:.2f} assigned and {:.2f} unassigned OTU coverage units".format(num_assigned_otus, num_no_assignment_otus))
@@ -454,13 +464,13 @@ class Condenser:
         def best_hit_genera_from_otu(otu):
             # The DIAMOND assignments are already truncated to genus level.
             # But the query-based ones go to species level.
-            best_hit_taxonomies = otu.equal_best_hit_taxonomies()
+            best_hit_taxonomies = otu.equal_best_hit_taxonomies() # there is a list called EQUAL_BEST_HIT_TAXONOMIES_INDEX in ArchiveOtuTable
             method = otu.taxonomy_assignment_method()
             if method == DIAMOND_ASSIGNMENT_METHOD:
                 best_hit_genera = best_hit_taxonomies
             elif method in (QUERY_BASED_ASSIGNMENT_METHOD, QUERY_BASED_ASSIGNMENT_METHOD+'_abandoned'):
                 best_hit_genera = set(
-                    [';'.join([s.strip() for s in taxon.split(';')[:-1]]) for taxon in best_hit_taxonomies])
+                    [';'.join([s.strip() for s in taxon.split(';')[:-1]]) for taxon in best_hit_taxonomies]) # so Cyanobacteria are from here. 
             else:
                 raise Exception("Unexpected taxonomy assignment method: {}".format(otu.taxonomy_assignment_method()))
             return best_hit_genera
@@ -495,7 +505,6 @@ class Condenser:
             for otu in sample_otus:
                 unnormalised_coverages = {}
                 best_hit_genera = best_hit_genera_from_otu(otu)
-
                 for best_hit_genus in best_hit_genera:
                     if best_hit_genus in genus_to_coverage: # Can get removed during trimmed mean
                         unnormalised_coverages[best_hit_genus] = genus_to_coverage[best_hit_genus]
@@ -505,6 +514,10 @@ class Condenser:
                 #     continue
 
                 for tax, unnormalised_coverage in unnormalised_coverages.items():
+                    # So, there will be tax identified as Bacteria here,
+                    # and also, you have Bacteria in your taxonomy references. 
+                    if "Bacteria" in tax:
+                        logging.info("Assigning coverage for OTU {} to genus {}: unnormalised coverage {}, total coverage {}, otu coverage {}".format(otu, tax, unnormalised_coverage, total_coverage, otu.coverage))
                     # Record the total for each gene so a trimmed mean can be taken afterwards
                     if tax not in next_genus_to_gene_to_coverage:
                         next_genus_to_gene_to_coverage[tax] = {}
@@ -514,19 +527,15 @@ class Condenser:
                     
             # Calculate the trimmed mean for each genus
             next_genus_to_coverage = {}
+            # breakpoint()
             for tax, gene_to_coverage in next_genus_to_gene_to_coverage.items():
                 if avg_num_genes_per_species is not None:
                     num_markers = avg_num_genes_per_species
                 else:
                     num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
-                try:
-                    trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
-                    next_genus_to_coverage[tax] = trimmed_mean
-                except:
-                    # breakpoint()
-                    print(f"When calculating trimmed mean for tax {tax}, the ZeroDivisionError occurred\
-                          . Consider empty genes_per_domain which has no genes listed for the taxon's domain.", file=sys.stderr)
+                trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)
+                next_genus_to_coverage[tax] = trimmed_mean                
 
             # Has any species changed in abundance by a large enough amount? If not, we're done
             need_another_iteration = False
@@ -591,8 +600,6 @@ class Condenser:
         best_hit_taxonomy_sets = set()
         some_em_to_do = False
         species_genes = {}
-
-
         for otu in sample_otus:
             best_hit_taxonomies = otu.equal_best_hit_taxonomies()
             if otu.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD and best_hit_taxonomies is not None:
