@@ -70,7 +70,7 @@ def filter_metadata(metadata_path) -> pl.DataFrame:
 
 def extract_genomes(genomes_path: str, valid_uvigs: set, outdir: str):
     logging.info("Extracting valid genomes to directory")
-    output_genomes_dir = os.path.join(outdir, "metavr_filtered_genomes")
+    output_genomes_dir = os.path.join(outdir, "genomes")
     os.makedirs(output_genomes_dir, exist_ok=True)
     with gzip.open(genomes_path, 'rt') as infile:
         for line in infile:
