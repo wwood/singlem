@@ -130,7 +130,7 @@ def download_genomes(accessions, output_dir):
     
     # split multi-fasta into individual files
     logging.info("Splitting multi-fasta into individual files.")
-    genomes_to_taxonomy = {}
+    genomes_to_info = {}
     with open(os.path.join(output_dir, 'genomes.fna'), 'r') as infile:
         fasta_data = infile.read().strip().split('>')
     os.makedirs(output_dir + "/genomes", exist_ok=True)
@@ -142,14 +142,15 @@ def download_genomes(accessions, output_dir):
             with open(os.path.join(output_dir, "genomes", f"{header}.fna"), 'w') as outfile:
                 outfile.write(f">{header}\n{seq}\n")
             no_version_acc = header.split('.')[0]
-            genomes_to_taxonomy[header] = accessions[no_version_acc]
+            genomes_to_info[header] = (len(seq.replace('\n', '')), accessions[no_version_acc])
     os.remove(os.path.join(output_dir, 'genomes.fna'))
     logging.info("Individual genome files created.")
-    # write taxonomy mapping
-    with open(os.path.join(output_dir, 'genome_taxonomy.tsv'), 'w+') as taxfile:
-        for genome, taxonomy in genomes_to_taxonomy.items():
-            taxfile.write(f"{genome}\t{taxonomy}\n")
-    logging.info("Genome taxonomy mapping file created.")
+    # write metadata file
+    with open(os.path.join(output_dir, 'genome_metadata.tsv'), 'w+') as metadata:
+        metadata.write("genome\tlength\ttaxonomy\n")
+        for genome, (length, taxonomy) in genomes_to_info.items():
+            metadata.write(f"{genome}\t{length}\t{taxonomy}\n")
+    logging.info("Genome metadata file created.")
 
 def main():
     args = parse_arguments()
