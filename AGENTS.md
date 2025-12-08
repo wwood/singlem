@@ -1,0 +1,1 @@
+1. When making changes, run tests using `pixi run -e dev pytest test`
