@@ -204,6 +204,8 @@ class Condenser:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
                 for seq_id_list in otu.equal_best_hit_taxonomies():
                     for seq_id in seq_id_list:
+                        if logging.getLogger().isEnabledFor(logging.DEBUG):
+                            logging.debug(f"OTU with sequence {otu.sequence} has seq_id: {seq_id}")
                         sequence_ids.add(seq_id)
 
         # Step 2: Get taxon strings
