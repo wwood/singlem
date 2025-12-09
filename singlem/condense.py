@@ -215,14 +215,15 @@ class Condenser:
                     for seq_id in seq_id_list:
                         taxon_name = sequence_id_to_taxon[seq_id]
                         if not taxon_name[-2].startswith('g__'):
-                            if not taxon_name[0] == 'd__Eukaryota':
-                                # add one check to ensure the target taxon to be d__Eukaryota for all metapackages.
-                                if all("Eukaryota" in domain for domain in target_domain):
-                                    # then the bacterial/archaeal sequences are off-target this time. 
-                                    logging.debug("Ignoring off-target prokaryotic taxon {}".format(taxon_name))
-                                    continue
-                                else:
-                                    raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
+                            if not taxon_name[0] in target_domain:
+                                # # add one check to ensure the target taxon to be d__Eukaryota for all metapackages.
+                                # if all("Eukaryota" in domain for domain in target_domain):
+                                #     # then the bacterial/archaeal sequences are off-target this time. 
+                                #     logging.debug("Ignoring off-target prokaryotic taxon {}".format(taxon_name))
+                                #     continue
+                                # else:
+                                #     raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
+                                continue
                             else:
                                 # This can happen when taxonomy is overall
                                 # Archaea so not previously filtered out, but
