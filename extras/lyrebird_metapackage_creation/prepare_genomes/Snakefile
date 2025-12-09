@@ -19,10 +19,10 @@ from Bio import SeqIO
 
 vcontact_env = "" # Specify your pre-installed vcontact3 conda environment
 vcontact_db_path = "" # Specify your downloaded vcontact3 database path
-metavr_metadata_fp = "" # Specify your downloaded metaVR metadata file path
-metavr_genomes_fp = "" # Specify your downloaded metaVR genomes file path
+metavr_metadata_fp = "/mnt/hpccs01/work/microbiome/msingle/rossenzhao/metaVR/uvig_metadata.tsv.gz" # Specify your downloaded metaVR metadata file path
+metavr_genomes_fp = "/mnt/hpccs01/work/microbiome/msingle/rossenzhao/metaVR/IMGVR5_UViG.fna.gz" # Specify your downloaded metaVR genomes file path
 
-localrules: get_ictv_genomes, get_metavr_genomes, order_genomes_fps, process_taxonomy
+localrules: order_genomes_fps, process_taxonomy
 
 rule all:
     input:
@@ -31,17 +31,19 @@ rule all:
         #TODO: fill in final output files
 
 rule get_ictv_genomes:
-    input:
+    params:
         url = 'https://ictv.global/vmr/current'
     output:
         done = touch("ictv/done"),
         outdir = directory("ictv")
     log:
         "logs/get_ictv_genomes.log"
+    resources:
+        mem_mb = 20 * 1024,
     conda:
         "envs/ictv-download.yml"
     shell:
-        "python {workflow.basedir}/scripts/ictv-download.py --url {input.url} --outdir {input.outdir} &> {log}"
+        "python {workflow.basedir}/scripts/ictv-download.py --url {params.url} --outdir {output.outdir} &> {log}"
 
 rule get_metavr_genomes:
     input:
@@ -52,45 +54,52 @@ rule get_metavr_genomes:
         outdir = directory("metavr")
     log:
         "logs/get_metavr_genomes.log"
+    resources:
+        mem_mb = 128 * 1024,
     conda:
         "envs/ictv-download.yml"
     shell:
         "python {workflow.basedir}/scripts/metavr-download.py "\
         "--metadata-file {input.metadata_fp} " \
         "--genome-file {input.genomes_fp} " \
-        "--outdir {input.outdir} &> {log}"
+        "--outdir {output.outdir} &> {log}"
 
 rule order_genomes_fps:
     input:
-        ictv_dir = directory("ictv"),
-        metavr_dir = directory("metavr")
+        ictv_done = "ictv/done",
+        ictv_dir = "ictv",
+        metavr_done = "metavr/done",
+        metavr_dir = "metavr"
+    params:
+        ictv_metadata = "ictv/genome_metadata.tsv",
+        metavr_metadata = "metavr/metavr_filtered_metadata.tsv"
     output:
         done = touch("ordered_genomes.done"),
         ordered_filepaths = "ordered_genome_filepaths.txt"
     run:
-        import os
-        from Bio import SeqIO
+        from os.path import join
+        from csv import DictReader
         # order ictv first, then metavr by length descending
         ictv_fps = []
-        for filepath in os.listdir(input.ictv_dir + "/genomes"):
-            if filepath.endswith('.fasta') or filepath.endswith('.fa') or filepath.endswith('.fna'):
-                with open(os.path.join(input.ictv_dir, filepath), 'r') as handle:
-                    for record in SeqIO.parse(handle, 'fasta'):
-                        ictv_fps.append( (len(record.seq), os.path.join(input.ictv_dir, "genomes", filepath)) )
+        with open(params.ictv_metadata, 'r') as infile:
+            reader = DictReader(infile, delimiter='\t')
+            for row in reader:
+                genome_fp = join(input.ictv_dir, "genomes", f"{row['genome']}.fna")
+                ictv_fps.append( (int(row['length']), genome_fp) )
         metavr_fps = []
-        for filepath in os.listdir(input.metavr_dir + "/genomes"):
-            if filepath.endswith('.fasta') or filepath.endswith('.fa') or filepath.endswith('.fna'):
-                with open(os.path.join(input.metavr_dir, "genomes", filepath), 'r') as handle:
-                    for record in SeqIO.parse(handle, 'fasta'):
-                        metavr_fps.append( (len(record.seq), os.path.join(input.metavr_dir, "genomes", filepath)) )
+        with open(params.metavr_metadata, 'r') as infile:
+            reader = DictReader(infile, delimiter='\t')
+            for row in reader:
+                genome_fp = join(input.metavr_dir, "genomes", f"{row['uvig']}.fna")
+                metavr_fps.append( (int(row['length']), genome_fp) )
         # sort by length descending
         ictv_fps.sort(key=lambda x: x[0], reverse=True)
         metavr_fps.sort(key=lambda x: x[0], reverse=True)
-        with open(output.ordered_filepaths, 'w') as outfh:
-            for length, fp in ictv_fps:
-                outfh.write(f"{fp}\n")
-            for length, fp in metavr_fps:
-                outfh.write(f"{fp}\n")
+        with open(output.ordered_filepaths, 'w') as outfile:
+            for _, fp in ictv_fps:
+                outfile.write(f"{fp}\n")
+            for _, fp in metavr_fps:
+                outfile.write(f"{fp}\n")
 
 rule galah_cluster:
     input:
@@ -102,21 +111,22 @@ rule galah_cluster:
         cluster_dir = directory("galah_clusters")
     log:
         "logs/galah_clustering.log"
-    threads: 32
+    threads: 64
     resources:
-        mem_mb = 250 * 1024,
+        mem_mb = 256 * 1024,
     conda:
         "envs/galah.yml"
-    shell:
-        "galah cluster --genome-fasta-list {input.genome_filepaths} "\
+    shell: # use finch preclustering for speed
+        "galah cluster --genome-fasta-list {input.genome_filepaths} --threads {threads} "\
         "--ani 95 --min-aligned-fraction 85 --fragment-length 500 "\
+        "--precluster-method finch --precluster-ani 95 "\
         "--output-cluster-definition {output.cluster_rep_tsv} "\
         "--output-representative-fasta-directory {output.cluster_dir} "\
-        "&> {log}"
+        "-v &> {log}"
 
 rule prodigal_gv:
     input:
-        cluster_dir = directory("galah_clusters")
+        cluster_dir = "galah_clusters"
     params:
         log_dir = "logs/prodigal_gv"
     output:
@@ -133,14 +143,11 @@ rule prodigal_gv:
         "mkdir -p {output.transcripts_dir} ; " \
         "mkdir -p {output.proteins_dir} ; " \
         "find {input.cluster_dir} -name '*.fasta' | " \
-        "parallel -j {threads} 'prodigal-gv -i {{}} -a {output.proteins_dir}/{{/}}_protein.faa -d {output.transcripts_dir}/{{/}}_transcript.fna -p meta &> {params.log_dir}/{{/}}.log'" \
-
-rule make_metadata:
-    pass
+        "parallel -j {threads} --will-cite -- 'prodigal-gv -i {{}} -a {output.proteins_dir}/{{/}}_protein.faa -d {output.transcripts_dir}/{{/}}_transcript.fna -p meta &> {params.log_dir}/{{/}}.log'" \
 
 rule prepare_for_vcontact3:
     input:
-        galah_dir = directory("galah_clusters"),
+        galah_dir = "galah_clusters",
         galah_done = "galah_clustering.done",
     output:
         done = touch("vcontact3_prepared.done"),
@@ -169,15 +176,19 @@ rule vcontact3:
         "-d {params.vcontact3_db} "\
         "-t {threads} "\
         "-o {output.vcontact_output_dir} "\
+        "--pyrodigal-gv "\
         "&> {log}"
 
 rule process_taxonomy: #TODO: script for processing vcontact3 taxonomy
     input:
-        vcontact_output_dir = directory("vcontact3_output"),
+        vcontact_output_dir = "vcontact3_output",
         vcontact_done = "vcontact3.done"
+    params:
+        ictv_metadata = "ictv/genome_metadata.tsv",
+        metavr_metadata = "metavr/metavr_filtered_metadata.tsv"
     output:
         done = touch("vcontact3_taxonomy_processed.done"),
-        taxonomy_tsv = "final_reconstructed_taxonomy.tsv"
+        taxonomy_tsv = "final_reconstructed_metadata.tsv"
     resources:
         mem_mb = 12 * 1024,
     log:
