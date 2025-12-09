@@ -46,13 +46,14 @@ def filter_metadata(metadata_path) -> pl.DataFrame:
     logging.info("Reading MetaVR metadata into DataFrame")
     df = pl.read_csv(metadata_path, separator="\t", 
                      null_values=["NA", "\\N"], 
-                     dtypes={"uvig": pl.Utf8, 
+                     schema_overrides={"uvig": pl.Utf8, 
                              "length": pl.Int64, 
                              "ictv_taxonomy": pl.Utf8, 
                              "host_taxonomy": pl.Utf8, 
                              "completeness": pl.Float64, 
                              "checkv_contamination": pl.Float64
-                            })
+                            },
+                    infer_schema_length=10000)
     # df.select([
     #     pl.col('uvig'),
     #     pl.col('length'),
@@ -72,18 +73,36 @@ def extract_genomes(genomes_path: str, valid_uvigs: set, outdir: str):
     logging.info("Extracting valid genomes to directory")
     output_genomes_dir = os.path.join(outdir, "genomes")
     os.makedirs(output_genomes_dir, exist_ok=True)
+    
     with gzip.open(genomes_path, 'rt') as infile:
+        current_uvig_id = None
+        current_outfile = None
+        
         for line in infile:
             if line.startswith('>'):
-                uvig_id = line[1:].split()[0]
+                # Close previous file if open
+                if current_outfile:
+                    current_outfile.close()
+                    current_outfile = None
+                
+                # Extract UVIG ID
+                uvig_id = line[1:].split('|')[0]
+                current_uvig_id = uvig_id
+                
+                # Open new file if this UVIG is valid
                 if uvig_id in valid_uvigs:
-                    with open(os.path.join(output_genomes_dir, f"{uvig_id}.fna"), 'w') as outfile:
-                        outfile.write(line)
-                        for seq_line in infile:
-                            if seq_line.startswith('>'):
-                                infile.seek(infile.tell() - len(seq_line))
-                                break
-                            outfile.write(seq_line)
+                    output_path = os.path.join(output_genomes_dir, f"{uvig_id}.fna")
+                    current_outfile = open(output_path, 'w')
+                    current_outfile.write(line)
+            else:
+                # Write sequence line if we have an open file
+                if current_outfile:
+                    current_outfile.write(line)
+        
+        # Close final file if still open
+        if current_outfile:
+            current_outfile.close()
+    
     logging.info(f"Extracted genomes are saved in {output_genomes_dir}")
 
 def main():
