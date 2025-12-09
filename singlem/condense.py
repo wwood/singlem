@@ -206,6 +206,9 @@ class Condenser:
                     for seq_id in seq_id_list:
                         if logging.getLogger().isEnabledFor(logging.DEBUG):
                             logging.debug(f"OTU with sequence {otu.sequence} has seq_id: {seq_id}")
+                        if 's__Pseudomonas_E' in seq_id:
+                            logging.error("Found Pseudomonas_E sequence ID in DIAMOND-assigned OTU")
+                            import IPython; IPython.embed()
                         sequence_ids.add(seq_id)
 
         # Step 2: Get taxon strings
@@ -646,6 +649,8 @@ class Condenser:
                 if taxon_marker_counts is not None:
                     num_markers = taxon_marker_counts[tax.replace('; ',';')]
                 else:
+                    if len(tax.split(';')) < 2:
+                        import IPython; IPython.embed()
                     num_markers = len(genes_per_domain[tax.split(';')[1].strip().replace('d__','')])
                 # logging.debug("Using {} markers for OTU taxonomy {}, with coverages {}".format(num_markers, tax, gene_to_coverage.values()))
                 trimmed_mean = self.calculate_abundance(list(gene_to_coverage.values()), num_markers, trim_percent)

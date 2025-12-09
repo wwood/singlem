@@ -507,6 +507,44 @@ class SearchPipe:
                 extracted_reads, singlem_assignment_method, threads,
                 diamond_taxonomy_assignment_performance_parameters,
                 assignment_singlem_db)
+            print("Finished taxonomic assignment"); import IPython; IPython.embed()
+            bads = ['SRR35421126.1628500~0',
+                'SRR35421126.2382443~0',
+                'SRR35421126.2659067~0',
+                'SRR35421126.3330300~0',
+                'SRR35421126.3570577~0',
+                'SRR35421126.3570791~0',
+                'SRR35421126.4621268~0',
+                'SRR35421126.622767~0']
+            postfix = list(assignment_result._query_assignment_result._spkg_to_sample_to_name_to_taxonomies['/mnt/hpccs01/home/woodcrob/git/singlem/db/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb/payload_directory/S3.13.ribosomal_S9.spkg']['1'][0].keys())[0][-14:]
+            br = [s+postfix for s in bads]
+            from .singlem_package import SingleMPackage
+            spkg = SingleMPackage.acquire('/mnt/hpccs01/home/woodcrob/git/singlem/db/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb/payload_directory/S3.13.ribosomal_S9.spkg')
+            diamond_res = assignment_result._diamond_assignment_result.get_best_hits(
+                spkg,
+                '1'
+            )
+            for b in br:
+                print('=='+b)
+                
+                try:
+                    print(len(assignment_result._query_assignment_result._spkg_to_sample_to_name_to_taxonomies['/mnt/hpccs01/home/woodcrob/git/singlem/db/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb/payload_directory/S3.13.ribosomal_S9.spkg']['1'][0][b]))
+                except KeyError:
+                    print('KeyError')
+                try:
+                    print(diamond_res[0][b])
+                except KeyError:
+                    print('KeyError')
+                
+                try:
+                    print(len(assignment_result._query_assignment_result._spkg_to_sample_to_name_to_taxonomies['/mnt/hpccs01/home/woodcrob/git/singlem/db/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb/payload_directory/S3.13.ribosomal_S9.spkg']['1'][1][b]))
+                except KeyError:
+                    print('KeyError')
+                try:
+                    print(diamond_res[1][b])
+                except KeyError:
+                    print('KeyError')
+
 
         if known_sequence_taxonomy:
             logging.debug("Parsing sequence-wise taxonomy..")
@@ -535,6 +573,7 @@ class SearchPipe:
                 # outputs
                 otu_table_object,
                 package_to_taxonomy_bihash)
+        print("Finished processing taxonomically assigned reads"); import IPython; IPython.embed()
 
         return otu_table_object
 
