@@ -9,39 +9,40 @@ class PipeTaxonomyAssignerByQuery:
         """ Return at iterable of query sequences to be fed into the querier. """
         spkg_to_queries = {}
         if extracted_reads.analysing_pairs:
-            aligned_seqs_to_package_and_sample_name = [{},{}]
-            window_to_read_names = [{},{}]
+            aligned_seqs_to_package_and_sample_name = {}
+            window_to_read_names = {}
+            seen_sequences = {}
         else:
             aligned_seqs_to_package_and_sample_name = [{}]
             window_to_read_names = [{}]
         for (spkg, extracted_readsets) in extracted_reads.each_package_wise():
             spkg_key = spkg.base_directory()
             if spkg_key not in spkg_to_queries:
+                spkg_to_queries[spkg_key] = []
                 if extracted_reads.analysing_pairs:
-                    spkg_to_queries[spkg_key] = [[],[]]
-                else:
-                    spkg_to_queries[spkg_key] = []
+                    seen_sequences[spkg_key] = set()
             for maybe_paired_readset in extracted_readsets:
                 if extracted_reads.analysing_pairs:
                     for (pair_index, readset) in enumerate(maybe_paired_readset):
                         for read in readset.unknown_sequences:
-                            # Only query each aligned sequence once, not once for
-                            # each read, as they should all give the same answer
-                            if read.aligned_sequence not in window_to_read_names[pair_index]:
-                                window_to_read_names[pair_index][read.aligned_sequence] = []
-                                spkg_to_queries[spkg_key][pair_index].append(QueryInputSequence(
-                                    read.name, read.aligned_sequence, spkg.graftm_package_basename()))
-                            # TODO: don't store many copies of the sample name
-                            # TODO: Does this fail when there are 2 reads with the same name from different samples?
-                            # Always take the sample name as the first of the pair's sample name
                             sample_name = maybe_paired_readset[0].sample_name
-                            if read.aligned_sequence not in aligned_seqs_to_package_and_sample_name[pair_index]:
-                                aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence] = {}
-                            if sample_name not in aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence]:
-                                aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence][sample_name] = set()
-                            aligned_seqs_to_package_and_sample_name[pair_index][read.aligned_sequence][sample_name].add(spkg)
+                            if read.aligned_sequence not in window_to_read_names:
+                                window_to_read_names[read.aligned_sequence] = {}
+                            if sample_name not in window_to_read_names[read.aligned_sequence]:
+                                window_to_read_names[read.aligned_sequence][sample_name] = [[], []]
+                            window_to_read_names[read.aligned_sequence][sample_name][pair_index].append(read.name)
 
-                            window_to_read_names[pair_index][read.aligned_sequence].append(read.name)
+                            if read.aligned_sequence not in aligned_seqs_to_package_and_sample_name:
+                                aligned_seqs_to_package_and_sample_name[read.aligned_sequence] = {}
+                            if sample_name not in aligned_seqs_to_package_and_sample_name[read.aligned_sequence]:
+                                aligned_seqs_to_package_and_sample_name[read.aligned_sequence][sample_name] = set()
+                            aligned_seqs_to_package_and_sample_name[read.aligned_sequence][sample_name].add(spkg)
+
+                            # Only query each aligned sequence once across both pairs, as they should all give the same answer
+                            if read.aligned_sequence not in seen_sequences[spkg_key]:
+                                spkg_to_queries[spkg_key].append(QueryInputSequence(
+                                    read.name, read.aligned_sequence, spkg.graftm_package_basename()))
+                                seen_sequences[spkg_key].add(read.aligned_sequence)
                 else:
                     for read in maybe_paired_readset.unknown_sequences:
                         # Only query each aligned sequence once, not once for
@@ -77,47 +78,83 @@ class PipeTaxonomyAssignerByQuery:
         analysing_pairs = extracted_reads.analysing_pairs
         if analysing_pairs:
             final_result = [{},{}]
+
+            def process_hits_batch(window_to_read_names, spkg_key, current_hits):
+                # Get LCA of taxonomy of best hits
+                hit_taxonomies = list([h.subject.taxonomy for h in current_hits])
+                # We want the final result to be a hash of spkg to sample name to hash of sequence name to taxonomies list
+                for hit in current_hits:
+                    for sample_name in aligned_seqs_to_package_and_sample_name[hit.query.sequence].keys():
+                        for pair_index, read_names in enumerate(window_to_read_names[hit.query.sequence][sample_name]):
+                            if len(read_names) == 0:
+                                continue
+                            if spkg_key not in final_result[pair_index]:
+                                final_result[pair_index][spkg_key] = {}
+                            if sample_name not in final_result[pair_index][spkg_key]:
+                                final_result[pair_index][spkg_key][sample_name] = {}
+                            for read_name in read_names:
+                                final_result[pair_index][spkg_key][sample_name][read_name] = hit_taxonomies
+
+            def query_single_set(queries):
+                last_query = None
+                last_hits = []
+
+                if len(queries) > 0:
+                    logging.info("Querying against species database with %d sequences, using method %s and max divergence %s" % (len(queries), method, max_species_divergence))
+                    for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
+                        # hit has (query, subject, divergence)
+                        # subject has .taxonomy
+                        if last_query != hit.query.name:
+                            if last_query is not None:
+                                # Process last hits batch
+                                process_hits_batch(window_to_read_names, spkg_key, last_hits)
+                            last_query = hit.query.name
+                            last_hits = [hit]
+                        else:
+                            last_hits.append(hit)
+                    # Process the last hit
+                    if last_query is not None:
+                        process_hits_batch(window_to_read_names, spkg_key, last_hits)
         else:
             final_result = [{}]
 
-        def process_hits_batch(window_to_read_names, spkg_key, current_hits, pair_index):
-            # Get LCA of taxonomy of best hits
-            hit_taxonomies = list([h.subject.taxonomy for h in current_hits])
-            # We want the final result to be a hash of spkg to sample name to hash of sequence name to taxonomies list
-            for hit in current_hits:
-                for sample_name in aligned_seqs_to_package_and_sample_name[pair_index][hit.query.sequence].keys():
-                    if spkg_key not in final_result[pair_index]:
-                        final_result[pair_index][spkg_key] = {}
-                    if sample_name not in final_result[pair_index][spkg_key]:
-                        final_result[pair_index][spkg_key][sample_name] = {}
-                    for read_name in window_to_read_names[pair_index][hit.query.sequence]:
-                        final_result[pair_index][spkg_key][sample_name][read_name] = hit_taxonomies
+            def process_hits_batch(window_to_read_names, spkg_key, current_hits, pair_index):
+                # Get LCA of taxonomy of best hits
+                hit_taxonomies = list([h.subject.taxonomy for h in current_hits])
+                # We want the final result to be a hash of spkg to sample name to hash of sequence name to taxonomies list
+                for hit in current_hits:
+                    for sample_name in aligned_seqs_to_package_and_sample_name[pair_index][hit.query.sequence].keys():
+                        if spkg_key not in final_result[pair_index]:
+                            final_result[pair_index][spkg_key] = {}
+                        if sample_name not in final_result[pair_index][spkg_key]:
+                            final_result[pair_index][spkg_key][sample_name] = {}
+                        for read_name in window_to_read_names[pair_index][hit.query.sequence]:
+                            final_result[pair_index][spkg_key][sample_name][read_name] = hit_taxonomies
 
-        def query_single_set(queries, pair_index):
-            last_query = None
-            last_hits = []
+            def query_single_set(queries, pair_index):
+                last_query = None
+                last_hits = []
 
-            if len(queries) > 0:
-                logging.info("Querying against species database with %d sequences, using method %s and max divergence %s" % (len(queries), method, max_species_divergence))
-                for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
-                    # hit has (query, subject, divergence)
-                    # subject has .taxonomy
-                    if last_query != hit.query.name:
-                        if last_query is not None:
-                            # Process last hits batch
-                            process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
-                        last_query = hit.query.name
-                        last_hits = [hit]
-                    else:
-                        last_hits.append(hit)
-                # Process the last hit
-                if last_query is not None:
-                    process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
+                if len(queries) > 0:
+                    logging.info("Querying against species database with %d sequences, using method %s and max divergence %s" % (len(queries), method, max_species_divergence))
+                    for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
+                        # hit has (query, subject, divergence)
+                        # subject has .taxonomy
+                        if last_query != hit.query.name:
+                            if last_query is not None:
+                                # Process last hits batch
+                                process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
+                            last_query = hit.query.name
+                            last_hits = [hit]
+                        else:
+                            last_hits.append(hit)
+                    # Process the last hit
+                    if last_query is not None:
+                        process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
 
         for (spkg_key, queries) in spkg_queries.items():
             if analysing_pairs:
-                query_single_set(queries[0], 0)
-                query_single_set(queries[1], 1)
+                query_single_set(queries)
             else:
                 query_single_set(queries, 0)
 
