@@ -7,9 +7,11 @@ from .utils import OrfMUtils
 
 class Sequence:
     '''Simple name+sequence object'''
-    def __init__(self, name, seq):
+    def __init__(self, name, seq, nucleotide_seq=None, original_length=None):
         self.name = name
         self.seq = seq
+        self.nucleotide_seq = nucleotide_seq
+        self.original_length = original_length
 
     def fasta(self):
         return ">{}\n{}\n".format(self.name, self.seq)
@@ -31,6 +33,12 @@ class AlignedProteinSequence(Sequence):
     def orfm_nucleotides(self, nucleotide_sequence):
         m = re.search(r'_(\d+)_(\d+)_\d+$', self.name)
         start = int(m.groups(0)[0])-1
+        # If the provided nucleotide_sequence is already the ORF (e.g. when we
+        # have discarded the rest of the read to save RAM), it will be exactly
+        # the length of this aligned sequence and in the correct orientation.
+        if len(nucleotide_sequence) == 3 * self.unaligned_length():
+            return nucleotide_sequence
+
         translated_seq = nucleotide_sequence[start:(start+3*self.unaligned_length())]
         logging.debug("Returning orfm nucleotides %s" % translated_seq)
         if int(m.groups(0)[1]) > 3:
@@ -48,7 +56,7 @@ class UnalignedAlignedNucleotideSequence:
 
     '''
 
-    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length):
+    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length, original_length=None):
         '''
         Parameters
         ---------
@@ -69,16 +77,18 @@ class UnalignedAlignedNucleotideSequence:
         self.aligned_sequence = aligned_sequence
         self.unaligned_sequence = unaligned_sequence
         self.aligned_length = aligned_length
+        self.original_length = original_length
         # self.num_hits_on_read = 1
 
     def coverage_increment(self):
         '''Given the alignment came from a read of length
         original_nucleotide_sequence_length, how much coverage does the
-        observation of this aligned sequence indicate?'''   
+        observation of this aligned sequence indicate?'''
         # original calculation
+        sequence_length = len(self.unaligned_sequence) if self.original_length is None else self.original_length
         return float(
-            len(self.unaligned_sequence) /
-           (len(self.unaligned_sequence) - self.aligned_length + 1)
+            sequence_length /
+           (sequence_length - self.aligned_length + 1)
             )
     
 

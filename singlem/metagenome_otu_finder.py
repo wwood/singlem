@@ -69,23 +69,49 @@ class MetagenomeOtuFinder:
                         # On rare occasions, the dummy sequence is aligned to
                         # the HMM in the right place, ignore it.
                         continue
-                    
-                    nuc = nucleotide_sequences[name]
-                    aligned_nucleotides = s.orfm_nucleotides(nuc)
+                    if s.name in nucleotide_sequences:
+                        nuc_entry = nucleotide_sequences[s.name]
+                    elif name in nucleotide_sequences:
+                        nuc_entry = nucleotide_sequences[name]
+                    else:
+                        continue
+
+                    if isinstance(nuc_entry, tuple):
+                        if len(nuc_entry) == 3:
+                            nuc, original_length, full_nuc = nuc_entry
+                        else:
+                            nuc, original_length = nuc_entry
+                            full_nuc = nuc
+                    else:
+                        nuc = nuc_entry
+                        original_length = len(nuc_entry)
+                        full_nuc = nuc_entry
+                    nucleotide_source = full_nuc if full_nuc is not None else nuc
+                    aligned_nucleotides = s.orfm_nucleotides(nucleotide_source)
                 else:
                     name = s.name
                     if name == 'dummy':
                         # On rare occasions, the dummy sequence is aligned to
                         # the HMM in the right place, ignore it.
                         continue
-                    nuc = nucleotide_sequences[name]
+                    nuc_entry = nucleotide_sequences[name]
+                    if isinstance(nuc_entry, tuple):
+                        if len(nuc_entry) == 3:
+                            nuc, original_length, full_nuc = nuc_entry
+                        else:
+                            nuc, original_length = nuc_entry
+                            full_nuc = nuc
+                    else:
+                        nuc = nuc_entry
+                        original_length = len(nuc_entry)
+                        full_nuc = nuc_entry
                     aligned_nucleotides = nuc.replace('-','')
                 align, aligned_length = self._nucleotide_alignment(
                     s, aligned_nucleotides, chosen_positions, is_protein_alignment,
                     include_inserts=include_inserts)
 
                 windowed_sequences.append(
-                    UnalignedAlignedNucleotideSequence(name, s.name, align, nuc, aligned_length))
+                    UnalignedAlignedNucleotideSequence(name, s.name, align, full_nuc, aligned_length, original_length))
         return windowed_sequences
 
     def _find_lower_case_columns(self, protein_alignment):

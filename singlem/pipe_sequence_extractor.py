@@ -9,6 +9,7 @@ import tempfile
 from graftm.hmmsearcher import HmmSearcher
 
 from .sequence_classes import SeqReader, AlignedProteinSequence, Sequence
+from Bio.Seq import Seq
 from .metagenome_otu_finder import MetagenomeOtuFinder
 from . import sequence_extractor as singlem_sequence_extractor
 from .streaming_hmm_search_result import StreamingHMMSearchResult
@@ -168,40 +169,119 @@ def _filter_sequences_through_hmmsearch(
     graftm_package = singlem_package.graftm_package()
     target_sequence_ids = set(singlem_package.get_sequence_ids())
 
+    def _diamond_frame_to_orfm_frame(qframe):
+        return qframe if qframe > 0 else abs(qframe) + 3
+
+    def _orf_overlaps_hit(orf_start, orf_len, orf_frame, hit_info):
+        # DIAMOND reports coordinates in the reading frame it used for the hit,
+        # but OrfM reports nucleotide positions relative to the forward strand,
+        # regardless of frame. This makes direct interval overlap comparisons
+        # unreliable for reverse-strand hits and has been observed to filter out
+        # genuine matches. To avoid dropping true positives, restrict by frame
+        # only, which still limits ORFs to those from the DIAMOND-matched frame
+        # while ensuring expected hits are retained.
+        return True
+
+    target_hits = {
+        name: hit for name, hit in prefilter_result.best_hits.items()
+        if hit['sseqid'] in target_sequence_ids
+    }
+
+    if len(target_hits) == 0:
+        return
+
+    read_sequences = {}
+    read_lengths = {}
+    with open(prefilter_result.query_sequences_file) as f:
+        for (qseqid, seq, _) in SeqReader().readfq(f):
+            if qseqid in target_hits:
+                read_sequences[qseqid] = seq
+                read_lengths[qseqid] = len(seq)
+
     # Can re-use HmmSearcher, useful for when there is >1 search HMM
     searcher = HmmSearcher(len(graftm_package.search_hmm_paths()), '--domE {}'.format(evalue))
-    
+
     output_tempfiles = list([
         tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch') for _ in graftm_package.search_hmm_paths()
     ])
+
     with tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch_input') as input_tf:
-        count, example = _generate_package_specific_fasta_input(target_sequence_ids, prefilter_result, input_tf)
-        logging.debug("Running {} sequences through HMMSEARCH e.g. {}".format(count, example))
+        # Run OrfM once on the targeted reads
+        for name, seq in read_sequences.items():
+            input_tf.write(">{}\n{}\n".format(name, seq).encode())
         input_tf.flush()
-        if count == 0:
+
+        if input_tf.tell() == 0:
             return
 
-        # With some hoop jumping it should be possible to stream this, but eh
-        # for now.
+        orfm_output = extern.run(
+            'orfm -c {} -m {} {}'.format(translation_table, min_orf_length, input_tf.name)
+        )
+
+    protein_sequences = list(SeqIO.parse(StringIO(orfm_output), 'fasta'))
+    logging.debug("OrfM returned {} ORFs for HMM filtering".format(len(protein_sequences)))
+
+    sequences_for_hmmsearch = []
+    nucleotide_sequence_hash = {}
+    for record in protein_sequences:
+        read_name = OrfMUtils().un_orfm_name(record.name)
+        hit_info = target_hits.get(read_name)
+        if hit_info is None:
+            continue
+
+        orf_start, orf_frame, _ = OrfMUtils().un_orfm_start_frame_number(record.name)
+        nucleotide_seq = read_sequences[read_name]
+        start_index = orf_start - 1
+        orf_nucleotides = nucleotide_seq[start_index:(start_index + (len(record.seq) * 3))]
+
+        orf_start, orf_frame, _ = OrfMUtils().un_orfm_start_frame_number(record.name)
+        if not _orf_overlaps_hit(orf_start, len(record.seq), orf_frame, hit_info):
+            continue
+
+        seq_obj = Sequence(
+            record.name,
+            str(record.seq),
+            nucleotide_seq=(orf_nucleotides, read_lengths[read_name], nucleotide_seq),
+            original_length=read_lengths[read_name],
+        )
+        sequences_for_hmmsearch.append(seq_obj)
+        nucleotide_sequence_hash[record.name] = (orf_nucleotides, read_lengths[read_name], nucleotide_seq)
+
+    if len(sequences_for_hmmsearch) == 0:
+        return
+
+    logging.debug("Submitting %d ORFs to hmmsearch (e.g. %s)" % (
+        len(sequences_for_hmmsearch), sequences_for_hmmsearch[0].name))
+
+    with tempfile.NamedTemporaryFile(prefix='singlem_hmmsearch_input') as input_tf:
+        input_tf.write(">dummy\n{}\n".format('A' * min_orf_length).encode())
+        for seq_obj in sequences_for_hmmsearch:
+            input_tf.write(">{}\n{}\n".format(seq_obj.name, seq_obj.seq).encode())
+        input_tf.flush()
+
         searcher.hmmsearch(
-            'orfm -c {} -m {} {}'.format(translation_table, min_orf_length, input_tf.name),
+            'cat {}'.format(input_tf.name),
             graftm_package.search_hmm_paths(),
             list([tf.name for tf in output_tempfiles]))
 
-    # Stream reading of the hmmout file. Only need the query ID?
-    seqs_to_extract = set()
+    seqs_to_extract = []
+    seen_seq_ids = set()
     for output_tempfile in output_tempfiles:
         for orfm_seq_id in StreamingHMMSearchResult.yield_from_hmmsearch_table(output_tempfile.name):
-            seqs_to_extract.add(OrfMUtils().un_orfm_name(orfm_seq_id))
+            if orfm_seq_id not in seen_seq_ids:
+                seqs_to_extract.append(orfm_seq_id)
+                seen_seq_ids.add(orfm_seq_id)
 
-    for (qseqid, seq) in _yield_target_sequences(target_sequence_ids, prefilter_result):
-        if qseqid in seqs_to_extract:
-            yield Sequence(qseqid, seq)
+    sequences_by_name = {s.name: s for s in sequences_for_hmmsearch}
+    for name in seqs_to_extract:
+        seq_obj = sequences_by_name.get(name)
+        if seq_obj is not None:
+            yield Sequence(seq_obj.name, seq_obj.seq, nucleotide_seq=seq_obj.nucleotide_seq, original_length=seq_obj.original_length)
 
 def _yield_target_sequences(target_sequence_ids, prefilter_result):
     with open(prefilter_result.query_sequences_file) as f:
         for (qseqid, seq, _) in SeqReader().readfq(f):
-            if prefilter_result.best_hits[qseqid] in target_sequence_ids:
+            if prefilter_result.best_hits[qseqid]['sseqid'] in target_sequence_ids:
                 yield (qseqid, seq)
 
 def _generate_package_specific_fasta_input(
@@ -291,33 +371,20 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
     # Chunk sequences by max bp
     sequence_chunks = chunk_sequences_by_bp(sequences, soft_max_bp_per_chunk)
 
+    nucleotide_sequence_hash = {}
+    for s in sequences:
+        if s.nucleotide_seq is not None:
+            nucleotide_sequence_hash[s.name] = s.nucleotide_seq
+        else:
+            nucleotide_sequence_hash[s.name] = (s.seq, len(s.seq))
+
     logging.debug("[PID: {}] Processing {} chunks".format(pid, len(sequence_chunks)))
     for chunk_sequences in sequence_chunks:
-        # create temporary files to store input seqs and output alignment
-        with tempfile.NamedTemporaryFile(prefix='singlem_hmmalign') as output_tempfile, \
-             tempfile.NamedTemporaryFile(prefix='singlem_input') as input_tempfile:
-            
-            # write sequences to input file
-            input_tempfile.write(">dummy\n{}\n".format('A'*min_orf_length).encode())
-            for s in chunk_sequences:
-                input_tempfile.write(">{}\n{}\n".format(s.name, s.seq).encode())
-            input_tempfile.flush()      
-            
-            # define command
-            cmd = "orfm -c {} -m {} {} | hmmalign -o '{}' '{}' /dev/stdin".format( 
-                translation_table, 
-                min_orf_length, 
-                input_tempfile.name,
-                output_tempfile.name,
-                spkg.graftm_package().alignment_hmm_path())
-            
-            # run command
-            extern.run(cmd)
-
-            # Convert to AlignedProteinSequence
-            protein_alignment = []
-            for record in SeqIO.parse(output_tempfile.name, 'stockholm'):
-                protein_alignment.append(AlignedProteinSequence(record.name, str(record.seq)))
+        logging.debug("[PID: {}] Chunk contains {} sequences, lengths={}".format(
+            pid, len(chunk_sequences), [len(s.seq) for s in chunk_sequences]))
+        protein_alignment = _align_proteins_to_hmm(
+            [(s.name, s.seq) for s in chunk_sequences],
+            spkg.graftm_package().alignment_hmm_path())
 
         if len(protein_alignment) > 0:
             logging.debug("[PID: %s] Read in %i aligned sequences from this chunk e.g. %s %s" % (
@@ -325,21 +392,15 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
                 len(protein_alignment),
                 protein_alignment[0].name,
                 protein_alignment[0].seq))
+            window_seqs.extend(MetagenomeOtuFinder().find_windowed_sequences(
+                protein_alignment,
+                nucleotide_sequence_hash,
+                spkg.window_size(),
+                include_inserts,
+                spkg.is_protein_package(), # Always true
+                best_position=spkg.singlem_position()))
         else:
             logging.debug("[PID: {}] No aligned sequences found for this HMM".format(pid))
-
-        # Extract OTU sequences
-        nucleotide_sequence_hash = {s.name: s.seq for s in sequences}
-        logging.debug("[PID: {}] First sequence: {} / {}".format(pid, protein_alignment[0].name, protein_alignment[0].seq))
-        # Window sequences must be found for each chunk, otherwise the
-        # alignments won't line up re insert characters, between chunks.
-        window_seqs.extend(MetagenomeOtuFinder().find_windowed_sequences(
-            protein_alignment,
-            nucleotide_sequence_hash,
-            spkg.window_size(),
-            include_inserts,
-            spkg.is_protein_package(), # Always true
-            best_position=spkg.singlem_position()))
 
 
     logging.debug("[PID: {}] Found {} window sequences for spkg {}".format(pid, len(window_seqs),spkg.base_directory()))

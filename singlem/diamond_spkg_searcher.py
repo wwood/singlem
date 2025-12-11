@@ -75,9 +75,9 @@ class DiamondSpkgSearcher:
 
             # DIAMOND command
             # now with range culling, etc
-            cmd = [ 
+            cmd = [
                 "diamond", "blastx",
-                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart",
+                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart", "qend", "qframe",
                 "--max-target-seqs", "1",
                 "--evalue", "0.01",
                 "--frameshift", "15",
@@ -97,7 +97,7 @@ class DiamondSpkgSearcher:
                 with open(fasta_path, 'a') as fasta_file:
                     for line in proc.stdout:
                         try:
-                            qseqid, full_qseq, sseqid, qstart = line.strip().split('\t')
+                            qseqid, full_qseq, sseqid, qstart, qend, qframe = line.strip().split('\t')
                         except ValueError:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
                     
@@ -111,10 +111,16 @@ class DiamondSpkgSearcher:
                             continue
 
                         # store the best hit for each query sequence to feed into the next steps
-                        best_hits[qseqid] = sseqid
+                        best_hits[qseqid] = {
+                            'sseqid': sseqid,
+                            'qstart': int(qstart),
+                            'qend': int(qend),
+                            'qframe': int(qframe),
+                            'length': len(full_qseq),
+                        }
 
                         # write the query sequence to a file
-                        fasta_file.write(f'>{qseqid}\n{full_qseq}\n')    
+                        fasta_file.write(f'>{qseqid}\n{full_qseq}\n')
 
                 # check for DIAMOND errors
                 stderr_output = proc.stderr.read()
