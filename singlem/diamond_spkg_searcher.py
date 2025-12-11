@@ -73,8 +73,11 @@ class DiamondSpkgSearcher:
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
 
-            # DIAMOND command
-            # now with range culling, etc
+            # DIAMOND command now with range culling, etc
+            #
+            # Note these parameters should align with those used in the taxonomy
+            # search step later on in pipe, otherwise some reads that pass the
+            # prefilter will not be assigned any taxonomy.
             cmd = [ 
                 "diamond", "blastx",
                 "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart",

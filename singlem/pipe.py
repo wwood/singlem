@@ -1444,6 +1444,9 @@ class SearchPipe:
 
                             return best_hits
 
+                    # Note that these parameters should sink well with those
+                    # querying the prefilter, otherwise there ends up being
+                    # reads that are assigned no taxonomy.
                     cmd_stub = "diamond blastx " \
                         "--outfmt 6 qseqid sseqid bitscore " \
                         "--top 1 " \
@@ -1943,7 +1946,9 @@ class QueryThenDiamondTaxonomicAssignmentResult:
             # both forward and reverse have a taxonomy assigned, then the
             # forward read's assignment is used.
             #
-            # The issue can be tested by analysing the SRA read set SRR35421126 for instance
+            # The issue can be tested by analysing the SRA read set SRR35421126
+            # for instance. It when not fixed here, I think it will raise a
+            # warning not an error
             seen_readnames = set()
             for name in query_best_hits[0]:
                 seen_readnames.add(name)
