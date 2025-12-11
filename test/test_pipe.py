@@ -466,7 +466,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
 '''
         expected = [
             self.headers,
-            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_000949295.1']]
+            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_001025035.1']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
         with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
@@ -995,7 +995,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # more frequently)
         expected = [
             "\t".join(self.headers_with_extras),
-            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_000817105.1\']	diamond',
+            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
             '']
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
@@ -1016,7 +1016,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         # 2 ORFs found causing GraftM to do its "split" thing
         expected = [
             "\t".join(self.headers),
-            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus; s__Nitrosopumilus_piranensis",
+            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus",
             '']
         cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --assignment-method diamond".format(
             path_to_script,
@@ -1290,7 +1290,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
 
     def test_translation_table4_no_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-1000'
+            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-460; s__CAG-460_sp1'
         cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --no-diamond-prefilter --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
         self.assertEqualOtuTable(
             expected,
@@ -1298,7 +1298,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
 
     def test_translation_table4_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-1000'
+            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-460; s__CAG-460_sp1'
         cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
         self.assertEqualOtuTable(
             expected,
@@ -1312,7 +1312,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         all_ascii_chars = ''.join(chr(i) for i in list(range(33, 127)) + list(range(161, 255)))
         expected = [
             "\t".join(self.headers_with_extras),
-            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	{all_ascii_chars}	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_000817105.1\']	diamond',
+            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	{all_ascii_chars}	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
             '']
         inseqs = inseqs = (
             f'>{all_ascii_chars}\n'
