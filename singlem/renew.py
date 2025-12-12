@@ -173,6 +173,8 @@ class Renew:
                 known_taxes=None,
                 output_jplace=output_jplace,
                 assignment_singlem_db=assignment_singlem_db,
+                diamond_forward_qseqs = None,
+                diamond_reverse_qseqs = None,
             )
 
         # Write outputs

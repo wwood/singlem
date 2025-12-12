@@ -369,7 +369,7 @@ class SearchPipe:
                 (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                     self._num_threads, self._working_directory).run_diamond(
                     hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                    hmms.prefilter_db_path())
+                    hmms.prefilter_db_path(), min_orf_length)
             except extern.ExternCalledProcessError as e:
                 logging.error("Process (DIAMOND?) failed")
                 if input_sra_files:
@@ -701,10 +701,12 @@ class SearchPipe:
                             if diamond_forward_qseqs:
                                 read_name_to_fullseq = {}
                                 for (name, best_hits) in best_hit_hash[1].items():
-                                    read_name_to_fullseq[name] = reverse_full_qseqs[name]
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
                                 for (name, best_hits) in best_hit_hash[0].items():
                                     # Overwrite reverse hit with the forward hit
-                                    read_name_to_fullseq[name] = forward_full_qseqs[name]
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = forward_full_qseqs[readname]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -736,10 +738,12 @@ class SearchPipe:
                             if diamond_forward_qseqs:
                                 read_name_to_fullseq = {}
                                 for (name, best_hits) in best_hit_hash[1].items():
-                                    read_name_to_fullseq[name] = reverse_full_qseqs[name]
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
                                 for (name, best_hits) in best_hit_hash[0].items():
                                     # Overwrite reverse hit with the forward hit
-                                    read_name_to_fullseq[name] = forward_full_qseqs[name]
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = forward_full_qseqs[readname]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -807,6 +811,11 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
+                    # TODO: Here I think we need to go through each
+                    # unalignedalignednucleotidesequence and put in the actual
+                    # unaligned sequence. For now just don't output the full
+                    # sequences.
+                    read_name_to_fullseq = None
 
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,

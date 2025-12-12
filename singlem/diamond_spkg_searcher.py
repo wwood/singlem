@@ -10,7 +10,7 @@ class DiamondSpkgSearcher:
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
 
@@ -31,14 +31,27 @@ class DiamondSpkgSearcher:
             dmnd = hmms.get_dmnd()
         else:
             dmnd = diamond_db
-        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters)
+
+        # Calculate sample names here so they can be used in the reverse read
+        # processing too. If this does not happen, getting the full length
+        # sequences is hard later on because the reverse read basename is not
+        # necessarily the sample as the forward read one.
+        sample_names = []
+        for file in forward_read_files:
+            basename = os.path.basename(file)
+            if basename[-3:] == '.gz':
+                basename = basename[:-3] # remove .gz for destination files
+            basename = os.path.splitext(basename)[0]+'.fna'
+            sample_names.append(basename)
+
+        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length)
         revs = None
         if reverse_read_files != None:
-            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters)
+            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length)
 
         return (fwds, revs)
 
-    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters):
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length):
         '''Find all reads that match the DIAMOND database in the 
         singlem_package database.
         Parameters
@@ -61,19 +74,14 @@ class DiamondSpkgSearcher:
             prefilter_dir = os.path.join(self._working_directory, 'prefilter_forward')
         os.mkdir(prefilter_dir)
 
-        
-        for file in read_files:
-
-            fasta_path = os.path.join(prefilter_dir,
-                                      os.path.basename(file))
-            if fasta_path[-3:] == '.gz':
-                fasta_path = fasta_path[:-3] # remove .gz for destination files
-            fasta_path = os.path.splitext(fasta_path)[0]+'.fna'
+        for (file, sample_name) in zip(read_files, sample_names):
+            fasta_path = os.path.join(prefilter_dir, sample_name)
             
             # TODO: Why is this w+ needed? I suppose it does no harm though so
             # leaving it for the moment.
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
+            previous_sample_name = os.path.basename(fasta_path)
             full_qseq_fasta_path = fasta_path + '.full_qseqs'
             full_qseq_f = open(full_qseq_fasta_path, 'w')
             full_qseq_f.close()
@@ -125,8 +133,19 @@ class DiamondSpkgSearcher:
                         query_sequence_lengths[unique_qseqid] = len(full_qseq)
 
                         # Only write the part of the query sequence that aligned
-                        # to the prefilter database to the fasta file
-                        truncated_qseq = full_qseq[int(qstart)-1:int(qend)]
+                        # to the prefilter database to the fasta file.
+                        # qstat can be > qend if the sequences is reverse complemented.
+                        qstart_int = int(qstart)
+                        qend_int =  int(qend)
+                        if qstart_int > qend_int:
+                            qstart_int, qend_int = qend_int, qstart_int
+                        # To ensure that that the ORF finder later on finds something >=72bp, extend the range
+                        # either side if possible.
+                        extra_bp = min_orf_length
+                        qstart_int = max(1, qstart_int - extra_bp)
+                        qend_int = min(len(full_qseq), qend_int + extra_bp)
+                        logging.debug(f"DIAMOND hit: {qseqid} {sseqid} {qstart} {qend} => {qstart_int} {qend_int}")
+                        truncated_qseq = full_qseq[int(qstart_int)-1:int(qend_int)]
                         fasta_file.write(f'>{unique_qseqid}\n{truncated_qseq}\n')
 
                         # Write the full read sequence to the fasta file as well
