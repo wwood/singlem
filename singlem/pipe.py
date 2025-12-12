@@ -434,6 +434,11 @@ class SearchPipe:
                 diamond_forward_search_results, diamond_reverse_search_results,
                 analysing_pairs, include_inserts, min_orf_length,
                 translation_table, self._evalue)
+            # Extract paths to the full qseqs
+            diamond_forward_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_forward_search_results}
+            if analysing_pairs:
+                diamond_reverse_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_reverse_search_results}
+            # Delete the diamond search results to save memory
             del diamond_forward_search_results
             del diamond_reverse_search_results
             if extracted_reads.empty():
@@ -481,6 +486,8 @@ class SearchPipe:
             known_taxes=known_taxes,
             output_jplace=output_jplace,
             assignment_singlem_db=assignment_singlem_db,
+            diamond_forward_qseqs = diamond_forward_qseqs if diamond_prefilter else None,
+            diamond_reverse_qseqs = diamond_reverse_qseqs if (diamond_prefilter and analysing_pairs) else None,
         )
 
         return_cleanly()
@@ -497,6 +504,8 @@ class SearchPipe:
         known_taxes = kwargs.pop('known_taxes')
         output_jplace = kwargs.pop('output_jplace')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+        diamond_forward_qseqs = kwargs.pop('diamond_forward_qseqs')
+        diamond_reverse_qseqs = kwargs.pop('diamond_reverse_qseqs')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -533,9 +542,12 @@ class SearchPipe:
                 assignment_result if assign_taxonomy else None,
                 output_jplace,
                 known_sequence_tax if known_sequence_taxonomy else None,
+                diamond_forward_qseqs,
+                diamond_reverse_qseqs,
                 # outputs
                 otu_table_object,
-                package_to_taxonomy_bihash)
+                package_to_taxonomy_bihash,
+                )
 
         return otu_table_object
 
@@ -575,6 +587,8 @@ class SearchPipe:
             assignment_result,
             output_jplace,
             known_sequence_tax,
+            diamond_forward_qseqs,
+            diamond_reverse_qseqs,
             # outputs
             otu_table_object,
             package_to_taxonomy_bihash):
@@ -638,13 +652,19 @@ class SearchPipe:
                 placement_parser = None
             return placement_parser
 
-        def process_readset(readset, analysing_pairs):
+        def process_readset(
+            readset,
+            analysing_pairs,
+            diamond_forward_qseqs,
+            diamond_reverse_qseqs):
+
             known_infos = self._seqs_to_counts_and_taxonomy(
                 readset.known_sequences if not analysing_pairs else itertools.chain(
                     readset[0].known_sequences, readset[1].known_sequences),
                 NO_ASSIGNMENT_METHOD,
                 known_taxes,
                 known_sequence_taxonomy,
+                None,
                 None,
                 None,
                 None)
@@ -657,6 +677,10 @@ class SearchPipe:
                  len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
+                if diamond_forward_qseqs:
+                    forward_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_forward_qseqs[sample_name])
+                if diamond_reverse_qseqs:
+                    reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
 
                 if analysing_pairs:
                     aligned_seqs = list(itertools.chain(
@@ -674,6 +698,13 @@ class SearchPipe:
                         equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                         equal_best_taxonomies = {}
                         if analysing_pairs:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = {}
+                                for (name, best_hits) in best_hit_hash[1].items():
+                                    read_name_to_fullseq[name] = reverse_full_qseqs[name]
+                                for (name, best_hits) in best_hit_hash[0].items():
+                                    # Overwrite reverse hit with the forward hit
+                                    read_name_to_fullseq[name] = forward_full_qseqs[name]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -702,6 +733,13 @@ class SearchPipe:
                         equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                         equal_best_taxonomies = {}
                         if analysing_pairs:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = {}
+                                for (name, best_hits) in best_hit_hash[1].items():
+                                    read_name_to_fullseq[name] = reverse_full_qseqs[name]
+                                for (name, best_hits) in best_hit_hash[0].items():
+                                    # Overwrite reverse hit with the forward hit
+                                    read_name_to_fullseq[name] = forward_full_qseqs[name]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -713,6 +751,8 @@ class SearchPipe:
                                 # Overwrite reverse hit with the forward hit
                                 equal_best_taxonomies[name] = equal_best_hits
                         else:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = forward_full_qseqs
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
                             for (name, equal_best_hits) in equal_best_hit_hash.items():
@@ -768,8 +808,6 @@ class SearchPipe:
                     else:
                         taxonomies = {}
 
-
-
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
@@ -782,7 +820,9 @@ class SearchPipe:
                         SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
-                    assignment_methods))
+                    assignment_methods,
+                    read_name_to_fullseq if diamond_forward_qseqs else None,
+                ))
 
                 if output_jplace:
                     if analysing_pairs:
@@ -818,7 +858,11 @@ class SearchPipe:
                 "Removed {} sequences from reverse read set as the forward read was also detected".format(
                     len(indices_to_remove)))
 
-        new_infos = process_readset(maybe_paired_readset, analysing_pairs)
+        new_infos = process_readset(
+            maybe_paired_readset,
+            analysing_pairs,
+            diamond_forward_qseqs,
+            diamond_reverse_qseqs)
 
         add_info(new_infos, otu_table_object, not assign_taxonomy)
 
@@ -841,7 +885,8 @@ class SearchPipe:
                                      per_read_taxonomies,
                                      per_read_equal_best_taxonomies,
                                      placement_parser,
-                                     taxonomy_assignment_methods):
+                                     taxonomy_assignment_methods,
+                                     read_name_to_fullseq):
         '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
         assignment-related results, yield over 'Info' objects that contain e.g.
         the counts of the aggregated sequences and corresponding median
@@ -912,7 +957,11 @@ class SearchPipe:
             if per_read_equal_best_taxonomies is not None and equal_best_tax is not None:
                 collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
-            collected_info.unaligned_sequences.append(s.unaligned_sequence)
+            if read_name_to_fullseq:
+                collected_info.unaligned_sequences.append(
+                    read_name_to_fullseq[s.name.split('••')[0]])
+            else:
+                collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
             collected_info.orf_names.append(s.orf_name)

@@ -70,8 +70,13 @@ class DiamondSpkgSearcher:
                 fasta_path = fasta_path[:-3] # remove .gz for destination files
             fasta_path = os.path.splitext(fasta_path)[0]+'.fna'
             
+            # TODO: Why is this w+ needed? I suppose it does no harm though so
+            # leaving it for the moment.
             f = open(fasta_path, 'w+') # create tempfile in working directory
             f.close()
+            full_qseq_fasta_path = fasta_path + '.full_qseqs'
+            full_qseq_f = open(full_qseq_fasta_path, 'w')
+            full_qseq_f.close()
 
             # DIAMOND command now with range culling, etc
             #
@@ -80,7 +85,7 @@ class DiamondSpkgSearcher:
             # prefilter will not be assigned any taxonomy.
             cmd = [ 
                 "diamond", "blastx",
-                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart",
+                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart", "qend",
                 "--max-target-seqs", "1",
                 "--evalue", "0.01",
                 "--frameshift", "15",
@@ -95,29 +100,42 @@ class DiamondSpkgSearcher:
             logging.debug(' '.join(cmd))
 
             best_hits = {}
+            query_sequence_lengths = {}
             # using Popen to stream the output
             with Popen(cmd, stdout=PIPE, stderr=PIPE, text=True) as proc:
-                with open(fasta_path, 'a') as fasta_file:
+                seen_full_qseqs = set()
+                with open(fasta_path, 'a') as fasta_file, open(full_qseq_fasta_path, 'a') as full_qseq_f:
                     for line in proc.stdout:
                         try:
-                            qseqid, full_qseq, sseqid, qstart = line.strip().split('\t')
+                            qseqid, full_qseq, sseqid, qstart, qend = line.strip().split('\t')
                         except ValueError:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
                     
                         # creating new read index to account for multiple hits
                         # by concating the read_name with the marker_gene_name, we can ensure only 1 gene copy per read
                         # TODO: add an option to let all unique genes through with range-uclling 
-                        qseqid = qseqid + '••' + sseqid.split('~')[0]
+                        unique_qseqid = qseqid + '••' + sseqid.split('~')[0]
 
                         # extra check to make sure we're not overwriting a better hit
-                        if qseqid in best_hits:
+                        if unique_qseqid in best_hits:
                             continue
 
-                        # store the best hit for each query sequence to feed into the next steps
-                        best_hits[qseqid] = sseqid
+                        # store the best hit and sequence length for each query sequence to feed into the next steps
+                        best_hits[unique_qseqid] = sseqid
+                        query_sequence_lengths[unique_qseqid] = len(full_qseq)
 
-                        # write the query sequence to a file
-                        fasta_file.write(f'>{qseqid}\n{full_qseq}\n')    
+                        # Only write the part of the query sequence that aligned
+                        # to the prefilter database to the fasta file
+                        truncated_qseq = full_qseq[int(qstart)-1:int(qend)]
+                        fasta_file.write(f'>{unique_qseqid}\n{truncated_qseq}\n')
+
+                        # Write the full read sequence to the fasta file as well
+                        # so it can be included in the archive OTU table later
+                        # on. Write without the unique_qseqid modification, to save space.
+                        if qseqid not in seen_full_qseqs:
+                            full_qseq_f.write(f'>{qseqid}\n{full_qseq}\n')
+                            seen_full_qseqs.add(qseqid)
+
 
                 # check for DIAMOND errors
                 stderr_output = proc.stderr.read()
@@ -130,14 +148,16 @@ class DiamondSpkgSearcher:
                 if return_code != 0:
                     raise Exception(f"DIAMOND failed with return code {return_code}, but no stderr output")
 
-            diamond_results.append(DiamondSearchResult(fasta_path, best_hits))
+            diamond_results.append(DiamondSearchResult(fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths))
 
         return diamond_results
 
 class DiamondSearchResult:
-    def __init__(self, query_sequence_file, best_hits):
+    def __init__(self, query_sequence_file, full_query_sequences_file, best_hits, query_sequence_lengths):
         self.query_sequences_file = query_sequence_file
+        self.full_query_sequences_file = full_query_sequences_file
         self.best_hits = best_hits
+        self.query_sequence_lengths = query_sequence_lengths
 
     def sample_name(self):
         return FastaNameToSampleName().fasta_to_name(self.query_sequences_file)
