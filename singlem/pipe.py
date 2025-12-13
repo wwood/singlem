@@ -811,11 +811,28 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
-                    # TODO: Here I think we need to go through each
+                    # We need to go through each
                     # unalignedalignednucleotidesequence and put in the actual
-                    # unaligned sequence. For now just don't output the full
-                    # sequences.
+                    # unaligned sequence, because this is the last time we have
+                    # access to knowing what is the forward and what is the
+                    # reverse read sequence.
                     read_name_to_fullseq = None
+                    # In [8]: readset[0].unknown_sequences[0].name
+                    # Out[8]: 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704'
+                    #
+                    # In [9]: forward_full_qseqs
+                    # Out[9]: {'HWI-ST1243:156:D1K8
+                    if analysing_pairs:
+                        for s in readset[0].unknown_sequences:
+                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
+                            s.full_nucleotide_sequence_length = None
+                        for s in readset[1].unknown_sequences:
+                            s.unaligned_sequence = reverse_full_qseqs[s.name.split('••')[0]]
+                            s.full_nucleotide_sequence_length = None
+                    else:
+                        for s in readset.unknown_sequences:
+                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
+                            s.full_nucleotide_sequence_length = None
 
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
