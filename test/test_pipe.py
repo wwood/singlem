@@ -25,6 +25,7 @@ import unittest
 import os.path
 import tempfile
 import shutil
+import subprocess
 import extern
 import sys
 import json
@@ -53,6 +54,10 @@ class Tests(unittest.TestCase):
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
+
+    @staticmethod
+    def _compress_to_zstd(src_path, dst_path):
+        subprocess.check_call(['zstd', '-q', '-f', src_path, '-o', dst_path])
 
     def assertEqualOtuTable(self, expected_array_or_string, observed_string, no_assign_taxonomy=False):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])
@@ -114,6 +119,27 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+    def test_zstd_forward_input(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.TemporaryDirectory() as td:
+            plain = os.path.join(td, 'input.fasta')
+            with open(plain, 'w') as f:
+                f.write(inseqs)
+            zstd_path = plain + '.zst'
+            self._compress_to_zstd(plain, zstd_path)
+
+            cmd = "timeout 20s %s pipe --sequences %s --assignment-method diamond --otu-table /dev/stdout --singlem-packages %s" % (
+                path_to_script, zstd_path, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace('input',''))
 
 
     def test_fast_protein_package_diamond_package_assignment(self):
@@ -198,12 +224,33 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
                     path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
-                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
-                cmd = "%s pipe --assignment-method diamond --reverse %s --forward %s --otu-table /dev/stdout --singlem-packages %s" % (
-                    path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
-                self.assertEqualOtuTable(
-                    list([line.split("\t") for line in expected]),
-                    extern.run(cmd).replace(os.path.basename(n2.name).replace('.fa',''),''))
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))             
+
+    def test_zstd_forward_reverse_input(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.TemporaryDirectory() as td:
+            plain1 = os.path.join(td, 'sample1.fasta')
+            plain2 = os.path.join(td, 'sample2.fasta')
+            with open(plain1, 'w') as f:
+                f.write(inseqs)
+            with open(plain2, 'w') as f:
+                f.write(inseqs)
+            zstd1 = plain1 + '.zst'
+            zstd2 = plain2 + '.zst'
+            self._compress_to_zstd(plain1, zstd1)
+            self._compress_to_zstd(plain2, zstd2)
+
+            cmd = "timeout 20s %s pipe --assignment-method diamond --forward %s --reverse %s --otu-table /dev/stdout --singlem-packages %s" % (
+                path_to_script, zstd1, zstd2, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace('sample1','').replace('sample2',''))
 
     def test_fast_protein_package_prefilter(self):
         expected = [
@@ -1271,6 +1318,22 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         self.assertEqualOtuTable(
             expected,
             extern.run(cmd))
+
+    def test_genome_input_zstd(self):
+        expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
+            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.00    '
+        src = os.path.join(path_to_data, 'methanobacteria/genomes/GCA_000309865.1_genomic.fna')
+        with tempfile.TemporaryDirectory() as td:
+            zstd_path = os.path.join(td, 'GCA_000309865.1_genomic.fna.zst')
+            self._compress_to_zstd(src, zstd_path)
+            cmd = 'timeout 20s {} pipe --translation-table 11 --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
+                path_to_script,
+                zstd_path,
+                os.path.join(path_to_data, '4.12.22seqs.spkg'),
+            )
+            self.assertEqualOtuTable(
+                expected,
+                extern.run(cmd))
 
     def test_genome_multiplexing(self):
         cmd_stub = '{} pipe --metapackage {} --output-extras --otu-table /dev/stdout --assignment-method diamond --genome-fasta-files '.format(

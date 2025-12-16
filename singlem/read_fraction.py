@@ -4,6 +4,7 @@ import logging
 import json
 import os
 import sys
+import tempfile
 from dataclasses import dataclass
 from heapq import heappush, heappushpop
 
@@ -11,7 +12,7 @@ import extern
 
 from .condense import CondensedCommunityProfile
 from .metapackage import Metapackage
-from .utils import FastaNameToSampleName
+from .utils import FastaNameToSampleName, finish_processes, prepare_zstd_fifos
 
 @dataclass
 class GenomeSizeStruct:
@@ -242,7 +243,12 @@ class SmafaCountedMetagenomeSizes:
             read_files = self.stems_to_read_files[stem]
         except KeyError:
             read_files = self.stems_to_read_files[stem + '_1']
-        j = extern.run('smafa count -i %s' % ' '.join(read_files))
+        with tempfile.TemporaryDirectory(prefix='singlem-prokaryotic-fraction-') as temp_dir:
+            prepared_files, zstd_processes = prepare_zstd_fifos(read_files, temp_dir)
+            try:
+                j = extern.run('smafa count -i %s' % ' '.join(prepared_files))
+            finally:
+                finish_processes(zstd_processes, "zstdcat")
         logging.debug("Found JSON response from smafa count: %s" % j)
         j2 = json.loads(j)
         
