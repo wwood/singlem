@@ -102,6 +102,8 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
             continue
 
         base = os.path.basename(path)
+        if base.endswith('.gz'):
+            base = base[:-3]
         chunking_dir = os.path.join(temp_dir, "chunking")
         os.makedirs(chunking_dir, exist_ok=True)
         fifo_path = os.path.join(chunking_dir, base)
@@ -117,7 +119,11 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
             time.sleep(sleep_after_mkfifo)
         prepared_paths.append(fifo_path)
 
-        cmd = f"cat {path} {add_chunking_pipe(read_chunk_size, read_chunk_number)} > {fifo_path}"
+        if path.endswith('.gz'):
+            read_cmd = f"gzip -dc {shlex.quote(path)}"
+        else:
+            read_cmd = f"cat {shlex.quote(path)}"
+        cmd = f"{read_cmd} {add_chunking_pipe(read_chunk_size, read_chunk_number)} > {shlex.quote(fifo_path)}"
         logging.debug("Running chunking command: {}".format(cmd))
         process = subprocess.Popen(
             ['bash','-c',cmd],

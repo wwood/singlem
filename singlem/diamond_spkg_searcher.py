@@ -122,6 +122,14 @@ class DiamondSpkgSearcher:
                         if qstart_int > qend_int:
                             qstart_int, qend_int = qend_int, qstart_int
                         
+                        # To ensure that that the ORF finder later on finds something >=72bp, extend the range
+                        # either side if possible (or use the specified context window).
+                        if context_window is not None:
+                            extra_bp = context_window
+                        else:
+                            extra_bp = min_orf_length
+                        qstart_int = max(1, qstart_int - extra_bp)
+                        qend_int = min(len(full_qseq), qend_int + extra_bp)
                         if context_window is not None:
                             # If we have a context window, we may have multiple hits
                             # per read (this is somewhat of a hack, to deal with the
@@ -129,7 +137,9 @@ class DiamondSpkgSearcher:
                             # embedded in the read name in order to retrieve it
                             # later).
                             qseqid = qseqid + ':' + str(qstart_int) + '-' + str(qend_int) + ','+ str(len(full_qseq))
-                            
+
+                        logging.debug(f"DIAMOND hit: {qseqid} {sseqid} {qstart} {qend} => {qstart_int} {qend_int}")
+                                                    
                         # creating new read index to account for multiple hits
                         # by concating the read_name with the marker_gene_name,
                         # we can ensure only 1 gene copy per read (except when
@@ -143,18 +153,9 @@ class DiamondSpkgSearcher:
                         # store the best hit and sequence length for each query sequence to feed into the next steps
                         best_hits[unique_qseqid] = sseqid
                         query_sequence_lengths[unique_qseqid] = len(full_qseq)
-
+                        
                         # Only write the part of the query sequence that aligned
                         # to the prefilter database to the fasta file.
-                        # To ensure that that the ORF finder later on finds something >=72bp, extend the range
-                        # either side if possible (or use the specified context window).
-                        if context_window is not None:
-                            extra_bp = context_window
-                        else:
-                            extra_bp = min_orf_length
-                        qstart_int = max(1, qstart_int - extra_bp)
-                        qend_int = min(len(full_qseq), qend_int + extra_bp)
-                        logging.debug(f"DIAMOND hit: {qseqid} {sseqid} {qstart} {qend} => {qstart_int} {qend_int}")
                         truncated_qseq = full_qseq[int(qstart_int)-1:int(qend_int)]
                         fasta_file.write(f'>{unique_qseqid}\n{truncated_qseq}\n')
 

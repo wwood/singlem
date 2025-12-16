@@ -25,6 +25,7 @@ import unittest
 import os.path
 import tempfile
 import shutil
+import gzip
 import subprocess
 import extern
 import sys
@@ -1170,6 +1171,84 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
                     list([line.split("\t") for line in expected]),
                     extern.run('bash {}'.format(script.name)))
 
+    def test_read_chunk_size_forward_gzip(self):
+        target_seq_aln = 'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA'
+        target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'
+        reads = f'''>skip
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>target
+{target_seq}
+'''
+        expected_full = [
+            "\t".join(self.headers),
+            f'4.11.22seqs\t\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            f'4.11.22seqs\t\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTA\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Carnobacteriaceae; g__Carnobacterium; s__Carnobacterium_gallinarum',
+            ''
+        ]
+        expected = [
+            "\t".join(self.headers),
+            f'4.11.22seqs\t\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            ''
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            gz_path = os.path.join(td, 'chunked_reads.fa.gz')
+            with gzip.open(gz_path, 'wt') as handle:
+                handle.write(reads)
+
+            # First ensure it works without chunking
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {}".format(
+                path_to_script,
+                gz_path,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected_full]),
+                extern.run(cmd).replace('chunked_reads',''))
+
+            # Now with chunking
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 1 --read-chunk-number 2".format(
+                path_to_script,
+                gz_path,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace('chunked_reads',''))
+
+    def test_read_chunk_size_paired(self):
+        target_seq_aln = 'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA'
+        target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'
+        forward_reads = f'''>skip
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>target
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+'''
+        reverse_reads = f'''>skip
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>target
+{target_seq}
+'''
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.fa') as forward, \
+                tempfile.NamedTemporaryFile(mode='w', suffix='.fa') as reverse:
+            forward.write(forward_reads)
+            forward.flush()
+            reverse.write(reverse_reads)
+            reverse.flush()
+
+            sample_name = os.path.basename(forward.name).replace('.fa', '')
+            expected = [
+                "\t".join(self.headers),
+                f'4.11.22seqs\t{sample_name}\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+                ''
+            ]
+
+            cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 1 --read-chunk-number 2".format(
+                path_to_script,
+                forward.name,
+                reverse.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
+
     @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
@@ -1434,7 +1513,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         truncated, and the wrong coverage value to be reported.'''
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482:2-94,253 seq2:7-99,304	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGA TCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAA	None	no_assign_taxonomy',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482:1-99,253 seq2:2-104,304	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGA TCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAA	None	no_assign_taxonomy',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
