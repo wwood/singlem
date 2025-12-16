@@ -1395,7 +1395,6 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     n.name,
                     os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
                     n2.name)
-                import IPython; IPython.embed()
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
