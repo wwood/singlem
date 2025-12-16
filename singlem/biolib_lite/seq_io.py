@@ -131,7 +131,7 @@ def read_fasta_seq(fasta_file, keep_annotation=False):
             mode = 'rb'
         elif fasta_file.endswith('.zst'):
             open_file = zstandard.open
-            mode = 'rb'
+            mode = 'rt'
 
         seq_id = None
         annotation = None
@@ -207,7 +207,7 @@ def read_seq(seq_file, keep_annotation=False):
         and the annotation if keep_annotation is True.
     """
 
-    if seq_file.endswith(('.fq.gz', '.fastq.gz', '.fq', '.fq.gz', '.fq.zst', '.fastq.zst')):
+    if seq_file.endswith(('.fq.gz', '.fastq.gz', '.fq', '.fq.zst', '.fastq.zst')):
         raise Exception("Cannot read FASTQ files.")
         # for rtn in read_fastq_seq(seq_file):
         #     yield rtn
