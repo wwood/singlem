@@ -1366,6 +1366,40 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     list([line.split("\t") for line in expected]),
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
+    def test_context_window_no_assign_taxonomy(self):
+        '''At one point, --no-assign-taxonomy caused the query sequence to be
+        truncated, and the wrong coverage value to be reported.'''
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	None	no_assign_taxonomy',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>seq2
+AAAAAAAAAAAAAAAAA
+'''
+        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+AAAAAAAAAAAAAAAAA
+>seq2
+TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+''' # reverse complement of the forward, so should collapse.
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
+                n2.write(inseqs_reverse)
+                n2.flush()
+
+                cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --reverse {} --output-extras --no-assign-taxonomy  --context-window 5".format(
+                    path_to_script,
+                    n.name,
+                    os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
+                    n2.name)
+                import IPython; IPython.embed()
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
 
 if __name__ == "__main__":
     unittest.main()
