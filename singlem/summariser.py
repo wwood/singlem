@@ -8,6 +8,7 @@ import Bio
 import pandas as pd
 import polars as pl
 import gzip
+import zstandard
 
 from .otu_table import OtuTable
 from .rarefier import Rarefier
@@ -389,8 +390,13 @@ class Summariser:
                 logging.debug(f"Found {len(lines)} lines in achive otu table list.")
                 for a in lines:
                     logging.debug("Reading gzip archive table {} ..".format(a))
-                    with gzip.open(a.strip()) as g:
-                        overall_df, ar = read_archive_table(overall_df, g, ar)
+                    a_path = a.strip()
+                    if a_path.endswith('.zst'):
+                        with zstandard.open(a_path) as g:
+                            overall_df, ar = read_archive_table(overall_df, g, ar)
+                    else:
+                        with gzip.open(a_path) as g:
+                            overall_df, ar = read_archive_table(overall_df, g, ar)
         df = overall_df
 
         # Remove suffixes

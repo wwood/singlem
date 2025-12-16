@@ -87,5 +87,14 @@ class Tests(unittest.TestCase):
                 f.name+'.gz', 72
             ))
 
+    def test_zst_good(self):
+        with tempfile.NamedTemporaryFile() as f:
+            f.write(('>seq\n'+'A'*100+'\n').encode())
+            f.flush()
+            extern.run("zstd -k {}".format(f.name))
+            self.assertTrue(OrfLengthChecker.check_sequence_file_contains_an_orf(
+                f.name+'.zst', 72
+            ))
+
 if __name__ == "__main__":
     unittest.main()

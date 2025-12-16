@@ -46,6 +46,7 @@ pyarrow = "*"
 galah = ">=0.4.0"
 sqlparse = "*"  # Required indirectly (e.g. taxtastic)
 zenodo_backpack = ">=0.4.0"
+zstandard = "*"
 # Optional (commented out)
 # python-annoy = "*"
 # nmslib = "*"

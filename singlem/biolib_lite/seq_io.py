@@ -20,6 +20,7 @@ import gzip
 import os
 import sys
 import traceback
+import zstandard
 
 from .exceptions import InputFileError
 
@@ -55,6 +56,8 @@ def read_fasta(fasta_file, keep_annotation=False):
 
         if fasta_file.endswith('.gz'):
             file_f, file_mode = gzip.open, 'rt'
+        elif fasta_file.endswith('.zst'):
+            file_f, file_mode = zstandard.open, 'rt'
         else:
             file_f, file_mode = open, 'r'
 
@@ -126,6 +129,9 @@ def read_fasta_seq(fasta_file, keep_annotation=False):
         if fasta_file.endswith('.gz'):
             open_file = gzip.open
             mode = 'rb'
+        elif fasta_file.endswith('.zst'):
+            open_file = zstandard.open
+            mode = 'rt'
 
         seq_id = None
         annotation = None
@@ -201,7 +207,7 @@ def read_seq(seq_file, keep_annotation=False):
         and the annotation if keep_annotation is True.
     """
 
-    if seq_file.endswith(('.fq.gz', '.fastq.gz', '.fq', '.fq.gz')):
+    if seq_file.endswith(('.fq.gz', '.fastq.gz', '.fq', '.fq.zst', '.fastq.zst')):
         raise Exception("Cannot read FASTQ files.")
         # for rtn in read_fastq_seq(seq_file):
         #     yield rtn
