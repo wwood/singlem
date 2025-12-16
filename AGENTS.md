@@ -1,1 +1,2 @@
-1. When making changes, run tests using `pixi run -e dev pytest test`
+1. When making changes, run tests using `pixi run -e dev pytest test`. This command can take 500 seconds to complete.
+2. Do not modify markdown files in `docs/tools/` or `docs/advanced/` directories - these are auto-generated.
