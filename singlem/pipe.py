@@ -177,6 +177,7 @@ class SearchPipe:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', None)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
+        context_window = kwargs.pop('context_window', None)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -192,6 +193,7 @@ class SearchPipe:
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
         self._max_species_divergence = max_species_divergence
+        self._context_window = context_window
 
         if metapackage_object:
             hmms = metapackage_object
@@ -367,7 +369,7 @@ class SearchPipe:
             logging.info("Filtering sequence files through DIAMOND blastx")
             try:
                 (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
-                    self._num_threads, self._working_directory).run_diamond(
+                    self._num_threads, self._working_directory, self._context_window).run_diamond(
                     hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
                     hmms.prefilter_db_path(), min_orf_length)
             except extern.ExternCalledProcessError as e:
@@ -436,8 +438,10 @@ class SearchPipe:
                 translation_table, self._evalue)
             # Extract paths to the full qseqs
             diamond_forward_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_forward_search_results}
+            diamond_forward_context = {r.sample_name(): r.alignment_positions for r in diamond_forward_search_results}
             if analysing_pairs:
                 diamond_reverse_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_reverse_search_results}
+                diamond_reverse_context = {r.sample_name(): r.alignment_positions for r in diamond_reverse_search_results}
             # Delete the diamond search results to save memory
             del diamond_forward_search_results
             del diamond_reverse_search_results
@@ -488,6 +492,9 @@ class SearchPipe:
             assignment_singlem_db=assignment_singlem_db,
             diamond_forward_qseqs = diamond_forward_qseqs if diamond_prefilter else None,
             diamond_reverse_qseqs = diamond_reverse_qseqs if (diamond_prefilter and analysing_pairs) else None,
+            diamond_forward_context = diamond_forward_context if diamond_prefilter else None,
+            diamond_reverse_context = diamond_reverse_context if (diamond_prefilter and analysing_pairs) else None,
+            context_window = self._context_window,
         )
 
         return_cleanly()
@@ -506,6 +513,9 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
         diamond_forward_qseqs = kwargs.pop('diamond_forward_qseqs')
         diamond_reverse_qseqs = kwargs.pop('diamond_reverse_qseqs')
+        diamond_forward_context = kwargs.pop('diamond_forward_context')
+        diamond_reverse_context = kwargs.pop('diamond_reverse_context')
+        context_window = kwargs.pop('context_window')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -544,6 +554,9 @@ class SearchPipe:
                 known_sequence_tax if known_sequence_taxonomy else None,
                 diamond_forward_qseqs,
                 diamond_reverse_qseqs,
+                diamond_forward_context,
+                diamond_reverse_context,
+                context_window,
                 # outputs
                 otu_table_object,
                 package_to_taxonomy_bihash,
@@ -589,6 +602,9 @@ class SearchPipe:
             known_sequence_tax,
             diamond_forward_qseqs,
             diamond_reverse_qseqs,
+            diamond_forward_context,
+            diamond_reverse_context,
+            context_window,
             # outputs
             otu_table_object,
             package_to_taxonomy_bihash):
@@ -602,6 +618,7 @@ class SearchPipe:
         sample_name = readset_example.sample_name
         singlem_package = readset_example.singlem_package
 
+        read_range_lookup = None
 
 
         def add_info(infos, otu_table_object, known_tax):
@@ -610,8 +627,16 @@ class SearchPipe:
                 # before printing otu table
                 names = [name.split('••')[0] for name in info.names]
 
+                display_names = []
+                for name in names:
+                    if read_range_lookup and name in read_range_lookup:
+                        (start, end, qlen) = read_range_lookup[name]
+                        display_names.append(f"{name}:{start}-{end},{qlen}")
+                    else:
+                        display_names.append(name)
+
                 names_and_sequences = list(sorted(
-                    list(zip(names, info.unaligned_sequences)),
+                    list(zip(display_names, info.unaligned_sequences)),
                     key=lambda x: x[0]
                 ))
 
@@ -657,6 +682,33 @@ class SearchPipe:
             analysing_pairs,
             diamond_forward_qseqs,
             diamond_reverse_qseqs):
+            nonlocal read_range_lookup
+
+            read_range_lookup = None
+            forward_full_qseqs = None
+            reverse_full_qseqs = None
+            forward_ranges = None
+            reverse_ranges = None
+            if diamond_forward_qseqs:
+                forward_full_qseqs, forward_ranges = self._read_qseqs_with_context(
+                    diamond_forward_qseqs[sample_name],
+                    diamond_forward_context.get(sample_name) if diamond_forward_context else None,
+                    context_window)
+            if diamond_reverse_qseqs:
+                reverse_full_qseqs, reverse_ranges = self._read_qseqs_with_context(
+                    diamond_reverse_qseqs[sample_name],
+                    diamond_reverse_context.get(sample_name) if diamond_reverse_context else None,
+                    context_window)
+            read_name_to_fullseq, merged_range_lookup = self._merge_sequences_and_ranges(
+                forward_full_qseqs,
+                forward_ranges,
+                reverse_full_qseqs if analysing_pairs else None,
+                reverse_ranges if analysing_pairs else None,
+            )
+            if context_window is not None:
+                read_range_lookup = merged_range_lookup
+                if read_range_lookup:
+                    read_range_lookup = self._add_context_suffix_entries(read_range_lookup)
 
             known_infos = self._seqs_to_counts_and_taxonomy(
                 readset.known_sequences if not analysing_pairs else itertools.chain(
@@ -677,11 +729,6 @@ class SearchPipe:
                  len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
-                if diamond_forward_qseqs:
-                    forward_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_forward_qseqs[sample_name])
-                if diamond_reverse_qseqs:
-                    reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
-
                 if analysing_pairs:
                     aligned_seqs = list(itertools.chain(
                         readset[0].unknown_sequences, readset[0].known_sequences,
@@ -700,13 +747,19 @@ class SearchPipe:
                         if analysing_pairs:
                             if diamond_forward_qseqs:
                                 read_name_to_fullseq = {}
+                                if context_window is not None and read_range_lookup is None:
+                                    read_range_lookup = {}
                                 for (name, best_hits) in best_hit_hash[1].items():
                                     readname = name.split('••')[0]
                                     read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
+                                    if read_range_lookup is not None and reverse_ranges is not None and readname in reverse_ranges:
+                                        read_range_lookup[readname] = reverse_ranges[readname]
                                 for (name, best_hits) in best_hit_hash[0].items():
                                     # Overwrite reverse hit with the forward hit
                                     readname = name.split('••')[0]
                                     read_name_to_fullseq[readname] = forward_full_qseqs[readname]
+                                    if read_range_lookup is not None and forward_ranges is not None and readname in forward_ranges:
+                                        read_range_lookup[readname] = forward_ranges[readname]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -718,6 +771,8 @@ class SearchPipe:
                                 # Overwrite reverse hit with the forward hit
                                 equal_best_taxonomies[name] = equal_best_hits
                         else:
+                            if diamond_forward_qseqs and context_window is not None:
+                                read_range_lookup = forward_ranges
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
                             for (name, equal_best_hits) in equal_best_hit_hash.items():
@@ -737,13 +792,19 @@ class SearchPipe:
                         if analysing_pairs:
                             if diamond_forward_qseqs:
                                 read_name_to_fullseq = {}
+                                if context_window is not None and read_range_lookup is None:
+                                    read_range_lookup = {}
                                 for (name, best_hits) in best_hit_hash[1].items():
                                     readname = name.split('••')[0]
                                     read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
+                                    if read_range_lookup is not None and reverse_ranges is not None and readname in reverse_ranges:
+                                        read_range_lookup[readname] = reverse_ranges[readname]
                                 for (name, best_hits) in best_hit_hash[0].items():
                                     # Overwrite reverse hit with the forward hit
                                     readname = name.split('••')[0]
                                     read_name_to_fullseq[readname] = forward_full_qseqs[readname]
+                                    if read_range_lookup is not None and forward_ranges is not None and readname in forward_ranges:
+                                        read_range_lookup[readname] = forward_ranges[readname]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -757,6 +818,8 @@ class SearchPipe:
                         else:
                             if diamond_forward_qseqs:
                                 read_name_to_fullseq = forward_full_qseqs
+                                if context_window is not None:
+                                    read_range_lookup = forward_ranges
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
                             for (name, equal_best_hits) in equal_best_hit_hash.items():
@@ -816,23 +879,49 @@ class SearchPipe:
                     # unaligned sequence, because this is the last time we have
                     # access to knowing what is the forward and what is the
                     # reverse read sequence.
-                    read_name_to_fullseq = None
+                    if context_window is not None:
+                        read_name_to_fullseq = self._add_context_sequences(read_name_to_fullseq, read_range_lookup)
                     # In [8]: readset[0].unknown_sequences[0].name
                     # Out[8]: 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704'
                     #
                     # In [9]: forward_full_qseqs
                     # Out[9]: {'HWI-ST1243:156:D1K8
-                    if analysing_pairs:
-                        for s in readset[0].unknown_sequences:
-                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
-                            s.full_nucleotide_sequence_length = None
-                        for s in readset[1].unknown_sequences:
-                            s.unaligned_sequence = reverse_full_qseqs[s.name.split('••')[0]]
-                            s.full_nucleotide_sequence_length = None
+                    if read_name_to_fullseq is not None:
+                        if analysing_pairs:
+                            for s in readset[0].unknown_sequences:
+                                name_key = s.name.split('••')[0]
+                                if name_key not in read_name_to_fullseq:
+                                    stripped_name = self._strip_context_suffix(name_key)
+                                    if stripped_name in read_name_to_fullseq:
+                                        name_key = stripped_name
+                                s.unaligned_sequence = read_name_to_fullseq[name_key]
+                                s.full_nucleotide_sequence_length = None
+                            for s in readset[1].unknown_sequences:
+                                name_key = s.name.split('••')[0]
+                                if name_key not in read_name_to_fullseq:
+                                    stripped_name = self._strip_context_suffix(name_key)
+                                    if stripped_name in read_name_to_fullseq:
+                                        name_key = stripped_name
+                                s.unaligned_sequence = read_name_to_fullseq[name_key]
+                                s.full_nucleotide_sequence_length = None
+                        else:
+                            for s in readset.unknown_sequences:
+                                name_key = s.name.split('••')[0]
+                                if name_key not in read_name_to_fullseq:
+                                    stripped_name = self._strip_context_suffix(name_key)
+                                    if stripped_name in read_name_to_fullseq:
+                                        name_key = stripped_name
+                                s.unaligned_sequence = read_name_to_fullseq[name_key]
+                                s.full_nucleotide_sequence_length = None
                     else:
-                        for s in readset.unknown_sequences:
-                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
-                            s.full_nucleotide_sequence_length = None
+                        if analysing_pairs:
+                            for s in readset[0].unknown_sequences:
+                                s.full_nucleotide_sequence_length = None
+                            for s in readset[1].unknown_sequences:
+                                s.full_nucleotide_sequence_length = None
+                        else:
+                            for s in readset.unknown_sequences:
+                                s.full_nucleotide_sequence_length = None
 
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
@@ -847,7 +936,9 @@ class SearchPipe:
                         SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
                     assignment_methods,
-                    read_name_to_fullseq if diamond_forward_qseqs else None,
+                    self._add_context_sequences(
+                        read_name_to_fullseq if diamond_forward_qseqs else None,
+                        self._add_context_suffix_entries(read_range_lookup) if context_window is not None else read_range_lookup),
                 ))
 
                 if output_jplace:
@@ -867,6 +958,8 @@ class SearchPipe:
                                 self._write_jplace_from_infos(
                                     input_jplace_io, new_infos, output_jplace_io)
 
+                if context_window is not None:
+                    read_range_lookup = self._add_context_suffix_entries(read_range_lookup)
                 return new_infos
 
         if analysing_pairs:
@@ -904,6 +997,79 @@ class SearchPipe:
             return 'Root'
         else:
             return 'Root; '+';'.join(lca)
+
+    def _read_qseqs_with_context(self, qseq_path, alignment_positions, context_window):
+        """Read full_qseq records and optionally trim them to a context window."""
+        sequences = SeqReader().read_nucleotide_sequences(qseq_path)
+        if context_window is None:
+            return sequences, None
+
+        trimmed_sequences = {}
+        range_lookup = {}
+        for name, seq in sequences.items():
+            if alignment_positions and name in alignment_positions:
+                (aligned_start, aligned_end, _) = alignment_positions[name]
+                start = min(aligned_start, aligned_end)
+                end = max(aligned_start, aligned_end)
+            else:
+                start = 1
+                end = len(seq)
+            start = max(1, start - context_window)
+            end = min(len(seq), end + context_window)
+            trimmed_sequences[name] = seq[start-1:end]
+            range_lookup[name] = (start, end, len(seq))
+        return trimmed_sequences, range_lookup
+
+    def _merge_sequences_and_ranges(self, preferred_sequences, preferred_ranges, secondary_sequences, secondary_ranges):
+        """Merge forward and reverse read maps, preferring the first set when keys collide."""
+        merged_sequences = None
+        merged_ranges = None
+        if secondary_sequences or preferred_sequences:
+            merged_sequences = {}
+            if secondary_sequences:
+                merged_sequences.update(secondary_sequences)
+            if preferred_sequences:
+                merged_sequences.update(preferred_sequences)
+
+        if preferred_ranges is not None or secondary_ranges is not None:
+            merged_ranges = {}
+            if secondary_ranges:
+                merged_ranges.update(secondary_ranges)
+            if preferred_ranges:
+                merged_ranges.update(preferred_ranges)
+
+        return merged_sequences, merged_ranges
+
+    def _add_context_suffix_entries(self, range_lookup):
+        """Add context-window suffixed keys to a range lookup for fast name matching."""
+        if range_lookup is None:
+            return None
+        augmented = dict(range_lookup)
+        for name, (start, end, qlen) in range_lookup.items():
+            if ":" in name and "," in name:
+                continue
+            augmented[f"{name}:{start}-{end},{qlen}"] = (start, end, qlen)
+        return augmented
+
+    def _add_context_sequences(self, sequence_lookup, range_lookup):
+        """Add entries keyed by the context-window suffixed read name."""
+        if sequence_lookup is None or range_lookup is None:
+            return sequence_lookup
+        augmented = dict(sequence_lookup)
+        for name, (start, end, qlen) in range_lookup.items():
+            base_name = self._strip_context_suffix(name)
+            if base_name in sequence_lookup:
+                augmented[f"{base_name}:{start}-{end},{qlen}"] = sequence_lookup[base_name]
+        return augmented
+
+    def _strip_context_suffix(self, name):
+        """Remove a trailing context suffix of the form ':start-end,qlen'."""
+        if ',' not in name or '-' not in name:
+            return name
+        base, maybe_suffix = name.rsplit(":", 1)
+        if '-' in maybe_suffix and ',' in maybe_suffix:
+            return base
+        return name
 
     def _seqs_to_counts_and_taxonomy(self, sequences,
                                      assignment_method,
@@ -984,8 +1150,17 @@ class SearchPipe:
                 collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
             if read_name_to_fullseq:
-                collected_info.unaligned_sequences.append(
-                    read_name_to_fullseq[s.name.split('••')[0]])
+                read_name = s.name.split('••')[0]
+                lookup_name = read_name
+                if lookup_name not in read_name_to_fullseq:
+                    stripped_name = self._strip_context_suffix(lookup_name)
+                    if stripped_name in read_name_to_fullseq:
+                        lookup_name = stripped_name
+                try:
+                    collected_info.unaligned_sequences.append(
+                        read_name_to_fullseq[lookup_name])
+                except KeyError:
+                    collected_info.unaligned_sequences.append(s.unaligned_sequence)
             else:
                 collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()

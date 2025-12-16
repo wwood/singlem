@@ -187,6 +187,9 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
                                     type=int, default=SearchPipe.DEFAULT_FILTER_MINIMUM_NUCLEOTIDE)
         argument_group.add_argument('--include-inserts', action='store_true',
                                     help='print the entirety of the sequences in the OTU table, not just the aligned nucleotides [default: not set]', default=False)
+        argument_group.add_argument('--context-window', type=int, metavar='bp',
+                                    help='When using the DIAMOND prefilter, retain this many bases of context on each side of the aligned region when recording full_qseqs in the OTU table instead of the entire read. [default: keep the full read]',
+                                    default=None)
         argument_group.add_argument('--known-otu-tables', nargs='+',
                                     help='OTU tables previously generated with trusted taxonomies for each sequence [default: unused]')
         argument_group.add_argument('--no-assign-taxonomy', action='store_true',
@@ -216,6 +219,8 @@ def validate_pipe_args(args, subparser='pipe'):
         raise Exception("At least one of --output-taxonomic-profile, --output-taxonomic-profile-krona, --otu-table, or --archive-otu-table must be specified")
     if args.output_jplace and args.assignment_method != pipe.PPLACER_ASSIGNMENT_METHOD:
         raise Exception("If --output-jplace is specified, then --assignment-method must be set to %s" % pipe.PPLACER_ASSIGNMENT_METHOD)
+    if hasattr(args, 'context_window') and args.context_window is not None and args.context_window < 0:
+        raise Exception("--context-window must be a non-negative integer")
     if args.metapackage and args.singlem_packages:
         raise Exception("Can only specify a metapackage or a singlem package set, not both")
     if args.output_extras and not args.otu_table:
@@ -813,7 +818,8 @@ def main():
             viral_profile_output = False,
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
-            max_species_divergence = args.max_species_divergence
+            max_species_divergence = args.max_species_divergence,
+            context_window = args.context_window
         )
 
     elif args.subparser_name=='renew':

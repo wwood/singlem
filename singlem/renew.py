@@ -31,6 +31,7 @@ class Renew:
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits')
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
+        context_window = kwargs.pop('context_window', None)
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -175,6 +176,9 @@ class Renew:
                 assignment_singlem_db=assignment_singlem_db,
                 diamond_forward_qseqs = None,
                 diamond_reverse_qseqs = None,
+                diamond_forward_context = None,
+                diamond_reverse_context = None,
+                context_window = context_window,
             )
 
         # Write outputs
