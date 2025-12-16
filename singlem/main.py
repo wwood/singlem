@@ -223,9 +223,9 @@ def validate_pipe_args(args, subparser='pipe'):
         raise Exception("Can only specify a metapackage or a singlem package set, not both")
     if args.output_extras and not args.otu_table:
         raise Exception("Can't use --output-extras without --otu-table")
-    if args.context_window is not None and args.context_window < 0:
-        raise Exception("--context-window must be a non-negative integer")
     if subparser == 'pipe':
+        if args.context_window is not None and args.context_window < 0:
+            raise Exception("--context-window must be a non-negative integer")
         if args.include_inserts and not args.otu_table and not args.archive_otu_table:
             raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
         if args.metapackage and args.diamond_prefilter_db:
@@ -847,7 +847,6 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
-            context_window = args.context_window,
             )
 
     elif args.subparser_name == 'summarise':
