@@ -34,10 +34,10 @@ class FastaNameToSampleName:
     @staticmethod
     def fasta_to_name(query_sequences_file):
         sample_name = os.path.basename(query_sequences_file)
-        # Put .gz first so it is stripped off first.
-        for extension in ('.gz','.fna','.fq','.fastq','.fasta','.fa'):
+        # Put .gz and .zst first so they are stripped off first.
+        for extension in ('.gz','.zst','.fna','.fq','.fastq','.fasta','.fa'):
             if sample_name.endswith(extension):
                 sample_name = sample_name[0:(len(sample_name)-len(extension))]
-                if extension != '.gz':
+                if extension not in ('.gz', '.zst'):
                     break
         return sample_name

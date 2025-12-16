@@ -10,8 +10,15 @@ class OrfLengthChecker:
         streaming. Only checks the first 1000 lines of the sequence file.'''
 
         # Cannot use extern here because the SIGPIPE signals generated
-        result = subprocess.check_output(['bash','-c',"cat '%s' |zcat --stdout -f  |head -n1000 |orfm -m %i |head -n2" %(
-            path, min_orf_length
+        # Determine decompression command based on file extension
+        if path.endswith('.zst'):
+            decompress_cmd = "zstdcat '%s'" % path
+        else:
+            # zcat with -f handles both plain and gzipped files
+            decompress_cmd = "zcat --stdout -f '%s'" % path
+        
+        result = subprocess.check_output(['bash','-c',"%s |head -n1000 |orfm -m %i |head -n2" %(
+            decompress_cmd, min_orf_length
         )])
         if len(result) == 0:
             return False

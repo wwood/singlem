@@ -3,6 +3,7 @@ import re
 from collections import OrderedDict
 import gzip
 import json
+import zstandard
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table import OtuTable
@@ -193,6 +194,7 @@ class StreamingOtuTableCollection:
         self._otu_table_file_paths = []
         self._archive_table_file_paths = []
         self._gzip_archive_table_file_paths = []
+        self._zst_archive_table_file_paths = []
         self._archive_table_objects = []
         self.min_archive_otu_table_version = None
 
@@ -222,6 +224,9 @@ class StreamingOtuTableCollection:
     def add_gzip_archive_otu_table_file(self, file_path):
         self._gzip_archive_table_file_paths.append(file_path)
 
+    def add_zst_archive_otu_table_file(self, file_path):
+        self._zst_archive_table_file_paths.append(file_path)
+
     def add_archive_otu_table_object(self, archive_table):
         '''Not technically streaming, but easier to put this here for pipe
         instead of implementing each_sample_otus() for non-streaming OTU
@@ -248,6 +253,13 @@ class StreamingOtuTableCollection:
                     yield otu
         for file_path in self._gzip_archive_table_file_paths:
             with gzip.open(file_path) as f:
+                try:
+                    for otu in ArchiveOtuTable.read(f, min_version=self.min_archive_otu_table_version):
+                        yield otu
+                except json.decoder.JSONDecodeError:
+                    logging.error(f"JSON parsing error in {file_path}, skipping this one")
+        for file_path in self._zst_archive_table_file_paths:
+            with zstandard.open(file_path) as f:
                 try:
                     for otu in ArchiveOtuTable.read(f, min_version=self.min_archive_otu_table_version):
                         yield otu

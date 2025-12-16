@@ -14,6 +14,7 @@ import os
 import gzip
 import tempfile
 import json
+import zstandard
 
 from bird_tool_utils import *
 from bird_tool_utils.people import *
@@ -951,7 +952,11 @@ def main():
                 with open(args.input_gzip_archive_otu_table_list) as f:
                     for arc in f.readlines():
                         try:
-                            otus.add_archive_otu_table(gzip.open(arc.strip()))
+                            arc_path = arc.strip()
+                            if arc_path.endswith('.zst'):
+                                otus.add_archive_otu_table(zstandard.open(arc_path))
+                            else:
+                                otus.add_archive_otu_table(gzip.open(arc_path))
                         except json.decoder.JSONDecodeError:
                             logging.warning("Failed to parse JSON from archive OTU table {}, skipping".format(arc))
             otus.set_target_taxonomy_by_string(args.taxonomy)
