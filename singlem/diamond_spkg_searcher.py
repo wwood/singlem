@@ -119,13 +119,19 @@ class DiamondSpkgSearcher:
                         except ValueError:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
                         
+                        # qstart can be > qend if the sequences is reverse complemented.
+                        qstart_int = int(qstart)
+                        qend_int =  int(qend)
+                        if qstart_int > qend_int:
+                            qstart_int, qend_int = qend_int, qstart_int
+                        
                         if context_window is not None:
                             # If we have a context window, we may have multiple hits
                             # per read (this is somewhat of a hack, to deal with the
                             # fact that we need to have the context start and stop
                             # embedded in the read name in order to retrieve it
                             # later).
-                            qseqid = qseqid + ':' + qstart + '-' + qend + ','+ str(len(full_qseq))
+                            qseqid = qseqid + ':' + str(qstart_int) + '-' + str(qend_int) + ','+ str(len(full_qseq))
                             
                         # creating new read index to account for multiple hits
                         # by concating the read_name with the marker_gene_name,
@@ -143,11 +149,6 @@ class DiamondSpkgSearcher:
 
                         # Only write the part of the query sequence that aligned
                         # to the prefilter database to the fasta file.
-                        # qstat can be > qend if the sequences is reverse complemented.
-                        qstart_int = int(qstart)
-                        qend_int =  int(qend)
-                        if qstart_int > qend_int:
-                            qstart_int, qend_int = qend_int, qstart_int
                         # To ensure that that the ORF finder later on finds something >=72bp, extend the range
                         # either side if possible (or use the specified context window).
                         if context_window is not None:
