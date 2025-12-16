@@ -10,7 +10,7 @@ import csv
 import subprocess
 import time
 from .metapackage import Metapackage
-from .utils import OrfMUtils, finish_processes, prepare_zstd_fifos
+from .utils import OrfMUtils, finish_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .sequence_classes import SeqReader
@@ -280,6 +280,22 @@ class SearchPipe:
             reverse_read_files, procs = prepare_zstd_fifos(reverse_read_files, tempfile_directory, sleep_after_mkfifo)
             zstd_processes.extend(procs)
 
+        # Add chunking if required
+        chunking_processes = []
+        if read_chunk_size is not None and read_chunk_number is not None:
+            forward_read_files, procs = prepare_chunking_fifos(
+                forward_read_files, tempfile_directory,
+                read_chunk_size, read_chunk_number, sleep_after_mkfifo)
+            chunking_processes.extend(procs)
+            if reverse_read_files:
+                reverse_read_files, procs = prepare_chunking_fifos(
+                    reverse_read_files, tempfile_directory,
+                    read_chunk_size, read_chunk_number, sleep_after_mkfifo)
+                chunking_processes.extend(procs)
+        if len(chunking_processes) > 0 and not diamond_prefilter:
+            raise Exception("Chunked input files can only be used with DIAMOND prefiltering at present")
+        time.sleep(5)
+
         def return_cleanly():
             if using_temporary_working_directory and not working_directory_dev_shm:
                 # Directly setting tempdir in this way is not recommended, but
@@ -349,12 +365,7 @@ class SearchPipe:
     
                         cmd0 = "kingfisher extract --sra {} --stdout -f fasta --unsorted ".format(sra)
                         if read_chunk_size is not None and read_chunk_number is not None:
-                            # Pipe the number of reads specified by read_chunk_size
-                            # x2 since it is fasta format
-                            start_offset = (read_chunk_size * (read_chunk_number - 1)) * 2 + 1
-                            head = read_chunk_size * 2
-                            cmd = cmd0 + " | tail -n +{} | head -n {} >{}".format(
-                                start_offset, head, new_name)
+                            cmd = cmd0 + add_chunking_pipe(read_chunk_size, read_chunk_number)
                         else:
                             cmd = cmd0 + " >{}".format(new_name)
                         logging.debug("Running kingfisher extraction command: {}".format(cmd))
@@ -506,6 +517,7 @@ class SearchPipe:
 
         finally:
             finish_processes(zstd_processes, "zstdcat")
+            finish_processes(chunking_processes, "chunking")
 
     def assign_taxonomy_and_process(self, **kwargs):
         extracted_reads = kwargs.pop('extracted_reads')

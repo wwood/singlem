@@ -4,6 +4,7 @@ import re
 import shlex
 import subprocess
 import time
+import logging
 
 ZSTD_EXTENSIONS = ('.zst', '.zstd')
 
@@ -81,6 +82,51 @@ def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None):
         prepared_paths.append(fifo_path)
     return prepared_paths, processes
 
+def add_chunking_pipe(read_chunk_size, read_chunk_number):
+    # Pipe to extract a chunk of reads. We assume fasta format here i.e.
+    # 2 lines per read
+    start_offset = (read_chunk_size * (read_chunk_number - 1)) * 2 + 1
+    head = read_chunk_size * 2
+    return f" | tail -n +{start_offset} | head -n {head}"
+
+def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_number, sleep_after_mkfifo=None):
+    """Return (new_paths, processes) where any files are streamed into FIFOs with chunking.
+
+    The caller is responsible for waiting on the returned processes.
+    """
+    prepared_paths = []
+    processes = []
+    for path in file_paths or []:
+        if path is None:
+            prepared_paths.append(path)
+            continue
+
+        base = os.path.basename(path)
+        chunking_dir = os.path.join(temp_dir, "chunking")
+        os.makedirs(chunking_dir, exist_ok=True)
+        fifo_path = os.path.join(chunking_dir, base)
+        attempt = 1
+        while os.path.exists(fifo_path):
+            attempt += 1
+            name, ext = os.path.splitext(base)
+            fifo_path = os.path.join(chunking_dir, f"{name}.{attempt}{ext}")
+        os.mkfifo(fifo_path)
+        if sleep_after_mkfifo:
+            # On kubernetes this seems to be required, at least in some circumstances
+            logging.debug("Sleeping for {} seconds after mkfifo".format(sleep_after_mkfifo))
+            time.sleep(sleep_after_mkfifo)
+        prepared_paths.append(fifo_path)
+
+        cmd = f"cat {path} {add_chunking_pipe(read_chunk_size, read_chunk_number)} > {fifo_path}"
+        logging.debug("Running chunking command: {}".format(cmd))
+        process = subprocess.Popen(
+            ['bash','-c',cmd],
+            stdout=None,
+            stderr=subprocess.PIPE,
+            text=True)
+        processes.append((process, cmd))
+
+    return prepared_paths, processes
 
 def finish_processes(processes, description):
     """Wait for streaming processes to finish and raise on non-zero exit codes."""
