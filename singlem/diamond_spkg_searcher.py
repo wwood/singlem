@@ -36,13 +36,10 @@ class DiamondSpkgSearcher:
         # processing too. If this does not happen, getting the full length
         # sequences is hard later on because the reverse read basename is not
         # necessarily the sample as the forward read one.
-        sample_names = []
-        for file in forward_read_files:
-            basename = os.path.basename(file)
-            if basename[-3:] == '.gz':
-                basename = basename[:-3] # remove .gz for destination files
-            basename = os.path.splitext(basename)[0]+'.fna'
-            sample_names.append(basename)
+        sample_names = [
+            FastaNameToSampleName.fasta_to_name(file) + '.fna'
+            for file in forward_read_files
+        ]
 
         fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length, context_window)
         revs = None
