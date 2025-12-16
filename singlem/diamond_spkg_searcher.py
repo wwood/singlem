@@ -10,7 +10,7 @@ class DiamondSpkgSearcher:
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
 
@@ -44,14 +44,14 @@ class DiamondSpkgSearcher:
             basename = os.path.splitext(basename)[0]+'.fna'
             sample_names.append(basename)
 
-        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length)
+        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length, context_window)
         revs = None
         if reverse_read_files != None:
-            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length)
+            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window)
 
         return (fwds, revs)
 
-    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length):
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window):
         '''Find all reads that match the DIAMOND database in the 
         singlem_package database.
         Parameters
@@ -118,10 +118,19 @@ class DiamondSpkgSearcher:
                             qseqid, full_qseq, sseqid, qstart, qend = line.strip().split('\t')
                         except ValueError:
                             raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
-                    
+                        
+                        if context_window is not None:
+                            # If we have a context window, we may have multiple hits
+                            # per read (this is somewhat of a hack, to deal with the
+                            # fact that we need to have the context start and stop
+                            # embedded in the read name in order to retrieve it
+                            # later).
+                            qseqid = qseqid + ':' + qstart + '-' + qend + ','+ str(len(full_qseq))
+                            
                         # creating new read index to account for multiple hits
-                        # by concating the read_name with the marker_gene_name, we can ensure only 1 gene copy per read
-                        # TODO: add an option to let all unique genes through with range-uclling 
+                        # by concating the read_name with the marker_gene_name,
+                        # we can ensure only 1 gene copy per read (except when
+                        # context_window is used)
                         unique_qseqid = qseqid + '••' + sseqid.split('~')[0]
 
                         # extra check to make sure we're not overwriting a better hit
@@ -140,8 +149,11 @@ class DiamondSpkgSearcher:
                         if qstart_int > qend_int:
                             qstart_int, qend_int = qend_int, qstart_int
                         # To ensure that that the ORF finder later on finds something >=72bp, extend the range
-                        # either side if possible.
-                        extra_bp = min_orf_length
+                        # either side if possible (or use the specified context window).
+                        if context_window is not None:
+                            extra_bp = context_window
+                        else:
+                            extra_bp = min_orf_length
                         qstart_int = max(1, qstart_int - extra_bp)
                         qend_int = min(len(full_qseq), qend_int + extra_bp)
                         logging.debug(f"DIAMOND hit: {qseqid} {sseqid} {qstart} {qend} => {qstart_int} {qend_int}")
@@ -152,7 +164,11 @@ class DiamondSpkgSearcher:
                         # so it can be included in the archive OTU table later
                         # on. Write without the unique_qseqid modification, to save space.
                         if qseqid not in seen_full_qseqs:
-                            full_qseq_f.write(f'>{qseqid}\n{full_qseq}\n')
+                            if context_window is not None:
+                                qseq_full_seq = full_qseq[int(qstart_int)-1:int(qend_int)]
+                            else:
+                                qseq_full_seq = full_qseq
+                            full_qseq_f.write(f'>{qseqid}\n{qseq_full_seq}\n')
                             seen_full_qseqs.add(qseqid)
 
 

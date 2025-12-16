@@ -210,6 +210,9 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
                                     default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
         argument_group.add_argument('--sleep-after-mkfifo', type=int,
                                     help='Sleep for this many seconds after running os.mkfifo [default: None]')
+        argument_group.add_argument('--context-window', type=int, metavar='bp',
+                                    help='When using the DIAMOND prefilter, retain this many bases of context on each side of the aligned region when recording full_qseqs in the OTU table instead of the entire read. [default: keep the full read]. The read_name is also modified to record this information.',
+                                    default=None)
 
 def validate_pipe_args(args, subparser='pipe'):
     if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -220,6 +223,8 @@ def validate_pipe_args(args, subparser='pipe'):
         raise Exception("Can only specify a metapackage or a singlem package set, not both")
     if args.output_extras and not args.otu_table:
         raise Exception("Can't use --output-extras without --otu-table")
+    if args.context_window is not None and args.context_window < 0:
+        raise Exception("--context-window must be a non-negative integer")
     if subparser == 'pipe':
         if args.include_inserts and not args.otu_table and not args.archive_otu_table:
             raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
@@ -813,7 +818,8 @@ def main():
             viral_profile_output = False,
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
-            max_species_divergence = args.max_species_divergence
+            max_species_divergence = args.max_species_divergence,
+            context_window = args.context_window,
         )
 
     elif args.subparser_name=='renew':
@@ -840,7 +846,8 @@ def main():
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
-            max_species_divergence = args.max_species_divergence
+            max_species_divergence = args.max_species_divergence,
+            context_window = args.context_window,
             )
 
     elif args.subparser_name == 'summarise':

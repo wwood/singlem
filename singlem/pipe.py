@@ -177,6 +177,7 @@ class SearchPipe:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', None)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
+        context_window = kwargs.pop('context_window', None)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -192,6 +193,7 @@ class SearchPipe:
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
         self._max_species_divergence = max_species_divergence
+        self._context_window = context_window
 
         if metapackage_object:
             hmms = metapackage_object
@@ -369,7 +371,7 @@ class SearchPipe:
                 (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                     self._num_threads, self._working_directory).run_diamond(
                     hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                    hmms.prefilter_db_path(), min_orf_length)
+                    hmms.prefilter_db_path(), min_orf_length, context_window)
             except extern.ExternCalledProcessError as e:
                 logging.error("Process (DIAMOND?) failed")
                 if input_sra_files:
@@ -825,15 +827,17 @@ class SearchPipe:
                     if analysing_pairs:
                         for s in readset[0].unknown_sequences:
                             s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
-                            s.full_nucleotide_sequence_length = None
+                            if not self._context_window: # Do not reset length if context windowing is used, because the full_qseq is truncated
+                                s.full_nucleotide_sequence_length = None
                         for s in readset[1].unknown_sequences:
                             s.unaligned_sequence = reverse_full_qseqs[s.name.split('••')[0]]
-                            s.full_nucleotide_sequence_length = None
+                            if not self._context_window:
+                                s.full_nucleotide_sequence_length = None
                     else:
                         for s in readset.unknown_sequences:
                             s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
-                            s.full_nucleotide_sequence_length = None
-
+                            if not self._context_window:
+                                s.full_nucleotide_sequence_length = None
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
