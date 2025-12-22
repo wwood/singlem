@@ -1,0 +1,49 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "update_metapackage"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[feature.update-metapackage.dependencies]
+python = ">=3.13.11,<3.14"
+snakemake = ">=9.14.5,<10"
+snakemake-executor-plugin-cluster-generic = "*"
+numpy = ">=2.3.5,<3"
+pandas = ">=2.3.3,<3"
+biopython = ">=1.86,<2"
+parallel = ">=20251122,<20251123"
+tqdm = ">=4.67.1,<5"
+
+[feature.singlem.dependencies]
+singlem = "*"
+
+[feature.tigrfam-search.dependencies]
+extern = "*"
+python = "*"
+hmmer = "*"
+tqdm = "*"
+
+[feature.pfam-search.dependencies]
+extern = "*"
+python = "*"
+hmmer = "*"
+tqdm = "*"
+gtdbtk = "*"
+
+[feature.transpose.dependencies]
+python = "*"
+biopython = "*"
+gffutils = "*"
+bcbiogff = "*"
+extern = "*"
+tqdm = "*"
+
+[environments]
+update-metapackage = ["update-metapackage"]
+singlem = ["singlem"]
+tigrfam-search = ["tigrfam-search"]
+pfam-search = ["pfam-search"]
+transpose = ["transpose"]
