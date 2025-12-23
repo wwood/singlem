@@ -22,10 +22,16 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
-import unittest
+import gzip
 import os.path
-import extern
+import shutil
 import sys
+import tempfile
+import unittest
+import zipfile
+from contextlib import contextmanager
+
+import extern
 
 path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -34,6 +40,21 @@ path_to_lyrebird = 'lyrebird'
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.renew import Renew
+
+
+@contextmanager
+def zipped_gzip_archive_otu_table(source_json_path):
+    with tempfile.TemporaryDirectory() as temp_dir:
+        gz_path = os.path.join(temp_dir, 'small_changed.otu_table.json.gz')
+        with gzip.open(gz_path, 'wb') as gz_out, open(source_json_path, 'rb') as source:
+            shutil.copyfileobj(source, gz_out)
+
+        zip_path = os.path.join(temp_dir, 'renew_archive_tables.zip')
+        internal_path = 'otu_tables/small_changed.otu_table.json.gz'
+        with zipfile.ZipFile(zip_path, 'w') as zip_file:
+            zip_file.write(gz_path, arcname=internal_path)
+
+        yield f"{zip_path}:{internal_path}"
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
@@ -52,6 +73,19 @@ class Tests(unittest.TestCase):
         # print("diamond db path file: ")
         # print(extern.run('file %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
         output = extern.run(cmd)
+        expected = [
+            self.headers,
+            ["4.12.22seqs","small","CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG","4","9.76","Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Gracilibacillus; s__Gracilibacillus_lacisalsi"]
+        ]
+        self.assertEqualOtuTable(expected, output)
+
+    def test_hello_world_cmdline_zipped_gzip(self):
+        with zipped_gzip_archive_otu_table(os.path.join(path_to_data, 'small_changed.otu_table.json')) as zipped_input:
+            cmd = "{} renew --input-zipped-gzip-archive-otu-table {} --singlem-package {}/4.12.22seqs.spkg --assignment-method diamond --otu-table /dev/stdout".format(
+                path_to_script,
+                zipped_input,
+                path_to_data)
+            output = extern.run(cmd)
         expected = [
             self.headers,
             ["4.12.22seqs","small","CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG","4","9.76","Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Gracilibacillus; s__Gracilibacillus_lacisalsi"]
@@ -104,6 +138,19 @@ class Tests(unittest.TestCase):
         # print("diamond db path file: ")
         # print(extern.run('file %s/4.12.22seqs.spkg/4.12.22seqs/singlem_package_creatorPudkw7.dmnd' % path_to_data))
         output = extern.run(cmd)
+        expected = [
+            self.headers,
+            ["4.12.22seqs","small","CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG","4","9.76","Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Gracilibacillus; s__Gracilibacillus_lacisalsi"]
+        ]
+        self.assertEqualOtuTable(expected, output)
+
+    def test_hello_world_cmdline_zipped_gzip_lyrebird(self):
+        with zipped_gzip_archive_otu_table(os.path.join(path_to_data, 'small_changed.otu_table.json')) as zipped_input:
+            cmd = "{} renew --input-zipped-gzip-archive-otu-table {} --singlem-package {}/4.12.22seqs.spkg --assignment-method diamond --otu-table /dev/stdout".format(
+                path_to_lyrebird,
+                zipped_input,
+                path_to_data)
+            output = extern.run(cmd)
         expected = [
             self.headers,
             ["4.12.22seqs","small","CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG","4","9.76","Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__Bacillales; f__Bacillaceae; g__Gracilibacillus; s__Gracilibacillus_lacisalsi"]
