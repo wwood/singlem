@@ -754,6 +754,7 @@ def main():
     current_default = '1e-20'
     supplement_rare_group.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
     supplement_rare_group.add_argument('--gene-definitions', help='Tab-separated file of genome_fasta<TAB>transcript_fasta<TAB>protein_fasta [default: undefined, call genes using Prodigal]')
+    supplement_rare_group.add_argument('--output-matched-protein-sequences', help='Write protein sequences matched by hmmsearch to this file')
     supplement_rare_group.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
     supplement_rare_group.add_argument('--no-taxon-genome-lengths', help='Do not include taxon genome lengths in updated metapackage', action='store_true')
     supplement_rare_group.add_argument('--ignore-taxonomy-database-incompatibility', help='Do not halt when the old metapackage is not the default metapackage.', action='store_true')
@@ -1522,6 +1523,7 @@ def main():
             skip_taxonomy_check=args.skip_taxonomy_check,
             no_taxon_genome_lengths=args.no_taxon_genome_lengths,
             gene_definitions=args.gene_definitions,
+            output_matched_protein_sequences=args.output_matched_protein_sequences,
             ignore_taxonomy_database_incompatibility=args.ignore_taxonomy_database_incompatibility,
             new_taxonomy_database_name=args.new_taxonomy_database_name,
             new_taxonomy_database_version=args.new_taxonomy_database_version,
