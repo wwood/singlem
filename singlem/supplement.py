@@ -414,6 +414,10 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matc
                         num_printed += 1
 
     if output_matched_protein_sequences:
+        transcript_to_hmm = {}
+        for row in df3.rows(named=True):
+            transcript_to_hmm[row['transcript']] = row['hmm']
+
         num_printed_proteins = 0
         with open(tranp.protein_fasta) as g:
             with lock:
@@ -421,8 +425,8 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matc
                     for name, seq, _ in SeqReader().readfq(g):
                         if name in matched_transcript_ids:
                             genome_basename = remove_extension(os.path.basename(genome))
-                            new_name = genome_basename + '‡' + name # Use ‡ to separate genome and original ID, must be kept in check with elsewhere in the code
-                            print('>' + new_name + '\n' + seq + '\n', file=f)
+                            new_name = genome_basename + '‡' + name + '‡' + transcript_to_hmm[name] # Use ‡ to separate genome and original ID, must be kept in check with elsewhere in the code
+                            print('>' + new_name + '\n' + seq, file=f)
                             num_printed_proteins += 1
         logging.debug("Printed {} proteins for {}".format(num_printed_proteins, genome))
     logging.debug("Printed {} transcripts for {}".format(num_printed, genome))

@@ -115,7 +115,7 @@ class Tests(unittest.TestCase):
 
             self.assertGreater(len(matched_records), 0)
             for name, _, _ in matched_records:
-                genome_name, protein_name = name.split('‡', 1)
+                genome_name, protein_name, hmm = name.split('‡', 2)
                 self.assertEqual(
                     genome_name,
                     'GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
