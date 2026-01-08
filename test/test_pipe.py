@@ -1176,13 +1176,15 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'
         reads = f'''>skip
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>skip2
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 >target
 {target_seq}
 '''
         expected_full = [
             "\t".join(self.headers),
             f'4.11.22seqs\t\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
-            f'4.11.22seqs\t\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTA\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Carnobacteriaceae; g__Carnobacterium; s__Carnobacterium_gallinarum',
+            f'4.11.22seqs\t\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTA\t2\t4.88\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Carnobacteriaceae; g__Carnobacterium; s__Carnobacterium_gallinarum',
             ''
         ]
         expected = [
@@ -1205,7 +1207,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTA
                 extern.run(cmd).replace('chunked_reads',''))
 
             # Now with chunking
-            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 1 --read-chunk-number 2".format(
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 2 --read-chunk-number 2".format(
                 path_to_script,
                 gz_path,
                 os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
@@ -1218,10 +1220,14 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTA
         target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'
         forward_reads = f'''>skip
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>skip2
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
 >target
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 '''
         reverse_reads = f'''>skip
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>skip2
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 >target
 {target_seq}
@@ -1234,17 +1240,33 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             reverse.flush()
 
             sample_name = os.path.basename(forward.name).replace('.fa', '')
+
+            # Test no seqs from the first chunk
+            cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 2 --read-chunk-number 1".format(
+                path_to_script,
+                forward.name,
+                reverse.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            expected = [
+                "\t".join(self.headers),
+                f'4.11.22seqs\t{sample_name}\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTA\t2\t4.88\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Carnobacteriaceae; g__Carnobacterium; s__Carnobacterium_gallinarum',
+                ''
+            ]
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
+
+            # Seqs should b found in the second chunk
+            cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 2 --read-chunk-number 2".format(
+                path_to_script,
+                forward.name,
+                reverse.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
             expected = [
                 "\t".join(self.headers),
                 f'4.11.22seqs\t{sample_name}\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
                 ''
             ]
-
-            cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 1 --read-chunk-number 2".format(
-                path_to_script,
-                forward.name,
-                reverse.name,
-                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd))
