@@ -420,6 +420,10 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_dir
     return (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts)
 
 
+def _run_hmmsearch_on_one_genome_star(args):
+    return run_hmmsearch_on_one_genome(*args)
+
+
 def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, new_genome_transcripts_and_proteins,
                              hmmsearch_evalue):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
@@ -454,9 +458,10 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
         # context, otherwise we get deadlock. See
         # https://pola-rs.github.io/polars/user-guide/misc/multiprocessing/#example
         with get_context('spawn').Pool(num_threads) as pool:
-            map_result = pool.starmap(
-                run_hmmsearch_on_one_genome,
-                [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()],
+            map_result = pool.imap_unordered(
+                _run_hmmsearch_on_one_genome_star,
+                [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms)
+                 for data in new_genome_transcripts_and_proteins.items()],
                 chunksize=1)
 
             for (num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in tqdm(
