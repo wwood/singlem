@@ -136,7 +136,7 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
     argument_group.add_argument('--read-chunk-size',
             type=int,
             metavar='num_reads',
-            help='Size chunk to process at a time. Requires unwrapped sequence input. If input is FASTA, chunk size is the number of reads. If the input is FASTQ, chunk size is half the specified number of reads. Chunk size must be divisible by 4 to ensure compatibility with FASTQ input. Requires --read-chunk-number.')
+            help='Size chunk to process at a time. Requires unwrapped sequence input. If input is FASTA, chunk size is the number of reads. If the input is FASTQ, chunk size is half the specified number of reads. Chunk size must be divisible by 2 to ensure compatibility with FASTQ input. Requires --read-chunk-number.')
     argument_group.add_argument('--read-chunk-number',
             type=int,
             metavar='chunk_number',
@@ -251,8 +251,8 @@ def validate_pipe_args(args, subparser='pipe'):
             raise Exception("Can't use --read-chunk-size with more than one --sra-file")
         if args.read_chunk_size and args.genome_fasta_files:
             raise Exception("Can't use --read-chunk-size with input genomes currently")
-        if args.read_chunk_size and args.read_chunk_size % 4 != 0:
-            raise Exception("--read-chunk-size must be divisible by 4 to ensure compatibility with FASTQ input")
+        if args.read_chunk_size and args.read_chunk_size % 2 != 0:
+            raise Exception("--read-chunk-size must be divisible by 2 to ensure compatibility with FASTQ input")
 
 def add_condense_arguments(parser):
     input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
