@@ -476,7 +476,12 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
                 [(lock, data, matched_transcripts_fna, output_matched_protein_sequences, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()],
                 chunksize=1)
 
-            for (num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in map_result:
+            for (num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in tqdm(
+                map_result,
+                total=len(new_genome_transcripts_and_proteins),
+                desc="Running hmmsearch",
+                unit="genome",
+            ):
                 total_num_transcripts += num_transcripts
                 total_failure_genomes += failure_genomes
                 total_num_transcriptomes += num_transcriptomes
