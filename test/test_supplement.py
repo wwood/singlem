@@ -106,6 +106,9 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
 
+            mpkg = Metapackage.acquire(f"{path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/")
+            package_basenames = {spkg.graftm_package_basename() for spkg in mpkg.singlem_packages}
+
             with open(protein_fasta) as f:
                 input_protein_names = {name for name, _, _ in SeqReader().readfq(f)}
 
@@ -115,12 +118,13 @@ class Tests(unittest.TestCase):
 
             self.assertGreater(len(matched_records), 0)
             for name, _, _ in matched_records:
-                genome_name, protein_name, hmm = name.split('‡', 2)
+                genome_name, protein_name, package_basename = name.split('‡', 2)
                 self.assertEqual(
                     genome_name,
                     'GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
                 )
                 self.assertIn(protein_name, input_protein_names)
+                self.assertIn(package_basename, package_basenames)
 
     @pytest.mark.expensive
     def test_auto_taxonomy(self):
