@@ -346,7 +346,7 @@ def generate_new_singlem_package(myargs):
 
 
 def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matched_protein_sequences,
-                               working_directory, hmmsearch_evalue, concatenated_hmms):
+                                working_directory, hmmsearch_evalue, concatenated_hmms, hmm_name_to_package):
     total_num_transcripts = 0
     failure_genomes = 0
     num_transcriptomes = 0
@@ -414,9 +414,12 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matc
                         num_printed += 1
 
     if output_matched_protein_sequences:
-        transcript_to_hmm = {}
+        transcript_to_package = {}
         for row in df3.rows(named=True):
-            transcript_to_hmm[row['transcript']] = row['hmm']
+            hmm_name = row['hmm']
+            if hmm_name not in hmm_name_to_package:
+                raise Exception("Unexpected HMM name {} not found in package mapping".format(hmm_name))
+            transcript_to_package[row['transcript']] = hmm_name_to_package[hmm_name]
 
         num_printed_proteins = 0
         with open(tranp.protein_fasta) as g:
@@ -425,7 +428,7 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matc
                     for name, seq, _ in SeqReader().readfq(g):
                         if name in matched_transcript_ids:
                             genome_basename = remove_extension(os.path.basename(genome))
-                            new_name = genome_basename + '‡' + name + '‡' + transcript_to_hmm[name] # Use ‡ to separate genome and original ID, must be kept in check with elsewhere in the code
+                            new_name = genome_basename + '‡' + name + '‡' + transcript_to_package[name] # Use ‡ to separate genome and original ID, must be kept in check with elsewhere in the code
                             print('>' + new_name + '\n' + seq, file=f)
                             num_printed_proteins += 1
         logging.debug("Printed {} proteins for {}".format(num_printed_proteins, genome))
@@ -448,9 +451,22 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
     num_hmms = 0
+    hmm_name_to_package = {}
     with open(concatenated_hmms, 'w') as f:
         for spkg in old_metapackage.singlem_packages:
-            with open(spkg.graftm_package().alignment_hmm_path()) as g:
+            hmm_path = spkg.graftm_package().alignment_hmm_path()
+            hmm_name = None
+            with open(hmm_path) as g:
+                for line in g:
+                    if line.startswith('NAME'):
+                        hmm_name = line.split()[1]
+                        break
+            if hmm_name is None:
+                raise Exception("Unable to find HMM NAME in {}".format(hmm_path))
+            if hmm_name in hmm_name_to_package:
+                raise Exception("Duplicate HMM NAME {} found for {}".format(hmm_name, hmm_path))
+            hmm_name_to_package[hmm_name] = spkg.graftm_package_basename()
+            with open(hmm_path) as g:
                 f.write(g.read())
                 num_hmms += 1
 
@@ -481,7 +497,7 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
         with get_context('spawn').Pool(num_threads) as pool:
             map_result = pool.imap_unordered(
                 _run_hmmsearch_on_one_genome_star,
-                [(lock, data, matched_transcripts_fna, output_matched_protein_sequences, working_directory, hmmsearch_evalue, concatenated_hmms)
+                [(lock, data, matched_transcripts_fna, output_matched_protein_sequences, working_directory, hmmsearch_evalue, concatenated_hmms, hmm_name_to_package)
                  for data in new_genome_transcripts_and_proteins.items()],
                 chunksize=1)
 
