@@ -386,6 +386,8 @@ class SearchPipe:
                                 "STDERR was: %s" % (
                                     cmd, p.returncode, p.stderr.read()))
     
+                diamond_version = extern.run("diamond --version").strip()
+                logging.info("DIAMOND version: %s", diamond_version)
                 logging.info("Filtering sequence files through DIAMOND blastx")
                 try:
                     (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
