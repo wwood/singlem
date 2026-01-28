@@ -117,9 +117,11 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 
             cmd = "%s pipe --sequences %s --otu-table /dev/stdout --assignment-method diamond --singlem-packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            result = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
-                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+                result.stdout.replace(os.path.basename(n.name).replace('.fa',''),''))
+            self.assertIn("DIAMOND version:", result.stderr)
 
     def test_zstd_forward_input(self):
         expected = [
