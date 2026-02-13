@@ -32,6 +32,7 @@ from bird_tool_utils import in_tempdir
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.metapackage import Metapackage
+from singlem.sequence_classes import SeqReader
 
 path_to_script = 'singlem'
 path_to_data = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data', 'supplement'))
@@ -82,6 +83,48 @@ class Tests(unittest.TestCase):
             mpkg = Metapackage.acquire('out.smpkg')
             self.assertEqual('test_supplement', mpkg.taxonomy_database_name())
             self.assertEqual('1.0', mpkg.taxonomy_database_version())
+
+    def test_output_matched_protein_sequences(self):
+        with in_tempdir():
+            gene_definitions = os.path.join(os.getcwd(), 'gene_definitions.tsv')
+            genome_fasta = os.path.join(path_to_data, 'GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna')
+            transcript_fasta = os.path.join(path_to_data, 'GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.ffn')
+            protein_fasta = os.path.join(path_to_data, 'GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.faa')
+            with open(gene_definitions, 'w') as f:
+                f.write("genome_fasta\ttranscript_fasta\tprotein_fasta\n")
+                f.write(f"{genome_fasta}\t{transcript_fasta}\t{protein_fasta}\n")
+
+            matched_proteins = os.path.join(os.getcwd(), 'matched_proteins.faa')
+            cmd = (
+                f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths "
+                f"--no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter "
+                f"--new-genome-fasta-files {genome_fasta} --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ "
+                f"--output-metapackage out.smpkg --new-fully-defined-taxonomies "
+                f"{path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy "
+                f"--new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0 "
+                f"--gene-definitions {gene_definitions} --output-matched-protein-sequences {matched_proteins}"
+            )
+            extern.run(cmd)
+
+            mpkg = Metapackage.acquire(f"{path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/")
+            package_basenames = {spkg.graftm_package_basename() for spkg in mpkg.singlem_packages}
+
+            with open(protein_fasta) as f:
+                input_protein_names = {name for name, _, _ in SeqReader().readfq(f)}
+
+            matched_records = []
+            with open(matched_proteins) as f:
+                matched_records = list(SeqReader().readfq(f))
+
+            self.assertGreater(len(matched_records), 0)
+            for name, _, _ in matched_records:
+                genome_name, protein_name, package_basename = name.split('‡', 2)
+                self.assertEqual(
+                    genome_name,
+                    'GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps',
+                )
+                self.assertIn(protein_name, input_protein_names)
+                self.assertIn(package_basename, package_basenames)
 
     @pytest.mark.expensive
     def test_auto_taxonomy(self):

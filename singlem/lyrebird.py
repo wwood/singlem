@@ -74,7 +74,9 @@ def main():
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
     renew_input_args = renew_parser.add_argument_group('input')
-    renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
+    renew_input_tables = renew_input_args.add_mutually_exclusive_group(required=True)
+    renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
+    renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
@@ -152,6 +154,7 @@ def main():
         validate_pipe_args(args, subparser='renew')
         Renew().renew(
             input_archive_otu_table=args.input_archive_otu_table,
+            input_zipped_gzip_archive_otu_table=args.input_zipped_gzip_archive_otu_table,
             ignore_missing_singlem_packages=args.ignore_missing_singlem_packages,
             otu_table = args.otu_table,
             output_archive_otu_table = args.archive_otu_table,

@@ -13,7 +13,8 @@ class MetagenomeOtuFinder:
                                 stretch_length,
                                 include_inserts,
                                 is_protein_alignment,
-                                best_position):
+                                best_position,
+                                full_nucleotide_sequence_lengths=None):
         '''Return an array of UnalignedAlignedNucleotideSequence objects containing
         sequences aligned at the given best_position, finding that best position
         if None is given.
@@ -33,6 +34,9 @@ class MetagenomeOtuFinder:
             True for a protein alignment, False for a nucleotide one
         best_position: int
             Start of the window in the alignment not counting 'insert' columns.
+        full_nucleotide_sequence_lengths: dict of str to int or None
+            (sequence name to length) or None. If given, used to calculate coverage
+            increments instead of using the length of the unaligned sequence.
 
         '''
         if len(aligned_sequences) == 0: return []
@@ -84,8 +88,13 @@ class MetagenomeOtuFinder:
                     s, aligned_nucleotides, chosen_positions, is_protein_alignment,
                     include_inserts=include_inserts)
 
+                if full_nucleotide_sequence_lengths is not None:
+                    full_length = full_nucleotide_sequence_lengths[name]
+                else:
+                    full_length = None
+
                 windowed_sequences.append(
-                    UnalignedAlignedNucleotideSequence(name, s.name, align, nuc, aligned_length))
+                    UnalignedAlignedNucleotideSequence(name, s.name, align, nuc, aligned_length, full_length))
         return windowed_sequences
 
     def _find_lower_case_columns(self, protein_alignment):

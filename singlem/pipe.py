@@ -9,9 +9,8 @@ import re
 import csv
 import subprocess
 import time
-
 from .metapackage import Metapackage
-from .utils import OrfMUtils
+from .utils import OrfMUtils, finish_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .sequence_classes import SeqReader
@@ -177,6 +176,7 @@ class SearchPipe:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters', None)
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
+        context_window = kwargs.pop('context_window', None)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -192,6 +192,7 @@ class SearchPipe:
         self._filter_minimum_protein = filter_minimum_protein
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
         self._max_species_divergence = max_species_divergence
+        self._context_window = context_window
 
         if metapackage_object:
             hmms = metapackage_object
@@ -270,6 +271,31 @@ class SearchPipe:
         os.mkdir(tempfile_directory)
         tempfile.tempdir = tempfile_directory
 
+        zstd_processes = []
+        forward_read_files, procs = prepare_zstd_fifos(forward_read_files, tempfile_directory, sleep_after_mkfifo)
+        zstd_processes.extend(procs)
+        if len(zstd_processes) > 0 and not diamond_prefilter:
+            raise Exception("Zstandard compressed input files can only be used with DIAMOND prefiltering at present")
+        if reverse_read_files:
+            reverse_read_files, procs = prepare_zstd_fifos(reverse_read_files, tempfile_directory, sleep_after_mkfifo)
+            zstd_processes.extend(procs)
+
+        # Add chunking if required
+        chunking_processes = []
+        if read_chunk_size is not None and read_chunk_number is not None:
+            forward_read_files, procs = prepare_chunking_fifos(
+                forward_read_files, tempfile_directory,
+                read_chunk_size, read_chunk_number, sleep_after_mkfifo)
+            chunking_processes.extend(procs)
+            if reverse_read_files:
+                reverse_read_files, procs = prepare_chunking_fifos(
+                    reverse_read_files, tempfile_directory,
+                    read_chunk_size, read_chunk_number, sleep_after_mkfifo)
+                chunking_processes.extend(procs)
+        if len(chunking_processes) > 0 and not diamond_prefilter:
+            raise Exception("Chunked input files can only be used with DIAMOND prefiltering at present")
+        time.sleep(5)
+
         def return_cleanly():
             if using_temporary_working_directory and not working_directory_dev_shm:
                 # Directly setting tempdir in this way is not recommended, but
@@ -279,212 +305,221 @@ class SearchPipe:
                 logging.debug("tempdir reset to %s" % tempfile.gettempdir())
             logging.info("Finished")
 
-        #### Search
-        self._singlem_package_database = hmms
-        if input_sra_files is not None:
-            if read_chunk_size is not None and read_chunk_number is not None:
-                logging.info("Using as input %i reads (chunk %i) from an SRA file %s" % (
-                    read_chunk_size, read_chunk_number, input_sra_files[0]))
+        try:
+            #### Search
+            self._singlem_package_database = hmms
+            if input_sra_files is not None:
+                if read_chunk_size is not None and read_chunk_number is not None:
+                    logging.info("Using as input %i reads (chunk %i) from an SRA file %s" % (
+                        read_chunk_size, read_chunk_number, input_sra_files[0]))
+                else:
+                    logging.info("Using as input %i different .SRA format sequence files e.g. %s" % (
+                        len(input_sra_files), input_sra_files[0]))
+            elif analysing_pairs:
+                logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
+                    len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
             else:
-                logging.info("Using as input %i different .SRA format sequence files e.g. %s" % (
-                    len(input_sra_files), input_sra_files[0]))
-        elif analysing_pairs:
-            logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
-                len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
-        else:
-            logging.info("Using as input %i different sequence files e.g. %s" % (
-                len(forward_read_files), forward_read_files[0]))
-
-        if not all([p.is_protein_package() for p in hmms]):
-            logging.debug("Not using diamond prefilter as there is a nucleotide spkg. Using pplacer assignment method.")
-            diamond_prefilter = False
-            singlem_assignment_method = PPLACER_ASSIGNMENT_METHOD
-        if not diamond_prefilter:
-            diamond_package_assignment = False
-
-        #### Extract diamond_prefilter_performance_parameters from metapackage (v5 metapackages only)
-        if diamond_prefilter:
-            # Set the min ORF length in DIAMOND, as this saves CPU time and
-            # means absence doesn't crash hmmsearch later.
-            if diamond_prefilter_performance_parameters == None:
-                diamond_prefilter_performance_parameters = metapackage_object.diamond_prefilter_performance_parameters()
+                logging.info("Using as input %i different sequence files e.g. %s" % (
+                    len(forward_read_files), forward_read_files[0]))
+    
+            if not all([p.is_protein_package() for p in hmms]):
+                logging.debug("Not using diamond prefilter as there is a nucleotide spkg. Using pplacer assignment method.")
+                diamond_prefilter = False
+                singlem_assignment_method = PPLACER_ASSIGNMENT_METHOD
+            if not diamond_prefilter:
+                diamond_package_assignment = False
+    
+            #### Extract diamond_prefilter_performance_parameters from metapackage (v5 metapackages only)
+            if diamond_prefilter:
+                # Set the min ORF length in DIAMOND, as this saves CPU time and
+                # means absence doesn't crash hmmsearch later.
                 if diamond_prefilter_performance_parameters == None:
-                    diamond_prefilter_performance_parameters = SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS
-            diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
-                diamond_prefilter_performance_parameters, int(min_orf_length / 3))
-
-            diamond_prefilter_performance_parameters += " --query-gencode %i" % (
-                self._translation_table)
-
-            if input_sra_files:
-                # Create a named pipe which is called the same as the .sra file
-                # minus the .sra bit. Then call kingfisher --stdout --unsorted
-                # in the background to dump it towards that named pipe. Then run
-                # the DIAMOND prefilter with that named pipe as input.
-                forward_read_files = []
-                sra_extraction_commands = []
-                sra_extraction_processes = []
-                for sra in input_sra_files:
-                    new_name = os.path.join(
-                        tempfile_directory,
-                        os.path.basename(sra))
-                    logging.debug("Creating FIFO at {}".format(new_name))
-                    os.mkfifo(new_name)
-                    if sleep_after_mkfifo:
-                        # On kubernetes this seems to be required, at least in some circumstances
-                        logging.debug("Sleeping for {} seconds after mkfifo".format(sleep_after_mkfifo))
-                        time.sleep(sleep_after_mkfifo)
-                    forward_read_files.append(new_name)
-
-                    cmd0 = "kingfisher extract --sra {} --stdout -f fasta --unsorted ".format(sra)
-                    if read_chunk_size is not None and read_chunk_number is not None:
-                        # Pipe the number of reads specified by read_chunk_size
-                        # x2 since it is fasta format
-                        start_offset = (read_chunk_size * (read_chunk_number - 1)) * 2 + 1
-                        head = read_chunk_size * 2
-                        cmd = cmd0 + " | tail -n +{} | head -n {} >{}".format(
-                            start_offset, head, new_name)
-                    else:
-                        cmd = cmd0 + " >{}".format(new_name)
-                    logging.debug("Running kingfisher extraction command: {}".format(cmd))
-                    sra_extraction_commands.append(cmd)
-
-                    sra_extraction_process = subprocess.Popen(
-                        ['bash','-c',cmd],
-                        stdout=None,
-                        stderr=subprocess.PIPE,
-                        universal_newlines=True)
-                    sra_extraction_processes.append(sra_extraction_process)
-
-            def finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands):
-                for p, cmd in zip(sra_extraction_processes,sra_extraction_commands):
-                    p.wait()
-                    if p.returncode != 0:
-                        raise Exception("Command %s returned non-zero exit status %i.\n"\
-                            "STDERR was: %s" % (
-                                cmd, p.returncode, p.stderr.read()))
-
-            logging.info("Filtering sequence files through DIAMOND blastx")
-            try:
-                (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
-                    self._num_threads, self._working_directory).run_diamond(
-                    hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                    hmms.prefilter_db_path())
-            except extern.ExternCalledProcessError as e:
-                logging.error("Process (DIAMOND?) failed")
+                    diamond_prefilter_performance_parameters = metapackage_object.diamond_prefilter_performance_parameters()
+                    if diamond_prefilter_performance_parameters == None:
+                        diamond_prefilter_performance_parameters = SearchPipe.DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS
+                diamond_prefilter_performance_parameters = "%s --min-orf %i" % (
+                    diamond_prefilter_performance_parameters, int(min_orf_length / 3))
+    
+                diamond_prefilter_performance_parameters += " --query-gencode %i" % (
+                    self._translation_table)
+    
+                if input_sra_files:
+                    # Create a named pipe which is called the same as the .sra file
+                    # minus the .sra bit. Then call kingfisher --stdout --unsorted
+                    # in the background to dump it towards that named pipe. Then run
+                    # the DIAMOND prefilter with that named pipe as input.
+                    forward_read_files = []
+                    sra_extraction_commands = []
+                    sra_extraction_processes = []
+                    for sra in input_sra_files:
+                        new_name = os.path.join(
+                            tempfile_directory,
+                            os.path.basename(sra))
+                        logging.debug("Creating FIFO at {}".format(new_name))
+                        os.mkfifo(new_name)
+                        if sleep_after_mkfifo:
+                            # On kubernetes this seems to be required, at least in some circumstances
+                            logging.debug("Sleeping for {} seconds after mkfifo".format(sleep_after_mkfifo))
+                            time.sleep(sleep_after_mkfifo)
+                        forward_read_files.append(new_name)
+    
+                        cmd0 = "kingfisher extract --sra {} --stdout -f fasta --unsorted ".format(sra)
+                        if read_chunk_size is not None and read_chunk_number is not None:
+                            cmd = cmd0 + add_chunking_pipe(read_chunk_size, read_chunk_number)
+                        else:
+                            cmd = cmd0 + " >{}".format(new_name)
+                        logging.debug("Running kingfisher extraction command: {}".format(cmd))
+                        sra_extraction_commands.append(cmd)
+    
+                        sra_extraction_process = subprocess.Popen(
+                            ['bash','-c',cmd],
+                            stdout=None,
+                            stderr=subprocess.PIPE,
+                            universal_newlines=True)
+                        sra_extraction_processes.append(sra_extraction_process)
+    
+                def finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands):
+                    for p, cmd in zip(sra_extraction_processes,sra_extraction_commands):
+                        p.wait()
+                        if p.returncode != 0:
+                            raise Exception("Command %s returned non-zero exit status %i.\n"\
+                                "STDERR was: %s" % (
+                                    cmd, p.returncode, p.stderr.read()))
+    
+                diamond_version = extern.run("diamond --version").strip()
+                logging.info("DIAMOND version: %s", diamond_version)
+                logging.info("Filtering sequence files through DIAMOND blastx")
+                try:
+                    (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
+                        self._num_threads, self._working_directory).run_diamond(
+                        hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
+                        hmms.prefilter_db_path(), min_orf_length, context_window)
+                except extern.ExternCalledProcessError as e:
+                    logging.error("Process (DIAMOND?) failed")
+                    if input_sra_files:
+                        finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
+                    raise e
+    
                 if input_sra_files:
                     finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
-                raise e
-
-            if input_sra_files:
-                finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands)
-
-            found_a_hit = False
-            if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
-                found_a_hit = True
-            forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
-            if analysing_pairs:
-                reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
-                if any([len(r.best_hits)>0 for r in diamond_reverse_search_results]):
+    
+                found_a_hit = False
+                if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                     found_a_hit = True
-            logging.info("Finished DIAMOND prefilter phase")
-            if not found_a_hit:
-                logging.info("No reads identified in any samples, stopping")
-                return_cleanly()
-                return OtuTable()
-
-            if input_sra_files and not diamond_package_assignment:
-                # DIAMOND was run to get a new all combined file. But we want 2
-                # separate files so that it works easily with the rest of the
-                # pipeline.
-                logging.info("Splitting potentially paired reads into separate files ..")
-                analysing_pairs = False
-                possible_reverse_read_files = []
-                split_fasta_directory = os.path.join(working_directory, 'sra_splits')
-                os.mkdir(split_fasta_directory)
-                for fasta in forward_read_files:
-                    output_directory = os.path.join(split_fasta_directory, os.path.basename(fasta))
-                    os.mkdir(output_directory)
-                    (fwd, rev) = KingfisherSra().split_fasta(
-                        fasta,
-                        output_directory)
-                    if rev == None:
-                        possible_reverse_read_files.append(None)
-                    else:
-                        possible_reverse_read_files.append(rev)
-                        analysing_pairs = True
+                forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
                 if analysing_pairs:
-                    reverse_read_files = possible_reverse_read_files
-                logging.info("Finished splitting potentially paired reads")
-
-        ### Extract reads that have already known taxonomy
-        if known_otu_tables:
-            logging.info("Parsing known taxonomy OTU tables")
-            known_taxes = KnownOtuTable()
-            known_taxes.parse_otu_tables(known_otu_tables)
-            logging.debug("Read in %i sequences with known taxonomy" % len(known_taxes))
-        else:
-            known_taxes = []
-
-        #### Extract relevant reads for each pkg
-        if diamond_package_assignment:
-            logging.info("Assigning sequences to SingleM packages with DIAMOND ..")
-            extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
-                self._num_threads, hmms,
-                diamond_forward_search_results, diamond_reverse_search_results,
-                analysing_pairs, include_inserts, min_orf_length,
-                translation_table, self._evalue)
-            del diamond_forward_search_results
-            del diamond_reverse_search_results
-            if extracted_reads.empty():
-                logging.info("No reads found")
-                return_cleanly()
-                return OtuTable()
-            if input_sra_files:
-                # If SRA was input, then we need to split up forward and reverse.
-                analysing_pairs, extracted_reads = KingfisherSra().split_extracted_reads(extracted_reads)
-
-        else:
-            logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
-            extracted_reads = self._find_and_extract_reads_by_hmmsearch(
-                hmms, forward_read_files, reverse_read_files,
-                known_taxes, known_otu_tables, include_inserts)
-            if extracted_reads is None:
-                return_cleanly()
-                return OtuTable()
-
-
-        
-        for readset in extracted_reads:
-            if analysing_pairs:
-                self._remove_single_sequence_duplicates(readset[0])
-                self._remove_single_sequence_duplicates(readset[1])
+                    reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
+                    if any([len(r.best_hits)>0 for r in diamond_reverse_search_results]):
+                        found_a_hit = True
+                logging.info("Finished DIAMOND prefilter phase")
+                if not found_a_hit:
+                    logging.info("No reads identified in any samples, stopping")
+                    return_cleanly()
+                    return OtuTable()
+    
+                if input_sra_files and not diamond_package_assignment:
+                    # DIAMOND was run to get a new all combined file. But we want 2
+                    # separate files so that it works easily with the rest of the
+                    # pipeline.
+                    logging.info("Splitting potentially paired reads into separate files ..")
+                    analysing_pairs = False
+                    possible_reverse_read_files = []
+                    split_fasta_directory = os.path.join(working_directory, 'sra_splits')
+                    os.mkdir(split_fasta_directory)
+                    for fasta in forward_read_files:
+                        output_directory = os.path.join(split_fasta_directory, os.path.basename(fasta))
+                        os.mkdir(output_directory)
+                        (fwd, rev) = KingfisherSra().split_fasta(
+                            fasta,
+                            output_directory)
+                        if rev == None:
+                            possible_reverse_read_files.append(None)
+                        else:
+                            possible_reverse_read_files.append(rev)
+                            analysing_pairs = True
+                    if analysing_pairs:
+                        reverse_read_files = possible_reverse_read_files
+                    logging.info("Finished splitting potentially paired reads")
+    
+            ### Extract reads that have already known taxonomy
+            if known_otu_tables:
+                logging.info("Parsing known taxonomy OTU tables")
+                known_taxes = KnownOtuTable()
+                known_taxes.parse_otu_tables(known_otu_tables)
+                logging.debug("Read in %i sequences with known taxonomy" % len(known_taxes))
             else:
-                self._remove_single_sequence_duplicates(readset)
-
-
-        #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
-        if diamond_taxonomy_assignment_performance_parameters == None:
-            diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
+                known_taxes = []
+    
+            #### Extract relevant reads for each pkg
+            if diamond_package_assignment:
+                logging.info("Assigning sequences to SingleM packages with DIAMOND ..")
+                extracted_reads = PipeSequenceExtractor().extract_relevant_reads_from_diamond_prefilter(
+                    self._num_threads, hmms,
+                    diamond_forward_search_results, diamond_reverse_search_results,
+                    analysing_pairs, include_inserts, min_orf_length,
+                    translation_table, self._evalue)
+                # Extract paths to the full qseqs
+                diamond_forward_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_forward_search_results}
+                if analysing_pairs:
+                    diamond_reverse_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_reverse_search_results}
+                # Delete the diamond search results to save memory
+                del diamond_forward_search_results
+                del diamond_reverse_search_results
+                if extracted_reads.empty():
+                    logging.info("No reads found")
+                    return_cleanly()
+                    return OtuTable()
+                if input_sra_files:
+                    # If SRA was input, then we need to split up forward and reverse.
+                    analysing_pairs, extracted_reads = KingfisherSra().split_extracted_reads(extracted_reads)
+    
+            else:
+                logging.info("Assigning sequences to SingleM packages with HMMSEARCH ..")
+                extracted_reads = self._find_and_extract_reads_by_hmmsearch(
+                    hmms, forward_read_files, reverse_read_files,
+                    known_taxes, known_otu_tables, include_inserts)
+                if extracted_reads is None:
+                    return_cleanly()
+                    return OtuTable()
+    
+    
+            
+            for readset in extracted_reads:
+                if analysing_pairs:
+                    self._remove_single_sequence_duplicates(readset[0])
+                    self._remove_single_sequence_duplicates(readset[1])
+                else:
+                    self._remove_single_sequence_duplicates(readset)
+    
+    
+            #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
             if diamond_taxonomy_assignment_performance_parameters == None:
-                diamond_taxonomy_assignment_performance_parameters = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
-        
-        #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
-        otu_table_object = self.assign_taxonomy_and_process(
-            extracted_reads=extracted_reads,
-            analysing_pairs=analysing_pairs,
-            assign_taxonomy=assign_taxonomy,
-            singlem_assignment_method=singlem_assignment_method,
-            threads=assignment_threads,
-            diamond_taxonomy_assignment_performance_parameters=diamond_taxonomy_assignment_performance_parameters,
-            known_sequence_taxonomy=known_sequence_taxonomy,
-            known_taxes=known_taxes,
-            output_jplace=output_jplace,
-            assignment_singlem_db=assignment_singlem_db,
-        )
+                diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
+                if diamond_taxonomy_assignment_performance_parameters == None:
+                    diamond_taxonomy_assignment_performance_parameters = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
+            
+            #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
+            otu_table_object = self.assign_taxonomy_and_process(
+                extracted_reads=extracted_reads,
+                analysing_pairs=analysing_pairs,
+                assign_taxonomy=assign_taxonomy,
+                singlem_assignment_method=singlem_assignment_method,
+                threads=assignment_threads,
+                diamond_taxonomy_assignment_performance_parameters=diamond_taxonomy_assignment_performance_parameters,
+                known_sequence_taxonomy=known_sequence_taxonomy,
+                known_taxes=known_taxes,
+                output_jplace=output_jplace,
+                assignment_singlem_db=assignment_singlem_db,
+                diamond_forward_qseqs = diamond_forward_qseqs if diamond_prefilter else None,
+                diamond_reverse_qseqs = diamond_reverse_qseqs if (diamond_prefilter and analysing_pairs) else None,
+            )
+    
+            return_cleanly()
+            return otu_table_object
 
-        return_cleanly()
-        return otu_table_object
+        finally:
+            finish_processes(zstd_processes, "zstdcat")
+            finish_processes(chunking_processes, "chunking")
 
     def assign_taxonomy_and_process(self, **kwargs):
         extracted_reads = kwargs.pop('extracted_reads')
@@ -497,6 +532,8 @@ class SearchPipe:
         known_taxes = kwargs.pop('known_taxes')
         output_jplace = kwargs.pop('output_jplace')
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
+        diamond_forward_qseqs = kwargs.pop('diamond_forward_qseqs')
+        diamond_reverse_qseqs = kwargs.pop('diamond_reverse_qseqs')
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -533,9 +570,12 @@ class SearchPipe:
                 assignment_result if assign_taxonomy else None,
                 output_jplace,
                 known_sequence_tax if known_sequence_taxonomy else None,
+                diamond_forward_qseqs,
+                diamond_reverse_qseqs,
                 # outputs
                 otu_table_object,
-                package_to_taxonomy_bihash)
+                package_to_taxonomy_bihash,
+                )
 
         return otu_table_object
 
@@ -575,6 +615,8 @@ class SearchPipe:
             assignment_result,
             output_jplace,
             known_sequence_tax,
+            diamond_forward_qseqs,
+            diamond_reverse_qseqs,
             # outputs
             otu_table_object,
             package_to_taxonomy_bihash):
@@ -638,13 +680,19 @@ class SearchPipe:
                 placement_parser = None
             return placement_parser
 
-        def process_readset(readset, analysing_pairs):
+        def process_readset(
+            readset,
+            analysing_pairs,
+            diamond_forward_qseqs,
+            diamond_reverse_qseqs):
+
             known_infos = self._seqs_to_counts_and_taxonomy(
                 readset.known_sequences if not analysing_pairs else itertools.chain(
                     readset[0].known_sequences, readset[1].known_sequences),
                 NO_ASSIGNMENT_METHOD,
                 known_taxes,
                 known_sequence_taxonomy,
+                None,
                 None,
                 None,
                 None)
@@ -657,6 +705,10 @@ class SearchPipe:
                  len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
+                if diamond_forward_qseqs:
+                    forward_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_forward_qseqs[sample_name])
+                if diamond_reverse_qseqs:
+                    reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
 
                 if analysing_pairs:
                     aligned_seqs = list(itertools.chain(
@@ -674,6 +726,15 @@ class SearchPipe:
                         equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                         equal_best_taxonomies = {}
                         if analysing_pairs:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = {}
+                                for (name, best_hits) in best_hit_hash[1].items():
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
+                                for (name, best_hits) in best_hit_hash[0].items():
+                                    # Overwrite reverse hit with the forward hit
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = forward_full_qseqs[readname]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -702,6 +763,15 @@ class SearchPipe:
                         equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                         equal_best_taxonomies = {}
                         if analysing_pairs:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = {}
+                                for (name, best_hits) in best_hit_hash[1].items():
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
+                                for (name, best_hits) in best_hit_hash[0].items():
+                                    # Overwrite reverse hit with the forward hit
+                                    readname = name.split('••')[0]
+                                    read_name_to_fullseq[readname] = forward_full_qseqs[readname]
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -713,6 +783,8 @@ class SearchPipe:
                                 # Overwrite reverse hit with the forward hit
                                 equal_best_taxonomies[name] = equal_best_hits
                         else:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = forward_full_qseqs
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
                             for (name, equal_best_hits) in equal_best_hit_hash.items():
@@ -767,9 +839,31 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
-
-
-
+                    # We need to go through each
+                    # unalignedalignednucleotidesequence and put in the actual
+                    # unaligned sequence, because this is the last time we have
+                    # access to knowing what is the forward and what is the
+                    # reverse read sequence.
+                    read_name_to_fullseq = None
+                    # In [8]: readset[0].unknown_sequences[0].name
+                    # Out[8]: 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704'
+                    #
+                    # In [9]: forward_full_qseqs
+                    # Out[9]: {'HWI-ST1243:156:D1K8
+                    if analysing_pairs:
+                        for s in readset[0].unknown_sequences:
+                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
+                            if not self._context_window: # Do not reset length if context windowing is used, because the full_qseq is truncated
+                                s.full_nucleotide_sequence_length = None
+                        for s in readset[1].unknown_sequences:
+                            s.unaligned_sequence = reverse_full_qseqs[s.name.split('••')[0]]
+                            if not self._context_window:
+                                s.full_nucleotide_sequence_length = None
+                    else:
+                        for s in readset.unknown_sequences:
+                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
+                            if not self._context_window:
+                                s.full_nucleotide_sequence_length = None
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
@@ -782,7 +876,9 @@ class SearchPipe:
                         SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
                         SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
-                    assignment_methods))
+                    assignment_methods,
+                    read_name_to_fullseq if diamond_forward_qseqs else None,
+                ))
 
                 if output_jplace:
                     if analysing_pairs:
@@ -818,7 +914,11 @@ class SearchPipe:
                 "Removed {} sequences from reverse read set as the forward read was also detected".format(
                     len(indices_to_remove)))
 
-        new_infos = process_readset(maybe_paired_readset, analysing_pairs)
+        new_infos = process_readset(
+            maybe_paired_readset,
+            analysing_pairs,
+            diamond_forward_qseqs,
+            diamond_reverse_qseqs)
 
         add_info(new_infos, otu_table_object, not assign_taxonomy)
 
@@ -841,7 +941,8 @@ class SearchPipe:
                                      per_read_taxonomies,
                                      per_read_equal_best_taxonomies,
                                      placement_parser,
-                                     taxonomy_assignment_methods):
+                                     taxonomy_assignment_methods,
+                                     read_name_to_fullseq):
         '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
         assignment-related results, yield over 'Info' objects that contain e.g.
         the counts of the aggregated sequences and corresponding median
@@ -912,7 +1013,11 @@ class SearchPipe:
             if per_read_equal_best_taxonomies is not None and equal_best_tax is not None:
                 collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
-            collected_info.unaligned_sequences.append(s.unaligned_sequence)
+            if read_name_to_fullseq:
+                collected_info.unaligned_sequences.append(
+                    read_name_to_fullseq[s.name.split('••')[0]])
+            else:
+                collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
             collected_info.orf_names.append(s.orf_name)
