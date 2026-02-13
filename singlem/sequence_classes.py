@@ -48,7 +48,7 @@ class UnalignedAlignedNucleotideSequence:
 
     '''
 
-    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length):
+    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length, full_nucleotide_sequence_length=None):
         '''
         Parameters
         ---------
@@ -69,16 +69,19 @@ class UnalignedAlignedNucleotideSequence:
         self.aligned_sequence = aligned_sequence
         self.unaligned_sequence = unaligned_sequence
         self.aligned_length = aligned_length
-        # self.num_hits_on_read = 1
+        self.full_nucleotide_sequence_length = full_nucleotide_sequence_length
 
     def coverage_increment(self):
         '''Given the alignment came from a read of length
         original_nucleotide_sequence_length, how much coverage does the
         observation of this aligned sequence indicate?'''   
         # original calculation
+        if self.full_nucleotide_sequence_length is None:
+            fl = len(self.unaligned_sequence)
+        else:
+            fl = self.full_nucleotide_sequence_length
         return float(
-            len(self.unaligned_sequence) /
-           (len(self.unaligned_sequence) - self.aligned_length + 1)
+            fl / (fl - self.aligned_length + 1)
             )
     
 

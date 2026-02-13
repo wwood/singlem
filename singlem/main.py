@@ -136,11 +136,11 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
     argument_group.add_argument('--read-chunk-size',
             type=int,
             metavar='num_reads',
-            help='Size chunk to process at a time (in number of reads). Requires --sra-files.')
+            help='Size chunk to process at a time. Requires unwrapped sequence input. If input is FASTA, chunk size is the number of reads. If the input is FASTQ, chunk size is half the specified number of reads. Chunk size must be divisible by 2 to ensure compatibility with FASTQ input. Requires --read-chunk-number.')
     argument_group.add_argument('--read-chunk-number',
             type=int,
             metavar='chunk_number',
-            help='Process only this specific chunk number (1-based index). Requires --sra-files.')
+            help='Process only this specific chunk number (1-based index). Requires --read-chunk-size.')
     argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
     argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
     argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
@@ -210,6 +210,9 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
                                     default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
         argument_group.add_argument('--sleep-after-mkfifo', type=int,
                                     help='Sleep for this many seconds after running os.mkfifo [default: None]')
+        argument_group.add_argument('--context-window', type=int, metavar='bp',
+                                    help='When using the DIAMOND prefilter, retain this many bases of context on each side of the aligned region when recording full_qseqs in the OTU table instead of the entire read. [default: keep the full read]. The read_name is also modified to record this information.',
+                                    default=None)
 
 def validate_pipe_args(args, subparser='pipe'):
     if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -221,6 +224,8 @@ def validate_pipe_args(args, subparser='pipe'):
     if args.output_extras and not args.otu_table:
         raise Exception("Can't use --output-extras without --otu-table")
     if subparser == 'pipe':
+        if args.context_window is not None and args.context_window < 0:
+            raise Exception("--context-window must be a non-negative integer")
         if args.include_inserts and not args.otu_table and not args.archive_otu_table:
             raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
         if args.metapackage and args.diamond_prefilter_db:
@@ -240,14 +245,14 @@ def validate_pipe_args(args, subparser='pipe'):
             raise Exception("SRA input data requires a DIAMOND prefilter step, currently")
         if args.no_assign_taxonomy and (args.taxonomic_profile or args.taxonomic_profile_krona):
             raise Exception("Can't use --no-assign-taxonomy with --output-taxonomic-profile or --output-taxonomic-profile-krona")
-        if args.read_chunk_size and not args.sra_files:
-            raise Exception("Can't use --read-chunk-size without --sra-files")
-        if args.read_chunk_number and not args.sra_files:
-            raise Exception("Can't use --read-chunk-number without --sra-files")
         if bool(args.read_chunk_size) != bool(args.read_chunk_number):
             raise Exception("Either none or both of --read-chunk-size and --read-chunk-number should be set")
-        if args.read_chunk_size and len(args.sra_files) > 1:
+        if args.read_chunk_size and args.sra_files is not None and len(args.sra_files) > 1:
             raise Exception("Can't use --read-chunk-size with more than one --sra-file")
+        if args.read_chunk_size and args.genome_fasta_files:
+            raise Exception("Can't use --read-chunk-size with input genomes currently")
+        if args.read_chunk_size and args.read_chunk_size % 2 != 0:
+            raise Exception("--read-chunk-size must be divisible by 2 to ensure compatibility with FASTQ input")
 
 def add_condense_arguments(parser):
     input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
@@ -610,7 +615,9 @@ def main():
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
     renew_input_args = renew_parser.add_argument_group('input')
-    renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
+    renew_input_tables = renew_input_args.add_mutually_exclusive_group(required=True)
+    renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
+    renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
@@ -747,6 +754,7 @@ def main():
     current_default = '1e-20'
     supplement_rare_group.add_argument('--hmmsearch-evalue', help='evalue for hmmsearch run on proteins to gather markers [default: {}]'.format(current_default), default=current_default)
     supplement_rare_group.add_argument('--gene-definitions', help='Tab-separated file of genome_fasta<TAB>transcript_fasta<TAB>protein_fasta [default: undefined, call genes using Prodigal]')
+    supplement_rare_group.add_argument('--output-matched-protein-sequences', help='Write protein sequences matched by hmmsearch to this file')
     supplement_rare_group.add_argument('--working-directory', help='working directory [default: use a temporary directory]')
     supplement_rare_group.add_argument('--no-taxon-genome-lengths', help='Do not include taxon genome lengths in updated metapackage', action='store_true')
     supplement_rare_group.add_argument('--ignore-taxonomy-database-incompatibility', help='Do not halt when the old metapackage is not the default metapackage.', action='store_true')
@@ -813,7 +821,8 @@ def main():
             viral_profile_output = False,
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
-            max_species_divergence = args.max_species_divergence
+            max_species_divergence = args.max_species_divergence,
+            context_window = args.context_window,
         )
 
     elif args.subparser_name=='renew':
@@ -821,6 +830,7 @@ def main():
         validate_pipe_args(args, subparser='renew')
         Renew().renew(
             input_archive_otu_table=args.input_archive_otu_table,
+            input_zipped_gzip_archive_otu_table=args.input_zipped_gzip_archive_otu_table,
             ignore_missing_singlem_packages=args.ignore_missing_singlem_packages,
             otu_table = args.otu_table,
             output_archive_otu_table = args.archive_otu_table,
@@ -840,7 +850,7 @@ def main():
             output_taxonomic_profile_krona = args.taxonomic_profile_krona,
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
-            max_species_divergence = args.max_species_divergence
+            max_species_divergence = args.max_species_divergence,
             )
 
     elif args.subparser_name == 'summarise':
@@ -1513,6 +1523,7 @@ def main():
             skip_taxonomy_check=args.skip_taxonomy_check,
             no_taxon_genome_lengths=args.no_taxon_genome_lengths,
             gene_definitions=args.gene_definitions,
+            output_matched_protein_sequences=args.output_matched_protein_sequences,
             ignore_taxonomy_database_incompatibility=args.ignore_taxonomy_database_incompatibility,
             new_taxonomy_database_name=args.new_taxonomy_database_name,
             new_taxonomy_database_version=args.new_taxonomy_database_version,

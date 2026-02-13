@@ -79,7 +79,9 @@ pip install singlem
 ```
 You may need super-user privileges.
 
-SingleM also has several non-Python dependencies, which are documented in the `pixi.toml` file in the base directory of the repository. You'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
+SingleM also has several non-Python dependencies. For typical use-cases e.g. running `singlem pipe` or `singlem summarise`, you'll need to install the non-Python dependencies listed in the `[features.typical-non-python.dependencies]` section of the [`pixi.toml`](https://github.com/wwood/singlem/blob/main/pixi.toml) at GitHub. You'll also need to procure the reference data (the "metapackage"). See [singlem data](/tools/data).
+
+Using more advanced subcommands such as `singlem supplement` requires additional non-Python dependencies listed in the `[features.main.dependencies]` and `[features.dev.dependencies]` sections of the [`pixi.toml`](https://github.com/wwood/singlem/blob/main/pixi.toml) document.
 
 
 ## Installation via Github, with pixi dependency management

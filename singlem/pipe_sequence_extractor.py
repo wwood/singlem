@@ -339,7 +339,8 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
             spkg.window_size(),
             include_inserts,
             spkg.is_protein_package(), # Always true
-            best_position=spkg.singlem_position()))
+            best_position=spkg.singlem_position(),
+            full_nucleotide_sequence_lengths=prefilter_result.query_sequence_lengths))
 
 
     logging.debug("[PID: {}] Found {} window sequences for spkg {}".format(pid, len(window_seqs),spkg.base_directory()))
