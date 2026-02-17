@@ -1369,7 +1369,10 @@ class SearchPipe:
                 logging.info("Finished running taxonomic assignment")
                 return query_based_assignment_result
             else:
-                logging.info("Finished running singlem query-based taxonomic assignment, now running diamond ..")
+                if self._num_threads > 1:
+                    logging.info("Finished running singlem query-based taxonomic assignment, now running diamond in parallel with {} threads ..".format(self._num_threads))
+                else:
+                    logging.info("Finished running singlem query-based taxonomic assignment, now running diamond ..")
 
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
@@ -1399,7 +1402,7 @@ class SearchPipe:
                                 query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset[0].sample_name, u.name, 1)]]
 
                         if len(still_unknown_sequences[0] + still_unknown_sequences[1]) > 0:
-                            logging.info("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({}% and {}%) for sample {}, package {}".format(
+                            logging.debug("Assigning taxonomy with DIAMOND for {} and {} out of {} and {} sequences ({}% and {}%) for sample {}, package {}".format(
                                 len(still_unknown_sequences[0]), len(still_unknown_sequences[1]),
                                 len(readset[0].unknown_sequences), len(readset[1].unknown_sequences),
                                 "{:.1f}".format(100.0*len(still_unknown_sequences[0])/len(readset[0].unknown_sequences)) if len(readset[0].unknown_sequences) > 0 else 'n/a',
@@ -1462,7 +1465,7 @@ class SearchPipe:
                                 [u for u in readset.unknown_sequences if not \
                                     query_based_assignment_result.is_assigned_taxonomy(singlem_package, readset.sample_name, u.name, None)]
 
-                            logging.info("Assigning taxonomy with DIAMOND for {} out of {} sequences ({:.1f}%) for sample {}, package {}".format(
+                            logging.debug("Assigning taxonomy with DIAMOND for {} out of {} sequences ({:.1f}%) for sample {}, package {}".format(
                                 len(still_unknown_sequences),
                                 len(readset.unknown_sequences),
                                 100.0*len(still_unknown_sequences)/len(readset.unknown_sequences),

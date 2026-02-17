@@ -197,7 +197,7 @@ class Querier:
             raise Exception("Unknown search method {}".format(search_method))
 
     def query_by_sequence_similarity_with_nmslib(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
-        logging.info("Searching with nmslib by {} sequence ..".format(sequence_type))
+        logging.debug("Searching with nmslib by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
             max_search_nearest_neighbours = max_nearest_neighbours
@@ -211,7 +211,7 @@ class Querier:
                 index = sdb.get_sequence_index(last_marker, 'nmslib', sequence_type)
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
-                logging.info("Querying index for {}".format(last_marker))
+                logging.debug("Querying index for {}".format(last_marker))
                 query = select(Marker.id).where(Marker.marker == last_marker)
                 m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
@@ -240,9 +240,9 @@ class Querier:
 
     def query_by_sequence_similarity_with_scann(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=False, max_search_nearest_neighbours=None, limit_per_sequence=None):
         if naive:
-            logging.info("Searching with SCANN NAIVE by {} sequence ..".format(sequence_type))
+            logging.debug("Searching with SCANN NAIVE by {} sequence ..".format(sequence_type))
         else:
-            logging.info("Searching with SCANN by {} sequence ..".format(sequence_type))
+            logging.debug("Searching with SCANN by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
             max_search_nearest_neighbours = max_nearest_neighbours
@@ -258,7 +258,7 @@ class Querier:
             index = sdb.get_sequence_index(marker, index_format, sequence_type)
             if index is None:
                 raise Exception("The marker '{}' does not appear to be '{}' indexed in the singlem db".format(marker, index_format))
-            logging.info("Querying index for {}".format(marker))
+            logging.debug("Querying index for {}".format(marker))
             query = select(Marker.id).where(Marker.marker == marker)
             m = sdb.sqlalchemy_connection.execute(query).first()
             if m is None:
@@ -341,7 +341,7 @@ class Querier:
                                 break
 
     def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None, continue_on_missing_genes=False, threads=1):
-        logging.info("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
+        logging.debug("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
 
         for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
             index = sdb.get_sequence_index(marker, sequence_database.SMAFA_NAIVE_INDEX_FORMAT, sequence_type)
@@ -350,7 +350,7 @@ class Querier:
                     logging.info("Skipping marker {} because it is not 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
                     continue
                 raise Exception("The marker '{}' does not appear to be 'smafa-naive/{}' indexed in the singlem db".format(marker, sequence_type))
-            logging.info("Querying index for {}".format(marker))
+            logging.debug("Querying index for {}".format(marker))
             query = select(Marker.id).where(Marker.marker == marker)
             m = sdb.sqlalchemy_connection.execute(query).first()
             if m is None:
@@ -463,7 +463,7 @@ class Querier:
 
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
-        logging.info("Searching with annoy by {} sequence ..".format(sequence_type))
+        logging.debug("Searching with annoy by {} sequence ..".format(sequence_type))
 
         if max_search_nearest_neighbours is None:
             max_search_nearest_neighbours = max_nearest_neighbours
@@ -478,7 +478,7 @@ class Querier:
                 index = sdb.get_sequence_index(last_marker, 'annoy', sequence_type)
                 if index is None:
                     raise Exception("The marker '{}' does not appear to be in the singlem db".format(last_marker))
-                logging.info("Querying index for {}".format(last_marker))
+                logging.debug("Querying index for {}".format(last_marker))
                 query = select(Marker.id).where(Marker.marker == last_marker)
                 m = sdb.sqlalchemy_connection.execute(query).first()
                 if m is None:
