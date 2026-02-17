@@ -9,6 +9,7 @@ import re
 import csv
 import subprocess
 import time
+from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .metapackage import Metapackage
 from .utils import OrfMUtils, finish_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe
@@ -1295,8 +1296,9 @@ class SearchPipe:
             analysing_pairs)
 
     def _create_chunks_from_sample_file(self, sample_file_path):
-        """Create chunk files from a sample file, returning list of chunk file paths."""
+        """Create chunk files from a sample file, returning (list of chunk file paths, total sequence count)."""
         chunk_files = []
+        total_seq_count = 0
         with open(sample_file_path) as query_in:
             current_chunk_count = 0
             current_chunk_sequences_fh = None
@@ -1304,6 +1306,7 @@ class SearchPipe:
                 if current_chunk_count == 0:
                     current_chunk_sequences_fh = tempfile.NamedTemporaryFile(prefix='singlem-diamond-chunk', delete=False)
                 current_chunk_count += 1
+                total_seq_count += 1
                 current_chunk_sequences_fh.write(">{}\n{}\n".format(name, seq).encode())
                 if current_chunk_count == 1000:
                     current_chunk_sequences_fh.close()
@@ -1313,7 +1316,7 @@ class SearchPipe:
             if current_chunk_count > 0:
                 current_chunk_sequences_fh.close()
                 chunk_files.append(current_chunk_sequences_fh.name)
-        return chunk_files
+        return chunk_files, total_seq_count
 
     def _assign_taxonomy(self, extracted_reads, assignment_method, assignment_threads,
         diamond_taxonomy_assignment_performance_parameters, assignment_singlem_db):
@@ -1380,6 +1383,8 @@ class SearchPipe:
         # eased.
         diamond_results = []
         all_tmp_files = []
+        # Collect all package data for batch processing
+        package_data = []  # List of (singlem_package, tmp_files)
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
@@ -1480,53 +1485,63 @@ class SearchPipe:
 
             if len(tmp_files) > 0:
                 all_tmp_files.extend(tmp_files)
+                package_data.append((singlem_package, tmp_files))
 
-                if assignment_method in (
-                    DIAMOND_ASSIGNMENT_METHOD,
-                    DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                    SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+        # Now process all packages together with a single progress bar
+        if len(package_data) > 0 and assignment_method in (
+            DIAMOND_ASSIGNMENT_METHOD,
+            DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
+            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
 
-                    # Note that these parameters should sync well with those
-                    # querying the prefilter, otherwise there ends up being
-                    # reads that are assigned no taxonomy.
-                    cmd_stub = "diamond blastx " \
-                        "--outfmt 6 qseqid sseqid bitscore " \
-                        "--top 1 " \
-                        "--evalue 0.01 " \
-                        "--threads 1 " \
-                        "--query-gencode %i " \
-                        "--frameshift 15 " \
-                        "%s " % (
-                            self._translation_table,
-                            diamond_taxonomy_assignment_performance_parameters)
+            # Note that these parameters should sync well with those
+            # querying the prefilter, otherwise there ends up being
+            # reads that are assigned no taxonomy.
+            cmd_stub = "diamond blastx " \
+                "--outfmt 6 qseqid sseqid bitscore " \
+                "--top 1 " \
+                "--evalue 0.01 " \
+                "--threads 1 " \
+                "--query-gencode %i " \
+                "--frameshift 15 " \
+                "%s " % (
+                    self._translation_table,
+                    diamond_taxonomy_assignment_performance_parameters)
 
-                    # Phase 1: Create ALL chunk files for ALL samples in this package
-                    sample_chunks = {}  # {(singlem_package, sample_name, direction): [chunk_files]}
-                    if extracted_reads.analysing_pairs:
-                        for (sample_name, t0, t1) in tmp_files:
-                            logging.debug("Creating chunks for forward reads file {} ..".format(t0.name))
-                            forward_chunks = self._create_chunks_from_sample_file(t0.name)
-                            sample_chunks[(singlem_package, sample_name, 0)] = forward_chunks
-                            
-                            logging.debug("Creating chunks for reverse reads file {} ..".format(t1.name))
-                            reverse_chunks = self._create_chunks_from_sample_file(t1.name)
-                            sample_chunks[(singlem_package, sample_name, 1)] = reverse_chunks
-                    else:
-                        for (sample_name, t) in tmp_files:
-                            logging.debug("Creating chunks for single-ended reads file {} ..".format(t.name))
-                            single_chunks = self._create_chunks_from_sample_file(t.name)
-                            sample_chunks[(singlem_package, sample_name, None)] = single_chunks
+            # Phase 1: Create ALL chunk files for ALL samples in ALL packages
+            all_sample_chunks = {}  # {(singlem_package, sample_name, direction): [chunk_files]}
+            total_sequences = 0
+            for singlem_package, tmp_files in package_data:
+                sample_chunks = {}  # {(singlem_package, sample_name, direction): [chunk_files]}
+                if extracted_reads.analysing_pairs:
+                    for (sample_name, t0, t1) in tmp_files:
+                        logging.debug("Creating chunks for forward reads file {} ..".format(t0.name))
+                        forward_chunks, forward_count = self._create_chunks_from_sample_file(t0.name)
+                        sample_chunks[(singlem_package, sample_name, 0)] = forward_chunks
+                        total_sequences += forward_count
+                        
+                        logging.debug("Creating chunks for reverse reads file {} ..".format(t1.name))
+                        reverse_chunks, reverse_count = self._create_chunks_from_sample_file(t1.name)
+                        sample_chunks[(singlem_package, sample_name, 1)] = reverse_chunks
+                        total_sequences += reverse_count
+                else:
+                    for (sample_name, t) in tmp_files:
+                        logging.debug("Creating chunks for single-ended reads file {} ..".format(t.name))
+                        single_chunks, single_count = self._create_chunks_from_sample_file(t.name)
+                        sample_chunks[(singlem_package, sample_name, None)] = single_chunks
+                        total_sequences += single_count
+                
+                all_sample_chunks.update(sample_chunks)
 
-                    # Phase 2: Run diamond on ALL chunks in parallel across ALL samples
-                    def run_diamond_chunk(chunk_file_path, pkg):
+            # Phase 2: Run diamond on ALL chunks in parallel across ALL samples and packages
+            def run_diamond_chunk(chunk_file_path, pkg):
                         with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
                             cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
                                 chunk_file_path, pkg.graftm_package().diamond_database_path(), diamond_out.name
                             )
-                            logging.debug("Running taxonomic assignment command: {}".format(cmd2))
+                            # logging.debug("Running taxonomic assignment command: {}".format(cmd2))
                             extern.run(cmd2)
 
                             chunk_best_hits = {}
@@ -1550,74 +1565,109 @@ class SearchPipe:
 
                             return chunk_best_hits
 
-                    # Helper function to aggregate chunk results
-                    def aggregate_chunk_results(chunk_results, key, chunk_best_hits, assignment_method):
-                        """Aggregate chunk best hits into chunk_results dictionary."""
-                        # Initialize if needed
-                        if key not in chunk_results:
-                            chunk_results[key] = {}
-                        
-                        # Aggregate results based on assignment method
-                        if assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
-                            for (query, best_hit_ids) in chunk_best_hits.items():
-                                chunk_results[key][query] = best_hit_ids[0]
-                        elif assignment_method in (
-                            DIAMOND_ASSIGNMENT_METHOD,
-                            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
-                            for (query, best_hit_ids) in chunk_best_hits.items():
-                                chunk_results[key][query] = best_hit_ids
-                        else:
-                            raise Exception("Programming error")
+            # Helper function to aggregate chunk results
+            def aggregate_chunk_results(chunk_results, key, chunk_best_hits, assignment_method):
+                """Aggregate chunk best hits into chunk_results dictionary."""
+                # Initialize if needed
+                if key not in chunk_results:
+                    chunk_results[key] = {}
+                
+                # Aggregate results based on assignment method
+                if assignment_method == DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD:
+                    for (query, best_hit_ids) in chunk_best_hits.items():
+                        chunk_results[key][query] = best_hit_ids[0]
+                elif assignment_method in (
+                    DIAMOND_ASSIGNMENT_METHOD,
+                    ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                    SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                    for (query, best_hit_ids) in chunk_best_hits.items():
+                        chunk_results[key][query] = best_hit_ids
+                else:
+                    raise Exception("Programming error")
 
-                    chunk_results = {}  # {(pkg, sample, direction): {query: best_hits}}
+            chunk_results = {}  # {(pkg, sample, direction): {query: best_hits}}
+            
+            # Use serial processing for single thread to avoid ThreadPoolExecutor overhead
+            total_chunks = sum(len(chunk_files) for chunk_files in all_sample_chunks.values())
+            num_packages = len(package_data)
+            if self._num_threads == 1:
+                with tqdm(
+                    total=total_chunks, 
+                    desc="Assigning taxonomy to {} sequences across {} packages (serial)".format(total_sequences, num_packages), 
+                    unit="chunk", 
+                    disable=logging.getLogger().level != logging.INFO) as pbar:
                     
-                    # Use serial processing for single thread to avoid ThreadPoolExecutor overhead
-                    if self._num_threads == 1:
-                        for (pkg, sample_name, direction), chunk_files in sample_chunks.items():
-                            for chunk_file in chunk_files:
-                                chunk_best_hits = run_diamond_chunk(chunk_file, pkg)
-                                aggregate_chunk_results(chunk_results, (pkg, sample_name, direction), chunk_best_hits, assignment_method)
-                    else:
-                        # Parallel processing with ThreadPoolExecutor
-                        with ThreadPoolExecutor(max_workers=self._num_threads) as executor:
-                            future_to_key = {}
-                            for (pkg, sample_name, direction), chunk_files in sample_chunks.items():
-                                for chunk_file in chunk_files:
-                                    future = executor.submit(run_diamond_chunk, chunk_file, pkg)
-                                    future_to_key[future] = (pkg, sample_name, direction)
-                            
-                            for future in as_completed(future_to_key):
-                                key = future_to_key[future]
-                                chunk_best_hits = future.result()
-                                aggregate_chunk_results(chunk_results, key, chunk_best_hits, assignment_method)
-
-                    # Phase 3: Cleanup chunk files and organize results by sample
-                    for chunk_files in sample_chunks.values():
+                    for (pkg, sample_name, direction), chunk_files in all_sample_chunks.items():
                         for chunk_file in chunk_files:
-                            os.remove(chunk_file)
+                            chunk_best_hits = run_diamond_chunk(chunk_file, pkg)
+                            aggregate_chunk_results(chunk_results, (pkg, sample_name, direction), chunk_best_hits, assignment_method)
+                            pbar.update(1)
+            else:
+                # Parallel processing with ThreadPoolExecutor and tqdm
+                # Flatten nested loops into a list of tasks
+                chunk_tasks = []
+                for (pkg, sample_name, direction), chunk_files in all_sample_chunks.items():
+                    for chunk_file in chunk_files:
+                        chunk_tasks.append((chunk_file, pkg, (pkg, sample_name, direction)))
+                
+                # Wrapper function that returns both result and key
+                def run_diamond_chunk_with_key(task):
+                    chunk_file, pkg, key = task
+                    chunk_best_hits = run_diamond_chunk(chunk_file, pkg)
+                    return (key, chunk_best_hits)
+                
+                # Execute with progress bar using as_completed for better exception handling
+                with tqdm(
+                    total=len(chunk_tasks), 
+                    desc="Assigning taxonomy to {} sequences across {} packages ({} threads)".format(total_sequences, num_packages, self._num_threads), 
+                    unit="chunk", 
+                    disable=logging.getLogger().level != logging.INFO) as pbar:
 
-                    # Reorganize results into the expected format
-                    if extracted_reads.analysing_pairs:
-                        forward_results = []
-                        reverse_results = []
-                        sample_names = []
-                        for (sample_name, t0, t1) in tmp_files:
-                            sample_names.append(sample_name)
-                            forward_results.append(chunk_results.get((singlem_package, sample_name, 0), {}))
-                            reverse_results.append(chunk_results.get((singlem_package, sample_name, 1), {}))
-                        diamond_results.append([singlem_package, sample_names, [forward_results, reverse_results]])
-                    else:
-                        single_results = []
-                        sample_names = []
-                        for (sample_name, t) in tmp_files:
-                            sample_names.append(sample_name)
-                            single_results.append(chunk_results.get((singlem_package, sample_name, None), {}))
-                        diamond_results.append([singlem_package, sample_names, single_results])
+                    with ThreadPoolExecutor(max_workers=self._num_threads) as executor:
+                        # Submit all tasks and create futures mapping
+                        futures = {executor.submit(run_diamond_chunk_with_key, task): task for task in chunk_tasks}
+                        
+                        # Process results as they complete
+                        for future in as_completed(futures):
+                            task = futures[future]
+                            try:
+                                key, chunk_best_hits = future.result()
+                                aggregate_chunk_results(chunk_results, key, chunk_best_hits, assignment_method)
+                                pbar.update(1)
+                            except Exception as e:
+                                logging.error("Failed to process chunk {}: {}".format(task, e))
+                                raise
 
-                elif assignment_method == PPLACER_ASSIGNMENT_METHOD:
+            # Phase 3: Cleanup chunk files and organize results by package
+            for chunk_files in all_sample_chunks.values():
+                for chunk_file in chunk_files:
+                    os.remove(chunk_file)
+
+            # Reorganize results into the expected format per package
+            for singlem_package, tmp_files in package_data:
+                if extracted_reads.analysing_pairs:
+                    forward_results = []
+                    reverse_results = []
+                    sample_names = []
+                    for (sample_name, t0, t1) in tmp_files:
+                        sample_names.append(sample_name)
+                        forward_results.append(chunk_results.get((singlem_package, sample_name, 0), {}))
+                        reverse_results.append(chunk_results.get((singlem_package, sample_name, 1), {}))
+                    diamond_results.append([singlem_package, sample_names, [forward_results, reverse_results]])
+                else:
+                    single_results = []
+                    sample_names = []
+                    for (sample_name, t) in tmp_files:
+                        sample_names.append(sample_name)
+                        single_results.append(chunk_results.get((singlem_package, sample_name, None), {}))
+                    diamond_results.append([singlem_package, sample_names, single_results])
+
+        # Handle PPLACER assignment method separately (still per-package)
+        if assignment_method == PPLACER_ASSIGNMENT_METHOD:
+            for singlem_package, tmp_files in package_data:
+                if len(tmp_files) > 0:
                     cmd = "%s "\
                         "--threads %i "\
                         "--graftm_package %s "\
