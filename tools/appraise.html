@@ -1,0 +1,342 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>SingleM appraise</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1771818232" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1771818232"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1771818232";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a class="active" href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="singlem-appraise">singlem appraise</h1>
+<p>SingleM can be used to determine how much of a community is represented in an assembly or represented
+by a set of genomes.</p>
+<p>The assessment is carried out by comparing the set of OTU sequences in the
+assembly/genomes to those found from the raw metagenomic reads. A similar metric
+can be estimated by the fraction of reads mapping to either the assembly or the
+genome, but the approach here is more flexible and has several advantages:</p>
+<ol>
+<li>We can determine which specific lineages are missing</li>
+<li>We can match OTU sequences imperfectly, so we can e.g. make statements about whether a genus level representative genome has been recovered</li>
+<li>Since the metric assesses only single copy marker genes, the appraisal is on a per-cell basis, not per-read</li>
+<li>Some care must be taken, but we can prevent Eukaryotic DNA from skewing the estimate</li>
+</ol>
+<p>To assess how well a set of sequences represent a metagenome, first run <code>pipe</code>
+on both the genomes and the raw reads, and then use <code>appraise</code>:</p>
+<pre><code>singlem pipe --sequences raw.fq.gz --otu-table metagenome.otu_table.csv
+singlem pipe --genome-fasta-files my-genomes/*.fasta --otu-table \
+    genomes.otu_table.csv
+singlem appraise --metagenome-otu-tables metagenome.otu_table.csv \
+    --genome-otu-tables genomes.otu_table.csv
+</code></pre>
+<p>One may also accommodate some sequence differences, with <code>--imperfect</code>, or
+output OTU tables of those sequences that match and those that do not (see
+<code>singlem appraise -h</code>). Assessing assemblies is similar to assessing genomes,
+except that when assessing bins duplicate markers from the same genome are
+excluded as likely contamination.</p>
+<p>An appraisal can also be represented visually, using <code>appraise --plot</code>:</p>
+<p><img src="/singlem/appraise_plot.png" alt="appraise plot"></p>
+<p>Each rectangle represents a single OTU sequence where its size represents its
+abundance (the number of reads that OTU represents in the metagenome). Colours
+represent 89% OTU clustering of these sequences (~genus level), with the
+taxonomy of the most common sequence written out. Here we see that highly
+abundant OTUs in SRR5040536 were assembled, but only 1 of the 3 abundant
+Gallionellales OTUs has an associated bin. As is common, the highest abundance
+lineages did not necessarily assemble and bin successfully. The marker
+<code>4.20.ribosomal_protein_S15P_S13e</code> was chosen as the representative marker
+because it has a representative fraction of OTUs binned, assembled and
+unassembled.</p>
+<h1 id="input-otu-table-options">INPUT OTU TABLE OPTIONS</h1>
+<p><strong>--metagenome-otu-tables</strong> <em>METAGENOME_OTU_TABLES</em> [<em>METAGENOME_OTU_TABLES</em> ...]</p>
+<p>output of 'pipe' run on metagenomes</p>
+<p><strong>--metagenome-archive-otu-tables</strong> <em>METAGENOME_ARCHIVE_OTU_TABLES</em> [<em>METAGENOME_ARCHIVE_OTU_TABLES</em> ...]</p>
+<p>archive output of 'pipe' run on metagenomes</p>
+<p><strong>--genome-otu-tables</strong> <em>GENOME_OTU_TABLES</em> [<em>GENOME_OTU_TABLES</em> ...]</p>
+<p>output of 'pipe' run on genomes</p>
+<p><strong>--genome-archive-otu-tables</strong> <em>GENOME_ARCHIVE_OTU_TABLES</em> [<em>GENOME_ARCHIVE_OTU_TABLES</em> ...]</p>
+<p>archive output of 'pipe' run on genomes</p>
+<p><strong>--assembly-otu-tables</strong> <em>ASSEMBLY_OTU_TABLES</em> [<em>ASSEMBLY_OTU_TABLES</em> ...]</p>
+<p>output of 'pipe' run on assembled sequence</p>
+<p><strong>--assembly-archive-otu-tables</strong> <em>ASSEMBLY_ARCHIVE_OTU_TABLES</em> [<em>ASSEMBLY_ARCHIVE_OTU_TABLES</em> ...]</p>
+<p>archive output of 'pipe' run on assembled sequence</p>
+<p><strong>--metapackage</strong> <em>METAPACKAGE</em></p>
+<p>Metapackage used in the creation of the OTU tables</p>
+<h1 id="inexact-appraisal-options">INEXACT APPRAISAL OPTIONS</h1>
+<p><strong>--imperfect</strong></p>
+<p>use sequence searching to account for genomes that are similar to
+those found in the metagenome [default: False]</p>
+<p><strong>--sequence-identity</strong> <em>SEQUENCE_IDENTITY</em></p>
+<p>sequence identity cutoff to use if --imperfect is specified
+[default: ~species level divergence i.e. 0.9666666666666667]</p>
+<h1 id="plotting-related-options">PLOTTING-RELATED OPTIONS</h1>
+<p><strong>--plot</strong> <em>PLOT</em></p>
+<p>Output plot SVG filename (marker chosen automatically unless
+--plot-marker is also specified)</p>
+<p><strong>--plot-marker</strong> <em>PLOT_MARKER</em></p>
+<p>Marker gene to plot OTUs from</p>
+<p><strong>--plot-basename</strong> <em>PLOT_BASENAME</em></p>
+<p>Plot visualisation of appraisal results from all markers to this
+basename (one SVG per marker)</p>
+<h1 id="output-summary-otu-tables">OUTPUT SUMMARY OTU TABLES</h1>
+<p><strong>--output-binned-otu-table</strong> <em>OUTPUT_BINNED_OTU_TABLE</em></p>
+<p>output OTU table of binned populations</p>
+<p><strong>--output-unbinned-otu-table</strong> <em>OUTPUT_UNBINNED_OTU_TABLE</em></p>
+<p>output OTU table of assembled but not binned populations</p>
+<p><strong>--output-assembled-otu-table</strong> <em>OUTPUT_ASSEMBLED_OTU_TABLE</em></p>
+<p>output OTU table of all assembled populations</p>
+<p><strong>--output-unaccounted-for-otu-table</strong> <em>OUTPUT_UNACCOUNTED_FOR_OTU_TABLE</em></p>
+<p>Output OTU table of populations not accounted for</p>
+<p><strong>--output-found-in</strong></p>
+<p>Output sample name (genome or assembly) the hit was found in</p>
+<p><strong>--output-style</strong> {standard,archive}</p>
+<p>Style of output OTU tables</p>
+<p><strong>--stream-inputs</strong></p>
+<p>Stream input OTU tables, saving RAM. Only works with
+--output-otu-table and transformation options do not work [expert
+option].</p>
+<p><strong>--threads</strong> num_threads</p>
+<p>Use this many threads when processing streaming inputs [default 1]</p>
+<h1 id="other-general-options">OTHER GENERAL OPTIONS</h1>
+<p><strong>--debug</strong></p>
+<p>output debug information</p>
+<p><strong>--version</strong></p>
+<p>output version information and quit</p>
+<p><strong>--quiet</strong></p>
+<p>only output errors</p>
+<p><strong>--full-help</strong></p>
+<p>print longer help message</p>
+<p><strong>--full-help-roff</strong></p>
+<p>print longer help message in ROFF (manpage) format</p>
+<h1 id="authors">AUTHORS</h1>
+<blockquote>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
+Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+</code></pre>
+</blockquote>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#singlem-appraise'>singlem appraise</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#input-otu-table-options'>INPUT OTU TABLE OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#inexact-appraisal-options'>INEXACT APPRAISAL OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#plotting-related-options'>PLOTTING-RELATED OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#output-summary-otu-tables'>OUTPUT SUMMARY OTU TABLES</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#other-general-options'>OTHER GENERAL OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#authors'>AUTHORS</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1771818232"></script>
+
+    
+</body>
+
+</html>

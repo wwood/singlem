@@ -1,0 +1,517 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>SingleM summarise</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1771818232" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1771818232"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1771818232";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a class="active" href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="singlem-summarise">singlem summarise</h1>
+<p>The SingleM <code>summarise</code> subcommand transforms taxonomic profiles and OTU tables into a variety of different formats. The <code>summarise</code> subcommand is useful for transforming the default output formats of <code>pipe</code>, visualising the results of a SingleM analysis, and for performing some downstream analyses.</p>
+<h1 id="converting-a-taxonomic-profile-to-other-formats">Converting a taxonomic profile to other formats</h1>
+<p>By default, the <code>pipe</code> command outputs a taxonomic profile in the format of a CSV file, when run with <code>-p</code>/<code>--taxonomic-profile</code>, which looks like this:</p>
+<pre><code>sample     coverage  taxonomy
+marine0.1  3.64      Root; d__Archaea
+marine0.1  0.02      Root; d__Bacteria
+marine0.1  0.56      Root; d__Archaea; p__Thermoproteota
+marine0.1  0.8       Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      Root; d__Bacteria; p__Proteobacteria
+...
+</code></pre>
+<p>The coverage is the estimated per-base read coverage of a species genome (or, for higher level taxons, the sum of their constituent species). Importantly, it is not inclusive of its descendents' coverage. For instance, the coverage of <code>Root; d__Bacteria</code> (<code>0.02</code>) does not include the coverage assigned to <code>p__Desulfobacterota</code> (<code>0.8</code>) or <code>p__Proteobacteria</code> (<code>2.17</code>). For more information on coverage, see the <a href="/singlem/Glossary#coverage-unfilled-coverage-and-filled-coverage">Glossary</a>.</p>
+<p>For many applications, this format is inconvenient, so <code>summarise</code> mode provides some conversion options.</p>
+<h2 id="conversion-to-krona">Conversion to krona</h2>
+<pre><code>singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-taxonomic-profile-krona doco_example.profile.html
+</code></pre>
+<p>This will generate a new <a href="https://github.com/marbl/Krona">krona</a> diagram, a hierarchical graphical representation of your community. Krona diagrams can also be output directly from pipe, using the <code>--taxonomic-profile-krona</code> option.</p>
+<h2 id="relative-abundance-and-species-by-site">Relative abundance and species-by-site</h2>
+<p>A commonly requested format for these data is the relative abundance, expressed as a species-by-site table. You can generate this from the above profile by running the below, which generates it on the phylum level. </p>
+<pre><code>singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-species-by-site-relative-abundance doco_example.species_by_site.csv \
+    --output-species-by-site-level phylum
+</code></pre>
+<p>Where <code>doco_example.species_by_site.csv</code> is then generated as below, where each number is the relative abundance expressed as a percentage:</p>
+<pre><code>taxonomy                                marine0.1
+unassigned                              50.9
+Root; d__Archaea; p__Thermoproteota     7.79
+Root; d__Bacteria; p__Desulfobacterota  11.13
+Root; d__Bacteria; p__Proteobacteria    30.18
+</code></pre>
+<p>If there are multiple samples in the input files, then there will be multiple columns, one for each sample.</p>
+<p>If you wish to generate a species-by-site table for another taxonomic level e.g. genus, you can specify the <code>--output-species-by-site-level</code> option:</p>
+<pre><code>singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-species-by-site-relative-abundance doco_example.species_by_site.csv \
+    --output-species-by-site-level genus
+</code></pre>
+<p>If you wish to generate a species-by-site table for each taxonomic level, you can use <code>--output-species-by-site-relative-abundance-prefix</code>:</p>
+<pre><code>singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-species-by-site-relative-abundance-prefix myprefix
+</code></pre>
+<p>Usually, this will generate a different file for each taxonomic level (domain, phylum, .., species), with the prefix you specified. However, since the table here has only 2 taxonomic levels (domain and phylum), it will only generate those two files:</p>
+<pre><code>myprefix-domain.tsv
+myprefix-phylum.tsv
+</code></pre>
+<p>More files will usually be generated (all the way down to species level), but the example only contains domain and phylum level taxonomic assignments.</p>
+<h2 id="long-form-with-extras">Long form with extras</h2>
+<p>In some cases, it is more convenient to keep the long form, but add some additional columns, including relative abundance and the <a href="/singlem/Glossary#coverage-unfilled-coverage-and-filled-coverage">filled coverage</a>:</p>
+<pre><code>singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-taxonomic-profile-with-extras doco_example.with_extras.tsv
+</code></pre>
+<p>The generated <code>doco_example.with_extras.tsv</code> contains</p>
+<pre><code>sample     coverage  full_coverage  relative_abundance  level   taxonomy
+marine0.1  0         7.19           100.0               root    Root
+marine0.1  3.64      4.2            58.41               domain  Root; d__Archaea
+marine0.1  0.02      2.99           41.59               domain  Root; d__Bacteria
+marine0.1  0.56      0.56           7.79                phylum  Root; d__Archaea; p__Thermoproteota
+marine0.1  0.8       0.8            11.13               phylum  Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      2.17           30.18               phylum  Root; d__Bacteria; p__Proteobacteria
+</code></pre>
+<h1 id="summarising-otu-tables">Summarising OTU tables</h1>
+<p>The following describes how summarise can be used to transform <a href="/singlem/Glossary#otu-table">OTU tables</a>, rather than <a href="/singlem/Glossary#taxonomic-profile">taxonomomic profiles</a>. </p>
+<h2 id="summarising-otu-tables-by-rarefying,-clustering,-etc.">Summarising OTU tables by rarefying, clustering, etc.</h2>
+<p>Once an OTU table has been generated with the <code>pipe</code> command, it can be further processed in various ways using <code>summarise</code>:</p>
+<p>Create a <a href="https://sourceforge.net/p/krona/">Krona</a> plot of the community. The following command generates a Krona file <code>my_krona.html</code> which can be viewed in a web browser:</p>
+<pre><code>singlem summarise --input-otu-tables otu_table.csv --krona my_krona.html
+</code></pre>
+<p>Several OTU tables can be combined into one. Note that this is not necessary if the combined output is to be input again into summarise (or many other commands) - it is possible to just specify multiple input tables with <code>--input-otu-tables</code>. To combine:</p>
+<pre><code>singlem summarise --input-otu-tables otu_table1.csv otu_table2.csv \
+    --output-otu-table combined.otu_table.csv
+</code></pre>
+<p>Cluster sequences, collapsing them into OTUs with less resolution, but with more robustness against sequencing error:</p>
+<pre><code>singlem summarise --input-otu-tables otu_table.csv --cluster \
+    --output-otu-table clustered.otu_table.csv
+</code></pre>
+<p>The <code>--clustered-output-otu-table</code> option can be used to output a clustered OTU table that includes information about which sequences have been clustered together:</p>
+<pre><code>singlem summarise --input-otu-tables otu_table.csv --cluster \
+    --clustered-output-otu-table clustered_with_details.otu_table.csv
+</code></pre>
+<p>Rarefy a set of OTU tables so that each sample contains the same number of OTU sequences:</p>
+<pre><code>singlem summarise --input-otu-tables otu_table.csv \
+    other_samples.otu_table.csv --rarefied-output-otu-table \
+    rarefied.otu_table.csv --number-to-choose 100
+</code></pre>
+<h2 id="calculating-beta-diversity-between-samples">Calculating beta diversity between samples</h2>
+<p>Ecological <a href="https://en.wikipedia.org/wiki/Beta_diversity">beta-diversity</a> metrics, which measure differences between two microbial communities, can be calculated from SingleM profiles using OTU-based approaches.</p>
+<p>As SingleM generates OTUs that are independent of taxonomy, they can be used as input to beta diversity methods known to be appropriate for the analysis of 16S amplicon studies, of which there are many. We recommend <a href="https://github.com/dparks1134/ExpressBetaDiversity">express beta diversity</a> (EBD) as it implements many different metrics with a unified interface. For instance to calculate Bray-Curtis beta diversity, first convert your OTU table to unifrac file format using <code>singlem summarise</code>. Note that this file format does not contain any phylogenetic information, even if the format is called 'unifrac'.</p>
+<pre><code>singlem summarise --input-otu-table otu_table.csv --unifrac-by-otu \
+    otu_table-
+</code></pre>
+<p>The above commands generates a different unifrac format file for each marker. At this point, you need to choose one table to proceed with. It would probably be best to choose a marker that targets both Bacteria and Archaea e.g. <code>S3.5.ribosomal_protein_S2_rpsB</code>. Beyond choosing a marker that targets both domains, hopefully the choice matters little, but it might pay to use multiple tables and ensure that the results are consistent. </p>
+<p>To calculate beta diversity that does not account for the phylogenetic relationships between the OTU sequences, use the EBD script <code>convertToEBD.py</code> to convert the unifrac format into ebd format, and calculate the diversity metric:</p>
+<pre><code>convertToEBD.py otu_table-S3.5.ribosomal_protein_S2_rpsB.unifrac \
+    otu_table.ebd
+ExpressBetaDiversity -s otu_table.ebd -c Bray-Curtis
+</code></pre>
+<h1 id="taxonomic-profile-input">TAXONOMIC PROFILE INPUT</h1>
+<p><strong>--input-taxonomic-profiles</strong> <em>INPUT_TAXONOMIC_PROFILES</em> [<em>INPUT_TAXONOMIC_PROFILES</em> ...]</p>
+<p>Input taxonomic profiles to be e.g. converted to krona HTML, or
+concatenated</p>
+<h1 id="taxonomic-profile-output">TAXONOMIC PROFILE OUTPUT</h1>
+<p><strong>--output-taxonomic-profile</strong> FILE</p>
+<p>Output a single output file containing taxonomic profiles of all
+input taxonomic profile files. Requires --input-taxonomic-profiles</p>
+<p><strong>--output-taxonomic-profile-krona</strong> FILE</p>
+<p>Output taxonomic profile to this file in Krona format.</p>
+<p><strong>--output-species-by-site-relative-abundance</strong> FILE</p>
+<p>Output site by species relative abundance to this file</p>
+<p><strong>--output-species-by-site-level</strong> {species,genus,family,order,class,phylum,domain}</p>
+<p>Output site by species level to this file. Requires
+--output-species-by-site-relative-abundance.</p>
+<p><strong>--output-species-by-site-relative-abundance-prefix</strong> PATH_PREFIX</p>
+<p>Output site by species relative abundance to this file prefix. One
+file will be written for each taxonomic level.</p>
+<p><strong>--output-filled-taxonomic-profile</strong> FILE</p>
+<p>Output a taxonomic profile where the coverage of each taxon includes
+the coverage of each of its descendent taxons e.g. the d__Bacteria
+entry includes the p__Patescibacteria entry.</p>
+<p><strong>--output-taxonomic-profile-with-extras</strong> FILE</p>
+<p>Output a taxonomic profile with extra information (coverage,
+'filled' coverage, relative abundance, taxonomy level).</p>
+<p><strong>--num-decimal-places</strong> INT</p>
+<p>Number of decimal places to report in the coverage column of the
+--output-taxonomic-profile-with-extras [default: 2].</p>
+<p><strong>--output-taxonomic-level-coverage</strong> FILE</p>
+<p>Output summary of how much coverage has been assigned to each
+taxonomic level in a taxonomic profile to a TSV file.</p>
+<h1 id="otu-table-input">OTU TABLE INPUT</h1>
+<p><strong>--input-otu-tables</strong>, <strong>--input-otu-table</strong> <em>INPUT_OTU_TABLES</em> [<em>INPUT_OTU_TABLES</em> ...]</p>
+<p>Summarise these tables</p>
+<p><strong>--input-otu-tables-list</strong> <em>INPUT_OTU_TABLES_LIST</em></p>
+<p>Summarise the OTU table files newline separated in this file</p>
+<p><strong>--input-archive-otu-tables</strong>, <strong>--input-archive-otu-table</strong> <em>INPUT_ARCHIVE_OTU_TABLES</em> [<em>INPUT_ARCHIVE_OTU_TABLES</em> ...]</p>
+<p>Summarise these tables</p>
+<p><strong>--input-archive-otu-table-list</strong> <em>INPUT_ARCHIVE_OTU_TABLE_LIST</em></p>
+<p>Summarise the archive tables newline separated in this file</p>
+<p><strong>--input-gzip-archive-otu-table-list</strong> <em>INPUT_GZIP_ARCHIVE_OTU_TABLE_LIST</em></p>
+<p>Summarise the list of newline-separated gzip-compressed archive OTU
+tables specified in this file</p>
+<p><strong>--stream-inputs</strong></p>
+<p>Stream input OTU tables, saving RAM. Only works with
+--output-otu-table and transformation options do not work [expert
+option].</p>
+<h1 id="otu-table-transformation">OTU TABLE TRANSFORMATION</h1>
+<p><strong>--cluster</strong></p>
+<p>Apply sequence clustering to the OTU table. Any dashes in OTU
+sequences will be replaced by N.</p>
+<p><strong>--cluster-id</strong> <em>CLUSTER_ID</em></p>
+<p>Sequence clustering identity cutoff if --cluster is used [default:
+0.9666666666666667 i.e. 96.66666666666667%]</p>
+<p><strong>--taxonomy</strong> <em>TAXONOMY</em></p>
+<p>Restrict analysis to OTUs that have this taxonomy (exact taxonomy or
+more fully resolved)</p>
+<p><strong>--rarefied-output-otu-table</strong> <em>RAREFIED_OUTPUT_OTU_TABLE</em></p>
+<p>Output rarefied output OTU table, where each gene and sample
+combination is rarefied</p>
+<p><strong>--number-to-choose</strong> <em>NUMBER_TO_CHOOSE</em></p>
+<p>Rarefy using this many sequences. Sample/gene combinations with an
+insufficient number of sequences are ignored with a warning
+[default: maximal number such that all samples have sufficient
+counts]</p>
+<p><strong>--collapse-to-sample-name</strong> <em>COLLAPSE_TO_SAMPLE_NAME</em></p>
+<p>Merge all OTUs into a single OTU table, using the given sample name.
+Requires archive OTU table input and output.</p>
+<p><strong>--collapse-coupled</strong></p>
+<p>Merge forward and reverse read OTU tables into a unified table.
+Sample names of coupled reads must end in '1' and '2'
+respectively. Read names are ignored, so that if the forward and
+reverse from a pair contain the same OTU sequence, they will each
+count separately.</p>
+<p><strong>--collapse-paired-with-unpaired-archive-otu-table</strong> <em>COLLAPSE_PAIRED_WITH_UNPAIRED_ARCHIVE_OTU_TABLE</em></p>
+<p>For archive OTU tables that have both paired and unpaired
+components, merge these into a single output archive OTU table</p>
+<h1 id="otu-table-output">OTU TABLE OUTPUT</h1>
+<p><strong>--output-otu-table</strong> <em>OUTPUT_OTU_TABLE</em></p>
+<p>Output combined OTU table to this file</p>
+<p><strong>--output-archive-otu-table</strong> <em>OUTPUT_ARCHIVE_OTU_TABLE</em></p>
+<p>Output combined OTU table to this file</p>
+<p><strong>--output-translated-otu-table</strong> <em>OUTPUT_TRANSLATED_OTU_TABLE</em></p>
+<p>Output combined OTU table to this file, with seqeunces translated
+into amino acids</p>
+<p><strong>--output-extras</strong></p>
+<p>Output extra information in the standard output OTU table</p>
+<p><strong>--krona</strong> <em>KRONA</em></p>
+<p>Name of krona file to generate. Note that this generates a krona
+file from the OTU table, not the taxonomic profile</p>
+<p><strong>--wide-format-otu-table</strong> <em>WIDE_FORMAT_OTU_TABLE</em></p>
+<p>Name of output species by site CSV file</p>
+<p><strong>--strain-overview-table</strong> <em>STRAIN_OVERVIEW_TABLE</em></p>
+<p>Name of output strains table to generate</p>
+<p><strong>--unifrac-by-otu</strong> <em>UNIFRAC_BY_OTU</em></p>
+<p>Output UniFrac format file where entries are OTU sequences</p>
+<p><strong>--unifrac-by-taxonomy</strong> <em>UNIFRAC_BY_TAXONOMY</em></p>
+<p>Output UniFrac format file where entries are taxonomies (generally
+used for phylogeny-driven beta diversity when pipe was run with
+'--assignment_method diamond_example')</p>
+<p><strong>--clustered-output-otu-table</strong> <em>CLUSTERED_OUTPUT_OTU_TABLE</em></p>
+<p>Output an OTU table with extra information about the clusters. To
+simply cluster an OTU table, use --cluster with --output-otu-table
+instead.</p>
+<p><strong>--exclude-off-target-hits</strong></p>
+<p>Exclude hits that are not in the target domain of each SingleM
+package</p>
+<p><strong>--singlem-packages</strong> <em>SINGLEM_PACKAGES</em> [<em>SINGLEM_PACKAGES</em> ...]</p>
+<p>Packages used in the creation of the OTU tables</p>
+<p><strong>--metapackage</strong> <em>METAPACKAGE</em></p>
+<p>Metapackage used in the creation of the OTU tables</p>
+<p><strong>--unaligned-sequences-dump-file</strong> <em>UNALIGNED_SEQUENCES_DUMP_FILE</em></p>
+<p>Output unaligned sequences from in put archive OTU table to this
+file. After each read name '~N' is added which corresponds to the
+order of the read in the archive OTU table, so that no two sequences
+have the same read name. N&gt;1 can happen e.g. when the input file
+contains paired reads. ~0 does not necessarily correspond to the
+first read in the original input sequence set, but instead to the
+order in the input archive OTU table.</p>
+<h1 id="other-general-options">OTHER GENERAL OPTIONS</h1>
+<p><strong>--debug</strong></p>
+<p>output debug information</p>
+<p><strong>--version</strong></p>
+<p>output version information and quit</p>
+<p><strong>--quiet</strong></p>
+<p>only output errors</p>
+<p><strong>--full-help</strong></p>
+<p>print longer help message</p>
+<p><strong>--full-help-roff</strong></p>
+<p>print longer help message in ROFF (manpage) format</p>
+<h1 id="authors">AUTHORS</h1>
+<blockquote>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
+Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+</code></pre>
+</blockquote>
+<h1 id="examples">EXAMPLES</h1>
+<p>Convert a taxonomic profile to a site-by-species table at the genus level:</p>
+<p><strong>$ singlem summarise --input-taxonomic-profiles &lt;profile1.tsv&gt;
+&lt;profile2.tsv&gt; --output-species-by-site-relative-abundance
+&lt;output.tsv&gt; --output-species-by-site-level genus</strong></p>
+<p>Create a Krona diagram from a taxonomic profile:</p>
+<p><strong>$ singlem summarise --input-taxonomic-profiles &lt;profile1.tsv&gt;
+--output-taxonomic-profile-krona &lt;output.html&gt;</strong></p>
+<p>Add extra coverage and relative abundance information to a taxonomic profile:</p>
+<p><strong>$ singlem summarise --input-taxonomic-profiles &lt;profile1.tsv&gt;
+--output-taxonomic-profile-with-extras &lt;output.tsv&gt;</strong></p>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#singlem-summarise'>singlem summarise</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#converting-a-taxonomic-profile-to-other-formats'>Converting a taxonomic profile to other formats</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#conversion-to-krona'>Conversion to krona</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#relative-abundance-and-species-by-site'>Relative abundance and species-by-site</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#long-form-with-extras'>Long form with extras</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#summarising-otu-tables'>Summarising OTU tables</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#summarising-otu-tables-by-rarefying,-clustering,-etc.'>Summarising OTU tables by rarefying, clustering, etc.</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#calculating-beta-diversity-between-samples'>Calculating beta diversity between samples</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#taxonomic-profile-input'>TAXONOMIC PROFILE INPUT</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#taxonomic-profile-output'>TAXONOMIC PROFILE OUTPUT</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#otu-table-input'>OTU TABLE INPUT</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#otu-table-transformation'>OTU TABLE TRANSFORMATION</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#otu-table-output'>OTU TABLE OUTPUT</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#other-general-options'>OTHER GENERAL OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#authors'>AUTHORS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#examples'>EXAMPLES</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1771818232"></script>
+
+    
+</body>
+
+</html>

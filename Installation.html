@@ -1,0 +1,317 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>Installation</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1771818232" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1771818232"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1771818232";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a class="active" href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="installing-singlem">Installing SingleM</h1>
+<p>There are several ways to install SingleM. On the assumption that a standard internet connection speed is available, each of these methods should take substantially less than 1 hour, hopefully less than 15 minutes.</p>
+<p>SingleM can be installed through
+<a href="https://anaconda.org/bioconda/singlem">Bioconda</a>. Lyrebird is installed by installing SingleM, and then using the <code>lyrebird</code> command instead of <code>singlem</code> e.g. use <code>lyrebird pipe ...</code> instead of <code>singlem pipe ...</code>.</p>
+<pre><code>conda create -c conda-forge -c bioconda --override-channels --name singlem singlem'&gt;='0.20.3
+</code></pre>
+<p>Test if it works by running</p>
+<pre><code>conda activate singlem
+singlem -h
+lyrebird -h
+</code></pre>
+<p>After this, you'll also need to procure the reference data (the "metapackage"). See <a href="/singlem/tools/data">singlem data</a> or <a href="/singlem/tools/lyrebird_data">lyrebird data</a>.</p>
+<h2 id="installation-via-dockerhub">Installation via DockerHub</h2>
+<p>A docker image generated from the conda package is <a href="https://hub.docker.com/r/wwood/singlem">available</a> on DockerHub. After installing Docker, run the following:</p>
+<pre><code>docker pull wwood/singlem:0.20.3
+</code></pre>
+<p>Test if it works by running</p>
+<pre><code>docker run wwood/singlem:0.20.3 -h
+</code></pre>
+<p>If the sequence data to be analyzed is in the current working directory, SingleM <code>pipe</code> can be used like so:</p>
+<pre><code>docker run -v `pwd`:`pwd` wwood/singlem:0.20.3 pipe --sequences \
+    `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
+</code></pre>
+<p>Two things to note:</p>
+<ol>
+<li>The default SingleM reference data is included in the docker image, so running <a href="/singlem/tools/data">singlem data</a> is not necessary for this installation method - you can jump straight to using <code>pipe</code>.</li>
+<li>You should not specify <code>singlem</code> in the command line, as this is automatic. Simply use e.g. <code>docker run wwood/singlem:0.20.3 pipe -h</code>.</li>
+</ol>
+<p>A similar procedure is true for Lyrebird, except that the docker image is <a href="https://hub.docker.com/r/wwood/lyrebird">different</a>, so you need to run:</p>
+<pre><code>docker pull wwood/lyrebird:0.20.3
+docker run wwood/lyrebird:0.20.3 -h
+</code></pre>
+<h2 id="installation-via-singularity-/-apptainer">Installation via Singularity / Apptainer</h2>
+<p>SingleM can be installed via <a href="https://sylabs.io/singularity/">Singularity</a> or <a href="https://apptainer.org">Apptainer</a>. After installing Singularity or Apptainer, run the following:</p>
+<pre><code>singularity pull docker://wwood/singlem:0.20.3
+</code></pre>
+<p>Test if it works by running</p>
+<pre><code>singularity run singlem_0.20.3.sif -h
+</code></pre>
+<p>If the sequence data to be analyzed is in the current working directory, SingleM <code>pipe</code> can be used like so:</p>
+<pre><code>singularity run -B `pwd`:`pwd` singlem_0.20.3.sif pipe --sequences \
+    `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
+</code></pre>
+<p>Two things to note:</p>
+<ol>
+<li>The default SingleM reference data is included in the docker image, so running <a href="/singlem/tools/data">singlem data</a> is not necessary for this installation method - you can jump straight to using <code>pipe</code>.</li>
+<li>You should not specify <code>singlem</code> in the command line, as this is automatic. Simply use e.g. <code>singularity run singlem_0.20.3.sif pipe -h</code>.</li>
+</ol>
+<p>A similar procedure is true for Lyrebird, except that the docker image is <a href="https://hub.docker.com/r/wwood/lyrebird">different</a>, so you need to run:</p>
+<pre><code>singularity pull docker://wwood/lyrebird:0.20.3
+singularity run -B `pwd`:`pwd` lyrebird_0.20.3.sif -h
+</code></pre>
+<h2 id="installation-via-pypi">Installation via PyPI</h2>
+<p>To install the Python libraries required for SingleM / Lyrebird:</p>
+<pre><code>pip install singlem
+</code></pre>
+<p>You may need super-user privileges.</p>
+<p>SingleM also has several non-Python dependencies. For typical singlem use-cases e.g. running <code>singlem pipe</code> or <code>singlem summarise</code>, you'll need to install the non-Python dependencies listed in the <code>[features.typical-non-python.dependencies]</code> section of the <a href="https://github.com/wwood/singlem/blob/main/pixi.toml"><code>pixi.toml</code></a> at GitHub. You'll also need to procure the reference data (the "metapackage"). See <a href="/singlem/tools/data">singlem data</a>.</p>
+<p>Using more advanced subcommands such as <code>singlem supplement</code> requires additional non-Python dependencies listed in the <code>[features.main.dependencies]</code> and <code>[features.dev.dependencies]</code> sections of the <a href="https://github.com/wwood/singlem/blob/main/pixi.toml"><code>pixi.toml</code></a> document.</p>
+<h2 id="installation-via-github,-with-pixi-dependency-management">Installation via Github, with pixi dependency management</h2>
+<p>SingleM can be installed from source together with its conda dependencies as follows. You will need to have <a href="https://pixi.sh">pixi</a> installed first.</p>
+<pre><code>git clone https://github.com/wwood/singlem
+cd singlem
+pixi shell
+
+singlem -h
+lyrebird -h
+</code></pre>
+<p>After this, you'll also need to procure the reference data (the "metapackage"). See <a href="/singlem/tools/data">singlem data</a>.</p>
+<p>This procedure also installs lyrebird, but the reference metapackage is different. See <a href="/singlem/tools/lyrebird_data">lyrebird data</a> for more information.</p>
+<h1 id="example-data">Example data</h1>
+<p>To test the main subcommand of SingleM, <a href="/singlem/tools/pipe">pipe</a> works, download a minimal dataset and generate a taxonomic profile like so:</p>
+<pre><code>wget 'https://github.com/wwood/singlem/raw/44e1f81404c12931742259088999290edbb271b3/test/data/methanobacteria/genomes/GCA_000309865.1_genomic.fna'
+singlem pipe -1 GCA_000309865.1_genomic.fna -p /dev/stdout
+</code></pre>
+<p>This should output a profile similar to the below. When tested, the <code>pipe</code> took a little less than 2 minutes:</p>
+<pre><code>sample  coverage        taxonomy
+GCA_000309865.1_genomic 0.39    Root; d__Archaea; p__Methanobacteriota; c__Methanobacteria; o__Methanobacteriales; f__Methanobacteriaceae; g__Methanobacterium
+08/06/2024 04:50:25 PM INFO: Finished condense
+</code></pre>
+<h1 id="containerised-singlem-installation-examples">Containerised SingleM installation examples</h1>
+<p>To ensure that the instructions here work, they have been tested in containerised environments. Logs of this procedure are available at <a href="https://github.com/wwood/singlem-installation">https://github.com/wwood/singlem-installation</a>.</p>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#installing-singlem'>Installing SingleM</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#installation-via-dockerhub'>Installation via DockerHub</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#installation-via-singularity-/-apptainer'>Installation via Singularity / Apptainer</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#installation-via-pypi'>Installation via PyPI</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#installation-via-github,-with-pixi-dependency-management'>Installation via Github, with pixi dependency management</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#example-data'>Example data</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#containerised-singlem-installation-examples'>Containerised SingleM installation examples</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1771818232"></script>
+
+    
+</body>
+
+</html>

@@ -1,0 +1,276 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>Lyrebird (phage profiling)</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1771818232" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1771818232"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1771818232";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a class="active" href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="lyrebird-(phage-profiling)">Lyrebird (phage profiling)</h1>
+<p><img src="./lyrebird_resized.png" alt="Lyrebird"></p>
+<p>Lyrebird is a module of SingleM specialized towards the profiling of viruses in metagenomic data. Currently, Lyrebird profiles dsDNA phages belonging to the <a href="https://en.wikipedia.org/wiki/Caudoviricetes">Caudoviricetes</a>.</p>
+<p>Lyrebird is similar to standard microbial SingleM, with some main conceptual differences: </p>
+<ol>
+<li>Since phage lack universal single copy marker genes, Lyrebird uses an expanded set of &gt;500 marker genes, and does not assume each of them is present in each phage. </li>
+<li>Lyrebird uses a more sensitive homology search method to recruit reads to marker gene windows. </li>
+<li>Lyrebird does not use GTDB taxonomy, but instead uses a custom taxonomy based on <a href="https://bitbucket.org/MAVERICLab/vcontact3/src/master/">vConTACT3</a> analysis of a custom collection of reference sequences derived from <a href="https://ictv.global/">ICTV</a> and <a href="https://doi.org/10.1093/nar/gkac1037">IMG-VR</a>.</li>
+</ol>
+<p>In testing, Lyrebird shows good ability to detect both known and novel phage, and to estimate their relative abundances. In metagenomic datasets, many more phage sequences are detected compared to standard contig-centric methods. A manuscript describing Lyrebird and its applications is in preparation.</p>
+<p>The following subcommands are available:</p>
+<ul>
+<li><a href="/singlem/tools/lyrebird_pipe">lyrebird pipe</a> - the main workflow which generates OTU tables and <a href="https://bitbucket.org/MAVERICLab/vcontact3/src/master/">vConTACT3-derived</a> taxonomic profiles.</li>
+<li><a href="/singlem/advanced/lyrebird_renew">lyrebird renew</a> - Given previously generated results, re-run the pipeline with a new reference sequence/taxonomy database.</li>
+<li><a href="/singlem/advanced/lyrebird_condense">lyrebird condense</a> - Given an OTU table, summarise the results into a taxonomic profile.</li>
+</ul>
+<h1 id="lyrebird-database-versions">Lyrebird database versions</h1>
+<p>Unlike standard SingleM, Lyrebird does not currently maintain backwards
+compatibility in its database. It uses a standard SingleM metapackage format,
+but the marker genes, window positions and taxonomy strings are specific to the
+Lyrebird database version, given the rapid changes in available phage genomes,
+marker gene databases and taxonomy. This means that the <code>renew</code> subcommand
+cannot be used to update the taxonomy of an archive OTU table generated with a previous version of the Lyrebird database.</p>
+<h2 id="v0.3.1">v0.3.1</h2>
+<p>In SingleM/Lyrebird v0.20.0, the default Lyrebird DB is v0.3.1.</p>
+<ul>
+<li>It improves on v0.3.0 by better removal of off-target sequences i.e. microbial homologues of the marker genes that were previously interpreted as being phage.</li>
+<li>It uses 762 marker genes, derived from PHROG v4.1 applied to phage genomes included in <a href="https://ictv.global/msl">ICTV Master Species List (MSL)</a> 38 or <a href="https://doi.org/10.1093/nar/gkac1037">IMG-VR</a> v4.1.</li>
+<li>It was built from 69,281 95% ANI-dereplicated phage genomes with CheckV completeness &gt;80%.</li>
+<li>69,405 (99%) of the dereplicated set had at least one marker gene.</li>
+<li>Including genomes without any marker genes, each genome had 13.6 marker genes on average.</li>
+<li>Taxonomy was assigned using <a href="https://bitbucket.org/MAVERICLab/vcontact3/src/master/">vConTACT3</a> v3.0.0.b65.</li>
+</ul>
+<h2 id="v0.3.0">v0.3.0</h2>
+<p>In SingleM/Lyrebird v0.19.0, the default Lyrebird DB was v0.3.0.</p>
+<ul>
+<li>It uses 642 marker genes, derived from PHROG v4.1 applied to phage genomes included in <a href="https://ictv.global/msl">ICTV Master Species List (MSL)</a> 38 or <a href="https://doi.org/10.1093/nar/gkac1037">IMG-VR</a> v4.1.</li>
+<li>It was built from 69,281 95% ANI-dereplicated phage genomes with CheckV completeness &gt;80%.</li>
+<li>65,384 (94%) of the dereplicated set had at least one marker gene.</li>
+<li>Including genomes without any marker genes, each genome had 5.3 marker genes on average.</li>
+<li>Taxonomy was assigned using <a href="https://bitbucket.org/MAVERICLab/vcontact3/src/master/">vConTACT3</a>.</li>
+</ul>
+<h1 id="faq">FAQ</h1>
+<h2 id="how-does-lyrebird-handle-prophages?">How does Lyrebird handle prophages?</h2>
+<p>Lyrebird does not attempt to differentiate between free phage and prophage in the community profiles it generates. Instead,  community profiles contain all phage sequences, regardless of whether they are free or integrated. This is due to the technical limitations of read-centric analysis, where an individual read may be derived from either a free phage or a prophage - determining which is challenging or potentially impossible, at least for short reads.</p>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#lyrebird-(phage-profiling)'>Lyrebird (phage profiling)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#lyrebird-database-versions'>Lyrebird database versions</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#v0.3.1'>v0.3.1</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#v0.3.0'>v0.3.0</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#faq'>FAQ</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#how-does-lyrebird-handle-prophages?'>How does Lyrebird handle prophages?</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1771818232"></script>
+
+    
+</body>
+
+</html>

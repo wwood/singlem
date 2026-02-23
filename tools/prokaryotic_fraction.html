@@ -1,0 +1,356 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>SingleM prokaryotic_fraction</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1771818232" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1771818232"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1771818232";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a class="active" href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="singlem-prokaryotic_fraction">singlem prokaryotic_fraction</h1>
+<p>The SingleM <code>prokaryotic_fraction</code> subcommand (previously called <code>microbial_fraction</code>) estimates the fraction of reads in a metagenome that are bacterial or archaeal, including their plasmids. The remaining fraction is either eukaryote- or phage-derived. We denote this fraction as the SingleM "prokaryotic fraction" of a metagenome, or its <em>SPF</em>.</p>
+<p>It can help prioritise samples for deeper sequencing, forecast how much sequencing is required for a given set of samples, and identify problematic steps in genome-resolved metagenomic pipelines, for instance.</p>
+<p>SingleM <code>prokaryotic_fraction</code> also estimates the average genome size (AGS) of prokaryotic cells in the sample.</p>
+<p>The main conceptual advantage of this method over other tools is that it does not require reference sequences of the non-prokaryotic genomes that may be present (e.g. those of an animal host). Instead, it uses a SingleM taxonomic profile of the metagenome to "add up" the components of the community which are prokaryotic. The remaining components are non-prokaryotic e.g. host, diet, or phage. </p>
+<p>Roughly, the number of prokaryotic bases is estimated by summing the genome sizes of each species/taxon after multiplying by their coverage in a taxonomic profile. The prokaryotic fraction is then calculated as the ratio of prokaryotic bases to the total metagenome size. It does not estimate which reads are prokaryotic, but merely what fraction of the reads are prokaryotic.</p>
+<h2 id="usage">Usage</h2>
+<p>To run <code>prokaryotic_fraction</code>, first run <code>pipe</code> on your metagenome.</p>
+<pre><code class="language-bash">$ singlem pipe --forward SRR9841429_1.fastq.gz \
+    --reverse SRR9841429_2.fastq.gz \
+    --threads 32 \
+    -p SRR9841429.profile
+</code></pre>
+<p>Then run <code>prokaryotic_fraction</code> on the profile.</p>
+<pre><code class="language-bash">singlem prokaryotic_fraction --forward SRR9841429_1.fastq.gz \
+    --reverse SRR9841429_2.fastq.gz \
+    -p SRR9841429.profile &gt;SRR9841429.spf.tsv
+</code></pre>
+<p>The output you get is a tab-separated values file containing (with some columns omitted):</p>
+<table><thead><tr><th>sample</th><th>bacterial_archaeal_bases</th><th>metagenome_size</th><th>read_fraction</th><th>..</th></tr></thead><tbody>
+<tr><td>SRR9841429_1</td><td>2059301599</td><td>2648177782</td><td>77.76</td><td>..</td></tr>
+</tbody></table>
+<p>So, for this sample, 77.76% of the reads are estimated to be prokaryotic. </p>
+<p>A full table is shown below for this one sample, transposed for formatting:</p>
+<table><thead><tr><th>header</th><th>value</th></tr></thead><tbody>
+<tr><td>sample</td><td>SRR9841429_1</td></tr>
+<tr><td>bacterial_archaeal_bases</td><td>2059301599</td></tr>
+<tr><td>metagenome_size</td><td>2648177782</td></tr>
+<tr><td>read_fraction</td><td>77.76</td></tr>
+<tr><td>average_bacterial_archaeal_genome_size</td><td>3448186</td></tr>
+<tr><td>warning</td><td></td></tr>
+<tr><td>domain_relative_abundance</td><td>1.10</td></tr>
+<tr><td>phylum_relative_abundance</td><td>0.65</td></tr>
+<tr><td>class_relative_abundance</td><td>1.72</td></tr>
+<tr><td>order_relative_abundance</td><td>0.54</td></tr>
+<tr><td>family_relative_abundance</td><td>1.03</td></tr>
+<tr><td>genus_relative_abundance</td><td>8.01</td></tr>
+<tr><td>species_relative_abundance</td><td>86.94</td></tr>
+</tbody></table>
+<p>This table tells us that:</p>
+<ol>
+<li>SingleM estimates 77.76% of the metagenome's reads are prokaryotic (the SPF).</li>
+<li>The total number of bases assigned to prokaryotic genomes is 2,059,301,599.</li>
+<li>The total number of bases in the metagenome is 2,648,177,782.</li>
+<li>The estimated average genome size of the prokaryotic cells in the sample is 3,448,186 bp.</li>
+<li>No warning about unreliability due to high prevalence of novel lineages was emitted (see below). The <code>warning</code> column is empty if no warning was emitted.</li>
+<li>1.10% of the profile is classified as domain level <em>and no further</em>. So 100-1.1=98.9% of the profile is classified to at least phylum level.</li>
+<li>0.65% of the profile is classified as phylum level <em>and no further</em>. So 100-1.1-0.65=98.25% of the profile is classified to at least class level.</li>
+<li>and so on down to species level. 86.94% of the profile is classified to species level.</li>
+</ol>
+<p>Note that the <code>read_fraction</code> and <code>relative_abundance</code> columns are percentages, i.e. 0.3 is 0.3%, not 30%. </p>
+<h2 id="warnings-and-limitations">Warnings and limitations</h2>
+<p>The method is least reliable in simple communities consisting of a small number of species that are missing from the reference database. The main challenge in these cases is that the genome sizes of novel species are hard to estimate accurately. Multiplying a coverage from the taxonomic profile against an uncertain genome length equals an uncertain number of bases assigned as prokaryotic.</p>
+<p>To detect such situations SingleM <code>prokaryotic_fraction</code> emits a warning when a sample's prokaryotic_fraction estimate could under- or overestimate the read fraction. Specifically, the warning is emitted when the 3 highest abundance lineages not classified to the species level would change the estimated read fraction of the sample by &gt;2% if their genome size is halved or doubled. Prokaryotic fractions are also capped at 100% since values greater than this are impossible, but the original value can be recovered from the output if you calculate <code>bacterial_archaeal_bases / metagenome_size</code>.</p>
+<p>One current limitation of the approach relates to multi-copy plasmids. In <code>prokaryotic_fraction</code>, the genome size of each prokaryotic species is estimated as the sum of the chromosome and plasmid sizes, since these are the sequences available for each genome. However, in a metagenome, a species' plasmid may occur in multiple copies per cell (e.g. if the plasmid is 'high copy number'). SingleM <code>prokaryotic_fraction</code> does not account for plasmid copy number, leading to an underestimation of the prokaryotic fraction when plasmids are multi-copy. However, we consider this to be a minor issue, since plasmids are typically small compared to chromosomes. The average genome size estimate is unaffected by this limitation since by definition each plasmid counts only once regardless of its copy number.</p>
+<h1 id="options">OPTIONS</h1>
+<h1 id="input">INPUT</h1>
+<p><strong>-p</strong>, <strong>--input-profile</strong> <em>INPUT_PROFILE</em></p>
+<p>Input taxonomic profile file [required]</p>
+<h1 id="read-information-[-1+-args-required-]">READ INFORMATION [1+ ARGS REQUIRED]</h1>
+<p><strong>-1</strong>, <strong>--forward</strong>, <strong>--reads</strong>, <strong>--sequences</strong> sequence_file [sequence_file ...]</p>
+<p>nucleotide read sequence(s) (forward or unpaired) to be searched.
+Can be FASTA or FASTQ format, GZIP-compressed or not. These must be
+the same ones that were used to generate the input profile.</p>
+<p><strong>-2</strong>, <strong>--reverse</strong> sequence_file [sequence_file ...]</p>
+<p>reverse reads to be searched. Can be FASTA or FASTQ format,
+GZIP-compressed or not. These must be the same reads that were used
+to generate the input profile.</p>
+<p><strong>--input-metagenome-sizes</strong> <em>INPUT_METAGENOME_SIZES</em></p>
+<p>TSV file with 'sample' and 'num_bases' as a header, where sample
+matches the input profile name, and num_reads is the total number
+(forward+reverse) of bases in the metagenome that was analysed with
+'pipe'. These must be the same reads that were used to generate
+the input profile.</p>
+<h1 id="database">DATABASE</h1>
+<p><strong>--taxon-genome-lengths-file</strong> <em>TAXON_GENOME_LENGTHS_FILE</em></p>
+<p>TSV file with 'rank' and 'genome_size' as headers [default: Use
+genome lengths from the default metapackage]</p>
+<p><strong>--metapackage</strong> <em>METAPACKAGE</em></p>
+<p>Metapackage containing genome lengths [default: Use genome lengths
+from the default metapackage]</p>
+<h1 id="other-options">OTHER OPTIONS</h1>
+<p><strong>--accept-missing-samples</strong></p>
+<p>If a sample is missing from the input-metagenome-sizes file, skip
+analysis of it without croaking.</p>
+<p><strong>--output-tsv</strong> <em>OUTPUT_TSV</em></p>
+<p>Output file [default: stdout]</p>
+<p><strong>--output-per-taxon-read-fractions</strong> <em>OUTPUT_PER_TAXON_READ_FRACTIONS</em></p>
+<p>Output a fraction for each taxon to this TSV [default: Do not
+output anything]</p>
+<h1 id="other-general-options">OTHER GENERAL OPTIONS</h1>
+<p><strong>--debug</strong></p>
+<p>output debug information</p>
+<p><strong>--version</strong></p>
+<p>output version information and quit</p>
+<p><strong>--quiet</strong></p>
+<p>only output errors</p>
+<p><strong>--full-help</strong></p>
+<p>print longer help message</p>
+<p><strong>--full-help-roff</strong></p>
+<p>print longer help message in ROFF (manpage) format</p>
+<h1 id="authors">AUTHORS</h1>
+<blockquote>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
+Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+</code></pre>
+</blockquote>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#singlem-prokaryotic_fraction'>singlem prokaryotic_fraction</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#usage'>Usage</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#warnings-and-limitations'>Warnings and limitations</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#options'>OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#input'>INPUT</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#read-information-[-1+-args-required-]'>READ INFORMATION [1+ ARGS REQUIRED]</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#database'>DATABASE</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#other-options'>OTHER OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#other-general-options'>OTHER GENERAL OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#authors'>AUTHORS</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1771818232"></script>
+
+    
+</body>
+
+</html>

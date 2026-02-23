@@ -1,0 +1,449 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>Lyrebird pipe</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1771818232"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1771818232" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1771818232"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1771818232";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a class="active" href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="lyrebird-pipe">lyrebird pipe</h1>
+<p><strong>TLDR</strong>: A viral taxonomic overview of your community can be obtained like so:</p>
+<pre><code>lyrebird pipe -1 &lt;fastq_or_fasta1&gt; -2 &lt;fastq_or_fasta2&gt; -p \
+   &lt;output.profile.tsv&gt;
+</code></pre>
+<p>To further convert the generated taxonomic profile to other formats that might be more convenient, see SingleM <a href="/singlem/tools/summarise"><code>summarise</code></a>.</p>
+<h2 id="algorithm-details">Algorithm details</h2>
+<p><strong>Details</strong>: In its most common usage, the Lyrebird <code>pipe</code> subcommand takes as input raw metagenomic reads and outputs a taxonomic profile. It can also take as input whole genomes (or contigs), and can output a table of OTUs. Note that taxonomic profiles are generated from OTU tables, they are <a href="/singlem/#glossary">not the same thing</a>.</p>
+<p><code>pipe</code> performs three steps:</p>
+<ol>
+<li>Find discrete operational taxonomic units (OTUs) from a shotgun metagenome</li>
+<li>Assign taxonomy to marker-specific OTU tables</li>
+<li>Convert OTU tables into a overall taxonomic profile</li>
+</ol>
+<p>Workflow for the first 2 steps:</p>
+<p><img src="/singlem/singlem_pipe_v2.svg" alt="steps 1 and 2"></p>
+<p>In the 1st step, reads that encode conserved single copy marker genes are found. Lyrebird specifically finds reads which cover short highly conserved sections ("<em>windows</em>") within those genes. In most species, these windows are 20 amino acids encoded by 60 nucleotides - in rare cases there are inserts or deletions. Sequences covering those small sections are OTU sequences, and these OTU sequences exist independent of taxonomy. By default, Lyrebird currently uses 630 viral single copy marker genes.</p>
+<p>In the 2nd step, taxonomy is assigned based on comparing the nucleotide sequence of the window to GTDB species representatives' window sequences. If none are similar enough (i.e. within 96.7% identity or 2bp of the 60bp window), then diamond blastx is used instead.</p>
+<p>Finally, in the 3rd step, the set of window sequences (i.e. a metagenome's OTU table) is converted into a taxonomic profile, which describes the amount of the microbial community belonging to each species or higher level taxon. This is achieved by considering the OTUs from the 59 different marker genes holistically, using trimmed means and expectation maximisation in a somewhat complicated overall algorithm "<em>condense</em>":</p>
+<p><img src="/singlem/singlem_condense_v2.svg" alt="step 3"></p>
+<p>Please use <strong>raw</strong> metagenomic reads, not quality trimmed reads. Quality trimming with e.g. <a href="https://doi.org/10.1093/bioinformatics/btu170">Trimmomatic</a> reads often makes them too short for Lyrebird to use. Adapter trimming is unlikely to be detrimental, but is not needed.</p>
+<p>The <a href="/singlem/tools/pipe#examples">examples section</a> may be of use.</p>
+<p>For a more detailed explanation of the Lyrebird pipeline, see the Lyrebird paper (coming soon).</p>
+<h1 id="common-options">COMMON OPTIONS</h1>
+<p><strong>-1</strong>, <strong>--forward</strong>, <strong>--reads</strong>, <strong>--sequences</strong> sequence_file [sequence_file ...]</p>
+<p>nucleotide read sequence(s) (forward or unpaired) to be searched.
+Can be FASTA or FASTQ format, GZIP-compressed or not, short or long
+(but Nanopore &gt;=10.4.1 or PacBio HiFi reads recommended).</p>
+<p><strong>-2</strong>, <strong>--reverse</strong> sequence_file [sequence_file ...]</p>
+<p>reverse reads to be searched. Can be FASTA or FASTQ format,
+GZIP-compressed or not.</p>
+<p><strong>-f</strong>, <strong>--genome-fasta-files</strong> PATH [PATH ...]</p>
+<p>Path(s) to genome FASTA files. These are processed like input given
+with --forward, but use higher default values for
+--min-taxon-coverage and --min-orf-length.</p>
+<p><strong>-d</strong>, <strong>--genome-fasta-directory</strong> PATH</p>
+<p>Directory containing genome FASTA files. Treated identically to
+--forward input with higher default values for
+--min-taxon-coverage and --min-orf-length.</p>
+<p><strong>--genome-fasta-list</strong> PATH</p>
+<p>File containing genome FASTA paths, one per line. Behaviour matches
+--forward with higher default values for --min-taxon-coverage and
+--min-orf-length.</p>
+<p><strong>-x</strong>, <strong>--genome-fasta-extension</strong> EXT</p>
+<p>File extension of genomes in the directory specified with
+-d/--genome-fasta-directory. [default: fna]</p>
+<p><strong>-p</strong>, <strong>--taxonomic-profile</strong> FILE</p>
+<p>output a 'condensed' taxonomic profile for each sample based on
+the OTU table. Taxonomic profiles output can be further converted to
+other formats using singlem summarise.</p>
+<p><strong>--taxonomic-profile-krona</strong> FILE</p>
+<p>output a 'condensed' taxonomic profile for each sample based on
+the OTU table</p>
+<p><strong>--otu-table</strong> filename</p>
+<p>output OTU table</p>
+<p><strong>--threads</strong> num_threads</p>
+<p>number of CPUS to use [default: 1]</p>
+<p><strong>--assignment-method</strong> {smafa_naive_then_diamond,scann_naive_then_diamond,annoy_then_diamond,scann_then_diamond,diamond,diamond_example,annoy,pplacer}</p>
+<p>Method of assigning taxonomy to OTUs and taxonomic profiles
+[default: smafa_naive_then_diamond]</p>
+<table><thead><tr><th align="left">Method</th><th align="left">Description</th></tr></thead><tbody>
+<tr><td align="left">smafa_naive_then_diamond</td><td align="left">Search for the most similar window sequences &lt;= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU.</td></tr>
+<tr><td align="left">scann_naive_then_diamond</td><td align="left">Search for the most similar window sequences &lt;= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU.</td></tr>
+<tr><td align="left">annoy_then_diamond</td><td align="left">Same as scann_naive_then_diamond, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.</td></tr>
+<tr><td align="left">scann_then_diamond</td><td align="left">Same as scann_naive_then_diamond, except search using SCANN rather than using brute force. Requires a non-standard metapackage.</td></tr>
+<tr><td align="left">diamond</td><td align="left">DIAMOND blastx best hit(s) of all reads from each OTU.</td></tr>
+<tr><td align="left">diamond_example</td><td align="left">DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy.</td></tr>
+<tr><td align="left">annoy</td><td align="left">Search for the most similar window sequences &lt;= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage.</td></tr>
+<tr><td align="left">pplacer</td><td align="left">Use pplacer to assign taxonomy of each read in each OTU. Requires a non-standard metapackage.</td></tr>
+</tbody></table>
+<p><strong>--output-extras</strong></p>
+<p>give extra output for each sequence identified (e.g. the read(s)
+each OTU was generated from) in the output OTU table [default: not
+set]</p>
+<h1 id="less-common-options">LESS COMMON OPTIONS</h1>
+<p><strong>--archive-otu-table</strong> filename</p>
+<p>output OTU table in archive format for making DBs etc. [default:
+unused]</p>
+<p><strong>--metapackage</strong> <em>METAPACKAGE</em></p>
+<p>Set of SingleM packages to use [default: use the default set]</p>
+<p><strong>--sra-files</strong> sra_file [sra_file ...]</p>
+<p>"sra" format files (usually from NCBI SRA) to be searched</p>
+<p><strong>--read-chunk-size</strong> num_reads</p>
+<p>Size chunk to process at a time (in number of reads). Requires
+--sra-files.</p>
+<p><strong>--read-chunk-number</strong> chunk_number</p>
+<p>Process only this specific chunk number (1-based index). Requires
+--sra-files.</p>
+<p><strong>--output-jplace</strong> filename</p>
+<p>Output a jplace format file for each singlem package to a file
+starting with this string, each with one entry per OTU. Requires
+'pplacer' as the --assignment_method [default: unused]</p>
+<p><strong>--singlem-packages</strong> <em>SINGLEM_PACKAGES</em> [<em>SINGLEM_PACKAGES</em> ...]</p>
+<p>SingleM packages to use [default: use the set from the default
+metapackage]</p>
+<p><strong>--assignment-singlem-db</strong> <em>ASSIGNMENT_SINGLEM_DB</em></p>
+<p>Use this SingleM DB when assigning taxonomy [default: not set, use
+the default]</p>
+<p><strong>--diamond-taxonomy-assignment-performance-parameters</strong> <em>DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS</em></p>
+<p>Performance-type arguments to use when calling 'diamond blastx'
+during the taxonomy assignment step. [default: use setting defined
+in metapackage when set, otherwise use '--block-size 0.5
+--target-indexed -c1']</p>
+<p><strong>--evalue</strong> <em>EVALUE</em></p>
+<p>HMMSEARCH e-value cutoff to use for sequence gathering [default:
+1e-05]</p>
+<p><strong>--min-orf-length</strong> length</p>
+<p>When predicting ORFs require this many base pairs uninterrupted by a
+stop codon [default: 72 for reads, 300 for genomes]</p>
+<p><strong>--restrict-read-length</strong> length</p>
+<p>Only use this many base pairs at the start of each sequence searched
+[default: no restriction]</p>
+<p><strong>--translation-table</strong> number</p>
+<p>Codon table for translation. By default, translation table 4 is
+used, which is the same as translation table 11 (the usual
+bacterial/archaeal one), except that the TGA codon is translated as
+tryptophan, not as a stop codon. Using table 4 means that the
+minority of organisms which use table 4 are not biased against,
+without a significant effect on the majority of bacteria and archaea
+that use table 11. See
+http://www.ncbi.nlm.nih.gov/Taxonomy/taxonomyhome.html/index.cgi?chapter=tgencodes
+for details on specific tables. [default: 4]</p>
+<p><strong>--filter-minimum-protein</strong> length</p>
+<p>Ignore reads aligning in less than this many positions to each
+protein HMM when using --no-diamond-prefilter [default: 24]</p>
+<p><strong>--max-species-divergence</strong> INT</p>
+<p>Maximum number of different bases acids to allow between a sequence
+and the best hit in the database so that it is assigned to the
+species level. [default: 2]</p>
+<p><strong>--exclude-off-target-hits</strong></p>
+<p>Exclude hits that are not in the target domain of each SingleM
+package</p>
+<p><strong>--min-taxon-coverage</strong> FLOAT</p>
+<p>Minimum coverage to report in a taxonomic profile. [default: 0.35
+for reads, 0.1 for genomes]</p>
+<p><strong>--working-directory</strong> directory</p>
+<p>use intermediate working directory at a specified location, and do
+not delete it upon completion [default: not set, use a temporary
+directory]</p>
+<p><strong>--working-directory-dev-shm</strong></p>
+<p>use an intermediate results temporary working directory in /dev/shm
+rather than the default [default: the usual temporary working
+directory, currently /tmp]</p>
+<p><strong>--force</strong></p>
+<p>overwrite working directory if required [default: not set]</p>
+<p><strong>--filter-minimum-nucleotide</strong> length</p>
+<p>Ignore reads aligning in less than this many positions to each
+nucleotide HMM [default: 72]</p>
+<p><strong>--include-inserts</strong></p>
+<p>print the entirety of the sequences in the OTU table, not just the
+aligned nucleotides [default: not set]</p>
+<p><strong>--known-otu-tables</strong> <em>KNOWN_OTU_TABLES</em> [<em>KNOWN_OTU_TABLES</em> ...]</p>
+<p>OTU tables previously generated with trusted taxonomies for each
+sequence [default: unused]</p>
+<p><strong>--no-assign-taxonomy</strong></p>
+<p>Do not assign any taxonomy except for those already known [default:
+not set]</p>
+<p><strong>--known-sequence-taxonomy</strong> FILE</p>
+<p>A 2-column "sequence&lt;tab&gt;taxonomy" file specifying some
+sequences that have known taxonomy [default: unused]</p>
+<p><strong>--no-diamond-prefilter</strong></p>
+<p>Do not parse sequence data through DIAMOND blastx using a database
+constructed from the set of singlem packages. Should be used with
+--hmmsearch-package-assignment. NOTE: ignored for nucleotide
+packages [default: protein packages: use the prefilter, nucleotide
+packages: do not use the prefilter]</p>
+<p><strong>--diamond-prefilter-performance-parameters</strong> <em>DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS</em></p>
+<p>Performance-type arguments to use when calling 'diamond blastx'
+during the prefiltering. By default, SingleM should run in &lt;4GB of
+RAM except in very large (&gt;100Gbp) metagenomes. [default: use
+setting defined in metapackage when set, otherwise use
+'--block-size 0.5 --target-indexed -c1']</p>
+<p><strong>--hmmsearch-package-assignment</strong></p>
+<p>Assign each sequence to a SingleM package using HMMSEARCH, and a
+sequence may then be assigned to multiple packages. [default: not
+set]</p>
+<p><strong>--diamond-prefilter-db</strong> <em>DIAMOND_PREFILTER_DB</em></p>
+<p>Use this DB when running DIAMOND prefilter [default: use the one in
+the metapackage, or generate one from the SingleM packages]</p>
+<p><strong>--assignment-threads</strong> <em>ASSIGNMENT_THREADS</em></p>
+<p>Use this many processes in parallel while assigning taxonomy
+[default: 1]</p>
+<p><strong>--sleep-after-mkfifo</strong> <em>SLEEP_AFTER_MKFIFO</em></p>
+<p>Sleep for this many seconds after running os.mkfifo [default:
+None]</p>
+<h1 id="other-general-options">OTHER GENERAL OPTIONS</h1>
+<p><strong>--debug</strong></p>
+<p>output debug information</p>
+<p><strong>--version</strong></p>
+<p>output version information and quit</p>
+<p><strong>--quiet</strong></p>
+<p>only output errors</p>
+<p><strong>--full-help</strong></p>
+<p>print longer help message</p>
+<p><strong>--full-help-roff</strong></p>
+<p>print longer help message in ROFF (manpage) format</p>
+<h1 id="authors">AUTHORS</h1>
+<blockquote>
+<pre><code>Ben J. Woodcroft, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Samuel Aroney, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+Raphael Eisenhofer, Centre for Evolutionary Hologenomics, University of Copenhagen, Denmark
+Rossen Zhao, Centre for Microbiome Research, School of Biomedical Sciences, Faculty of Health, Queensland University of Technology
+</code></pre>
+</blockquote>
+<h1 id="examples">EXAMPLES</h1>
+<p>Get a taxonomic profile for dsDNA phages from paired read input:</p>
+<p><strong>$ lyrebird pipe -1 &lt;fastq_or_fasta1&gt; -2 &lt;fastq_or_fasta2&gt; -p
+&lt;output.profile.tsv&gt;</strong></p>
+<p>Get a taxonomic profile Krona diagram for dsDNA phages from single read input:</p>
+<p><strong>$ lyrebird pipe -i &lt;fastq_or_fasta&gt; --taxonomic-profile-krona
+&lt;output.profile.html&gt;</strong></p>
+<p>Gather an OTU table (per marker sequence groupings) from paired reads:</p>
+<p><strong>$ lyrebird pipe -1 &lt;fastq_or_fasta1&gt; -2 &lt;fastq_or_fasta2&gt;
+--otu-table &lt;output.otu_table.tsv&gt;</strong></p>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#lyrebird-pipe'>lyrebird pipe</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#algorithm-details'>Algorithm details</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#common-options'>COMMON OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#less-common-options'>LESS COMMON OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#other-general-options'>OTHER GENERAL OPTIONS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#authors'>AUTHORS</a>
+                        </li>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#examples'>EXAMPLES</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1771818232"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1771818232"></script>
+
+    
+</body>
+
+</html>
