@@ -6,7 +6,7 @@ SingleM is a tool for profiling shotgun metagenomes (short- and long-read) by ta
 
 The primary subcommand for taxonomic profiling is `singlem pipe`.
 
-Skill corresponds to SingleM vSINGLEM_VERSION.
+Skill corresponds to SingleM v[RELEASE_TAG].
 
 ---
 
@@ -15,7 +15,7 @@ Skill corresponds to SingleM vSINGLEM_VERSION.
 ### Conda (recommended)
 ```bash
 conda create -c conda-forge -c bioconda --override-channels \
-  --name singlem 'singlem>=SINGLEM_VERSION'
+  --name singlem 'singlem>=[RELEASE_TAG]'
 conda activate singlem
 
 # Download reference data (metapackage) — required after conda install
@@ -24,16 +24,16 @@ singlem data --output-directory /path/to/metapackage
 
 ### Docker (includes reference data — no separate data download needed)
 ```bash
-docker pull wwood/singlem:SINGLEM_VERSION
+docker pull wwood/singlem:[RELEASE_TAG]
 # Run pipe directly:
-docker run -v `pwd`:`pwd` wwood/singlem:SINGLEM_VERSION pipe \
+docker run -v `pwd`:`pwd` wwood/singlem:[RELEASE_TAG] pipe \
   --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 
 ### Singularity/Apptainer
 ```bash
-singularity pull docker://wwood/singlem:SINGLEM_VERSION
-singularity run -B `pwd`:`pwd` singlem_SINGLEM_VERSION.sif pipe \
+singularity pull docker://wwood/singlem:[RELEASE_TAG]
+singularity run -B `pwd`:`pwd` singlem_[RELEASE_TAG].sif pipe \
   --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
 ```
 

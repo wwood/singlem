@@ -43,85 +43,86 @@ if __name__ == '__main__':
     # Change to parent directory, i.e. the root of the repo
     os.chdir(dirname(dirname(__file__)))
 
-    # # Update [RELEASE_TAG] in installation.md
-    # version = args.version
-    # logging.info("Updating [RELEASE_TAG] in Installation.md to {}".format(version))
-    # with open('docs/Installation.md.in') as f:
-    #     installation = f.read()
-    # installation = installation.replace('[RELEASE_TAG]', version)
-    # with open('docs/Installation.md', 'w') as f:
-    #     f.write(installation)
-    # logging.info("Done updating [RELEASE_TAG] in Installation.md to {}".format(version))
+    # Update [RELEASE_TAG] in installation.md
+    version = args.version
+    logging.info("Updating [RELEASE_TAG] in Installation.md to {}".format(version))
+    with open('docs/Installation.md.in') as f:
+        installation = f.read()
+    installation = installation.replace('[RELEASE_TAG]', version)
+    with open('docs/Installation.md', 'w') as f:
+        f.write(installation)
+    logging.info("Done updating [RELEASE_TAG] in Installation.md to {}".format(version))
 
     # Update [RELEASE_TAG] in SKILL.md
-    version = args.version
-    logging.info("Updating [RELEASE_TAG] in SKILL.md to {}".format(version))
-    with open('docs/SKILL.md.in') as f:
-        skill = f.read()
-    skill = skill.replace('[RELEASE_TAG]', version)
-    with open('docs/SKILL.md', 'w') as f:
-        f.write(skill)
-    logging.info("Done updating [RELEASE_TAG] in SKILL.md to {}".format(version))
+    # raise Exception("SKILL.md needs to checked or moved to autogeneration")
+    # version = args.version
+    # logging.info("Updating [RELEASE_TAG] in SKILL.md to {}".format(version))
+    # with open('docs/SKILL.md.in') as f:
+    #     skill = f.read()
+    # skill = skill.replace('[RELEASE_TAG]', version)
+    # with open('docs/SKILL.md', 'w') as f:
+    #     f.write(skill)
+    # logging.info("Done updating [RELEASE_TAG] in SKILL.md to {}".format(version))
 
-    # subdir_and_commands = [
-    #     ['tools', ['data','pipe','appraise','summarise','renew','supplement','prokaryotic_fraction',
-    #                ['lyrebird','data'], ['lyrebird','pipe']]],
-    #     ['advanced', ['makedb','query','condense','seqs','create','metapackage','regenerate',
-    #                   ['lyrebird','condense'], ['lyrebird','renew']]]
-    # ]
+    subdir_and_commands = [
+        ['tools', ['data','pipe','appraise','summarise','renew','supplement','prokaryotic_fraction',
+                   ['lyrebird','data'], ['lyrebird','pipe']]],
+        ['advanced', ['makedb','query','condense','seqs','create','metapackage','regenerate',
+                      ['lyrebird','condense'], ['lyrebird','renew']]]
+    ]
 
-    # for subdir, commands in subdir_and_commands:
-    #     for subcommand in commands:
-    #         if isinstance(subcommand, list):
-    #             exe, subcommand = subcommand
-    #         else:
-    #             exe = 'singlem'
-    #         cmd_stub = "pixi run {} {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(exe, subcommand)
-    #         man_usage = extern.run(cmd_stub)
+    for subdir, commands in subdir_and_commands:
+        for subcommand in commands:
+            if isinstance(subcommand, list):
+                exe, subcommand = subcommand
+            else:
+                exe = 'singlem'
+            cmd_stub = "pixi run {} {} --full-help-roff |pandoc - -t markdown-multiline_tables-simple_tables-grid_tables -f man |sed 's/\\\\\\[/[/g; s/\\\\\\]/]/g; s/^: //'".format(exe, subcommand)
+            man_usage = extern.run(cmd_stub)
 
-    #         if exe == 'singlem':
-    #             subcommand_prelude = 'docs/preludes/{}_prelude.md'.format(subcommand)
-    #             final_path = 'docs/{}/{}.md'.format(subdir, subcommand)
-    #             title = 'SingleM'
-    #         else:
-    #             subcommand_prelude = 'docs/preludes/{}_{}_prelude.md'.format(exe, subcommand)
-    #             final_path = 'docs/{}/{}_{}.md'.format(subdir, exe, subcommand)
-    #             title = exe.capitalize()
-    #         if os.path.exists(subcommand_prelude):
-    #             # Remove everything before the options section
-    #             splitters = {
-    #                 'pipe': 'COMMON OPTIONS',
-    #                 'prokaryotic_fraction': 'OPTIONS',
-    #                 'data': 'OPTIONS',
-    #                 'summarise': 'TAXONOMIC PROFILE INPUT',
-    #                 'makedb': 'REQUIRED ARGUMENTS',
-    #                 'appraise': 'INPUT OTU TABLE OPTIONS',
-    #                 'seqs': 'OPTIONS',
-    #                 'metapackage': 'OPTIONS',
-    #                 'supplement': 'OPTIONS',
-    #             }
-    #             logging.info("For ROFF for command {}, removing everything before '{}'".format(
-    #                 subcommand, splitters[subcommand]))
-    #             man_usage = remove_before(splitters[subcommand], man_usage)
+            if exe == 'singlem':
+                subcommand_prelude = 'docs/preludes/{}_prelude.md'.format(subcommand)
+                final_path = 'docs/{}/{}.md'.format(subdir, subcommand)
+                title = 'SingleM'
+            else:
+                subcommand_prelude = 'docs/preludes/{}_{}_prelude.md'.format(exe, subcommand)
+                final_path = 'docs/{}/{}_{}.md'.format(subdir, exe, subcommand)
+                title = exe.capitalize()
+            if os.path.exists(subcommand_prelude):
+                # Remove everything before the options section
+                splitters = {
+                    'pipe': 'COMMON OPTIONS',
+                    'prokaryotic_fraction': 'OPTIONS',
+                    'data': 'OPTIONS',
+                    'summarise': 'TAXONOMIC PROFILE INPUT',
+                    'makedb': 'REQUIRED ARGUMENTS',
+                    'appraise': 'INPUT OTU TABLE OPTIONS',
+                    'seqs': 'OPTIONS',
+                    'metapackage': 'OPTIONS',
+                    'supplement': 'OPTIONS',
+                }
+                logging.info("For ROFF for command {}, removing everything before '{}'".format(
+                    subcommand, splitters[subcommand]))
+                man_usage = remove_before(splitters[subcommand], man_usage)
 
-    #             with open(final_path, 'w') as f:
-    #                 f.write('---\n')
-    #                 f.write('title: {} {}\n'.format(title, subcommand))
-    #                 f.write('---\n')
-    #                 f.write('# {} {}\n'.format(exe, subcommand))
+                with open(final_path, 'w') as f:
+                    f.write('---\n')
+                    f.write('title: {} {}\n'.format(title, subcommand))
+                    f.write('---\n')
+                    f.write('# {} {}\n'.format(exe, subcommand))
 
-    #                 with open(subcommand_prelude) as f2:
-    #                     f.write(f2.read())
+                    with open(subcommand_prelude) as f2:
+                        f.write(f2.read())
 
-    #                 f.write(man_usage)
-    #         else:
-    #             man_usage = remove_before('DESCRIPTION', man_usage)
-    #             with open(final_path, 'w') as f:
-    #                 f.write('---\n')
-    #                 f.write('title: {} {}\n'.format(title, subcommand))
-    #                 f.write('---\n')
-    #                 f.write('# {} {}\n'.format(exe, subcommand))
+                    f.write(man_usage)
+            else:
+                man_usage = remove_before('DESCRIPTION', man_usage)
+                with open(final_path, 'w') as f:
+                    f.write('---\n')
+                    f.write('title: {} {}\n'.format(title, subcommand))
+                    f.write('---\n')
+                    f.write('# {} {}\n'.format(exe, subcommand))
 
-    #                 f.write(man_usage)
+                    f.write(man_usage)
 
-    # extern.run("doctave build")
+    extern.run("doctave build")
