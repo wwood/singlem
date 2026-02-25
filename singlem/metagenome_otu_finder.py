@@ -99,7 +99,7 @@ class MetagenomeOtuFinder:
 
     def _find_lower_case_columns(self, protein_alignment):
         lower_cases = [False]*len(protein_alignment[0].seq)
-        lower_case_chars = re.compile(r'[a-z]')
+        lower_case_chars = re.compile(r'[a-z\*]')
         for pro in protein_alignment:
             for i, aa in enumerate(pro.seq):
                 if lower_case_chars.match(aa):
