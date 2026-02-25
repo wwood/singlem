@@ -78,7 +78,7 @@ class Condenser:
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
 
         markers = {} # set of markers used to the domains they target
-        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
+        target_domains = {}
         
         for spkg in metapackage.singlem_packages:
             # ensure v3 packages
@@ -88,16 +88,9 @@ class Condenser:
             markers[marker_name] = spkg.target_domains()
             # count number of markers for each domain
             for domain in spkg.target_domains():
-                if domain == "Archaea":
-                    target_domains["Archaea"] += [marker_name]
-                elif domain == "Bacteria":
-                    target_domains["Bacteria"] += [marker_name]
-                elif domain == "Eukaryota":
-                    target_domains["Eukaryota"] += [marker_name]
-                elif domain == "Viruses":
-                    target_domains["Viruses"] += [marker_name]
-                else:
-                    raise Exception("Domain: {} not supported.".format(domain))
+                if domain not in target_domains:
+                    target_domains[domain] = []
+                target_domains[domain].append(marker_name)
                 
         for domain in target_domains:
             if target_domains[domain] in [1, 2]:
@@ -199,6 +192,8 @@ class Condenser:
 
         num_otus_changed = 0
         sequence_ids = set()
+
+        target_domain = [metapackage.singlem_packages[i].target_domains() for i in range(len(metapackage.singlem_packages))]
         # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
@@ -222,8 +217,15 @@ class Condenser:
                     for seq_id in seq_id_list:
                         taxon_name = sequence_id_to_taxon[seq_id]
                         if not taxon_name[-2].startswith('g__'):
-                            if not taxon_name[0] == 'd__Eukaryota':
-                                raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
+                            if not taxon_name[0] in target_domain:
+                                # # add one check to ensure the target taxon to be d__Eukaryota for all metapackages.
+                                # if all("Eukaryota" in domain for domain in target_domain):
+                                #     # then the bacterial/archaeal sequences are off-target this time. 
+                                #     logging.debug("Ignoring off-target prokaryotic taxon {}".format(taxon_name))
+                                #     continue
+                                # else:
+                                #     raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
+                                continue
                             else:
                                 # This can happen when taxonomy is overall
                                 # Archaea so not previously filtered out, but
