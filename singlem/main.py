@@ -91,7 +91,7 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                                     metavar='EXT',
                                     help='File extension of genomes in the directory specified with -d/--genome-fasta-directory. [default: fna]',
                                     default='fna')
-        argument_group.add_argument('--sra-files',
+        sequence_input_group.add_argument('--sra-files',
                 nargs='+',
                 metavar='sra_file',
                 help='"sra" format files (usually from NCBI SRA) to be searched')
