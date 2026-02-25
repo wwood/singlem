@@ -91,6 +91,10 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                                     metavar='EXT',
                                     help='File extension of genomes in the directory specified with -d/--genome-fasta-directory. [default: fna]',
                                     default='fna')
+        argument_group.add_argument('--sra-files',
+                nargs='+',
+                metavar='sra_file',
+                help='"sra" format files (usually from NCBI SRA) to be searched')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
@@ -129,10 +133,6 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
 def add_less_common_pipe_arguments(argument_group, extra_args=False):
     argument_group.add_argument('--archive-otu-table', metavar='filename', help='output OTU table in archive format for making DBs etc. [default: unused]')
     argument_group.add_argument('--metapackage', help='Set of SingleM packages to use [default: use the default set]')
-    argument_group.add_argument('--sra-files',
-            nargs='+',
-            metavar='sra_file',
-            help='"sra" format files (usually from NCBI SRA) to be searched')
     argument_group.add_argument('--read-chunk-size',
             type=int,
             metavar='num_reads',
