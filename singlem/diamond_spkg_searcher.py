@@ -1,5 +1,6 @@
 import os
 import logging
+import extern
 
 from subprocess import Popen, PIPE
 
@@ -175,12 +176,12 @@ class DiamondSpkgSearcher:
                 stderr_output = proc.stderr.read()
                 if stderr_output:
                     logging.error(f"DIAMOND stderr: {stderr_output}")
-                    raise Exception("DIAMOND failed")
                 
                 # check for non-zero return code
                 return_code = proc.wait()
                 if return_code != 0:
-                    raise Exception(f"DIAMOND failed with return code {return_code}, but no stderr output")
+                    # We use extern ExternCalledProcessError here because it is what the rest of the code is designed to catch, but we have to construct it ourselves here because we're using Popen directly.
+                    raise extern.ExternCalledProcessError(proc, cmd)
 
             diamond_results.append(DiamondSearchResult(fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths))
 

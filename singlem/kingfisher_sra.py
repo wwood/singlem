@@ -7,6 +7,8 @@ from .pipe_sequence_extractor import ExtractedReads, ExtractedReadSet
 
 class KingfisherSra:
     def _split_regex(self):
+        return re.compile(r'^(.*)\.([012])••')
+    def _split_regex2(self):
         return re.compile(r'^(.*)\.([012])$')
 
     def split_fasta(self, fasta_path, output_directory):
@@ -21,7 +23,7 @@ class KingfisherSra:
         forward_output = None
         reverse_output = None
 
-        regex = self._split_regex()
+        regex = self._split_regex2()
         forward_count = 0
         reverse_count = 0
 
