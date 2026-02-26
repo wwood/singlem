@@ -450,22 +450,9 @@ class SearchPipe:
                 # Extract paths to the full qseqs
                 if input_sra_files:
                     # The full query sequences file from SRA inputs contains
-                    # forward and reverse reads together, so we split the file
-                    # for further downstream processing
-
-                    # Run 2 different functions to do similar things as I'm a
-                    # bit lazy to put them together.
-                    analysing_pairs, extracted_reads = KingfisherSra().split_extracted_reads(extracted_reads)
-
-                    diamond_forward_qseqs = {}
-                    if analysing_pairs:
-                        diamond_reverse_qseqs = {}
-                    for r in diamond_forward_search_results:
-                        mixed_qseq_path = r.full_query_sequences_file
-                        (fwd, rev) = KingfisherSra().split_fasta(mixed_qseq_path, tempfile_directory)
-                        diamond_forward_qseqs[r.sample_name()] = fwd
-                        if analysing_pairs:
-                            diamond_reverse_qseqs[r.sample_name()] = rev
+                    # forward and reverse reads together, so we split them
+                    analysing_pairs, extracted_reads, diamond_forward_qseqs, diamond_reverse_qseqs = \
+                        KingfisherSra().split_sra_reads(extracted_reads, diamond_forward_search_results, tempfile_directory)
                 else:
                     diamond_forward_qseqs = {r.sample_name(): r.full_query_sequences_file for r in diamond_forward_search_results}
                     if analysing_pairs:
