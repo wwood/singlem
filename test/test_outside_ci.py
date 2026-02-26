@@ -27,6 +27,8 @@ import sys
 import extern
 import re
 import tempfile
+import json
+import math
 import polars as pl
 
 import pytest
@@ -167,6 +169,36 @@ class Tests(unittest.TestCase):
     #             old_taxon_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0]) 
     #         self.assertTrue(
     #             new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.8e6)
+
+    def _assert_archive_otu_tables_equal(self, expected, observed):
+        '''Compare two archive OTU table dicts, allowing minor floating-point differences in coverage values.'''
+        self.assertEqual(expected['version'], observed['version'])
+        self.assertEqual(expected['fields'], observed['fields'])
+        self.assertEqual(expected['alignment_hmm_sha256s'], observed['alignment_hmm_sha256s'])
+        self.assertEqual(expected['singlem_package_sha256s'], observed['singlem_package_sha256s'])
+        coverage_idx = expected['fields'].index('coverage')
+        def otu_key(otu):
+            return (otu[0], otu[1], otu[2])
+        exp_otus = sorted(expected['otus'], key=otu_key)
+        obs_otus = sorted(observed['otus'], key=otu_key)
+        self.assertEqual(len(exp_otus), len(obs_otus))
+        for exp_otu, obs_otu in zip(exp_otus, obs_otus):
+            for i, (e, o) in enumerate(zip(exp_otu, obs_otu)):
+                if i == coverage_idx:
+                    self.assertTrue(math.isclose(e, o, rel_tol=1e-9),
+                        f"Coverage mismatch for {exp_otu[0]}/{exp_otu[1]}: {e} vs {o}")
+                else:
+                    self.assertEqual(e, o,
+                        f"Field {expected['fields'][i]} mismatch for {exp_otu[0]}/{exp_otu[1]}")
+
+    def test_sra_pipe(self):
+        with tempfile.NamedTemporaryFile(suffix='.json') as tf:
+            cmd = "{} pipe --threads 4 --sra-files {}/SRR8653040.sra --no-assign-taxonomy --archive-otu-table {}".format(
+                path_to_script, path_to_data, tf.name)
+            extern.run(cmd)
+            self._assert_archive_otu_tables_equal(
+                json.load(open(os.path.join(path_to_data, 'SRR8653040.json'))),
+                json.load(open(tf.name)))
 
     def test_rare_eif2_issue(self):
         # Here, insert size is small, so forward and reverse reads are matched,
