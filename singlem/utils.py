@@ -44,7 +44,7 @@ class FastaNameToSampleName:
             sample_name = sample_name[:-5]
         compressed_extensions = ('.gz',) + ZSTD_EXTENSIONS
         # Put compressed extensions first so they are stripped off before FASTA/Q suffixes.
-        for extension in compressed_extensions + ('.fna','.fq','.fastq','.fasta','.fa'):
+        for extension in compressed_extensions + ('.fna', '.fq', '.fastq', '.fasta', '.fa', '.sra'):
             if sample_name.endswith(extension):
                 sample_name = sample_name[0:(len(sample_name)-len(extension))]
                 if extension not in compressed_extensions:
