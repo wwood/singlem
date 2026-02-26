@@ -191,9 +191,22 @@ class Tests(unittest.TestCase):
                     self.assertEqual(e, o,
                         f"Field {expected['fields'][i]} mismatch for {exp_otu[0]}/{exp_otu[1]}")
 
-    def test_sra_pipe(self):
+    def test_sra_pipe_standard(self):
         with tempfile.NamedTemporaryFile(suffix='.json') as tf:
             cmd = "{} pipe --threads 4 --sra-files {}/SRR8653040.sra --no-assign-taxonomy --archive-otu-table {}".format(
+                path_to_script, path_to_data, tf.name)
+            extern.run(cmd)
+            self._assert_archive_otu_tables_equal(
+                json.load(open(os.path.join(path_to_data, 'SRR8653040.json'))),
+                json.load(open(tf.name)))
+
+    def test_sra_pipe_chunk(self):
+        # root@a1d31a133bde:/# kingfisher extract --sra /tmp/SRR8653040.sra --stdout --unsorted -f fasta |wc -l
+        # 848128
+        #
+        # => so 2nd 200,000 chunk is fine.
+        with tempfile.NamedTemporaryFile(suffix='.json') as tf:
+            cmd = "{} pipe --threads 4 --sra-files {}/SRR8653040.sra --no-assign-taxonomy --archive-otu-table {} --read-chunk-size 200000 --read-chunk-num 2".format(
                 path_to_script, path_to_data, tf.name)
             extern.run(cmd)
             self._assert_archive_otu_tables_equal(
