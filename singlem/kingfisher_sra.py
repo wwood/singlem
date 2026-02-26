@@ -56,7 +56,7 @@ class KingfisherSra:
                     ))
                 else:
                     new_name = m[1]
-                    if m[2] == '1' or m[1] == '0':
+                    if m[2] == '1' or m[2] == '0':
                         if forward_output is None:
                             forward_output = open(os.path.join(output_directory, 'forward.fna'),'w')
                         forward_output.write(">{}\n{}\n".format(

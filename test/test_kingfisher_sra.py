@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 
 #=======================================================================
@@ -37,6 +36,8 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.kingfisher_sra import KingfisherSra
 
+# Make as expensive because we don't want it to run in CI.
+@pytest.mark.expensive
 class Tests(unittest.TestCase):
     maxDiff = None
 
@@ -92,7 +93,7 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             f.flush()
 
             with tempfile.TemporaryDirectory() as d:
-                (fwd, rev) = KingfisherSra().split_fasta(f.name, d)
+                (fwd, rev) = KingfisherSra()._split_fasta(f.name, d)
                 self.assertEqual(None, rev)
                 with open(fwd) as ofwd:
                     self.assertEqual(expected, ofwd.read())
@@ -124,13 +125,12 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             f.flush()
 
             with tempfile.TemporaryDirectory() as d:
-                (fwd, rev) = KingfisherSra().split_fasta(f.name, d)
+                (fwd, rev) = KingfisherSra()._split_fasta(f.name, d)
                 with open(fwd) as ofwd:
                     self.assertEqual(expected1, ofwd.read())
                 with open(rev) as ofwd:
                     self.assertEqual(expected2, ofwd.read())
 
-    @pytest.mark.skipif(extern.which("kingfisher") is None, reason="kingfisher not found in PATH")
     def test_sra1(self):
         '''
         Run on SRR8653040.sra
@@ -143,7 +143,6 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             expected,
             extern.run(cmd))
 
-    @pytest.mark.skipif(extern.which("kingfisher") is None, reason="kingfisher not found in PATH")
     def test_sra_chunk1(self):
         '''
         Run on SRR8653040.sra, which has 424064 reads. This test only runs on the first 200,000 reads.
@@ -156,7 +155,6 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             expected,
             extern.run(cmd))
 
-    @pytest.mark.skipif(extern.which("kingfisher") is None, reason="kingfisher not found in PATH")
     def test_sra_chunk2(self):
         '''
         Run on SRR8653040.sra, which has 424064 reads. This test only runs on the first 200,000 reads.
@@ -168,7 +166,6 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
             expected,
             extern.run(cmd))
 
-    @pytest.mark.skipif(extern.which("kingfisher") is None, reason="kingfisher not found in PATH")
     def test_sra_chunk3(self):
         '''
         Run on SRR8653040.sra, which has 424064 reads. This test only runs on the first 200,000 reads.
