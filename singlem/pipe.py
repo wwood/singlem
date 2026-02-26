@@ -366,7 +366,7 @@ class SearchPipe:
     
                         cmd0 = "kingfisher extract --sra {} --stdout -f fasta --unsorted ".format(sra)
                         if read_chunk_size is not None and read_chunk_number is not None:
-                            cmd = cmd0 + add_chunking_pipe(read_chunk_size, read_chunk_number)
+                            cmd = cmd0 + add_chunking_pipe(read_chunk_size, read_chunk_number) + " >{}".format(new_name)
                         else:
                             cmd = cmd0 + " >{}".format(new_name)
                         logging.debug("Running kingfisher extraction command: {}".format(cmd))
