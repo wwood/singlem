@@ -176,13 +176,22 @@ singlem renew \
 
 ## Output Format
 
-### Taxonomic profile (`-p` / `--taxonomic-profile`)
-Tab-separated file with columns:
+### Taxonomic profile (`-p` / `--taxonomic-profile`) — SingleM condensed format
+Tab-separated file (`.tsv`) with three columns: `sample`, `coverage`, `taxonomy`.
 ```
-sample    coverage    taxonomy
-sample1   5.23        Root; d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; o__Pseudomonadales; f__Pseudomonadaceae; g__Pseudomonas; s__Pseudomonas aeruginosa
-sample1   3.10        Root; d__Bacteria; p__Firmicutes_A; ...
+sample     coverage  taxonomy
+marine0.1  3.64      Root; d__Archaea
+marine0.1  0.02      Root; d__Bacteria
+marine0.1  0.56      Root; d__Archaea; p__Thermoproteota
+marine0.1  0.80      Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      Root; d__Bacteria; p__Proteobacteria
 ```
+
+Key properties of the condensed format:
+- **Coverage** is the estimated per-base read coverage attributed *directly* to that taxon — it is **not** inclusive of descendants. For example, `Root; d__Bacteria` (coverage 0.02) does not include the coverage from `p__Desulfobacterota` (0.80) or `p__Proteobacteria` (2.17); those are reported on their own lines.
+- Every taxonomic level that has any coverage is listed as its own row. Higher-level rows (e.g. domain) represent reads that could not be assigned more specifically.
+- Taxonomy strings follow GTDB conventions: `Root; d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; ...`
+- Multiple samples can appear in a single file, distinguished by the `sample` column.
 
 ### OTU table (`--otu-table`)
 CSV with columns: `gene`, `sample`, `sequence`, `num_hits`, `coverage`, `taxonomy`
@@ -199,12 +208,59 @@ CSV with columns: `gene`, `sample`, `sequence`, `num_hits`, `coverage`, `taxonom
 
 ## Downstream Analysis
 
-### Convert profile to other formats (e.g. BIOM, Kraken-style)
+### Convert condensed profile to other formats (`singlem summarise`)
+
+`singlem summarise` transforms the condensed profile into several more analysis-friendly formats.
+
+#### Krona chart (interactive HTML)
 ```bash
 singlem summarise \
-  --input-taxonomic-profiles sample.profile.tsv \
+  --input-taxonomic-profile sample.profile.tsv \
   --output-taxonomic-profile-krona sample.krona.html
 ```
+Produces an interactive hierarchical chart viewable in any web browser. Can also be generated directly from `pipe` with `--taxonomic-profile-krona`.
+
+#### Relative abundance species-by-site table
+Outputs a taxon-by-sample matrix with relative abundance as percentages. Use `--output-species-by-site-level` to choose the taxonomic rank (`domain`, `phylum`, `class`, `order`, `family`, `genus`, or `species`):
+```bash
+singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-species-by-site-relative-abundance sample.phylum.csv \
+  --output-species-by-site-level phylum
+```
+Example output (one column per sample when multiple samples are present):
+```
+taxonomy                                marine0.1
+unassigned                              50.9
+Root; d__Archaea; p__Thermoproteota     7.79
+Root; d__Bacteria; p__Desulfobacterota  11.13
+Root; d__Bacteria; p__Proteobacteria    30.18
+```
+To generate tables for all taxonomic levels at once, use a prefix:
+```bash
+singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-species-by-site-relative-abundance-prefix myprefix
+# produces: myprefix-domain.tsv, myprefix-phylum.tsv, ..., myprefix-species.tsv
+```
+
+#### Long form with extra columns (filled coverage, relative abundance, level)
+```bash
+singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-taxonomic-profile-with-extras sample.with_extras.tsv
+```
+Adds `full_coverage` (coverage including descendants), `relative_abundance` (%), and `level` columns:
+```
+sample     coverage  full_coverage  relative_abundance  level   taxonomy
+marine0.1  0         7.19           100.0               root    Root
+marine0.1  3.64      4.20           58.41               domain  Root; d__Archaea
+marine0.1  0.02      2.99           41.59               domain  Root; d__Bacteria
+marine0.1  0.56      0.56           7.79                phylum  Root; d__Archaea; p__Thermoproteota
+marine0.1  0.80      0.80           11.13               phylum  Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      2.17           30.18               phylum  Root; d__Bacteria; p__Proteobacteria
+```
+Note: `coverage` here is *unfilled* (not including descendants); `full_coverage` is *filled* (sum of a taxon and all its descendants).
 
 ### Estimate fraction of reads that are bacterial/archaeal (prokaryotic) rather than eukaryotic/phage/etc
 ```bash
