@@ -146,9 +146,18 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
 
     return prepared_paths, processes
 
+def terminate_processes(processes, description):
+    """Send SIGTERM to any still-running background processes (e.g. after a downstream failure)."""
+    for proc, _cmd in processes:
+        if proc.poll() is None:
+            logging.debug(f"Terminating {description} process (pid {proc.pid}) due to downstream failure")
+            proc.terminate()
+
 def finish_processes(processes, description):
     """Wait for streaming processes to finish and raise on non-zero exit codes."""
     for proc, cmd in processes:
         _, stderr_output = proc.communicate()
-        if proc.returncode not in (0, 141):  # 141 = SIGPIPE when consumer exits early
+        # Tolerate: 0 (success), 141 (SIGPIPE from shell when consumer exits early),
+        # and negative codes (process was killed by a signal, e.g. our own terminate_processes).
+        if proc.returncode not in (0, 141) and proc.returncode >= 0:
             raise Exception(f"{description} command failed (exit {proc.returncode}): {cmd}\nSTDERR: {stderr_output}")
