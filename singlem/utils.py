@@ -102,8 +102,9 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
             continue
 
         base = os.path.basename(path)
-        if base.endswith('.gz'):
-            base = base[:-3]
+        for suffix in ('.gz', '.fifo') + ZSTD_EXTENSIONS:
+            if base.endswith(suffix):
+                base = base[:-len(suffix)]
         if base.endswith(('.fq', '.fastq')):
             lines_per_read = 4
         elif base.endswith(('.fa', '.fasta', '.fna')):
