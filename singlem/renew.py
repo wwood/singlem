@@ -32,6 +32,7 @@ class Renew:
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile')
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona')
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits')
+        viral_mode = kwargs.pop('viral_mode', False)
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
 
@@ -198,7 +199,8 @@ class Renew:
                 input_streaming_otu_table = otu_table_collection,
                 output_otu_table = output_taxonomic_profile,
                 krona = output_taxonomic_profile_krona,
-                metapackage = metapackage)
+                metapackage = metapackage,
+                viral_mode = viral_mode)
 
         logging.info("Renew is finished")
 
