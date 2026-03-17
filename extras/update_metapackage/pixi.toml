@@ -41,9 +41,19 @@ bcbiogff = "*"
 extern = "*"
 tqdm = "*"
 
+[feature.zenodo-backpack.dependencies]
+zenodo_backpack = ">=0.2.0"
+tqdm = "*"
+
+[feature.calculate-mean-genome-size.dependencies]
+python = "*"
+polars = ">=0.19.3"
+
 [environments]
 update-metapackage = ["update-metapackage"]
 singlem = ["singlem"]
 tigrfam-search = ["tigrfam-search"]
 pfam-search = ["pfam-search"]
 transpose = ["transpose"]
+zenodo-backpack = ["zenodo-backpack"]
+calculate-mean-genome-size = ["calculate-mean-genome-size"]
