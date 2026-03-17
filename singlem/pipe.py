@@ -10,7 +10,7 @@ import csv
 import subprocess
 import time
 from .metapackage import Metapackage
-from .utils import OrfMUtils, finish_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe
+from .utils import OrfMUtils, finish_processes, terminate_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .sequence_classes import SeqReader
@@ -406,6 +406,8 @@ class SearchPipe:
                         hmms.prefilter_db_path(), min_orf_length, context_window)
                 except extern.ExternCalledProcessError as e:
                     logging.error("Process (DIAMOND?) failed")
+                    terminate_processes(zstd_processes, "zstdcat")
+                    terminate_processes(chunking_processes, "chunking")
                     if input_sra_files:
                         finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles)
                     raise e
