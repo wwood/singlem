@@ -84,10 +84,14 @@ def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None):
 
 def add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read=2):
     # Pipe to extract a chunk of reads.
-    start_offset = (read_chunk_size * (read_chunk_number - 1)) * lines_per_read + 1
-    head = read_chunk_size * lines_per_read
-    logging.debug(f"Chunking pipe: tail -n +{start_offset} | head -n {head} (chunk_size={read_chunk_size}, chunk_num={read_chunk_number}, lines_per_read={lines_per_read})")
-    return f" | tail -n +{start_offset} | head -n {head}"
+    # Use awk rather than tail|head: awk exits actively after printing the last
+    # required line, so it never blocks waiting for upstream EOF when the
+    # remaining data is shorter than the requested chunk (e.g. the last chunk
+    # of a file whose size is not a multiple of the chunk size).
+    start_line = (read_chunk_size * (read_chunk_number - 1)) * lines_per_read + 1
+    end_line = start_line + read_chunk_size * lines_per_read - 1
+    logging.debug(f"Chunking pipe: awk NR>={start_line} to NR<={end_line} (chunk_size={read_chunk_size}, chunk_num={read_chunk_number}, lines_per_read={lines_per_read})")
+    return f" | awk 'NR>={start_line}{{print; if(NR>={end_line})exit}}'"
 
 def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_number, sleep_after_mkfifo=None):
     """Return (new_paths, processes) where any files are streamed into FIFOs with chunking.
