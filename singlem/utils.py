@@ -82,11 +82,11 @@ def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None):
         prepared_paths.append(fifo_path)
     return prepared_paths, processes
 
-def add_chunking_pipe(read_chunk_size, read_chunk_number):
-    # Pipe to extract a chunk of reads. We assume fasta format here i.e.
-    # 2 lines per read
-    start_offset = (read_chunk_size * (read_chunk_number - 1)) * 2 + 1
-    head = read_chunk_size * 2
+def add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read=2):
+    # Pipe to extract a chunk of reads.
+    start_offset = (read_chunk_size * (read_chunk_number - 1)) * lines_per_read + 1
+    head = read_chunk_size * lines_per_read
+    logging.debug(f"Chunking pipe: tail -n +{start_offset} | head -n {head} (chunk_size={read_chunk_size}, chunk_num={read_chunk_number}, lines_per_read={lines_per_read})")
     return f" | tail -n +{start_offset} | head -n {head}"
 
 def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_number, sleep_after_mkfifo=None):
@@ -104,6 +104,13 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
         base = os.path.basename(path)
         if base.endswith('.gz'):
             base = base[:-3]
+        if base.endswith(('.fq', '.fastq')):
+            lines_per_read = 4
+        elif base.endswith(('.fa', '.fasta', '.fna')):
+            lines_per_read = 2
+        else:
+            raise Exception(f"Cannot determine format (FASTA or FASTQ) for chunking from file extension: {path}")
+        logging.debug(f"Detected {'FASTQ' if lines_per_read == 4 else 'FASTA'} format for {path} ({lines_per_read} lines/read)")
         chunking_dir = os.path.join(temp_dir, "chunking")
         os.makedirs(chunking_dir, exist_ok=True)
         fifo_path = os.path.join(chunking_dir, base)
@@ -123,7 +130,7 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
             read_cmd = f"gzip -dc {shlex.quote(path)}"
         else:
             read_cmd = f"cat {shlex.quote(path)}"
-        cmd = f"{read_cmd} {add_chunking_pipe(read_chunk_size, read_chunk_number)} > {shlex.quote(fifo_path)}"
+        cmd = f"{read_cmd} {add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read)} > {shlex.quote(fifo_path)}"
         logging.debug("Running chunking command: {}".format(cmd))
         process = subprocess.Popen(
             ['bash','-c',cmd],
