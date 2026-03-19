@@ -61,8 +61,8 @@ if __name__ == '__main__':
     # Read GTDB metadata
     logging.info("Parsing GTDB metadata ..")
     gtdb = pl.concat([
-        pl.read_csv(args.gtdb_bacterial_metadata, separator="\t"),
-        pl.read_csv(args.gtdb_archaeal_metadata, separator="\t")
+        pl.read_csv(args.gtdb_bacterial_metadata, separator="\t", infer_schema_length=10000000),
+        pl.read_csv(args.gtdb_archaeal_metadata, separator="\t", infer_schema_length=10000000)
     ])
     gtdb_id_to_taxonomy = {}
     for row in gtdb.iter_rows(named=True):
