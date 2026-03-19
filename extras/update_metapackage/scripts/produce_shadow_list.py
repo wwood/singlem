@@ -8,8 +8,8 @@ import polars as pl
 
 NUM_PER_CLUSTER = 20
 
-bac_metadata = pl.read_csv(snakemake.params.gtdb_bac_metadata, separator="\t")
-arc_metadata = pl.read_csv(snakemake.params.gtdb_arc_metadata, separator="\t")
+bac_metadata = pl.read_csv(snakemake.params.gtdb_bac_metadata, separator="\t", infer_schema_length=10000000)
+arc_metadata = pl.read_csv(snakemake.params.gtdb_arc_metadata, separator="\t", infer_schema_length=10000000)
 metadata = pl.concat([bac_metadata, arc_metadata])
 metadata = metadata.with_columns(
     (pl.col("checkm_completeness") - 5 * pl.col("checkm_contamination")).alias("quality")
