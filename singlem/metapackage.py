@@ -5,7 +5,7 @@ import shutil
 import extern
 import tempfile
 import json
-import pandas as pd
+import polars as pl
 
 import zenodo_backpack
 from zenodo_backpack import ZenodoBackpackMalformedException
@@ -575,7 +575,7 @@ class Metapackage:
             return None
         if tsv is None:
             return None
-        return pd.read_csv(tsv, sep='\t')
+        return pl.read_csv(tsv, separator='\t')
     
     def taxonomy_database_name(self):
         try:

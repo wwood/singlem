@@ -4,7 +4,7 @@ import subprocess
 import sys
 import numpy as np
 import csv
-import pandas as pd
+import polars as pl
 import itertools
 import math
 import extern
@@ -80,18 +80,19 @@ class Querier:
                     .where(Otu.taxonomy_id == Taxonomy.id) \
                     .where(Otu.marker_id == marker_id)
             result = conn.execute(query)
-            current_preloaded_db = pd.DataFrame(result.fetchall(), 
-                columns = ('nucleotides_marker_wise_id','nucleotide_sequence', \
-                    'sample_name', 'num_hits', 'coverage', 'taxonomy'))
+            current_preloaded_db = pl.DataFrame(
+                result.fetchall(),
+                schema=['nucleotides_marker_wise_id','nucleotide_sequence',
+                    'sample_name', 'num_hits', 'coverage', 'taxonomy'],
+                orient='row')
 
         loaded = PreloadedDB()
-        loaded.indices = pd.Series(
-            current_preloaded_db.groupby('nucleotides_marker_wise_id').indices)
-        loaded.sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
-        loaded.count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
-        loaded.sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
-        loaded.coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
-        loaded.taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
+        loaded.indices = _groupby_indices(current_preloaded_db, 'nucleotides_marker_wise_id')
+        loaded.sample_name = current_preloaded_db['sample_name'].to_numpy()
+        loaded.count = current_preloaded_db['num_hits'].to_numpy()
+        loaded.sequence = current_preloaded_db['nucleotide_sequence'].to_numpy()
+        loaded.coverage = current_preloaded_db['coverage'].to_numpy()
+        loaded.taxonomy = current_preloaded_db['taxonomy'].to_numpy()
 
         del current_preloaded_db # Maybe not necessary, but just in case
 
@@ -117,20 +118,21 @@ class Querier:
                     .where(NucleotidesProteins.nucleotide_id == Otu.sequence_id) \
                     .where(NucleotidesProteins.protein_id == ProteinSequence.id)
             result = conn.execute(query)
-            current_preloaded_db = pd.DataFrame(result.fetchall(), 
-                columns = ('proteins_marker_wise_id','nucleotide_sequence','protein_sequence', \
-                'sample_name', 'num_hits', 'coverage', 'taxonomy'))
+            current_preloaded_db = pl.DataFrame(
+                result.fetchall(),
+                schema=['proteins_marker_wise_id','nucleotide_sequence','protein_sequence',
+                    'sample_name', 'num_hits', 'coverage', 'taxonomy'],
+                orient='row')
 
         loaded = PreloadedDB()
-        loaded.indices = pd.Series(
-            current_preloaded_db.groupby('proteins_marker_wise_id').indices)
-        loaded.sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
-        loaded.count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
-        loaded.sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
-        loaded.coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
-        loaded.taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
+        loaded.indices = _groupby_indices(current_preloaded_db, 'proteins_marker_wise_id')
+        loaded.sample_name = current_preloaded_db['sample_name'].to_numpy()
+        loaded.count = current_preloaded_db['num_hits'].to_numpy()
+        loaded.sequence = current_preloaded_db['nucleotide_sequence'].to_numpy()
+        loaded.coverage = current_preloaded_db['coverage'].to_numpy()
+        loaded.taxonomy = current_preloaded_db['taxonomy'].to_numpy()
 
-        loaded.protein_sequence = current_preloaded_db.xs('protein_sequence',axis=1).to_numpy()
+        loaded.protein_sequence = current_preloaded_db['protein_sequence'].to_numpy()
 
         del current_preloaded_db # Maybe not necessary, but just in case
 
@@ -315,7 +317,7 @@ class Querier:
                                 if hit_index <= 16 and hit_index >= len(preloaded_db.indices):
                                     logging.debug("Skipping hit index {} because it is out of bounds, so a dummy entry".format(hit_index))
                                     continue
-                                for entry_i in preloaded_db.indices.iat[hit_index]:
+                                for entry_i in preloaded_db.indices[hit_index]:
                                     otu = OtuTableEntry()
                                     otu.marker = marker
                                     otu.sample_name = preloaded_db.sample_name[entry_i]
@@ -423,7 +425,7 @@ class Querier:
                         previous_query_index = query_index
 
                     if preload_db:
-                        for entry_i in preloaded_db.indices.iat[hit_index]:
+                        for entry_i in preloaded_db.indices[hit_index]:
                             otu = OtuTableEntry()
                             otu.marker = marker
                             otu.sample_name = preloaded_db.sample_name[entry_i]
@@ -718,28 +720,31 @@ class MarkerSortedQueryInput:
         self._original_io.close()
         self._reopened_io.close()
 
+def _groupby_indices(df, col):
+    '''Return a dict mapping group key -> numpy array of row indices, similar to pandas groupby().indices.'''
+    indices = {}
+    for i, val in enumerate(df[col].to_list()):
+        if val in indices:
+            indices[val].append(i)
+        else:
+            indices[val] = [i]
+    return {k: np.array(v) for k, v in indices.items()}
+
+
 class PreloadedDB:
     ''' Simple container class for preloaded database '''
 
     def __init__(self):
-        # loaded.indices = pd.Series(
-        #     current_preloaded_db.groupby('proteins_marker_wise_id').indices)
-        # loaded.sample_name = current_preloaded_db.xs('sample_name',axis=1).to_numpy()
-        # loaded.count = current_preloaded_db.xs('num_hits',axis=1).to_numpy()
-        # loaded.sequence = current_preloaded_db.xs('nucleotide_sequence',axis=1).to_numpy()
-        # loaded.coverage = current_preloaded_db.xs('coverage',axis=1).to_numpy()
-        # loaded.taxonomy = current_preloaded_db.xs('taxonomy',axis=1).to_numpy()
         self.indices = None
         self.sample_name = None
         self.count = None
         self.sequence = None
         self.coverage = None
         self.taxonomy = None
-
-        # loaded.protein_sequence = current_preloaded_db.xs('protein_sequence',axis=1).to_numpy()
         self.protein_sequence = None
 
     def limit_per_sequence(self, limit_per_sequence):
         ''' shuffle and truncate once up front '''
-        self.indices.apply(np.random.shuffle)
-        self.indices = pd.Series([a[:limit_per_sequence] for a in self.indices])
+        for key in self.indices:
+            np.random.shuffle(self.indices[key])
+        self.indices = {k: a[:limit_per_sequence] for k, a in self.indices.items()}
