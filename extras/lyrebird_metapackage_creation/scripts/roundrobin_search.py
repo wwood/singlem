@@ -1,6 +1,6 @@
 import os
 import logging
-import pandas as pd
+import polars as pl
 
 logging.basicConfig(filename=snakemake.log[0], level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s', datefmt='%Y/%m/%d %I:%M:%S %p')
 
@@ -69,10 +69,10 @@ while iterations <= num_iterations:
 
 logging.info(os.path.basename(__file__) + ": Picked a total of {} genes from greedy search".format(len(picked_genes)))
 
-old_hmms_and_names = pd.read_csv(snakemake.params.hmms_and_names, sep='\t', header=None, names=['gene', 'spkg_name', 'filepath', 'description'])
-hmms_and_names = old_hmms_and_names[old_hmms_and_names['gene'].isin(picked_genes)]
+old_hmms_and_names = pl.read_csv(snakemake.params.hmms_and_names, separator='\t', has_header=False, new_columns=['gene', 'spkg_name', 'filepath', 'description'])
+hmms_and_names = old_hmms_and_names.filter(pl.col('gene').is_in(list(picked_genes)))
 logging.info(os.path.basename(__file__) + ": Writing to " + snakemake.output.hmms_and_names_roundrobin)
-hmms_and_names.to_csv(snakemake.output.hmms_and_names_roundrobin, sep='\t', header=True, index=False)
+hmms_and_names.write_csv(snakemake.output.hmms_and_names_roundrobin, separator='\t', include_header=True)
 
 outfile = snakemake.output.coverages
 logging.info(os.path.basename(__file__) + ": Writing species coverages to " + outfile)

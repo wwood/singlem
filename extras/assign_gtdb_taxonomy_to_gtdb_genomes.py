@@ -32,7 +32,7 @@ import sys
 import argparse
 import logging
 
-import pandas as pd
+import polars as pl
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')] + sys.path
 from singlem.otu_table import OtuTable
@@ -60,19 +60,12 @@ if __name__ == '__main__':
 
     # Read GTDB metadata
     logging.info("Parsing GTDB metadata ..")
-    gtdb = pd.concat([
-        pd.read_csv(args.gtdb_bacterial_metadata, sep="\t"),
-        pd.read_csv(args.gtdb_archaeal_metadata, sep="\t")
+    gtdb = pl.concat([
+        pl.read_csv(args.gtdb_bacterial_metadata, separator="\t"),
+        pl.read_csv(args.gtdb_archaeal_metadata, separator="\t")
     ])
-    # gtdb = gtdb[gtdb["gtdb_representative"] == "t"]
-    # gtdb["phylum"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[1])
-    # gtdb["class"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[2])
-    # gtdb["order"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[3])
-    # gtdb["family"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[4])
-    # gtdb["genus"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[5])
-    # gtdb["sp"] = gtdb["gtdb_taxonomy"].apply(lambda x: x.split(";")[6])
     gtdb_id_to_taxonomy = {}
-    for i, row in gtdb.iterrows():
+    for row in gtdb.iter_rows(named=True):
         gtdb_id_to_taxonomy[row["accession"]] = row["gtdb_taxonomy"]
     logging.info("Parsed in {} metadata entries from gtdb".format(len(gtdb_id_to_taxonomy)))
 
