@@ -4,15 +4,11 @@
 """
 Steps:
 
-pixi run -e update-metapackage snakemake --profile aqua --configfile config-R226.yaml
-
-NOTE! This file is being migrated to pixi, but we aren't there yet, some rules haven't been migrated yet.
+pixi run -e update-metapackage snakemake --profile aqua --configfile config-R232.yaml
 """
 
 import pandas as pd
 import os
-
-configfile: "config.yaml"
 
 hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=False)
 singlem_bin = "pixi run --manifest-path ../../pixi.toml ../../singlem/main.py"
@@ -88,10 +84,8 @@ rule zenodo_backpack:
     output:
         zenodo_backpack=zenodo_backpack,
         done=touch(output_dir + "/zenodo_backpack.done")
-    conda:
-        "envs/zenodo_backpack.yml"
     shell:
-        "zenodo_backpack create --input-directory {input.metapackage} --output-file {output.zenodo_backpack} --data-version {zenodo_backpack_version}"
+        "pixi run -e zenodo-backpack zenodo_backpack create --input-directory {input.metapackage} --output-file {output.zenodo_backpack} --data-version {zenodo_backpack_version}"
 
 ####################
 ### HMM searches ###
@@ -299,8 +293,6 @@ rule create_SingleM_packages:
         runtime = 48*60,
     log:
         logs_dir + "/packages/{spkg}.log"
-    conda:
-        "../../singlem.yml"
     shell:
         "{params.singlem} regenerate "
         "--input-singlem-package {params.spkg} "
@@ -329,8 +321,6 @@ rule create_draft_SingleM_metapackage:
         runtime = 48*60,
     log:
         logs_dir + "/draft_metapackage.log"
-    conda:
-        "../../singlem.yml"
     shell:
         "{params.singlem} metapackage "
         "--singlem-packages {input.packages} "
@@ -371,8 +361,6 @@ rule SingleM_transcripts:
     params:
         singlem = singlem_bin,
         input_files = output_dir + "/transcript_lists/{n}.txt"
-    conda:
-        "../../singlem.yml"
     log:
         logs_dir + "/transcripts/{n}.log"
     shell:
@@ -402,12 +390,10 @@ rule assign_taxonomy:
         bac_metadata = config["gtdb_bac_metadata"],
         arc_metadata = config["gtdb_arc_metadata"],
         dir = output_dir + "/transcripts",
-    conda:
-        "../../singlem.yml"
     log:
         logs_dir + "/taxonomy.log"
     shell:
-        "../assign_gtdb_taxonomy_to_gtdb_genomes.py "
+        "pixi run -e singlem ../assign_gtdb_taxonomy_to_gtdb_genomes.py "
         "--otu-table-list <( find {params.dir} -name '*.otu_table.tsv' ) "
         "--gtdb-bac {params.bac_metadata} "
         "--gtdb-arc {params.arc_metadata} "
@@ -428,8 +414,6 @@ rule make_sdb:
         singlem = singlem_bin
     log:
         logs_dir + "/taxonomy/makedb.log"
-    conda:
-        "../../singlem.yml"
     shell:
         "{params.singlem} makedb "
         "--otu-table {input} "
@@ -453,8 +437,6 @@ rule create_SingleM_metapackage:
         runtime = 48*60,
     log:
         logs_dir + "/metapackage.log"
-    conda:
-        "../../singlem.yml"
     shell:
         "{params.singlem} metapackage "
         "--singlem-packages {input.packages} "
@@ -498,11 +480,9 @@ rule calculate_mean_genome_size:
         runtime = '1h',
     log:
         logs_dir + "/calculate_mean_genome_size.log"
-    conda:
-        "envs/calculate_mean_genome_size.yml"
     shell:
         """
-        scripts/genome_size_from_gtdb.py {params.checkm2_grep_arg} --gtdb-bac-metadata {params.gtdb_bac_metadata} --gtdb-ar-metadata {params.gtdb_arc_metadata} > {output} 2> {log}
+        pixi run -e calculate-mean-genome-size scripts/genome_size_from_gtdb.py {params.checkm2_grep_arg} --gtdb-bac-metadata {params.gtdb_bac_metadata} --gtdb-ar-metadata {params.gtdb_arc_metadata} > {output} 2> {log}
         """
 
 ###########################
@@ -526,8 +506,6 @@ rule test_metapackage:
         runtime = 48*60,
     log:
         logs_dir + "/sra/{sra}_new_test.log"
-    conda:
-        "../../singlem.yml"
     shell:
         "{params.singlem} pipe "
         "--forward {input.sra_1} "
@@ -558,8 +536,6 @@ rule test_old_metapackage:
         runtime = 48*60,
     log:
         logs_dir + "/sra/{sra}_old_test.log"
-    conda:
-        "../../singlem.yml"
     shell:
         "{params.singlem} pipe "
         "--forward {input.sra_1} "
@@ -581,8 +557,6 @@ rule sra_fractions_assigned_to_each_level:
     resources:
         mem_mb = get_mem_mb,
         runtime = 48*60,
-    conda:
-        "../../singlem.yml"
     shell:
         "{singlem_bin} summarise "
         "--input-taxonomic-profile {input.profile} "
@@ -601,8 +575,6 @@ rule sra_prokaryotic_fraction:
         runtime = 48*60,
     params:
         metapackge = lambda wildcards: config["metapackage"] if wildcards.version == "old" else output_dir + "/metapackage/" + config["new_metapackage"],
-    conda:
-        "../../singlem.yml"
     log:
         logs_dir + "/sra/{sra}_{version}_smf.log"
     shell:
