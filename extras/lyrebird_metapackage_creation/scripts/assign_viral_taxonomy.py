@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import logging
+import pickle
 
 import polars as pl
 
@@ -24,7 +25,8 @@ with open(snakemake.params.viral_taxonomy) as r:
 for spkg in os.listdir(metapackage):
     if spkg.endswith(".spkg"):
         logging.info(f"Reading {spkg}")
-        tax_hash = pd.read_pickle(os.path.join(metapackage, spkg, "taxonomy_hash.pickle"))
+        with open(os.path.join(metapackage, spkg, "taxonomy_hash.pickle"), 'rb') as fh:
+            tax_hash = pickle.load(fh)
         for key in tax_hash:
             included_ids.add(key.split('~')[1]) 
 

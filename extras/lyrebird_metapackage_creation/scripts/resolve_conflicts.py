@@ -2,7 +2,7 @@
 
 import os
 import logging
-import pandas as pd
+import polars as pl
 
 import pathlib
 
@@ -93,8 +93,8 @@ for species in species_to_prot_pair:
 
 logging.info(f"Finished writing {len(species_to_prot_pair)} species files to {output_dir}")
 
-old_hmms_and_names = pd.read_csv(snakemake.params.hmms_and_names, sep='\t', header=None, names=['gene', 'spkg_name', 'filepath', 'description'])
-hmms_and_names = old_hmms_and_names[old_hmms_and_names['gene'].isin(picked_hmms)]
-hmms_and_names.to_csv(snakemake.output.hmms_and_names_noconflict, sep='\t', header=True, index=False)
+old_hmms_and_names = pl.read_csv(snakemake.params.hmms_and_names, separator='\t', has_header=False, new_columns=['gene', 'spkg_name', 'filepath', 'description'])
+hmms_and_names = old_hmms_and_names.filter(pl.col('gene').is_in(picked_hmms))
+hmms_and_names.write_csv(snakemake.output.hmms_and_names_noconflict, separator='\t', include_header=True)
 
 with open(snakemake.output[0], 'w') as _: pass
