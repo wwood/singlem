@@ -1,10 +1,15 @@
 name: Current Build
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - main
+  pull_request:
 
 jobs:
   pixi_test_dependencies_locked:
     name: Pixi test_dependencies_locked ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       matrix:
         os: ["ubuntu-latest"]
@@ -29,6 +34,7 @@ jobs:
   pixi_test_dependencies_optimistic:
     name: Pixi test_dependencies_optimistic ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     strategy:
       matrix:
         os: ["ubuntu-latest"]

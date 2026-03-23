@@ -1,3 +1,8 @@
+---
+name: singlem
+description: Use SingleM to profile metagenomes and genomes, generate OTU tables, and produce GTDB-based taxonomic profiles.
+---
+
 # SingleM Taxonomic Profiling Skill
 
 ## Overview

@@ -24,7 +24,6 @@ smafa = "*"
 [feature.typical-python.dependencies]
 python = ">=3.7"
 sqlalchemy = "*"
-pandas = "*"
 bird_tool_utils_python = ">=0.6.0"
 pyranges = "*"
 polars = "*"

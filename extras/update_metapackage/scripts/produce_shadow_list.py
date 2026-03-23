@@ -4,35 +4,43 @@
 # Author: Samuel Aroney
 # Produce list of non-representative genomes.
 
-import pandas as pd
-import numpy as np
+import polars as pl
 
 NUM_PER_CLUSTER = 20
 
-bac_metadata = pd.read_csv(snakemake.params.gtdb_bac_metadata, sep = "\t")
-arc_metadata = pd.read_csv(snakemake.params.gtdb_arc_metadata, sep = "\t")
-metadata = pd.concat([bac_metadata, arc_metadata])
-metadata["quality"] = metadata["checkm_completeness"] - 5 * metadata["checkm_contamination"]
-metadata = metadata[["accession", "quality"]].set_index("accession")
+bac_metadata = pl.read_csv(snakemake.params.gtdb_bac_metadata, separator="\t", infer_schema_length=10000000)
+arc_metadata = pl.read_csv(snakemake.params.gtdb_arc_metadata, separator="\t", infer_schema_length=10000000)
+metadata = pl.concat([bac_metadata, arc_metadata])
+metadata = metadata.with_columns(
+    (pl.col("checkm_completeness") - 5 * pl.col("checkm_contamination")).alias("quality")
+).select(["accession", "quality"])
 
-clusters = pd.read_csv(snakemake.params.gtdb_sp_clusters, sep = "\t")
-clusters = clusters[["Representative genome", "Clustered genomes"]]
-clusters["Clustered genomes"] = clusters["Clustered genomes"].str.split(",")
-clusters = clusters.explode("Clustered genomes")
-clusters = clusters[clusters["Representative genome"] != clusters["Clustered genomes"]]
+clusters = pl.read_csv(snakemake.params.gtdb_sp_clusters, separator="\t")
+clusters = clusters.select(["Representative genome", "Clustered genomes"])
+clusters = clusters.with_columns(
+    pl.col("Clustered genomes").str.split(",")
+).explode("Clustered genomes")
+clusters = clusters.filter(pl.col("Representative genome") != pl.col("Clustered genomes"))
 
 shadows = (clusters
-    .join(metadata, on = "Representative genome")
-    .sort_values("quality", ascending=False)
-    .groupby("Representative genome")
+    .join(metadata, left_on="Representative genome", right_on="accession")
+    .sort("quality", descending=True)
+    .group_by("Representative genome", maintain_order=True)
     .head(NUM_PER_CLUSTER)
-    )
+)
 
-shadows["Clustered genomes"] = shadows["Clustered genomes"].str.replace(r"RS_|GB_", "", regex=True)
-shadows = (shadows[["Clustered genomes"]]
-    .groupby(np.arange(len(shadows)) // 1000)
-    .agg(",".join)
-    .reset_index()
-    )
+shadows = shadows.with_columns(
+    pl.col("Clustered genomes").str.replace_all(r"RS_|GB_", "")
+)
 
-shadows[["index", "Clustered genomes"]].to_csv(snakemake.output.genomes, sep="\t", index=False, header=False)
+# Group into chunks of 1000 and join with commas
+shadows = shadows.with_row_index("idx")
+shadows = shadows.with_columns((pl.col("idx") // 1000).alias("group"))
+shadows = (shadows
+    .group_by("group", maintain_order=True)
+    .agg(pl.col("Clustered genomes").str.join(","))
+)
+
+shadows.select(["group", "Clustered genomes"]).write_csv(
+    snakemake.output.genomes, separator="\t", include_header=False
+)
