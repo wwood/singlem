@@ -7,10 +7,11 @@ Steps:
 pixi run -e update-metapackage snakemake --profile aqua --configfile config-R232.yaml
 """
 
-import pandas as pd
+import polars as pl
 import os
 
-hmms_and_names = pd.read_csv("hmms_and_names", sep="\t").set_index("name", drop=False)
+hmms_and_names = pl.read_csv("hmms_and_names", separator="\t")
+singlem_packages = hmms_and_names.get_column("name").to_list()
 singlem_bin = "pixi run --manifest-path ../../pixi.toml ../../singlem/main.py"
 
 output_dir = config["output_dir"]
@@ -269,7 +270,7 @@ rule concatenate_seqs_and_taxonomies:
 # Rule not part of the main workflow here.
 rule all_concatenate_seqs_and_taxonomies:
     input:
-        expand(output_dir + "/concatenate_seqs_and_taxonomies.{spkg}.done", spkg = hmms_and_names.index)
+        expand(output_dir + "/concatenate_seqs_and_taxonomies.{spkg}.done", spkg = singlem_packages)
     output:
         touch(output_dir + "/concatenate_seqs_and_taxonomies.done")
 
@@ -286,7 +287,7 @@ rule create_SingleM_packages:
         spkg = config["metapackage"] + "/{spkg}.spkg",
         spkg_seq = output_dir + "/hmmseq_concat/{spkg}.faa",
         spkg_tax = output_dir + "/hmmseq_concat/{spkg}_taxonomy.tsv",
-        spkg_name = lambda wildcards: hmms_and_names.loc[wildcards.spkg, "name_without_number"]
+        spkg_name = lambda wildcards: hmms_and_names.filter(pl.col("name") == wildcards.spkg).get_column("name_without_number").item(),
     threads: 1
     resources:
         mem_mb = get_mem_mb,
@@ -309,7 +310,7 @@ rule create_SingleM_packages:
 ############################
 rule create_draft_SingleM_metapackage:
     input:
-        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index)
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = singlem_packages)
     output:
         directory(output_dir + "/draft_metapackage.smpkg")
     params:
@@ -423,7 +424,7 @@ rule make_sdb:
 
 rule create_SingleM_metapackage:
     input:
-        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = hmms_and_names.index),
+        packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = singlem_packages),
         sdb = output_dir + "/taxonomy/transcripts.sdb",
         genome_sizes = output_dir + "/gtdb_mean_genome_sizes.tsv"
     output:
