@@ -64,9 +64,7 @@ if __name__ == '__main__':
         pl.read_csv(args.gtdb_bacterial_metadata, separator="\t", infer_schema_length=10000000),
         pl.read_csv(args.gtdb_archaeal_metadata, separator="\t", infer_schema_length=10000000)
     ])
-    gtdb_id_to_taxonomy = {}
-    for row in gtdb.iter_rows(named=True):
-        gtdb_id_to_taxonomy[row["accession"]] = row["gtdb_taxonomy"]
+    gtdb_id_to_taxonomy = dict(gtdb.select("accession", "gtdb_taxonomy").unique().iter_rows())
     logging.info("Parsed in {} metadata entries from gtdb".format(len(gtdb_id_to_taxonomy)))
 
     # Iterate over OTU tables, assigning taxonomy to each line
