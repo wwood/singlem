@@ -1,15 +1,12 @@
 import os
 import logging
-<<<<<<< HEAD
 import gzip
 import itertools
 import sys
 import threading
 import time
-=======
 import extern
 
->>>>>>> upstream/main
 from subprocess import Popen, PIPE
 
 from .utils import FastaNameToSampleName
