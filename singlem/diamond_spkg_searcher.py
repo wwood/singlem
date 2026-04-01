@@ -1,6 +1,10 @@
 import os
 import logging
-
+import gzip
+import itertools
+import sys
+import threading
+import time
 from subprocess import Popen, PIPE
 
 from .utils import FastaNameToSampleName
@@ -47,6 +51,30 @@ class DiamondSpkgSearcher:
             revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window)
 
         return (fwds, revs)
+
+    def _count_sequences(self, fasta_file):
+        '''Count the number of sequences in a fasta file (handles gzip compressed files)'''
+        count = 0
+        # Check if file is gzipped
+        if fasta_file.endswith('.gz'):
+            with gzip.open(fasta_file, 'rt') as f:
+                for line in f:
+                    if line.startswith('>') or line.startswith('@'):
+                        count += 1
+        else:
+            with open(fasta_file) as f:
+                for line in f:
+                    if line.startswith('>') or line.startswith('@'):
+                        count += 1
+        return count
+
+    def _animation_thread(self, filename, stop_event):
+        '''Thread that displays a spinner animation while DIAMOND is running'''
+        spinner = itertools.cycle(['|', '/', '-', '\\'])
+        while not stop_event.is_set():
+            sys.stderr.write(f"\rFiltering {filename} {next(spinner)}")
+            sys.stderr.flush()
+            time.sleep(0.1)
 
     def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window):
         '''Find all reads that match the DIAMOND database in the 
@@ -104,8 +132,20 @@ class DiamondSpkgSearcher:
             cmd.extend(performance_parameters.split())
             logging.debug(' '.join(cmd))
 
+            # Count sequences and log
+            num_sequences = self._count_sequences(file)
+            logging.info(f"Filtering {os.path.basename(file)} with {num_sequences} sequences")
+
             best_hits = {}
             query_sequence_lengths = {}
+            # Start animation thread
+            stop_animation = threading.Event()
+            animation_thread = threading.Thread(
+                target=self._animation_thread,
+                args=(os.path.basename(file), stop_animation),
+                daemon=True
+            )
+            animation_thread.start()
             # using Popen to stream the output
             with Popen(cmd, stdout=PIPE, stderr=PIPE, text=True) as proc:
                 seen_full_qseqs = set()
@@ -170,6 +210,11 @@ class DiamondSpkgSearcher:
                             full_qseq_f.write(f'>{qseqid}\n{qseq_full_seq}\n')
                             seen_full_qseqs.add(qseqid)
 
+                # Stop animation and clear the line
+                stop_animation.set()
+                animation_thread.join(timeout=1)
+                sys.stderr.write('\r' + ' ' * 80 + '\r')
+                sys.stderr.flush()
 
                 # check for DIAMOND errors
                 stderr_output = proc.stderr.read()
@@ -183,6 +228,7 @@ class DiamondSpkgSearcher:
                     raise Exception(f"DIAMOND failed with return code {return_code}, but no stderr output")
 
             diamond_results.append(DiamondSearchResult(fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths))
+            logging.info(f"Found {len(best_hits)} hits for {os.path.basename(file)}")
 
         return diamond_results
 
