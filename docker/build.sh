@@ -37,3 +37,5 @@ docker run -v `pwd`:`pwd` $LYREBIRD_DOCKER_VERSION pipe --genome-fasta-file `pwd
 \
 \
 echo "Seems good - now you just need to 'docker push $LYREBIRD_DOCKER_VERSION && docker push $SINGLEM_DOCKER_VERSION' to upload the images to Docker Hub"
+
+

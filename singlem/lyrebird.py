@@ -111,6 +111,8 @@ def main():
             sequences = args.forward,
             reverse_read_files = args.reverse,
             input_sra_files = args.sra_files,
+            read_chunk_size = args.read_chunk_size,
+            read_chunk_number = args.read_chunk_number,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             sleep_after_mkfifo = args.sleep_after_mkfifo,
@@ -175,6 +177,7 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
+            viral_mode = True,
             )
 
     elif args.subparser_name == 'condense':

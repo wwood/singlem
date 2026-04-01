@@ -7,9 +7,31 @@ from .pipe_sequence_extractor import ExtractedReads, ExtractedReadSet
 
 class KingfisherSra:
     def _split_regex(self):
+        return re.compile(r'^(.*)\.([012])••')
+    def _split_regex2(self):
         return re.compile(r'^(.*)\.([012])$')
 
-    def split_fasta(self, fasta_path, output_directory):
+    def split_sra_reads(self, extracted_reads, diamond_forward_search_results, tempfile_directory):
+        """Given an ExtractedReads object and diamond search results from SRA inputs,
+        split reads into forward and reverse (if paired) and rename by stripping the
+        .0/.1/.2 suffix.
+
+        Returns (analysing_pairs, new_extracted_reads, diamond_forward_qseqs,
+        diamond_reverse_qseqs). diamond_reverse_qseqs is None if not analysing_pairs.
+        """
+        analysing_pairs, new_extracted_reads = self._split_extracted_reads(extracted_reads)
+
+        diamond_forward_qseqs = {}
+        diamond_reverse_qseqs = {} if analysing_pairs else None
+        for r in diamond_forward_search_results:
+            fwd, rev = self._split_fasta(r.full_query_sequences_file, tempfile_directory)
+            diamond_forward_qseqs[r.sample_name()] = fwd
+            if analysing_pairs:
+                diamond_reverse_qseqs[r.sample_name()] = rev
+
+        return analysing_pairs, new_extracted_reads, diamond_forward_qseqs, diamond_reverse_qseqs
+
+    def _split_fasta(self, fasta_path, output_directory):
         '''fasta_path points to a fasta sequence that contains unordered
         sequences with names like "<seq_id>.X" where X is 0, 1 or 2, which
         signify (unpaired), (forward or unpaired) and (reverse) respectively.
@@ -21,7 +43,7 @@ class KingfisherSra:
         forward_output = None
         reverse_output = None
 
-        regex = self._split_regex()
+        regex = self._split_regex2()
         forward_count = 0
         reverse_count = 0
 
@@ -34,7 +56,7 @@ class KingfisherSra:
                     ))
                 else:
                     new_name = m[1]
-                    if m[2] == '1' or m[1] == '0':
+                    if m[2] == '1' or m[2] == '0':
                         if forward_output is None:
                             forward_output = open(os.path.join(output_directory, 'forward.fna'),'w')
                         forward_output.write(">{}\n{}\n".format(
@@ -65,7 +87,7 @@ class KingfisherSra:
             to_return_reverse =  reverse_output.name
         return (to_return_forward, to_return_reverse)
 
-    def split_extracted_reads(self, extracted_reads):
+    def _split_extracted_reads(self, extracted_reads):
         """Given an ExtractedReads object, return a copy of the data that has
         been split into forward and reverse (if necessary) and sequences have
         been renamed accordingly.
@@ -87,7 +109,7 @@ class KingfisherSra:
                     break
             if analysing_pairs:
                 break
-        logging.debug("split_extracted_reads: Found analysing pairs {}".format(analysing_pairs))
+        logging.debug("_split_extracted_reads: Found analysing pairs {}".format(analysing_pairs))
 
         to_return = ExtractedReads(analysing_pairs)
 
@@ -122,7 +144,7 @@ class KingfisherSra:
                     new_sequences_reverse.append(u)
                 else:
                     new_sequences_forward.append(u)
-            
+
             if analysing_pairs:
                 to_return.add([
                     ExtractedReadSet(
@@ -146,7 +168,5 @@ class KingfisherSra:
                     readset.known_sequences,
                     new_unknown_sequences_forward
                 ))
-        
+
         return analysing_pairs, to_return
-
-
