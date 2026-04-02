@@ -1,6 +1,5 @@
 import os
 import logging
-import gzip
 import itertools
 import sys
 import threading
@@ -53,22 +52,6 @@ class DiamondSpkgSearcher:
             revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window)
 
         return (fwds, revs)
-
-    def _count_sequences(self, fasta_file):
-        '''Count the number of sequences in a fasta file (handles gzip compressed files)'''
-        count = 0
-        # Check if file is gzipped
-        if fasta_file.endswith('.gz'):
-            with gzip.open(fasta_file, 'rt') as f:
-                for line in f:
-                    if line.startswith('>') or line.startswith('@'):
-                        count += 1
-        else:
-            with open(fasta_file) as f:
-                for line in f:
-                    if line.startswith('>') or line.startswith('@'):
-                        count += 1
-        return count
 
     def _animation_thread(self, filename, stop_event):
         '''Thread that displays a spinner animation while DIAMOND is running'''
@@ -134,9 +117,7 @@ class DiamondSpkgSearcher:
             cmd.extend(performance_parameters.split())
             logging.debug(' '.join(cmd))
 
-            # Count sequences and log
-            num_sequences = self._count_sequences(file)
-            logging.info(f"Filtering {os.path.basename(file)} with {num_sequences} sequences")
+            logging.info(f"Filtering {os.path.basename(file)}")
 
             best_hits = {}
             query_sequence_lengths = {}
