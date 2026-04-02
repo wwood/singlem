@@ -5081,6 +5081,7 @@ packages:
   version: 0.20.3
   sha256: bd38a49243339eb4b945a5cc032c864ae48eafe193584f6c113c1a0f5c1ea28f
   requires_python: '>=3.7'
+  editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
   sha256: 458227f759d5e3fcec5d9b7acce54e10c9e1f4f4b7ec978f3bfd54ce4ee9853d
   md5: 3339e3b65d58accf4ca4fb8748ab16b3
