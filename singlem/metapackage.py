@@ -110,7 +110,7 @@ class Metapackage:
     def acquire_default_backpack():
         logging.debug("Acquiring SingleM packages from environment variable")
         if DATA_ENVIRONMENT_VARIABLE not in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(DATA_ENVIRONMENT_VARIABLE, DATA_DOI))
         try:
             backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
         except KeyError:
@@ -120,10 +120,11 @@ class Metapackage:
             path = Path(original_directory)
             backpack = zenodo_backpack.acquire(path=path.parent, version=DATA_DEFAULT_VERSION)
         except ZenodoBackpackMalformedException as e:
-            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable.".format(
+            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable. The metapackage can also be downloaded manually from https://doi.org/{}".format(
                 DATA_ENVIRONMENT_VARIABLE,
                 DATA_DEFAULT_VERSION,
                 DATA_ENVIRONMENT_VARIABLE,
+                DATA_DOI,
                 )) from e
         return backpack
 
@@ -131,7 +132,7 @@ class Metapackage:
     def acquire_lyrebird_backpack():
         logging.debug("Acquiring Lyrebird packages from environment variable")
         if LYREBIRD_DATA_ENVIRONMENT_VARIABLE not in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE, LYREBIRD_DATA_DOI))
         try:
             backpack = zenodo_backpack.acquire(env_var_name=LYREBIRD_DATA_ENVIRONMENT_VARIABLE, version=LYREBIRD_DATA_DEFAULT_VERSION)
         except KeyError:
@@ -141,10 +142,11 @@ class Metapackage:
             path = Path(original_directory)
             backpack = zenodo_backpack.acquire(path=path.parent, version=LYREBIRD_DATA_DEFAULT_VERSION)
         except ZenodoBackpackMalformedException as e:
-            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable.".format(
+            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable. The metapackage can also be downloaded manually from https://doi.org/{}".format(
                 LYREBIRD_DATA_ENVIRONMENT_VARIABLE,
                 LYREBIRD_DATA_DEFAULT_VERSION,
                 LYREBIRD_DATA_ENVIRONMENT_VARIABLE,
+                LYREBIRD_DATA_DOI,
                 )) from e
         return backpack
 
@@ -275,13 +277,13 @@ class Metapackage:
             data_version = LYREBIRD_DATA_DEFAULT_VERSION
             logging.info("Acquiring Lyrebird packages from environment variable")
             if not LYREBIRD_DATA_ENVIRONMENT_VARIABLE in os.environ:
-                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE, LYREBIRD_DATA_DOI))
             backpack = Metapackage.acquire_lyrebird_backpack()
         else:
             data_version = DATA_DEFAULT_VERSION
             logging.info("Acquiring SingleM packages from environment variable")
             if not DATA_ENVIRONMENT_VARIABLE in os.environ:
-                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(DATA_ENVIRONMENT_VARIABLE, DATA_DOI))
             backpack = Metapackage.acquire_default_backpack()
         
         logging.info("Verifying data with ZenodoBackpack ..")
