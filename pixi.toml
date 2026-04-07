@@ -16,7 +16,7 @@ scripts = ["admin/set_env_vars.sh"]
 [feature.typical-non-python.dependencies]
 diamond = ">=2.1.21"  # some issues e.g. RAM before this, though not extensively tested.
 hmmer = "*"
-orfm = "*"
+orfm = ">=2.1.1" #2.1.0 was fail.
 mfqe = "*"
 krona = "*"
 smafa = "*"
