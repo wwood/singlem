@@ -23,6 +23,7 @@ from .kingfisher_sra import KingfisherSra
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
+from .genome_fasta_mux import GenomeFastaMux
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -149,6 +150,7 @@ class SearchPipe:
         input_sra_files = kwargs.pop('input_sra_files',None)
         read_chunk_size = kwargs.pop('read_chunk_size', None)
         read_chunk_number = kwargs.pop('read_chunk_number', None)
+        genome_fasta_files = kwargs.pop('genomes', None)
         sleep_after_mkfifo = kwargs.pop('sleep_after_mkfifo', None)
         num_threads = kwargs.pop('threads')
         known_otu_tables = kwargs.pop('known_otu_tables', None)
@@ -204,6 +206,8 @@ class SearchPipe:
         if diamond_prefilter_db:
             hmms.set_prefilter_db_path(diamond_prefilter_db)
 
+        if genome_fasta_files and forward_read_files:
+            raise Exception("Cannot process reads and genomes in the same run")
 
         analysing_pairs = reverse_read_files is not None
         if analysing_pairs:
@@ -271,6 +275,26 @@ class SearchPipe:
         os.mkdir(tempfile_directory)
         tempfile.tempdir = tempfile_directory
 
+        #### Preprocess genomes into transcripts to speed the rest of the pipeline
+        if genome_fasta_files:
+            logging.info("Calling rough transcriptome of genome FASTA files")
+            genome_fasta_mux = GenomeFastaMux(genome_fasta_files)  # to deal with mux and demux of sequence names
+
+            # Create a single tempfile with ORFs from all genomes, and then
+            # demultiplex later, because this saves a bunch of syscalls.
+            #
+            # Make a tempfile with delete=False because it is in a tmpdir already, and useful for debug to keep around with --working-directory
+            transcripts_path = tempfile.NamedTemporaryFile(prefix='singlem-genome-orfs', suffix='.fasta', delete=False)
+            transcripts_path.close()
+            for fasta in genome_fasta_files:
+                extern.run("orfm -c {} -m {} -t >(sed 's/>/>{}|/' >>{}) {} >/dev/null".format(
+                    self._translation_table,
+                    self._min_orf_length,
+                    genome_fasta_mux.fasta_to_prefix(fasta),
+                    transcripts_path.name,
+                    fasta))
+            forward_read_files = [transcripts_path.name]
+
         zstd_processes = []
         forward_read_files, procs = prepare_zstd_fifos(forward_read_files, tempfile_directory, sleep_after_mkfifo)
         zstd_processes.extend(procs)
@@ -318,6 +342,9 @@ class SearchPipe:
             elif analysing_pairs:
                 logging.info("Using as input %i different pairs of sequence files e.g. %s & %s" % (
                     len(forward_read_files), forward_read_files[0], reverse_read_files[0]))
+            elif genome_fasta_files:
+                logging.info("Using as input %i different genomes e.g. %s" % (
+                    len(genome_fasta_files), genome_fasta_files[0]))
             else:
                 logging.info("Using as input %i different sequence files e.g. %s" % (
                     len(forward_read_files), forward_read_files[0]))
@@ -485,8 +512,13 @@ class SearchPipe:
                     self._remove_single_sequence_duplicates(readset[1])
                 else:
                     self._remove_single_sequence_duplicates(readset)
-    
-    
+
+            #### Remove duplications which happen when OrfM hits the same sequence more than once.
+            if genome_fasta_files:
+                logging.info("Removing duplicate sequences from rough transcriptome ..")
+                for readset in extracted_reads:
+                    readset.remove_duplicate_sequences()
+
             #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
             if diamond_taxonomy_assignment_performance_parameters == None:
                 diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
@@ -509,6 +541,8 @@ class SearchPipe:
                 diamond_reverse_qseqs = diamond_reverse_qseqs if (diamond_prefilter and analysing_pairs) else None,
             )
     
+            if genome_fasta_files:
+                otu_table_object = genome_fasta_mux.demux_otu_table(otu_table_object)
             return_cleanly()
             return otu_table_object
 

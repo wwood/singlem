@@ -600,8 +600,12 @@ class ExtractedReadSet:
         # Add each
         for seq in sorted_unknowns:
             start, _, _ = orfm_utils.un_orfm_start_frame_number(seq.orf_name)
+            # Strip the •• internal delimiter (added by diamond_spkg_searcher)
+            # before computing the chromosome name, so un_orfm_name can strip
+            # the orfm suffix correctly.
+            name_for_chrom = seq.name.split('••')[0]
             grange = pr.PyRanges(
-                chromosomes=[orfm_utils.un_orfm_name(seq.name)],
+                chromosomes=[orfm_utils.un_orfm_name(name_for_chrom)],
                 starts=[start],
                 ends=[start + len(seq.unaligned_sequence) - 1], # minus one since edges are inclusive
             )
