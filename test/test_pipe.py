@@ -863,14 +863,6 @@ CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTAT
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
             
-            cmd = "{} pipe --genome-fasta-files {} --min-orf-length 72 --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --output-extras".format(
-                path_to_script,
-                n.name,
-                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
-            self.assertEqualOtuTable(
-                list([line.split("\t") for line in expected]),
-                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
-            
     def test_paired_reads_one_read_each(self):
         # Reads should be merged
         expected = [

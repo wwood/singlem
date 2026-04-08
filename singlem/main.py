@@ -364,8 +364,6 @@ def parse_genome_fasta_files(args):
         with open(args.genome_fasta_list) as f:
             genomes.extend([line.strip() for line in f if line.strip()])
     args.genome_fasta_files = genomes if genomes else None
-    if args.genome_fasta_files:
-        args.forward = args.genome_fasta_files
     return args
 
 def main():
@@ -782,6 +780,7 @@ def main():
         singlem.pipe.SearchPipe().run(
             sequences = args.forward,
             reverse_read_files = args.reverse,
+            genomes = args.genome_fasta_files,
             input_sra_files = args.sra_files,
             read_chunk_size = args.read_chunk_size,
             read_chunk_number = args.read_chunk_number,
