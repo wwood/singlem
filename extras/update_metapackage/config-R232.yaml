@@ -1,7 +1,7 @@
 max_threads: 32
 compressed_genome_data: true
 gtdb_protein_fna_reps: /work/microbiome/msingle/mess/214_R232_renew/protein_fna_reps
-output_dir: /work/microbiome/msingle/mess/214_R232_renew/update_metapackage_gtdb_transcripts
+output_dir: /work/microbiome/msingle/mess/214_R232_renew/update_metapackage_final_taxonomy
 metapackage: /work/microbiome/db/singlem/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb/payload_directory
 new_metapackage: S6.5.0.GTDB_r232.metapackage_20260319.smpkg
 new_version_number: 6.5.0
@@ -20,8 +20,8 @@ sra_seqs_2:
   DRR083195: /work/microbiome/msingle/sam/SRA/DRR083195_2.fastq
   SRR1926147: /work/microbiome/msingle/sam/SRA/SRR1926147_2.fastq
   SRR9224014: /work/microbiome/msingle/sam/SRA/SRR9224014_2.fastq
-gtdb_arc_metadata: /work/microbiome/msingle/mess/214_R232_renew/gtdb_r232_metadata.updated_reps-draft-new_taxonomy.tsv
-gtdb_bac_metadata: /work/microbiome/msingle/mess/214_R232_renew/gtdb_r232_metadata.updated_reps-draft-new_taxonomy.tsv
+gtdb_arc_metadata: /work/microbiome/msingle/mess/214_R232_renew/gtdb_r232_metadata.updated_reps-draft-final_taxonomy.tsv
+gtdb_bac_metadata: /work/microbiome/msingle/mess/214_R232_renew/gtdb_r232_metadata.updated_reps-draft-final_taxonomy.tsv
 # These 2 constants must jive with those in Metapackage
 taxonomy_database_name: Genome Taxonomy Database (GTDB)
 taxonomy_database_version: R232
