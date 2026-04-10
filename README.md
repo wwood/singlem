@@ -33,7 +33,7 @@ Documentation can be found at https://wwood.github.io/singlem/.
 ### Profiling microbial communities with SingleM / Sandpiper
 Ben J. Woodcroft, Samuel T. N. Aroney, Rossen Zhao, Mitchell Cunningham, Joshua A. M. Mitchell, Rizky Nurdiansyah, Linda Blackall & Gene W. Tyson. *Comprehensive taxonomic identification of microbial species in metagenomic data using SingleM and Sandpiper.* Nat Biotechnol (2025). [https://doi.org/10.1038/s41587-025-02738-1](https://doi.org/10.1038/s41587-025-02738-1).
 ### SingleM prokaryotic_fraction
-Raphael Eisenhofer, Antton Alberdi, Ben J. Woodcroft, 2024. *Large-scale estimation of bacterial and archaeal DNA prevalence in metagenomes reveals biome-specific patterns.* bioRxiv, pp.2024-05; [https://doi.org/10.1101/2024.05.16.594470](https://doi.org/10.1101/2024.05.16.594470).
+Raphael Eisenhofer, Antton Alberdi, Ben J. Woodcroft. *Large-scale estimation of bacterial and archaeal DNA prevalence in metagenomes reveals biome-specific patterns.* mSystems 0:e01062-25 (2026). [https://doi.org/10.1128/msystems.01062-25](https://doi.org/10.1128/msystems.01062-25).
 ### SingleM-powered coassembly with Bin Chicken
 Samuel T. N. Aroney, Rhys J. Newell, Gene W. Tyson and Ben J. Woodcroft, 2024. *Bin Chicken: targeted metagenomic coassembly for the efficient recovery of novel genomes.* Nat Methods 22, 2516–2524 (2025). [https://doi.org/10.1038/s41592-025-02901-1](https://doi.org/10.1038/s41592-025-02901-1)
 ### Lyrebird
