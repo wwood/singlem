@@ -171,7 +171,7 @@ class Querier:
         logging.info("Sorted {} OTU queries ..".format(total_otu_count))
         return MarkerSortedQueryInput(sorted_io)
 
-    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence, continue_on_missing_genes=False, threads=1):
+    def query_with_queries(self, queries, sdb, max_divergence, search_method, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours, preload_db, limit_per_sequence, continue_on_missing_genes=False, threads=1, progress_callback=None):
         if max_divergence == 0 and sequence_type == SequenceDatabase.NUCLEOTIDE_TYPE:
             if limit_per_sequence != None:
                 raise Exception("limit-per-sequence has not been implemented for nucleotide queries with max-divergence 0 yet")
@@ -194,7 +194,7 @@ class Querier:
                 queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, naive=False, preload_db=preload_db, max_search_nearest_neighbours=max_search_nearest_neighbours, limit_per_sequence=limit_per_sequence)
         elif search_method == 'smafa-naive':
             return self.query_by_sequence_similarity_with_smafa_naive(
-                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence, continue_on_missing_genes=continue_on_missing_genes, threads=threads)
+                queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=preload_db, limit_per_sequence=limit_per_sequence, continue_on_missing_genes=continue_on_missing_genes, threads=threads, progress_callback=progress_callback)
         else:
             raise Exception("Unknown search method {}".format(search_method))
 
@@ -342,7 +342,7 @@ class Querier:
                             if num_reported >= max_nearest_neighbours:
                                 break
 
-    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None, continue_on_missing_genes=False, threads=1):
+    def query_by_sequence_similarity_with_smafa_naive(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, preload_db=False, limit_per_sequence=None, continue_on_missing_genes=False, threads=1, progress_callback=None):
         logging.debug("Searching with SMAFA NAIVE by {} sequence ..".format(sequence_type))
 
         for marker, marker_queries in itertools.groupby(queries, lambda x: x.marker):
@@ -458,10 +458,14 @@ class Querier:
                 return results
 
             with ThreadPoolExecutor(max_workers=threads) as executor:
-                futures = [executor.submit(process_chunk, chunk) for chunk in iterable_chunks(marker_queries, 1000)]
-                for future in futures:
-                    for result in future.result():
+                chunks = list(iterable_chunks(marker_queries, 1000))
+                futures = [executor.submit(process_chunk, chunk) for chunk in chunks]
+                for chunk, future in zip(chunks, futures):
+                    results = future.result()
+                    for result in results:
                         yield result
+                    if progress_callback is not None:
+                        progress_callback(len([q for q in chunk if q is not None]))
 
 
     def query_by_sequence_similarity_with_annoy(self, queries, sdb, max_divergence, sequence_type, max_nearest_neighbours, max_search_nearest_neighbours=None, limit_per_sequence=None):
