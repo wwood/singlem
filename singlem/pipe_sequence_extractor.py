@@ -5,6 +5,7 @@ from Bio import SeqIO
 from io import StringIO
 import multiprocessing
 import tempfile
+from tqdm import tqdm
 
 from graftm.hmmsearcher import HmmSearcher
 
@@ -374,17 +375,34 @@ class PipeSequenceExtractor:
                         sample_name, singlem_package):
                     to_iterate.append((sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy))
 
+        # Calculate totals for progress bar
+        num_samples = len(separate_search_result.sample_names())
+        num_packages = len(singlem_package_database.singlem_packages)
+        total_work_units = len(to_iterate)
+
         # Multiprocess across all instances if num_threads > 1
         if num_threads > 1:
             pool = multiprocessing.Pool(num_threads)
             extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
-            for readset_possibly_paired_process in extraction_processes:
-                extracted_reads.add(readset_possibly_paired_process.get())
+            with tqdm(
+                total=total_work_units,
+                desc="Extracting reads from {} sample(s) across {} package(s) ({} threads)".format(num_samples, num_packages, num_threads),
+                unit="sample×pkg",
+                disable=logging.getLogger().level != logging.INFO) as pbar:
+                for readset_possibly_paired_process in extraction_processes:
+                    extracted_reads.add(readset_possibly_paired_process.get())
+                    pbar.update(1)
             pool.close()
             pool.join()
         else:
-            for myargs in to_iterate:
-                extracted_reads.add(_run_individual_extraction(*myargs))
+            with tqdm(
+                total=total_work_units,
+                desc="Extracting reads from {} sample(s) across {} package(s) (serial)".format(num_samples, num_packages),
+                unit="sample×pkg",
+                disable=logging.getLogger().level != logging.INFO) as pbar:
+                for myargs in to_iterate:
+                    extracted_reads.add(_run_individual_extraction(*myargs))
+                    pbar.update(1)
 
         return extracted_reads
 
@@ -410,6 +428,11 @@ class PipeSequenceExtractor:
         else:
             pool = None
 
+        # Calculate totals for progress bar
+        num_samples = len(diamond_forward_search_results)
+        num_packages = len(singlem_package_database.singlem_packages)
+        total_work_units = num_samples * num_packages
+
         logging.debug("Aligning and extracting forward reads ..")
         logging.debug("Extracting reads from {} forward search results".format(len(diamond_forward_search_results)))
         forward_extraction_process_lists_per_sample = []
@@ -431,20 +454,36 @@ class PipeSequenceExtractor:
         # Could pickle the extracted reads an instead return a list of the files 
         # to read from, or write to a fasta.
         # This could improve memory even more, but might slow it down.
-        if analysing_pairs:
-            for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
-                for (fwd, rev) in zip(fwds, revs):
-                    if pool is None:
-                        extracted_reads.add((fwd, rev))
-                    else:
-                        extracted_reads.add((fwd.get(), rev.get()))
+        
+        # Create unified progress bar description
+        if num_threads > 1:
+            desc = "Extracting reads from {} sample(s) across {} package(s) ({} threads)".format(num_samples, num_packages, num_threads)
         else:
-            for fwds in forward_extraction_process_lists_per_sample:
-                for fwd in fwds:
-                    if pool is None:
-                        extracted_reads.add(fwd)
-                    else:
-                        extracted_reads.add(fwd.get())
+            desc = "Extracting reads from {} sample(s) across {} package(s) (serial)".format(num_samples, num_packages)
+        
+        with tqdm(
+            total=total_work_units,
+            desc=desc,
+            unit="sample×pkg",
+            disable=logging.getLogger().level != logging.INFO) as pbar:
+            
+            if analysing_pairs:
+                for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
+                    for (fwd, rev) in zip(fwds, revs):
+                        if pool is None:
+                            extracted_reads.add((fwd, rev))
+                        else:
+                            extracted_reads.add((fwd.get(), rev.get()))
+                        pbar.update(1)
+            else:
+                for fwds in forward_extraction_process_lists_per_sample:
+                    for fwd in fwds:
+                        if pool is None:
+                            extracted_reads.add(fwd)
+                        else:
+                            extracted_reads.add(fwd.get())
+                        pbar.update(1)
+        
         if pool is not None:
             pool.close()
             pool.join()
