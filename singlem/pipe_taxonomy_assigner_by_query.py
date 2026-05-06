@@ -1,4 +1,7 @@
 import logging
+import sys
+
+from tqdm import tqdm
 
 from .querier import Querier, QueryInputSequence
 from .sequence_database import *
@@ -95,13 +98,13 @@ class PipeTaxonomyAssignerByQuery:
                             for read_name in read_names:
                                 final_result[pair_index][spkg_key][sample_name][read_name] = hit_taxonomies
 
-            def query_single_set(queries):
+            def query_single_set(queries, pbar):
                 last_query = None
                 last_hits = []
 
                 if len(queries) > 0:
                     logging.debug("Querying against species database with %d sequences, using method %s and max divergence %s" % (len(queries), method, max_species_divergence))
-                    for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
+                    for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None, progress_callback=pbar.update):
                         # hit has (query, subject, divergence)
                         # subject has .taxonomy
                         if last_query != hit.query.name:
@@ -131,13 +134,13 @@ class PipeTaxonomyAssignerByQuery:
                         for read_name in window_to_read_names[pair_index][hit.query.sequence]:
                             final_result[pair_index][spkg_key][sample_name][read_name] = hit_taxonomies
 
-            def query_single_set(queries, pair_index):
+            def query_single_set(queries, pair_index, pbar):
                 last_query = None
                 last_hits = []
 
                 if len(queries) > 0:
                     logging.debug("Querying against species database with %d sequences, using method %s and max divergence %s" % (len(queries), method, max_species_divergence))
-                    for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None):
+                    for hit in querier.query_with_queries(queries, sdb, max_species_divergence, method, SequenceDatabase.NUCLEOTIDE_TYPE, 1, None, False, None, progress_callback=pbar.update):
                         # hit has (query, subject, divergence)
                         # subject has .taxonomy
                         if last_query != hit.query.name:
@@ -152,11 +155,17 @@ class PipeTaxonomyAssignerByQuery:
                     if last_query is not None:
                         process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
 
-        for (spkg_key, queries) in spkg_queries.items():
-            if analysing_pairs:
-                query_single_set(queries)
-            else:
-                query_single_set(queries, 0)
+        total_queries = sum(len(q) for q in spkg_queries.values())
+        with tqdm(
+            total=total_queries,
+            desc="Querying taxonomy",
+            unit=" seqs",
+            disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
+            for (spkg_key, queries) in spkg_queries.items():
+                if analysing_pairs:
+                    query_single_set(queries, pbar)
+                else:
+                    query_single_set(queries, 0, pbar)
 
         if analysing_pairs:
             return QueryTaxonomicAssignmentResult(final_result, analysing_pairs)

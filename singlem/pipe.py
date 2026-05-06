@@ -1643,6 +1643,7 @@ class SearchPipe:
             if self._num_threads == 1:
                 with tqdm(
                     total=total_chunks,
+                    desc='DIAMOND taxonomy',
                     unit="chunk", 
                     disable=not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO ) as pbar:
                     
@@ -1668,6 +1669,7 @@ class SearchPipe:
                 # Execute with progress bar using as_completed for better exception handling
                 with tqdm(
                     total=len(chunk_tasks),
+                    desc='DIAMOND taxonomy',
                     unit="chunk", 
                     disable=not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO) as pbar:
 

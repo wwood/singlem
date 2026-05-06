@@ -456,11 +456,11 @@ class PipeSequenceExtractor:
         # This could improve memory even more, but might slow it down.
         
         # Create unified progress bar description
-        desc = "Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads)
+        logging.info("Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads))
         
         with tqdm(
             total=total_work_units,
-            desc=desc,
+            desc='Extracting reads',
             unit="sample×pkg",
             disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
             
