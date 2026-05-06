@@ -9,6 +9,7 @@ import re
 import csv
 import subprocess
 import time
+import sys
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .metapackage import Metapackage
@@ -1373,6 +1374,7 @@ class SearchPipe:
                 io.write(s.unaligned_sequence)
                 io.write("\n")
 
+        num_seqs_assigned_by_query = None
         if assignment_method in (
             ANNOY_ASSIGNMENT_METHOD,
             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
@@ -1395,16 +1397,24 @@ class SearchPipe:
                 method = SMAFA_NAIVE_INDEX_FORMAT
             else:
                 raise Exception("Programming error")
+            
+            # Count number of reads to be assigned by query. Used here and then
+            # below when diamond blastx is used as a fallback.
+            num_seqs_assigned_by_query = 0
+            for _, readsets in extracted_reads.each_package_wise():
+                for readset in readsets:
+                    if extracted_reads.analysing_pairs:
+                        num_seqs_assigned_by_query += len(readset[0].unknown_sequences) + len(readset[1].unknown_sequences)
+                    else:
+                        num_seqs_assigned_by_query += len(readset.unknown_sequences)
+
             query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy(
                 extracted_reads, assignment_singlem_db, method, self._max_species_divergence)
             if assignment_method == ANNOY_ASSIGNMENT_METHOD:
                 logging.info("Finished running taxonomic assignment")
                 return query_based_assignment_result
             else:
-                if self._num_threads > 1:
-                    logging.info("Finished running singlem query-based taxonomic assignment, now running diamond in parallel with {} threads ..".format(self._num_threads))
-                else:
-                    logging.info("Finished running singlem query-based taxonomic assignment, now running diamond ..")
+                logging.info("Finished running singlem query-based taxonomic assignment, now running diamond using {} thread(s) ..".format(self._num_threads))
 
         # Run each one at a time serially so that the number of threads is
         # respected, to save RAM as one DB needs to be loaded at once, and so
@@ -1566,33 +1576,33 @@ class SearchPipe:
 
             # Phase 2: Run diamond on ALL chunks in parallel across ALL samples and packages
             def run_diamond_chunk(chunk_file_path, pkg):
-                        with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
-                            cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
-                                chunk_file_path, pkg.graftm_package().diamond_database_path(), diamond_out.name
-                            )
-                            # logging.debug("Running taxonomic assignment command: {}".format(cmd2))
-                            extern.run(cmd2)
+                with tempfile.NamedTemporaryFile(prefix='singlem_diamond_assignment_output') as diamond_out:
+                    cmd2 = cmd_stub+"-q '%s' -d '%s' -o %s" % (
+                        chunk_file_path, pkg.graftm_package().diamond_database_path(), diamond_out.name
+                    )
+                    # logging.debug("Running taxonomic assignment command: {}".format(cmd2))
+                    extern.run(cmd2)
 
-                            chunk_best_hits = {}
-                            chunk_best_hit_bitscores = {}
+                    chunk_best_hits = {}
+                    chunk_best_hit_bitscores = {}
 
-                            with open(diamond_out.name) as d:
-                                for row in csv.reader(d, delimiter='\t'):
-                                    if len(row) != 3:
-                                        raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
-                                    query = row[0]
-                                    subject = row[1]
-                                    bitscore = float(row[2])
-                                    if query in chunk_best_hit_bitscores:
-                                        if bitscore > chunk_best_hit_bitscores[query]:
-                                            raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
-                                        elif bitscore == chunk_best_hit_bitscores[query]:
-                                            chunk_best_hits[query].append(subject)
-                                    else:
-                                        chunk_best_hits[query] = [subject]
-                                        chunk_best_hit_bitscores[query] = bitscore
+                    with open(diamond_out.name) as d:
+                        for row in csv.reader(d, delimiter='\t'):
+                            if len(row) != 3:
+                                raise Exception("Unexpected number of CSV row elements detected in line: {}".format(row))
+                            query = row[0]
+                            subject = row[1]
+                            bitscore = float(row[2])
+                            if query in chunk_best_hit_bitscores:
+                                if bitscore > chunk_best_hit_bitscores[query]:
+                                    raise Exception("Unexpected order of DIAMOND results during taxonomy assignment")
+                                elif bitscore == chunk_best_hit_bitscores[query]:
+                                    chunk_best_hits[query].append(subject)
+                            else:
+                                chunk_best_hits[query] = [subject]
+                                chunk_best_hit_bitscores[query] = bitscore
 
-                            return chunk_best_hits
+                    return chunk_best_hits
 
             # Helper function to aggregate chunk results
             def aggregate_chunk_results(chunk_results, key, chunk_best_hits, assignment_method):
@@ -1621,12 +1631,20 @@ class SearchPipe:
             # Use serial processing for single thread to avoid ThreadPoolExecutor overhead
             total_chunks = sum(len(chunk_files) for chunk_files in all_sample_chunks.values())
             num_packages = len(package_data)
+            if total_sequences == 0:
+                logging.info("No OTUs to assign taxonomy to with DIAMOND blastx.")
+            elif num_seqs_assigned_by_query is None:
+                logging.info("Assigning taxonomy with DIAMOND blastx to {} OTUs ..".format(total_sequences))
+            else:
+                logging.info("Assigning taxonomy with DIAMOND blastx to {} OTUs (The {:.1f}% that were not assigned by smafa) ..".format(
+                    num_seqs_assigned_by_query - total_sequences,
+                    100 * (num_seqs_assigned_by_query - total_sequences) / total_sequences))
+
             if self._num_threads == 1:
                 with tqdm(
-                    total=total_chunks, 
-                    desc="Assigning taxonomy to {} sequences across {} packages (serial)".format(total_sequences, num_packages), 
+                    total=total_chunks,
                     unit="chunk", 
-                    disable=logging.getLogger().level != logging.INFO) as pbar:
+                    disable=not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO ) as pbar:
                     
                     for (pkg, sample_name, direction), chunk_files in all_sample_chunks.items():
                         for chunk_file in chunk_files:
@@ -1649,10 +1667,9 @@ class SearchPipe:
                 
                 # Execute with progress bar using as_completed for better exception handling
                 with tqdm(
-                    total=len(chunk_tasks), 
-                    desc="Assigning taxonomy to {} sequences across {} packages ({} threads)".format(total_sequences, num_packages, self._num_threads), 
+                    total=len(chunk_tasks),
                     unit="chunk", 
-                    disable=logging.getLogger().level != logging.INFO) as pbar:
+                    disable=not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO) as pbar:
 
                     with ThreadPoolExecutor(max_workers=self._num_threads) as executor:
                         # Submit all tasks and create futures mapping

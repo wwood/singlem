@@ -55,6 +55,11 @@ class DiamondSpkgSearcher:
 
     def _animation_thread(self, filename, stop_event):
         '''Thread that displays a spinner animation while DIAMOND is running'''
+        # Don't attempt to display animation if not running in a terminal,
+        # otherwise log files get filled with escape characters and it looks
+        # bad.
+        if not sys.stderr.isatty(): 
+            return
         spinner = itertools.cycle(['|', '/', '-', '\\'])
         while not stop_event.is_set():
             sys.stderr.write(f"\rFiltering {filename} {next(spinner)}")
