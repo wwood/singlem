@@ -1,4 +1,5 @@
 import os
+import sys
 import logging
 import extern
 from Bio import SeqIO
@@ -381,14 +382,14 @@ class PipeSequenceExtractor:
         total_work_units = len(to_iterate)
 
         # Multiprocess across all instances if num_threads > 1
+        logging.info("Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads))
         if num_threads > 1:
             pool = multiprocessing.Pool(num_threads)
             extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
             with tqdm(
                 total=total_work_units,
-                desc="Extracting reads from {} sample(s) across {} package(s) ({} threads)".format(num_samples, num_packages, num_threads),
                 unit="sample×pkg",
-                disable=logging.getLogger().level != logging.INFO) as pbar:
+                disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
                 for readset_possibly_paired_process in extraction_processes:
                     extracted_reads.add(readset_possibly_paired_process.get())
                     pbar.update(1)
@@ -397,9 +398,8 @@ class PipeSequenceExtractor:
         else:
             with tqdm(
                 total=total_work_units,
-                desc="Extracting reads from {} sample(s) across {} package(s) (serial)".format(num_samples, num_packages),
                 unit="sample×pkg",
-                disable=logging.getLogger().level != logging.INFO) as pbar:
+                disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
                 for myargs in to_iterate:
                     extracted_reads.add(_run_individual_extraction(*myargs))
                     pbar.update(1)
@@ -456,16 +456,13 @@ class PipeSequenceExtractor:
         # This could improve memory even more, but might slow it down.
         
         # Create unified progress bar description
-        if num_threads > 1:
-            desc = "Extracting reads from {} sample(s) across {} package(s) ({} threads)".format(num_samples, num_packages, num_threads)
-        else:
-            desc = "Extracting reads from {} sample(s) across {} package(s) (serial)".format(num_samples, num_packages)
+        desc = "Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads)
         
         with tqdm(
             total=total_work_units,
             desc=desc,
             unit="sample×pkg",
-            disable=logging.getLogger().level != logging.INFO) as pbar:
+            disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
             
             if analysing_pairs:
                 for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
