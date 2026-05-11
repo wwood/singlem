@@ -3,6 +3,7 @@ import sys
 
 from tqdm import tqdm
 
+from .utils import LoggingTqdm
 from .querier import Querier, QueryInputSequence
 from .sequence_database import *
 from .taxonomy import TaxonomyUtils
@@ -156,16 +157,14 @@ class PipeTaxonomyAssignerByQuery:
                         process_hits_batch(window_to_read_names, spkg_key, last_hits, pair_index)
 
         total_queries = sum(len(q) for q in spkg_queries.values())
-        with tqdm(
-            total=total_queries,
-            desc="Querying taxonomy",
-            unit=" seqs",
-            disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
-            for (spkg_key, queries) in spkg_queries.items():
-                if analysing_pairs:
-                    query_single_set(queries, pbar)
-                else:
-                    query_single_set(queries, 0, pbar)
+        pbar = LoggingTqdm(total=total_queries, desc="Querying taxonomy", unit=" seqs")
+
+        # logging.info("Querying taxonomy for chunk {} out of {}".format(logging_counter, total_queries))
+        for (spkg_key, queries) in spkg_queries.items():
+            if analysing_pairs:
+                query_single_set(queries, pbar)
+            else:
+                query_single_set(queries, 0, pbar)
 
         if analysing_pairs:
             return QueryTaxonomicAssignmentResult(final_result, analysing_pairs)

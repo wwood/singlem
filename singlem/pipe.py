@@ -1640,18 +1640,24 @@ class SearchPipe:
                     num_seqs_assigned_by_query - total_sequences,
                     100 * (num_seqs_assigned_by_query - total_sequences) / total_sequences))
 
+            do_logging = not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO
+            logging_counter = 0
             if self._num_threads == 1:
                 with tqdm(
                     total=total_chunks,
                     desc='DIAMOND taxonomy',
                     unit="chunk", 
-                    disable=not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO ) as pbar:
-                    
+                    disable=do_logging ) as pbar:
+
                     for (pkg, sample_name, direction), chunk_files in all_sample_chunks.items():
                         for chunk_file in chunk_files:
                             chunk_best_hits = run_diamond_chunk(chunk_file, pkg)
                             aggregate_chunk_results(chunk_results, (pkg, sample_name, direction), chunk_best_hits, assignment_method)
+
                             pbar.update(1)
+                            if do_logging:
+                                logging_counter += 1
+                                logging.info("Finished DIAMOND blastx chunk {} of {}".format(logging_counter, total_chunks))
             else:
                 # Parallel processing with ThreadPoolExecutor and tqdm
                 # Flatten nested loops into a list of tasks
@@ -1671,7 +1677,7 @@ class SearchPipe:
                     total=len(chunk_tasks),
                     desc='DIAMOND taxonomy',
                     unit="chunk", 
-                    disable=not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO) as pbar:
+                    disable=do_logging) as pbar:
 
                     with ThreadPoolExecutor(max_workers=self._num_threads) as executor:
                         # Submit all tasks and create futures mapping
@@ -1683,6 +1689,9 @@ class SearchPipe:
                             try:
                                 key, chunk_best_hits = future.result()
                                 aggregate_chunk_results(chunk_results, key, chunk_best_hits, assignment_method)
+                                if do_logging:
+                                    logging_counter += 1
+                                    logging.info("Finished DIAMOND blastx chunk {} of {}".format(logging_counter, total_chunks))
                                 pbar.update(1)
                             except Exception as e:
                                 logging.error("Failed to process chunk {}: {}".format(task, e))

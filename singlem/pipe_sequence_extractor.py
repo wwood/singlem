@@ -383,27 +383,34 @@ class PipeSequenceExtractor:
 
         # Multiprocess across all instances if num_threads > 1
         logging.info("Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads))
+        do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
+        logging_counter = 0
         if num_threads > 1:
             pool = multiprocessing.Pool(num_threads)
             extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
             with tqdm(
                 total=total_work_units,
                 unit="sample×pkg",
-                disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
+                disable=do_logging) as pbar:
                 for readset_possibly_paired_process in extraction_processes:
                     extracted_reads.add(readset_possibly_paired_process.get())
                     pbar.update(1)
+                    if do_logging:
+                        logging_counter += 1
+                        logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
             pool.close()
             pool.join()
         else:
             with tqdm(
                 total=total_work_units,
                 unit="sample×pkg",
-                disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
+                disable=do_logging) as pbar:
                 for myargs in to_iterate:
                     extracted_reads.add(_run_individual_extraction(*myargs))
                     pbar.update(1)
-
+                    if do_logging:
+                        logging_counter += 1
+                        logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
         return extracted_reads
 
 
@@ -458,12 +465,13 @@ class PipeSequenceExtractor:
         # Create unified progress bar description
         logging.info("Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads))
         
+        do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
         with tqdm(
             total=total_work_units,
             desc='Extracting reads',
             unit="sample×pkg",
-            disable=not sys.stderr.isatty() or logging.getLogger().level != logging.INFO) as pbar:
-            
+            disable=do_logging) as pbar:
+            logging_counter = 0
             if analysing_pairs:
                 for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
                     for (fwd, rev) in zip(fwds, revs):
@@ -472,6 +480,9 @@ class PipeSequenceExtractor:
                         else:
                             extracted_reads.add((fwd.get(), rev.get()))
                         pbar.update(1)
+                        if do_logging:
+                            logging_counter += 1
+                            logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
             else:
                 for fwds in forward_extraction_process_lists_per_sample:
                     for fwd in fwds:
@@ -480,6 +491,9 @@ class PipeSequenceExtractor:
                         else:
                             extracted_reads.add(fwd.get())
                         pbar.update(1)
+                        if do_logging:
+                            logging_counter += 1
+                            logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
         
         if pool is not None:
             pool.close()
