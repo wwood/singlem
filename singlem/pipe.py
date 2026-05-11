@@ -280,7 +280,7 @@ class SearchPipe:
 
         #### Preprocess genomes into transcripts to speed the rest of the pipeline
         if genome_fasta_files:
-            logging.info("Calling rough transcriptome of genome FASTA files")
+            logging.info("Calling rough transcriptome of {} genome FASTA files".format(len(genome_fasta_files)))
             genome_fasta_mux = GenomeFastaMux(genome_fasta_files)  # to deal with mux and demux of sequence names
 
             # Create a single tempfile with ORFs from all genomes, and then
