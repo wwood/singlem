@@ -126,14 +126,16 @@ class DiamondSpkgSearcher:
 
             best_hits = {}
             query_sequence_lengths = {}
-            # Start animation thread
-            stop_animation = threading.Event()
-            animation_thread = threading.Thread(
-                target=self._animation_thread,
-                args=(os.path.basename(file), stop_animation),
-                daemon=True
-            )
-            animation_thread.start()
+            do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
+            if not do_logging:
+                # Start animation thread
+                stop_animation = threading.Event()
+                animation_thread = threading.Thread(
+                    target=self._animation_thread,
+                    args=(os.path.basename(file), stop_animation),
+                    daemon=True
+                )
+                animation_thread.start()
             # using Popen to stream the output
             with Popen(cmd, stdout=PIPE, stderr=PIPE, text=True) as proc:
                 seen_full_qseqs = set()
@@ -199,8 +201,9 @@ class DiamondSpkgSearcher:
                             seen_full_qseqs.add(qseqid)
 
                 # Stop animation and clear the line
-                stop_animation.set()
-                animation_thread.join(timeout=1)
+                if not do_logging:
+                    stop_animation.set()
+                    animation_thread.join(timeout=1)
                 sys.stderr.write('\r' + ' ' * 80 + '\r')
                 sys.stderr.flush()
 

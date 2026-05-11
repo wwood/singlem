@@ -5,6 +5,8 @@ import shlex
 import subprocess
 import time
 import logging
+import sys
+from tqdm import tqdm
 
 ZSTD_EXTENSIONS = ('.zst', '.zstd')
 
@@ -161,3 +163,51 @@ def finish_processes(processes, description):
         # and negative codes (process was killed by a signal, e.g. our own terminate_processes).
         if proc.returncode not in (0, 141) and proc.returncode >= 0:
             raise Exception(f"{description} command failed (exit {proc.returncode}): {cmd}\nSTDERR: {stderr_output}")
+
+class LoggingTqdm(tqdm):
+    """Drop-in replacement for tqdm that logs progress periodically when not in a TTY."""
+
+    def __init__(self, *args, logger=None, log_interval=5, **kwargs):
+        """
+        Parameters
+        ----------
+        *args
+            Passed through to tqdm (typically the iterable).
+        logger : logging.Logger, optional
+            Logger to write progress messages to. Defaults to the module logger.
+        log_interval : int
+            Minimum seconds between log messages. Default 60.
+        **kwargs
+            Passed through to tqdm. 'disable' is set automatically based on
+            whether stderr is a TTY, but can be overridden explicitly.
+        """
+        self._logger = logger or logging.getLogger(__name__)
+        self._log_interval = log_interval
+        self._last_log = 0
+        self._counter_for_logging = 0
+        kwargs.setdefault('disable', not sys.stderr.isatty())
+        super().__init__(*args, **kwargs)
+
+    def update(self, n=1):
+        """
+        Advance the progress counter by n steps.
+
+        When output is a TTY, delegates entirely to tqdm for live rendering.
+        When output is not a TTY (e.g. log file), emits a log line at most
+        once per log_interval seconds.
+
+        Parameters
+        ----------
+        n : int
+            Number of steps to advance. Default 1.
+        """
+        super().update(n)
+        if self.disable:
+            # tqdm doesn't update .n when disabled, so we track it separately for logging purposes.
+            self._counter_for_logging += n
+            now = time.time()
+            
+            if now - self._last_log > self._log_interval:
+                pct = f"{100*self._counter_for_logging//self.total}%" if self.total else "?"
+                self._logger.info(f"Progress: {self._counter_for_logging}/{self.total} ({pct})")
+                self._last_log = now
