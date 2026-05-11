@@ -411,6 +411,7 @@ class PipeSequenceExtractor:
                     if do_logging:
                         logging_counter += 1
                         logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
+        logging.info("After read extraction, {} sequence(s) remain".format(extracted_reads.sequence_count()))
         return extracted_reads
 
 
@@ -500,6 +501,8 @@ class PipeSequenceExtractor:
             pool.join()
         logging.debug("Finished aligning and extracting reads")
 
+        logging.info("After read extraction, {} sequence(s) remain".format(extracted_reads.sequence_count()))
+
         return extracted_reads
 
     def _extract_relevant_reads_from_diamond_prefilter_from_one_search_result(
@@ -583,6 +586,18 @@ class ExtractedReads:
                     if len(readset.unknown_sequences) > 0  or len(readset.known_sequences) > 0:
                         return False
         return True
+
+    def sequence_count(self):
+        '''Return the total number of extracted nucleotide reads summed across
+        all readsets.'''
+        total = 0
+        for readsets in self._sample_to_extracted_read_objects.values():
+            for readset in readsets:
+                if self.analysing_pairs:
+                    total += len(readset[0].sequences) + len(readset[1].sequences)
+                else:
+                    total += len(readset.sequences)
+        return total
 
     def each_package_wise(self):
         '''yield once per pkg: [singlem_package, ExtractedReadSet objects with all
