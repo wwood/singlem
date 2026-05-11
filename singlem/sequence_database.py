@@ -58,8 +58,11 @@ class SequenceDatabase:
     @staticmethod
     def _acquire_readonly_engine(sqlite_file):
         quoted_sqlite_path = quote(os.path.abspath(sqlite_file), safe="/")
-        sqlite_uri = f"sqlite+pysqlite:///file:{quoted_sqlite_path}?mode=ro&immutable=1&uri=true"
-        return create_engine(sqlite_uri)
+        sqlite_uri = f"sqlite+pysqlite:///file:{quoted_sqlite_path}?mode=ro&immutable=1&uri=true&nolock=1"
+        engine = create_engine(sqlite_uri)
+        logging.debug(f"SequenceDatabase Engine URL: {engine.url}")
+        logging.debug(f"SequenceDatabase Engine URL render: {engine.url.render_as_string(hide_password=False)}")
+        return engine
 
     def get_marker_via_cache(self, marker_id):
         if self._marker_cache is None:

@@ -19,10 +19,13 @@ class MetapackageReadNameStore:
     @staticmethod
     def _acquire_readonly_engine(sqlitedb_path):
         quoted_sqlite_path = quote(os.path.abspath(sqlitedb_path), safe="/")
-        sqlite_uri = f"sqlite+pysqlite:///file:{quoted_sqlite_path}?mode=ro&immutable=1&uri=true"
-        return create_engine(sqlite_uri,
+        sqlite_uri = f"sqlite+pysqlite:///file:{quoted_sqlite_path}?mode=ro&immutable=1&uri=true&nolock=1"
+        engine = create_engine(sqlite_uri,
             echo=logging.getLogger().isEnabledFor(logging.DEBUG),
             future=True)
+        logging.debug(f"MetapackageReadNameStore Engine URL: {engine.url}")
+        logging.debug(f"MetapackageReadNameStore Engine URL render: {engine.url.render_as_string(hide_password=False)}")
+        return engine
 
     @staticmethod
     def generate(singlem_package_paths, sqlitedb_path, taxonomy_marker_counts=None):
