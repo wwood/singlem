@@ -40,6 +40,7 @@ class Renew:
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
         kwargs.pop('singlem_packages', None)
         kwargs.pop('metapackage_path', None)
+        kwargs.pop('parse_lyrebird_metapackage', None)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)

@@ -759,14 +759,11 @@ class SearchPipe:
                         equal_best_taxonomies = {}
                         if analysing_pairs:
                             if diamond_forward_qseqs:
-                                read_name_to_fullseq = {}
-                                for (name, best_hits) in best_hit_hash[1].items():
-                                    readname = name.split('••')[0]
-                                    read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
-                                for (name, best_hits) in best_hit_hash[0].items():
-                                    # Overwrite reverse hit with the forward hit
-                                    readname = name.split('••')[0]
-                                    read_name_to_fullseq[readname] = forward_full_qseqs[readname]
+                                # Include all reads, not just those with taxonomy hits,
+                                # since aligned_seqs may contain reads found by HMMER
+                                # but not by DIAMOND. Reverse first, then forward overwrites.
+                                read_name_to_fullseq = dict(reverse_full_qseqs)
+                                read_name_to_fullseq.update(forward_full_qseqs)
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -796,14 +793,11 @@ class SearchPipe:
                         equal_best_taxonomies = {}
                         if analysing_pairs:
                             if diamond_forward_qseqs:
-                                read_name_to_fullseq = {}
-                                for (name, best_hits) in best_hit_hash[1].items():
-                                    readname = name.split('••')[0]
-                                    read_name_to_fullseq[readname] = reverse_full_qseqs[readname]
-                                for (name, best_hits) in best_hit_hash[0].items():
-                                    # Overwrite reverse hit with the forward hit
-                                    readname = name.split('••')[0]
-                                    read_name_to_fullseq[readname] = forward_full_qseqs[readname]
+                                # Include all reads, not just those with taxonomy hits,
+                                # since aligned_seqs may contain reads found by HMMER
+                                # but not by DIAMOND. Reverse first, then forward overwrites.
+                                read_name_to_fullseq = dict(reverse_full_qseqs)
+                                read_name_to_fullseq.update(forward_full_qseqs)
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():

@@ -154,7 +154,7 @@ def main():
     elif args.subparser_name=='renew':
         from singlem.renew import Renew
         validate_pipe_args(args, subparser='renew')
-        Renew().renew(
+        Renew.renew(
             input_archive_otu_table=args.input_archive_otu_table,
             input_zipped_gzip_archive_otu_table=args.input_zipped_gzip_archive_otu_table,
             ignore_missing_singlem_packages=args.ignore_missing_singlem_packages,
@@ -178,6 +178,7 @@ def main():
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
             viral_mode = True,
+            parse_lyrebird_metapackage = True,
             )
 
     elif args.subparser_name == 'condense':
