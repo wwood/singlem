@@ -180,5 +180,25 @@ class Tests(unittest.TestCase):
             'inseqs	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]\n'
         self.assertEqual(expected, output)
 
+    def test_lyrebird_pipe_no_assign_taxonomy_then_renew(self):
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.TemporaryDirectory() as td:
+            inseqs_path = os.path.join(td, 'inseqs.fa')
+            archive_path = os.path.join(td, 'archive.json')
+            with open(inseqs_path, 'w') as f:
+                f.write(inseqs)
+            cmd1 = "{} pipe --sequences {} --no-assign-taxonomy --archive-otu-table {} --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/".format(
+                path_to_lyrebird, inseqs_path, archive_path, path_to_data)
+            extern.run(cmd1)
+            cmd2 = "{} renew --input-archive-otu-table {} --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --assignment-method diamond --taxonomic-profile /dev/stdout".format(
+                path_to_lyrebird, archive_path, path_to_data)
+            output = extern.run(cmd2)
+        expected = \
+            "sample\tcoverage\ttaxonomy\n" + \
+            'inseqs\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]\n'
+        self.assertEqual(expected, output)
+
 if __name__ == "__main__":
     unittest.main()
