@@ -16,8 +16,8 @@ from .metapackage_read_name_store import MetapackageReadNameStore
 
 # These constants should be updated in tandem
 # When updating, also update the name in the set_env_vars.sh script in admin/
-DATA_DEFAULT_VERSION = '5.4.0'
-CURRENT_GTDB_DATABASE_VERSION = 'R226'
+DATA_DEFAULT_VERSION = '6.5.0'
+CURRENT_GTDB_DATABASE_VERSION = 'R232'
 
 GTDB_DATABASE_NAME = 'Genome Taxonomy Database (GTDB)'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
