@@ -40,6 +40,7 @@ from bird_tool_utils import in_tempdir
 from singlem.metapackage import Metapackage
 
 path_to_script = 'singlem'
+path_to_lyrebird = 'lyrebird'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 singlem_base_directory = os.path.join(os.path.dirname(__file__), '..')
@@ -384,7 +385,16 @@ ACACGGCCTTGACGGTCAATTTCAAGAACCTTAACTGGTACTTCTTGACCTTCAGTTAGGTAGTCAGACACTTTCTCAAC
             cmd = "singlem pipe -1 {} -2 {} -p /dev/stdout".format(bad_fasta1.name, bad_fasta2.name)
             stdout = extern.run(cmd)
             self.assertEqual("sample\tcoverage\ttaxonomy\n", stdout)
-            
+
+    def test_lyrebird_pipe_no_assign_taxonomy_then_renew(self):
+        with in_tempdir():
+            cmd1 = "{} pipe --sequences {}/4.11.22seqs.gpkg.spkg_inseqs.fna --no-assign-taxonomy --archive-otu-table archive.json".format(
+                path_to_lyrebird, path_to_data)
+            extern.run(cmd1)
+            cmd2 = "{} renew --input-archive-otu-table archive.json --otu-table /dev/stdout".format(
+                path_to_lyrebird)
+            output = extern.run(cmd2)
+            self.assertEqual(self.otu_table_headers, output.split('\n')[0].split('\t'))
 
 
 if __name__ == "__main__":
