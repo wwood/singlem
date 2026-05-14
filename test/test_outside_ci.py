@@ -388,13 +388,15 @@ ACACGGCCTTGACGGTCAATTTCAAGAACCTTAACTGGTACTTCTTGACCTTCAGTTAGGTAGTCAGACACTTTCTCAAC
 
     def test_lyrebird_pipe_no_assign_taxonomy_then_renew(self):
         with in_tempdir():
-            cmd1 = "{} pipe --sequences {}/4.11.22seqs.gpkg.spkg_inseqs.fna --no-assign-taxonomy --archive-otu-table archive.json".format(
+            cmd1 = "{} pipe --genome-fasta-files {}/lambda_phage.fna --no-assign-taxonomy --archive-otu-table archive.json".format(
                 path_to_lyrebird, path_to_data)
             extern.run(cmd1)
             cmd2 = "{} renew --input-archive-otu-table archive.json --otu-table /dev/stdout".format(
                 path_to_lyrebird)
             output = extern.run(cmd2)
-            self.assertEqual(self.otu_table_headers, output.split('\n')[0].split('\t'))
+            lines = output.strip().split('\n')
+            self.assertEqual(self.otu_table_headers, lines[0].split('\t'))
+            self.assertGreater(len(lines), 1, "Expected lyrebird to find marker genes in lambda phage")
 
 
 if __name__ == "__main__":
