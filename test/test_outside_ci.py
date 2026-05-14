@@ -391,12 +391,11 @@ ACACGGCCTTGACGGTCAATTTCAAGAACCTTAACTGGTACTTCTTGACCTTCAGTTAGGTAGTCAGACACTTTCTCAAC
             cmd1 = "{} pipe --genome-fasta-files {}/lambda_phage.fna --no-assign-taxonomy --archive-otu-table archive.json".format(
                 path_to_lyrebird, path_to_data)
             extern.run(cmd1)
-            cmd2 = "{} renew --input-archive-otu-table archive.json --otu-table /dev/stdout".format(
+            cmd2 = "{} renew --input-archive-otu-table archive.json -p profile.tsv".format(
                 path_to_lyrebird)
-            output = extern.run(cmd2)
-            lines = output.strip().split('\n')
-            self.assertEqual(self.otu_table_headers, lines[0].split('\t'))
-            self.assertGreater(len(lines), 1, "Expected lyrebird to find marker genes in lambda phage")
+            extern.run(cmd2)
+            profile = open('profile.tsv').read()
+            self.assertIn('s__Lambdavirus_lambda', profile)
 
 
 if __name__ == "__main__":
