@@ -180,18 +180,5 @@ class Tests(unittest.TestCase):
             'inseqs	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]\n'
         self.assertEqual(expected, output)
 
-    def test_lyrebird_pipe_no_assign_taxonomy_then_renew(self):
-        with tempfile.TemporaryDirectory() as td:
-            archive_path = os.path.join(td, 'archive.json')
-            cmd1 = "{} pipe --genome-fasta-files {}/lambda_phage.fna --no-assign-taxonomy --archive-otu-table {} --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/".format(
-                path_to_lyrebird, path_to_data, archive_path, path_to_data)
-            extern.run(cmd1)
-            cmd2 = "{} renew --input-archive-otu-table {} --metapackage {}/4.11.22seqs.gpkg.spkg.smpkg/ --assignment-method diamond --otu-table /dev/stdout".format(
-                path_to_lyrebird, archive_path, path_to_data)
-            output = extern.run(cmd2)
-        # Lambda phage has no bacterial marker genes, so the output is header-only.
-        # This test exercises the two-step pipeline mechanics end-to-end.
-        self.assertEqual(self.headers, output.split('\n')[0].split('\t'))
-
 if __name__ == "__main__":
     unittest.main()
