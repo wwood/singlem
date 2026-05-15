@@ -10,6 +10,12 @@ from tqdm import tqdm
 
 ZSTD_EXTENSIONS = ('.zst', '.zstd')
 
+# awk in the chunking pipe exits with this sentinel code when it deliberately
+# stops early (after printing the last requested line) instead of reading to
+# EOF. wrap_chunked_extraction_command() uses it to tell a deliberate early stop
+# apart from a genuine upstream extractor failure.
+CHUNKING_EARLY_EXIT_CODE = 99
+
 class OrfMUtils:
     def un_orfm_name(self, name):
         return re.sub(r'_\d+_\d+_\d+$', '', name)
@@ -90,10 +96,38 @@ def add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read=2):
     # required line, so it never blocks waiting for upstream EOF when the
     # remaining data is shorter than the requested chunk (e.g. the last chunk
     # of a file whose size is not a multiple of the chunk size).
+    #
+    # awk exits CHUNKING_EARLY_EXIT_CODE when it stops early after printing the
+    # last requested line, and 0 when it instead reaches EOF first (the final or
+    # a short chunk). wrap_chunked_extraction_command() relies on this to
+    # distinguish a deliberate early stop from a genuine upstream failure.
     start_line = (read_chunk_size * (read_chunk_number - 1)) * lines_per_read + 1
     end_line = start_line + read_chunk_size * lines_per_read - 1
     logging.debug(f"Chunking pipe: awk NR>={start_line} to NR<={end_line} (chunk_size={read_chunk_size}, chunk_num={read_chunk_number}, lines_per_read={lines_per_read})")
-    return f" | awk 'NR>={start_line}{{print; if(NR>={end_line})exit}}'"
+    return f" | awk 'NR>={start_line}{{print; if(NR>={end_line})exit {CHUNKING_EARLY_EXIT_CODE}}}'"
+
+def wrap_chunked_extraction_command(read_command, chunking_pipe, output_path):
+    """Build a bash command running `read_command <chunking_pipe> > output_path`
+    under `set -o pipefail`, but whose final exit status distinguishes a
+    deliberate early stop from a genuine failure.
+
+    When awk stops early (CHUNKING_EARLY_EXIT_CODE) the upstream extractor (e.g.
+    kingfisher, gzip, cat) is killed mid-stream and exits non-zero via
+    SIGPIPE/BrokenPipeError. Without this wrapper, pipefail would report that as
+    a failure for every non-final chunk. The wrapper treats the awk sentinel as
+    success, and otherwise propagates the real exit code so genuine extractor
+    failures still surface.
+    """
+    inner = f"{read_command}{chunking_pipe} > {shlex.quote(output_path)}"
+    # PIPESTATUS after the pipeline: [0]=read_command, [1]=awk.
+    return (
+        "set -o pipefail; "
+        f"{inner}; "
+        's=("${PIPESTATUS[@]}"); '
+        f'[ "${{s[1]}}" -eq {CHUNKING_EARLY_EXIT_CODE} ] && exit 0; '
+        '[ "${s[1]}" -ne 0 ] && exit "${s[1]}"; '
+        'exit "${s[0]}"'
+    )
 
 def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_number, sleep_after_mkfifo=None):
     """Return (new_paths, processes) where any files are streamed into FIFOs with chunking.
@@ -137,7 +171,10 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
             read_cmd = f"gzip -dc {shlex.quote(path)}"
         else:
             read_cmd = f"cat {shlex.quote(path)}"
-        cmd = f"{read_cmd} {add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read)} > {shlex.quote(fifo_path)}"
+        cmd = wrap_chunked_extraction_command(
+            read_cmd,
+            add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read),
+            fifo_path)
         logging.debug("Running chunking command: {}".format(cmd))
         process = subprocess.Popen(
             ['bash','-c',cmd],
@@ -159,9 +196,11 @@ def finish_processes(processes, description):
     """Wait for streaming processes to finish and raise on non-zero exit codes."""
     for proc, cmd in processes:
         _, stderr_output = proc.communicate()
-        # Tolerate: 0 (success), 141 (SIGPIPE from shell when consumer exits early),
-        # and negative codes (process was killed by a signal, e.g. our own terminate_processes).
-        if proc.returncode not in (0, 141) and proc.returncode >= 0:
+        # Negative codes mean the process was killed by a signal (e.g. our own
+        # terminate_processes after a downstream failure) - tolerate those.
+        # Deliberate early stops in chunked pipelines are already normalised to
+        # exit 0 by wrap_chunked_extraction_command().
+        if proc.returncode > 0:
             raise Exception(f"{description} command failed (exit {proc.returncode}): {cmd}\nSTDERR: {stderr_output}")
 
 class LoggingTqdm(tqdm):
