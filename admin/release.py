@@ -20,7 +20,13 @@ if __name__ == "__main__":
     )
     if yes_no != "y":
         raise Exception("Please update the CHANGELOG.md file")
-    
+
+    yes_no = input(
+        "Did you check SKILL.md.in is up to date? (y/n)\n\n"
+    )
+    if yes_no != "y":
+        raise Exception("Please check SKILL.md.in is up to date")
+
     print("version is {}".format(version))
 
     print("Building dependency definition files based on pixi.toml and pixi.lock") # TODO: Do we need to update pixi.lock first?
