@@ -116,6 +116,10 @@ Note that the version of GTDB-Tk installed must match the GTDB release of the me
     genome_fasta\<TAB\>transcript_fasta\<TAB\>protein_fasta [default:
     undefined, call genes using Prodigal]
 
+**\--output-matched-protein-sequences** *OUTPUT_MATCHED_PROTEIN_SEQUENCES*
+
+  Write protein sequences matched by hmmsearch to this file
+
 **\--working-directory** *WORKING_DIRECTORY*
 
   working directory [default: use a temporary directory]
