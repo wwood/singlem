@@ -1,3 +1,26 @@
+## v0.21.0
+
+* Default metapackage updated to GTDB R232 (S6.5.0-R232)
+* `pipe`: Substantially improved logging, including progress bars for prefilter, hmmsearch and DIAMOND assignment steps. Thanks @thepatientwait.
+* `pipe`: Parallelised DIAMOND taxonomic assignment for faster runs. Thanks @thepatientwait.
+* `pipe`: Add optional `--context-window` if the entire query sequence is too large for output size.
+* `pipe`: Add zstd input support in places, including with `--read-chunk-size`/`--read-chunk-num` and `prokaryotic_fraction`
+* `pipe`: Restore v0.19.0 orfm+mux pipeline for genome input, restoring performance lost in v0.20
+* `pipe`: Use DIAMOND `--frameshift` when assigning taxonomy
+* `pipe`: `--sra-files`: Numerous fixes and refinements to chunked SRA extraction, including detection of `kingfisher` failures and stripping of `.sra` suffix from sample names
+* `pipe`/`renew`: Bugfix for missing sequences with Lyrebird
+* `supplement`: Add `--output-matched-faa` to output matched protein sequences, with marker name included in sequence IDs
+* `renew`: Accept zipped gzip archive OTU tables as input
+* `lyrebird`: Add `extras/lyrebird_metapackage_creation` snakemake workflow for building Lyrebird metapackages from scratch
+* `data`: Report DOI when database download or acquisition fails
+* Switch internal data handling from pandas to polars
+* Updated citation for `prokaryotic_fraction`
+* docs: Improved GlobDB documentation (#267)
+* Add `AGENTS.md` and `SKILL.md` to assist agentic coding tools
+* Assorted bug fixes, test improvements, and documentation updates
+
+Thanks @thepatientwait, @rzhao-2, @AroneyS, @EisenRa and others for contributions and testing, and thanks to @MCeciC (#269) and @magicprotoss (#267) for raising issues.
+
 ## v0.20.3
 
 Minor bugfix release. Rare sequences tripped a bug in `pipe` mode.
