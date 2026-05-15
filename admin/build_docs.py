@@ -53,8 +53,6 @@ if __name__ == '__main__':
         f.write(installation)
     logging.info("Done updating [RELEASE_TAG] in Installation.md to {}".format(version))
 
-    # Update [RELEASE_TAG] in SKILL.md
-    raise Exception("SKILL.md needs to checked or moved to autogeneration")
     version = args.version
     logging.info("Updating [RELEASE_TAG] in SKILL.md to {}".format(version))
     with open('docs/SKILL.md.in') as f:
