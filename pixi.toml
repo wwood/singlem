@@ -39,7 +39,7 @@ graftm = "*"
 coreutils = "*" # So sort --parallel works
 bash = "*"
 pplacer = "*"
-sra-tools = "*"
+sra-tools = "==3.2.1"  # 3.4.1 build's sracat fails: missing libncbi-ngs.so
 ncbi-ngs-sdk = "*"
 sqlite = "*"
 squarify = "*"
