@@ -13,7 +13,7 @@ import sys
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from .metapackage import Metapackage
-from .utils import OrfMUtils, finish_processes, terminate_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe
+from .utils import OrfMUtils, finish_processes, terminate_processes, prepare_zstd_fifos, prepare_chunking_fifos, add_chunking_pipe, wrap_chunked_extraction_command
 from .otu_table import OtuTable
 from .known_otu_table import KnownOtuTable
 from .sequence_classes import SeqReader
@@ -396,7 +396,8 @@ class SearchPipe:
     
                         cmd0 = "kingfisher extract --sra {} --stdout -f fasta --unsorted ".format(sra)
                         if read_chunk_size is not None and read_chunk_number is not None:
-                            cmd = cmd0 + add_chunking_pipe(read_chunk_size, read_chunk_number) + " >{}".format(new_name)
+                            cmd = wrap_chunked_extraction_command(
+                                cmd0, add_chunking_pipe(read_chunk_size, read_chunk_number), new_name)
                         else:
                             cmd = cmd0 + " >{}".format(new_name)
                         logging.debug("Running kingfisher extraction command: {}".format(cmd))
@@ -413,16 +414,26 @@ class SearchPipe:
                             universal_newlines=True)
                         sra_extraction_processes.append(sra_extraction_process)
 
-                def finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles):
+                def finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles, raise_on_error=True):
+                    # When chunking, the kingfisher extraction command is wrapped
+                    # by wrap_chunked_extraction_command(), so a deliberate early
+                    # stop reports exit 0 and only genuine failures are non-zero.
+                    # raise_on_error is set False when reaping these processes
+                    # while already handling an earlier (e.g. DIAMOND) failure, so
+                    # the original error is not masked.
                     for p, cmd, logfile in zip(sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles):
                         p.wait()
                         logfile.close()
                         if p.returncode != 0:
                             with open(logfile.name, 'r') as f:
                                 log_contents = f.read()
-                            raise Exception("Command %s returned non-zero exit status %i.\n"\
+                            msg = "Command %s returned non-zero exit status %i.\n"\
                                 "Log file contents:\n%s" % (
-                                    cmd, p.returncode, log_contents))
+                                    cmd, p.returncode, log_contents)
+                            if raise_on_error:
+                                raise Exception(msg)
+                            else:
+                                logging.warning("Ignoring SRA extraction process error while handling an earlier failure: %s" % msg)
                         else:
                             logging.debug("Command %s finished successfully" % cmd)
 
@@ -439,7 +450,9 @@ class SearchPipe:
                     terminate_processes(zstd_processes, "zstdcat")
                     terminate_processes(chunking_processes, "chunking")
                     if input_sra_files:
-                        finish_sra_extraction_processes(sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles)
+                        finish_sra_extraction_processes(
+                            sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles,
+                            raise_on_error=False)
                     raise e
 
                 if input_sra_files:
