@@ -358,9 +358,11 @@ singlem supplement \
   --new-genome-fasta-files genome1.fna genome2.fna \
   --input-metapackage /path/to/metapackage \
   --output-metapackage supplemented.smpkg \
+  --checkm2-quality-file checkm2_quality.tsv \
+  --dereplicate-with-galah \
   --threads 8
 ```
-New genomes are quality-filtered with CheckM2 (pass results via `--checkm2-quality-file`, or `--no-quality-filter` to skip) and can be dereplicated with `--dereplicate-with-galah`.
+A dereplication mode is required: either `--dereplicate-with-galah` (run galah at species level) or `--no-dereplication` (inputs are already dereplicated). A quality-filtering choice is also required: pass CheckM2 results with `--checkm2-quality-file`, or skip with `--no-quality-filter` (and optionally `--no-taxon-genome-lengths` if no CheckM2 file is supplied).
 
 ### Build and query a SingleM database (`singlem makedb` / `singlem query`)
 Useful for asking "is this OTU sequence (or anything similar) present in samples B, C, D?". `.sdb` is the conventional database extension.
@@ -409,8 +411,10 @@ singlem create \
   --input-taxonomy marker_taxonomy.tsv \
   --hmm-position 25 \
   --target-domains Bacteria Archaea \
+  --gene-description "Ribosomal protein S2" \
   --output-singlem-package marker.spkg
 ```
+`--gene-description` is required — it is the free-form text shown by `singlem metapackage --describe`.
 
 ---
 
