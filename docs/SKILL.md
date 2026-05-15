@@ -53,6 +53,40 @@ singularity run -B `pwd`:`pwd` singlem_0.20.3.sif pipe \
 
 ---
 
+## SingleM Subcommands at a Glance
+
+SingleM (and its phage-focused sibling Lyrebird) is a suite of subcommands. Most users only need `pipe` (and `data` once, to fetch reference data). The rest support downstream analysis, reference-data management, and package development.
+
+### Main tools
+
+| Subcommand | Purpose |
+|------------|---------|
+| `singlem pipe` | Main workflow: profile reads/genomes → OTU table + GTDB taxonomic profile |
+| `singlem data` | Download / verify the reference metapackage |
+| `singlem summarise` | Mechanical transformations of `pipe` results (Krona, species-by-site tables, combining OTU tables, etc.) |
+| `singlem renew` | Re-run taxonomy assignment on an existing archive OTU table against a new metapackage |
+| `singlem supplement` | Add new genomes to a metapackage to create a custom reference |
+| `singlem prokaryotic_fraction` | Estimate the bacterial/archaeal fraction (and average genome size) of a metagenome |
+| `singlem appraise` | Assess how much of a metagenome is represented by a set of genomes/assemblies |
+| `lyrebird data` | Download / verify the Lyrebird (phage) reference metapackage |
+| `lyrebird pipe` | Profile dsDNA phages — same interface as `singlem pipe` |
+
+### Advanced / expert modes
+
+| Subcommand | Purpose |
+|------------|---------|
+| `singlem condense` | Generate a taxonomic profile from an existing (archive) OTU table |
+| `singlem makedb` | Build a searchable database (`.sdb`) from OTU tables |
+| `singlem query` | Find sequences in a `makedb` database similar to query OTU sequences |
+| `singlem seqs` | Choose the best window position within an HMM (step 1 of building a SingleM package) |
+| `singlem create` | Create a SingleM package from a GraftM package + taxonomy (step 2 of package building) |
+| `singlem regenerate` | Update an existing SingleM package with new sequences/taxonomy |
+| `singlem metapackage` | Create (or `--describe`) a metapackage from individual SingleM packages |
+| `lyrebird condense` | `condense` for Lyrebird (non-universal phage markers) |
+| `lyrebird renew` | `renew` for Lyrebird archive OTU tables |
+
+---
+
 ## Generating a Taxonomic Profile
 
 ### Basic usage — paired-end short reads
@@ -153,7 +187,7 @@ singlem condense \
 
 # Later: re-assign taxonomy with a newer metapackage
 singlem renew \
-  --archive-otu-table sample.archive.otu_table.json.gz \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
   --taxonomic-profile sample_updated.profile.tsv \
   --metapackage /path/to/new_metapackage
 ```
@@ -283,10 +317,11 @@ singlem prokaryotic_fraction \
 Requires that the original run saved an `--archive-otu-table`.
 ```bash
 singlem renew \
-  --archive-otu-table sample.archive.otu_table.json.gz \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
   --taxonomic-profile sample_updated.profile.tsv \
   --metapackage /path/to/new_metapackage
 ```
+`renew` also accepts `--assignment-method`, `--threads`, and `--min-taxon-coverage`, just like `pipe`.
 
 ### Combine OTU tables from multiple separate runs
 ```bash
@@ -295,7 +330,8 @@ singlem summarise \
   --output-otu-table combined.otu_table.csv
 ```
 
-### Assess how much of a metagenomes's prokaryotes have an associated genome/MAG
+### Assess how much of a metagenome's prokaryotes have an associated genome/MAG (`singlem appraise`)
+`appraise` compares OTU sequences from genomes and/or assemblies against those from the raw metagenome, reporting which lineages are represented and which are missing.
 ```bash
 singlem pipe --sequences raw.fq.gz --otu-table metagenome.otu_table.csv
 singlem pipe --genome-fasta-files my-genomes/*.fasta --otu-table genomes.otu_table.csv
@@ -303,6 +339,82 @@ singlem appraise \
   --metagenome-otu-tables metagenome.otu_table.csv \
   --genome-otu-tables genomes.otu_table.csv
 ```
+Useful extras:
+- `--assembly-otu-tables` — appraise an assembly alongside (or instead of) binned genomes.
+- `--imperfect` — match OTU sequences that are similar but not identical (e.g. to credit a genus-level representative); tune with `--sequence-identity`.
+- `--plot appraise.svg` — render the appraisal visually (one rectangle per OTU sequence, sized by abundance).
+- `--output-binned-otu-table` / `--output-unbinned-otu-table` / `--output-unaccounted-for-otu-table` — write OTU tables of the represented vs. missing populations.
+
+---
+
+## Advanced & Expert Modes
+
+These subcommands support custom reference data and lower-level analyses. Most users never need them.
+
+### Add genomes to a reference metapackage (`singlem supplement`)
+Creates a new metapackage that includes your genomes, so future `pipe` runs can identify them. Taxonomy for the new genomes is assigned with GTDB-Tk (installed separately, with a version matching the metapackage's GTDB release) unless supplied via `--taxonomy-file` or `--new-fully-defined-taxonomies`.
+```bash
+singlem supplement \
+  --new-genome-fasta-files genome1.fna genome2.fna \
+  --input-metapackage /path/to/metapackage \
+  --output-metapackage supplemented.smpkg \
+  --checkm2-quality-file checkm2_quality.tsv \
+  --dereplicate-with-galah \
+  --threads 8
+```
+A dereplication mode is required: either `--dereplicate-with-galah` (run galah at species level) or `--no-dereplication` (inputs are already dereplicated). A quality-filtering choice is also required: pass CheckM2 results with `--checkm2-quality-file`, or skip with `--no-quality-filter` (and optionally `--no-taxon-genome-lengths` if no CheckM2 file is supplied).
+
+### Build and query a SingleM database (`singlem makedb` / `singlem query`)
+Useful for asking "is this OTU sequence (or anything similar) present in samples B, C, D?". `.sdb` is the conventional database extension.
+```bash
+# Build a database from OTU tables
+singlem makedb \
+  --otu-tables B.otu_table.csv C.otu_table.csv D.otu_table.csv \
+  --db BCD.sdb
+
+# Find database sequences within a given divergence of query OTUs
+singlem query \
+  --db BCD.sdb \
+  --query-otu-table A.otu_table.csv \
+  --max-divergence 3
+```
+`query` can also dump database contents filtered by sample (`--sample-names`), by taxonomy (`--taxonomy Archaea`), or in full (`--dump`).
+
+### Re-derive a profile from an OTU table (`singlem condense`)
+`condense` turns an archive OTU table into a taxonomic profile. It is normally invoked implicitly by `pipe`'s `-p` / `--taxonomic-profile`, but can be run standalone — e.g. to recompute a profile with a different `--min-taxon-coverage` without re-running `pipe`. See "Save an archive OTU table" under Output Options for an example.
+
+### Create or inspect a metapackage (`singlem metapackage`)
+Assemble individual SingleM packages (`.spkg`) into a metapackage, or inspect an existing one with `--describe`.
+```bash
+# Describe the contents of an existing metapackage
+singlem metapackage --metapackage /path/to/metapackage --describe
+
+# Create a metapackage from individual packages
+singlem metapackage \
+  --singlem-packages pkg1.spkg pkg2.spkg \
+  --metapackage new.smpkg \
+  --nucleotide-sdb markers.sdb
+```
+
+### Build SingleM packages from scratch (`singlem seqs` → `create` → `regenerate`)
+Building a marker package is a multi-step expert workflow:
+- **`singlem seqs`** — given an HMM-aligned FASTA, choose the best (most conserved) window position.
+- **`singlem create`** — finalise a SingleM package from a GraftM package, a taxonomy file, and the window position from `seqs`.
+- **`singlem regenerate`** — update an existing SingleM package with new sequences/taxonomy without rebuilding from scratch.
+```bash
+# 1. Choose the window position within the HMM
+singlem seqs --alignment aligned.fasta --alignment-type aa --hmm marker.hmm
+
+# 2. Create the package using the hmm-position reported by step 1
+singlem create \
+  --input-graftm-package marker.gpkg \
+  --input-taxonomy marker_taxonomy.tsv \
+  --hmm-position 25 \
+  --target-domains Bacteria Archaea \
+  --gene-description "Ribosomal protein S2" \
+  --output-singlem-package marker.spkg
+```
+`--gene-description` is required — it is the free-form text shown by `singlem metapackage --describe`.
 
 ---
 
@@ -320,6 +432,20 @@ lyrebird pipe \
   --threads 8
 ```
 Lyrebird uses >500 phage marker genes and vConTACT3-based taxonomy (not GTDB).
+
+Lyrebird also provides `condense` and `renew` for archive OTU tables, mirroring their SingleM counterparts but using a Lyrebird metapackage. Save an archive OTU table from `lyrebird pipe` with `--archive-otu-table` to use them:
+```bash
+# Re-derive a phage profile from an archive OTU table
+lyrebird condense \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
+  -p sample.phage_profile.tsv
+
+# Re-assign phage taxonomy against an updated Lyrebird metapackage
+lyrebird renew \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
+  -p sample.updated.phage_profile.tsv \
+  --metapackage /path/to/new_lyrebird_metapackage
+```
 
 ---
 
