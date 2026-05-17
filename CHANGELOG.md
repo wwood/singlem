@@ -1,3 +1,7 @@
+## v0.21.1
+
+* Fix PyPI dependency list
+
 ## v0.21.0
 
 * Default metapackage updated to GTDB R232 (S6.5.0-R232)
