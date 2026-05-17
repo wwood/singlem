@@ -39,7 +39,7 @@ pip_list = sorted(pip_list, key=lambda x: x["name"].lower())
 
 # Explicitly declared packages in pixi.toml
 declared_conda = set()
-for section in ["dependencies", "host-dependencies", ["feature","main","dependencies"], ["feature","main","host-dependencies"]]:
+for section in ["dependencies", "host-dependencies", ["feature","main","dependencies"], ["feature","main","host-dependencies"], ["feature","typical-python","dependencies"], ["feature","typical-non-python","dependencies"]]:
     if isinstance(section, list):
         d = pixi_data
         for subsec in section:
