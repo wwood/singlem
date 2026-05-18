@@ -1,0 +1,769 @@
+<!doctype html>
+
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+
+    <title>SKILL</title>
+    <meta name="description" content="Documentation for SingleM">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Sans+Pro:ital,wght@0,400;0,600;0,700;1,400;1,600;1,700&display=swap"
+        rel="stylesheet">
+
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/normalize.css?v=1779076724"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/doctave-style.css?v=1779076724"
+        media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/katex.css?v=1779076724" media="screen" />
+    <link rel="stylesheet" type="text/css" href="/singlem/assets/prism-ghcolors.css?v=1779076724"
+        media="screen" />
+
+    <script>
+        var DOCTAVE_TIMESTAMP = "1779076724";
+        var BASE_PATH = "/singlem/";
+        var color = localStorage.getItem('doctave-color')
+
+        if (color === 'dark') {
+            document.getElementsByTagName('html')[0].classList.remove('light');
+            document.getElementsByTagName('html')[0].classList.add('dark');
+        } else {
+            document.getElementsByTagName('html')[0].classList.remove('dark');
+            document.getElementsByTagName('html')[0].classList.add('light');
+        }
+    </script>
+
+    
+</head>
+
+<body>
+    <label for='menu-toggle-switch' class='menu-toggle-button'>
+        ☰
+    </label>
+    <input type="checkbox" id="menu-toggle-switch" value='0' />
+    <div class='page'>
+        <div class='header'>
+            <div class='logo'>
+                
+                <a href="/singlem/">
+                    <img src="/singlem/sandpiper.png" alt='SingleM logo'></img>
+                </a>
+                
+                <h2 class='project-name'>
+                    <a href="/singlem/">
+                        SingleM
+                    </a>
+                </h2>
+            </div>
+            <div class='search'>
+                <form id='search-form'>
+    <input type='text' id='search-box' autocomplete="off" placeholder="Search..."></input>
+    <span class='search-icon'>S</span>
+    <ul id='search-results'></ul>
+</form>
+
+            </div>
+            <div class='header-dummy-right'>
+            </div>
+        </div>
+        <div class='container'>
+            <div class='sidebar-left'>
+                <nav class='site-nav'>
+    <ul>
+        
+            <li><a href="/singlem/Lyrebird">Lyrebird (phage profiling)</a></li>
+            
+        
+            <li><a href="/singlem/Installation">Installation</a></li>
+            
+        
+            <li><a href="/singlem/Glossary">Glossary</a></li>
+            
+        
+            <li><a href="/singlem/FAQ">FAQ</a></li>
+            
+        
+            <li><a href="/singlem/tools">Usage</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/tools/data">SingleM data</a></li>
+        
+    
+        <li><a href="/singlem/tools/pipe">SingleM pipe</a></li>
+        
+    
+        <li><a href="/singlem/tools/summarise">SingleM summarise</a></li>
+        
+    
+        <li><a href="/singlem/tools/renew">SingleM renew</a></li>
+        
+    
+        <li><a href="/singlem/tools/supplement">SingleM supplement</a></li>
+        
+    
+        <li><a href="/singlem/tools/prokaryotic_fraction">SingleM prokaryotic_fraction</a></li>
+        
+    
+        <li><a href="/singlem/tools/appraise">SingleM appraise</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_data">Lyrebird data</a></li>
+        
+    
+        <li><a href="/singlem/tools/lyrebird_pipe">Lyrebird pipe</a></li>
+        
+    
+</ul>
+
+            
+        
+            <li><a href="/singlem/advanced">Advanced modes</a></li>
+            
+                <ul>
+    
+        <li><a href="/singlem/advanced/query">SingleM query</a></li>
+        
+    
+        <li><a href="/singlem/advanced/makedb">SingleM makedb</a></li>
+        
+    
+        <li><a href="/singlem/advanced/condense">SingleM condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/seqs">SingleM seqs</a></li>
+        
+    
+        <li><a href="/singlem/advanced/create">SingleM create</a></li>
+        
+    
+        <li><a href="/singlem/advanced/metapackage">SingleM metapackage</a></li>
+        
+    
+        <li><a href="/singlem/advanced/regenerate">SingleM regenerate</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_condense">Lyrebird condense</a></li>
+        
+    
+        <li><a href="/singlem/advanced/lyrebird_renew">Lyrebird renew</a></li>
+        
+    
+</ul>
+
+            
+        
+    </ul>
+    <span id='light-dark-mode-switch'>
+        <svg xmlns="http://www.w3.org/2000/svg" id="dark-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
+        </svg>
+
+        <svg xmlns="http://www.w3.org/2000/svg" id="light-mode-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd" />
+        </svg>
+    </span>
+</nav>
+
+            </div>
+            <div class='doctave-content'>
+                <h1 id="singlem-taxonomic-profiling-skill">SingleM Taxonomic Profiling Skill</h1>
+<h2 id="overview">Overview</h2>
+<p>SingleM is a tool for profiling shotgun metagenomes (short- and long-read) by targeting 20 amino acid "window" sequences within single-copy marker genes. It generates GTDB-based taxonomic profiles and is particularly strong at handling novel lineages.</p>
+<p>The primary subcommand for taxonomic profiling is <code>singlem pipe</code>.</p>
+<p>Skill corresponds to SingleM v0.21.3.</p>
+<hr>
+<h2 id="installation">Installation</h2>
+<h3 id="conda-(recommended)">Conda (recommended)</h3>
+<pre><code class="language-bash">conda create -c conda-forge -c bioconda --override-channels \
+  --name singlem 'singlem&gt;=0.21.3'
+conda activate singlem
+
+# Download reference data (metapackage) — required after conda install
+singlem data --output-directory /path/to/metapackage
+</code></pre>
+<h3 id="docker-(includes-reference-data-—-no-separate-data-download-needed)">Docker (includes reference data — no separate data download needed)</h3>
+<pre><code class="language-bash">docker pull wwood/singlem:0.21.3
+# Run pipe directly:
+docker run -v `pwd`:`pwd` wwood/singlem:0.21.3 pipe \
+  --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
+</code></pre>
+<h3 id="singularity/apptainer">Singularity/Apptainer</h3>
+<pre><code class="language-bash">singularity pull docker://wwood/singlem:0.21.3
+singularity run -B `pwd`:`pwd` singlem_0.21.3.sif pipe \
+  --sequences `pwd`/my.fastq.gz -p `pwd`/my.profile.csv --threads 4
+</code></pre>
+<hr>
+<h2 id="core-concepts">Core Concepts</h2>
+<ul>
+<li><strong>OTU table</strong>: The intermediate output of <code>singlem pipe</code>. Contains per-marker-gene OTU sequences with their coverage/abundance across samples.</li>
+<li><strong>Taxonomic profile</strong> (condensed profile): The final output summarising community composition. Generated from the OTU table via the <code>condense</code> algorithm, which uses trimmed means and expectation maximisation across 59 marker genes.</li>
+<li><strong>Coverage</strong>: The expected per-base coverage of a genome with that OTU sequence. Derived from <code>num_hits</code>. The default minimum coverage to report in a taxonomic profile is 0.35× for reads, 0.1× for genomes.</li>
+<li><strong>GTDB taxonomy</strong>: SingleM uses GTDB taxonomy strings (e.g. <code>Root; d__Bacteria; p__Proteobacteria; ...</code>).</li>
+</ul>
+<hr>
+<h2 id="singlem-subcommands-at-a-glance">SingleM Subcommands at a Glance</h2>
+<p>SingleM (and its phage-focused sibling Lyrebird) is a suite of subcommands. Most users only need <code>pipe</code> (and <code>data</code> once, to fetch reference data). The rest support downstream analysis, reference-data management, and package development.</p>
+<h3 id="main-tools">Main tools</h3>
+<table><thead><tr><th>Subcommand</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>singlem pipe</code></td><td>Main workflow: profile reads/genomes → OTU table + GTDB taxonomic profile</td></tr>
+<tr><td><code>singlem data</code></td><td>Download / verify the reference metapackage</td></tr>
+<tr><td><code>singlem summarise</code></td><td>Mechanical transformations of <code>pipe</code> results (Krona, species-by-site tables, combining OTU tables, etc.)</td></tr>
+<tr><td><code>singlem renew</code></td><td>Re-run taxonomy assignment on an existing archive OTU table against a new metapackage</td></tr>
+<tr><td><code>singlem supplement</code></td><td>Add new genomes to a metapackage to create a custom reference</td></tr>
+<tr><td><code>singlem prokaryotic_fraction</code></td><td>Estimate the bacterial/archaeal fraction (and average genome size) of a metagenome</td></tr>
+<tr><td><code>singlem appraise</code></td><td>Assess how much of a metagenome is represented by a set of genomes/assemblies</td></tr>
+<tr><td><code>lyrebird data</code></td><td>Download / verify the Lyrebird (phage) reference metapackage</td></tr>
+<tr><td><code>lyrebird pipe</code></td><td>Profile dsDNA phages — same interface as <code>singlem pipe</code></td></tr>
+</tbody></table>
+<h3 id="advanced-/-expert-modes">Advanced / expert modes</h3>
+<table><thead><tr><th>Subcommand</th><th>Purpose</th></tr></thead><tbody>
+<tr><td><code>singlem condense</code></td><td>Generate a taxonomic profile from an existing (archive) OTU table</td></tr>
+<tr><td><code>singlem makedb</code></td><td>Build a searchable database (<code>.sdb</code>) from OTU tables</td></tr>
+<tr><td><code>singlem query</code></td><td>Find sequences in a <code>makedb</code> database similar to query OTU sequences</td></tr>
+<tr><td><code>singlem seqs</code></td><td>Choose the best window position within an HMM (step 1 of building a SingleM package)</td></tr>
+<tr><td><code>singlem create</code></td><td>Create a SingleM package from a GraftM package + taxonomy (step 2 of package building)</td></tr>
+<tr><td><code>singlem regenerate</code></td><td>Update an existing SingleM package with new sequences/taxonomy</td></tr>
+<tr><td><code>singlem metapackage</code></td><td>Create (or <code>--describe</code>) a metapackage from individual SingleM packages</td></tr>
+<tr><td><code>lyrebird condense</code></td><td><code>condense</code> for Lyrebird (non-universal phage markers)</td></tr>
+<tr><td><code>lyrebird renew</code></td><td><code>renew</code> for Lyrebird archive OTU tables</td></tr>
+</tbody></table>
+<hr>
+<h2 id="generating-a-taxonomic-profile">Generating a Taxonomic Profile</h2>
+<h3 id="basic-usage-—-paired-end-short-reads">Basic usage — paired-end short reads</h3>
+<pre><code class="language-bash">singlem pipe \
+  --forward sample_R1.fastq.gz \
+  --reverse sample_R2.fastq.gz \
+  --taxonomic-profile sample.profile.tsv \
+  --threads 8
+</code></pre>
+<h3 id="single-end-or-unpaired-reads">Single-end or unpaired reads</h3>
+<pre><code class="language-bash">singlem pipe \
+  --sequences sample.fastq.gz \
+  -p sample.profile.tsv \
+  --threads 8
+</code></pre>
+<p>(<code>-p</code> is the short form of <code>--taxonomic-profile</code>)</p>
+<h3 id="long-reads-(nanopore-≥r10.4.1-or-pacbio-hifi)">Long reads (Nanopore ≥R10.4.1 or PacBio HiFi)</h3>
+<pre><code class="language-bash">singlem pipe \
+  --sequences sample_nanopore.fastq.gz \
+  -p sample.profile.tsv \
+  --threads 8
+</code></pre>
+<blockquote>
+<p>Long reads use the same interface; SingleM auto-detects read length.</p>
+</blockquote>
+<h3 id="multiple-samples-—-combined-in-one-run">Multiple samples — combined in one run</h3>
+<pre><code class="language-bash">singlem pipe \
+  --forward S1_R1.fq.gz S2_R1.fq.gz \
+  --reverse S1_R2.fq.gz S2_R2.fq.gz \
+  --otu-table all_samples.otu_table.csv \
+  --taxonomic-profile all_samples.profile.tsv \
+  --threads 16
+</code></pre>
+<blockquote>
+<p>For &gt;100 samples, run each individually and combine OTU tables with <code>singlem summarise</code>.</p>
+</blockquote>
+<h3 id="genome-/-assembly-input">Genome / assembly input</h3>
+<pre><code class="language-bash"># Single genome
+singlem pipe \
+  --genome-fasta-files genome.fna \
+  -p genome.profile.tsv
+
+# Many genomes from a directory
+singlem pipe \
+  --genome-fasta-directory /path/to/genomes/ \
+  --genome-fasta-extension fna \
+  -p genomes.profile.tsv \
+  --threads 16
+
+# From a file listing genome paths
+singlem pipe \
+  --genome-fasta-list genomes.txt \
+  -p genomes.profile.tsv \
+  --threads 16
+</code></pre>
+<blockquote>
+<p>Genome mode uses different defaults: higher <code>--min-taxon-coverage</code> (0.1) and <code>--min-orf-length</code> (300 bp).</p>
+</blockquote>
+<hr>
+<h2 id="output-options">Output Options</h2>
+<h3 id="also-save-an-otu-table-(---otu-table-)">Also save an OTU table (<code>--otu-table</code>)</h3>
+<p>Useful for alpha/beta diversity metrics, ordination, and inspecting raw data (e.g. which marker genes fired, which OTU sequences were found). Compatible with <code>singlem summarise</code> and <code>singlem appraise</code>.</p>
+<pre><code class="language-bash">singlem pipe \
+  --forward sample_R1.fastq.gz \
+  --reverse sample_R2.fastq.gz \
+  --otu-table sample.otu_table.csv \
+  --taxonomic-profile sample.profile.tsv \
+  --threads 8
+</code></pre>
+<h3 id="save-an-archive-otu-table-(---archive-otu-table-)-—-recommended-for-long-term-archiving">Save an archive OTU table (<code>--archive-otu-table</code>) — recommended for long-term archiving</h3>
+<p>The archive OTU table stores additional information (full sequence context, alignment data) needed to regenerate results without re-running the pipeline. It is the right format for two important downstream modes:</p>
+<ul>
+<li><strong><code>singlem condense</code></strong> — re-derive the taxonomic profile from the archive OTU table (e.g. with different <code>--min-taxon-coverage</code> settings) without re-running <code>pipe</code></li>
+<li><strong><code>singlem renew</code></strong> — re-assign taxonomy against an updated metapackage without re-running <code>pipe</code></li>
+</ul>
+<pre><code class="language-bash">singlem pipe \
+  --forward sample_R1.fastq.gz \
+  --reverse sample_R2.fastq.gz \
+  --archive-otu-table sample.archive.otu_table.json.gz \
+  --taxonomic-profile sample.profile.tsv \
+  --threads 8
+
+# Later: re-derive profile with different coverage threshold
+singlem condense \
+  --input-archive-otu-tables sample.archive.otu_table.json.gz \
+  --taxonomic-profile sample_recondensed.profile.tsv \
+  --min-taxon-coverage 0.1
+
+# Later: re-assign taxonomy with a newer metapackage
+singlem renew \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
+  --taxonomic-profile sample_updated.profile.tsv \
+  --metapackage /path/to/new_metapackage
+</code></pre>
+<hr>
+<h2 id="key-options">Key Options</h2>
+<table><thead><tr><th>Option</th><th>Description</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>--forward</code> / <code>-1</code> / <code>--reads</code> / <code>--sequences</code></td><td>Forward or unpaired reads (FASTA/FASTQ, gzipped ok)</td><td>required</td></tr>
+<tr><td><code>--reverse</code> / <code>-2</code></td><td>Reverse reads for paired-end</td><td>—</td></tr>
+<tr><td><code>--taxonomic-profile</code> / <code>-p</code></td><td>Output taxonomic profile (TSV)</td><td>not set</td></tr>
+<tr><td><code>--otu-table</code></td><td>Output OTU table (CSV)</td><td>not set</td></tr>
+<tr><td><code>--threads</code></td><td>Number of CPU threads</td><td>1</td></tr>
+<tr><td><code>--metapackage</code></td><td>Path to reference metapackage</td><td>default system metapackage</td></tr>
+<tr><td><code>--min-taxon-coverage</code></td><td>Min coverage to report in profile</td><td>0.35 (reads), 0.1 (genomes)</td></tr>
+<tr><td><code>--assignment-method</code></td><td>Taxonomy assignment algorithm for OTUs</td><td><code>smafa_naive_then_diamond</code></td></tr>
+<tr><td><code>--genome-fasta-files</code></td><td>Input genome FASTA(s)</td><td>—</td></tr>
+<tr><td><code>--genome-fasta-directory</code> / <code>-d</code></td><td>Directory of genome FASTAs</td><td>—</td></tr>
+<tr><td><code>--genome-fasta-extension</code></td><td>Extension for genome FASTAs</td><td><code>fna</code></td></tr>
+<tr><td><code>--genome-fasta-list</code></td><td>File listing genome paths</td><td>—</td></tr>
+</tbody></table>
+<hr>
+<h2 id="output-format">Output Format</h2>
+<h3 id="taxonomic-profile-(--p-/---taxonomic-profile-)-—-singlem-condensed-format">Taxonomic profile (<code>-p</code> / <code>--taxonomic-profile</code>) — SingleM condensed format</h3>
+<p>Tab-separated file (<code>.tsv</code>) with three columns: <code>sample</code>, <code>coverage</code>, <code>taxonomy</code>.</p>
+<pre><code>sample     coverage  taxonomy
+marine0.1  3.64      Root; d__Archaea
+marine0.1  0.02      Root; d__Bacteria
+marine0.1  0.56      Root; d__Archaea; p__Thermoproteota
+marine0.1  0.80      Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      Root; d__Bacteria; p__Proteobacteria
+</code></pre>
+<p>Key properties of the condensed format:</p>
+<ul>
+<li><strong>Coverage</strong> is the estimated per-base read coverage attributed <em>directly</em> to that taxon — it is <strong>not</strong> inclusive of descendants. For example, <code>Root; d__Bacteria</code> (coverage 0.02) does not include the coverage from <code>p__Desulfobacterota</code> (0.80) or <code>p__Proteobacteria</code> (2.17); those are reported on their own lines.</li>
+<li>Every taxonomic level that has any coverage is listed as its own row. Higher-level rows (e.g. domain) represent reads that could not be assigned more specifically.</li>
+<li>Taxonomy strings follow GTDB conventions: <code>Root; d__Bacteria; p__Proteobacteria; c__Gammaproteobacteria; ...</code></li>
+<li>Multiple samples can appear in a single file, distinguished by the <code>sample</code> column.</li>
+</ul>
+<h3 id="otu-table-(---otu-table-)">OTU table (<code>--otu-table</code>)</h3>
+<p>CSV with columns: <code>gene</code>, <code>sample</code>, <code>sequence</code>, <code>num_hits</code>, <code>coverage</code>, <code>taxonomy</code></p>
+<hr>
+<h2 id="important-caveats">Important Caveats</h2>
+<ol>
+<li><strong>Use raw reads, not quality-trimmed reads.</strong> Quality trimming (e.g. Trimmomatic) can shorten reads below 100 bp, making them unusable. Adapter trimming is fine but unnecessary.</li>
+<li><strong>Do not use assembled contigs as read input.</strong> Use <code>--genome-fasta-files</code> for assemblies/MAGs; <code>--sequences</code>/<code>--forward</code> is for raw reads only.</li>
+<li><strong>Reference data required.</strong> After conda install, run <code>singlem data</code> before using <code>pipe</code>. Docker images include reference data.</li>
+</ol>
+<hr>
+<h2 id="downstream-analysis">Downstream Analysis</h2>
+<h3 id="convert-condensed-profile-to-other-formats-(-singlem-summarise-)">Convert condensed profile to other formats (<code>singlem summarise</code>)</h3>
+<p><code>singlem summarise</code> transforms the condensed profile into several more analysis-friendly formats.</p>
+<h4 id="krona-chart-(interactive-html)">Krona chart (interactive HTML)</h4>
+<pre><code class="language-bash">singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-taxonomic-profile-krona sample.krona.html
+</code></pre>
+<p>Produces an interactive hierarchical chart viewable in any web browser. Can also be generated directly from <code>pipe</code> with <code>--taxonomic-profile-krona</code>.</p>
+<h4 id="relative-abundance-species-by-site-table">Relative abundance species-by-site table</h4>
+<p>Outputs a taxon-by-sample matrix with relative abundance as percentages. Use <code>--output-species-by-site-level</code> to choose the taxonomic rank (<code>domain</code>, <code>phylum</code>, <code>class</code>, <code>order</code>, <code>family</code>, <code>genus</code>, or <code>species</code>):</p>
+<pre><code class="language-bash">singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-species-by-site-relative-abundance sample.phylum.csv \
+  --output-species-by-site-level phylum
+</code></pre>
+<p>Example output (one column per sample when multiple samples are present):</p>
+<pre><code>taxonomy                                marine0.1
+unassigned                              50.9
+Root; d__Archaea; p__Thermoproteota     7.79
+Root; d__Bacteria; p__Desulfobacterota  11.13
+Root; d__Bacteria; p__Proteobacteria    30.18
+</code></pre>
+<p>To generate tables for all taxonomic levels at once, use a prefix:</p>
+<pre><code class="language-bash">singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-species-by-site-relative-abundance-prefix myprefix
+# produces: myprefix-domain.tsv, myprefix-phylum.tsv, ..., myprefix-species.tsv
+</code></pre>
+<h4 id="long-form-with-extra-columns-(filled-coverage,-relative-abundance,-level)">Long form with extra columns (filled coverage, relative abundance, level)</h4>
+<pre><code class="language-bash">singlem summarise \
+  --input-taxonomic-profile sample.profile.tsv \
+  --output-taxonomic-profile-with-extras sample.with_extras.tsv
+</code></pre>
+<p>Adds <code>full_coverage</code> (coverage including descendants), <code>relative_abundance</code> (%), and <code>level</code> columns:</p>
+<pre><code>sample     coverage  full_coverage  relative_abundance  level   taxonomy
+marine0.1  0         7.19           100.0               root    Root
+marine0.1  3.64      4.20           58.41               domain  Root; d__Archaea
+marine0.1  0.02      2.99           41.59               domain  Root; d__Bacteria
+marine0.1  0.56      0.56           7.79                phylum  Root; d__Archaea; p__Thermoproteota
+marine0.1  0.80      0.80           11.13               phylum  Root; d__Bacteria; p__Desulfobacterota
+marine0.1  2.17      2.17           30.18               phylum  Root; d__Bacteria; p__Proteobacteria
+</code></pre>
+<p>Note: <code>coverage</code> here is <em>unfilled</em> (not including descendants); <code>full_coverage</code> is <em>filled</em> (sum of a taxon and all its descendants).</p>
+<h3 id="estimate-fraction-of-reads-that-are-bacterial/archaeal-(prokaryotic)-rather-than-eukaryotic/phage/etc">Estimate fraction of reads that are bacterial/archaeal (prokaryotic) rather than eukaryotic/phage/etc</h3>
+<pre><code class="language-bash">singlem pipe \
+  --forward sample_R1.fq.gz --reverse sample_R2.fq.gz \
+  -p sample.profile.tsv --threads 8
+
+singlem prokaryotic_fraction \
+  --forward sample_R1.fq.gz --reverse sample_R2.fq.gz \
+  -p sample.profile.tsv \
+  &gt; sample.prokaryotic_fraction.tsv
+</code></pre>
+<h3 id="re-profile-with-updated-reference-database-(no-re-running-pipe)">Re-profile with updated reference database (no re-running pipe)</h3>
+<p>Requires that the original run saved an <code>--archive-otu-table</code>.</p>
+<pre><code class="language-bash">singlem renew \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
+  --taxonomic-profile sample_updated.profile.tsv \
+  --metapackage /path/to/new_metapackage
+</code></pre>
+<p><code>renew</code> also accepts <code>--assignment-method</code>, <code>--threads</code>, and <code>--min-taxon-coverage</code>, just like <code>pipe</code>.</p>
+<h3 id="combine-otu-tables-from-multiple-separate-runs">Combine OTU tables from multiple separate runs</h3>
+<pre><code class="language-bash">singlem summarise \
+  --input-otu-tables s1.otu_table.csv s2.otu_table.csv s3.otu_table.csv \
+  --output-otu-table combined.otu_table.csv
+</code></pre>
+<h3 id="assess-how-much-of-a-metagenome's-prokaryotes-have-an-associated-genome/mag-(-singlem-appraise-)">Assess how much of a metagenome's prokaryotes have an associated genome/MAG (<code>singlem appraise</code>)</h3>
+<p><code>appraise</code> compares OTU sequences from genomes and/or assemblies against those from the raw metagenome, reporting which lineages are represented and which are missing.</p>
+<pre><code class="language-bash">singlem pipe --sequences raw.fq.gz --otu-table metagenome.otu_table.csv
+singlem pipe --genome-fasta-files my-genomes/*.fasta --otu-table genomes.otu_table.csv
+singlem appraise \
+  --metagenome-otu-tables metagenome.otu_table.csv \
+  --genome-otu-tables genomes.otu_table.csv
+</code></pre>
+<p>Useful extras:</p>
+<ul>
+<li><code>--assembly-otu-tables</code> — appraise an assembly alongside (or instead of) binned genomes.</li>
+<li><code>--imperfect</code> — match OTU sequences that are similar but not identical (e.g. to credit a genus-level representative); tune with <code>--sequence-identity</code>.</li>
+<li><code>--plot appraise.svg</code> — render the appraisal visually (one rectangle per OTU sequence, sized by abundance).</li>
+<li><code>--output-binned-otu-table</code> / <code>--output-unbinned-otu-table</code> / <code>--output-unaccounted-for-otu-table</code> — write OTU tables of the represented vs. missing populations.</li>
+</ul>
+<hr>
+<h2 id="advanced-&amp;-expert-modes">Advanced &amp; Expert Modes</h2>
+<p>These subcommands support custom reference data and lower-level analyses. Most users never need them.</p>
+<h3 id="add-genomes-to-a-reference-metapackage-(-singlem-supplement-)">Add genomes to a reference metapackage (<code>singlem supplement</code>)</h3>
+<p>Creates a new metapackage that includes your genomes, so future <code>pipe</code> runs can identify them. Taxonomy for the new genomes is assigned with GTDB-Tk (installed separately, with a version matching the metapackage's GTDB release) unless supplied via <code>--taxonomy-file</code> or <code>--new-fully-defined-taxonomies</code>.</p>
+<pre><code class="language-bash">singlem supplement \
+  --new-genome-fasta-files genome1.fna genome2.fna \
+  --input-metapackage /path/to/metapackage \
+  --output-metapackage supplemented.smpkg \
+  --checkm2-quality-file checkm2_quality.tsv \
+  --dereplicate-with-galah \
+  --threads 8
+</code></pre>
+<p>A dereplication mode is required: either <code>--dereplicate-with-galah</code> (run galah at species level) or <code>--no-dereplication</code> (inputs are already dereplicated). A quality-filtering choice is also required: pass CheckM2 results with <code>--checkm2-quality-file</code>, or skip with <code>--no-quality-filter</code> (and optionally <code>--no-taxon-genome-lengths</code> if no CheckM2 file is supplied).</p>
+<h3 id="build-and-query-a-singlem-database-(-singlem-makedb-/-singlem-query-)">Build and query a SingleM database (<code>singlem makedb</code> / <code>singlem query</code>)</h3>
+<p>Useful for asking "is this OTU sequence (or anything similar) present in samples B, C, D?". <code>.sdb</code> is the conventional database extension.</p>
+<pre><code class="language-bash"># Build a database from OTU tables
+singlem makedb \
+  --otu-tables B.otu_table.csv C.otu_table.csv D.otu_table.csv \
+  --db BCD.sdb
+
+# Find database sequences within a given divergence of query OTUs
+singlem query \
+  --db BCD.sdb \
+  --query-otu-table A.otu_table.csv \
+  --max-divergence 3
+</code></pre>
+<p><code>query</code> can also dump database contents filtered by sample (<code>--sample-names</code>), by taxonomy (<code>--taxonomy Archaea</code>), or in full (<code>--dump</code>).</p>
+<h3 id="re-derive-a-profile-from-an-otu-table-(-singlem-condense-)">Re-derive a profile from an OTU table (<code>singlem condense</code>)</h3>
+<p><code>condense</code> turns an archive OTU table into a taxonomic profile. It is normally invoked implicitly by <code>pipe</code>'s <code>-p</code> / <code>--taxonomic-profile</code>, but can be run standalone — e.g. to recompute a profile with a different <code>--min-taxon-coverage</code> without re-running <code>pipe</code>. See "Save an archive OTU table" under Output Options for an example.</p>
+<h3 id="create-or-inspect-a-metapackage-(-singlem-metapackage-)">Create or inspect a metapackage (<code>singlem metapackage</code>)</h3>
+<p>Assemble individual SingleM packages (<code>.spkg</code>) into a metapackage, or inspect an existing one with <code>--describe</code>.</p>
+<pre><code class="language-bash"># Describe the contents of an existing metapackage
+singlem metapackage --metapackage /path/to/metapackage --describe
+
+# Create a metapackage from individual packages
+singlem metapackage \
+  --singlem-packages pkg1.spkg pkg2.spkg \
+  --metapackage new.smpkg \
+  --nucleotide-sdb markers.sdb
+</code></pre>
+<h3 id="build-singlem-packages-from-scratch-(-singlem-seqs-→-create-→-regenerate-)">Build SingleM packages from scratch (<code>singlem seqs</code> → <code>create</code> → <code>regenerate</code>)</h3>
+<p>Building a marker package is a multi-step expert workflow:</p>
+<ul>
+<li><strong><code>singlem seqs</code></strong> — given an HMM-aligned FASTA, choose the best (most conserved) window position.</li>
+<li><strong><code>singlem create</code></strong> — finalise a SingleM package from a GraftM package, a taxonomy file, and the window position from <code>seqs</code>.</li>
+<li><strong><code>singlem regenerate</code></strong> — update an existing SingleM package with new sequences/taxonomy without rebuilding from scratch.</li>
+</ul>
+<pre><code class="language-bash"># 1. Choose the window position within the HMM
+singlem seqs --alignment aligned.fasta --alignment-type aa --hmm marker.hmm
+
+# 2. Create the package using the hmm-position reported by step 1
+singlem create \
+  --input-graftm-package marker.gpkg \
+  --input-taxonomy marker_taxonomy.tsv \
+  --hmm-position 25 \
+  --target-domains Bacteria Archaea \
+  --gene-description "Ribosomal protein S2" \
+  --output-singlem-package marker.spkg
+</code></pre>
+<p><code>--gene-description</code> is required — it is the free-form text shown by <code>singlem metapackage --describe</code>.</p>
+<hr>
+<h2 id="phage-profiling-(lyrebird)">Phage Profiling (Lyrebird)</h2>
+<p>For dsDNA phage profiling, use the <code>lyrebird</code> command with the same interface:</p>
+<pre><code class="language-bash"># Download lyrebird reference data
+lyrebird data --output-directory /path/to/lyrebird_metapackage
+
+lyrebird pipe \
+  --forward sample_R1.fq.gz \
+  --reverse sample_R2.fq.gz \
+  -p sample.phage_profile.tsv \
+  --threads 8
+</code></pre>
+<p>Lyrebird uses &gt;500 phage marker genes and vConTACT3-based taxonomy (not GTDB).</p>
+<p>Lyrebird also provides <code>condense</code> and <code>renew</code> for archive OTU tables, mirroring their SingleM counterparts but using a Lyrebird metapackage. Save an archive OTU table from <code>lyrebird pipe</code> with <code>--archive-otu-table</code> to use them:</p>
+<pre><code class="language-bash"># Re-derive a phage profile from an archive OTU table
+lyrebird condense \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
+  -p sample.phage_profile.tsv
+
+# Re-assign phage taxonomy against an updated Lyrebird metapackage
+lyrebird renew \
+  --input-archive-otu-table sample.archive.otu_table.json.gz \
+  -p sample.updated.phage_profile.tsv \
+  --metapackage /path/to/new_lyrebird_metapackage
+</code></pre>
+<hr>
+<h2 id="quick-reference-—-most-common-commands">Quick Reference — Most Common Commands</h2>
+<pre><code class="language-bash"># 1. Download reference data (once, after conda install)
+singlem data --output-directory ~/singlem_metapackage
+
+# 2. Profile paired-end metagenome (save archive OTU table for future re-use)
+singlem pipe \
+  --forward sample_R1.fq.gz \
+  --reverse sample_R2.fq.gz \
+  --archive-otu-table sample.archive.otu_table.json.gz \
+  --taxonomic-profile sample.profile.tsv \
+  --threads 16
+
+# 3. View profile
+cat sample.profile.tsv
+
+# 4. Convert to Krona chart
+singlem summarise \
+  --input-taxonomic-profiles sample.profile.tsv \
+  --output-taxonomic-profile-krona sample.krona.html
+</code></pre>
+<hr>
+<h2 id="citation">Citation</h2>
+<p>If you use SingleM, please cite:</p>
+<blockquote>
+<p>Ben J. Woodcroft et al. <em>Comprehensive taxonomic identification of microbial species in metagenomic data using SingleM and Sandpiper.</em> Nat Biotechnol (2025). https://doi.org/10.1038/s41587-025-02738-1</p>
+</blockquote>
+
+            </div>
+            <div class='sidebar-right'>
+                <div class='page-nav' id='page-nav'>
+                    <p class='page-nav-header'>On this page</p>
+                    <ul>
+                        
+                        <li class='page-nav-level-1'>
+                            <a href='#singlem-taxonomic-profiling-skill'>SingleM Taxonomic Profiling Skill</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#overview'>Overview</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#installation'>Installation</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#conda-(recommended)'>Conda (recommended)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#docker-(includes-reference-data-—-no-separate-data-download-needed)'>Docker (includes reference data — no separate data download needed)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#singularity/apptainer'>Singularity/Apptainer</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#core-concepts'>Core Concepts</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#singlem-subcommands-at-a-glance'>SingleM Subcommands at a Glance</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#main-tools'>Main tools</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#advanced-/-expert-modes'>Advanced / expert modes</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#generating-a-taxonomic-profile'>Generating a Taxonomic Profile</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#basic-usage-—-paired-end-short-reads'>Basic usage — paired-end short reads</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#single-end-or-unpaired-reads'>Single-end or unpaired reads</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#long-reads-(nanopore-≥r10.4.1-or-pacbio-hifi)'>Long reads (Nanopore ≥R10.4.1 or PacBio HiFi)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#multiple-samples-—-combined-in-one-run'>Multiple samples — combined in one run</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#genome-/-assembly-input'>Genome / assembly input</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#output-options'>Output Options</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#also-save-an-otu-table-(---otu-table-)'>Also save an OTU table (--otu-table)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#save-an-archive-otu-table-(---archive-otu-table-)-—-recommended-for-long-term-archiving'>Save an archive OTU table (--archive-otu-table) — recommended for long-term archiving</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#key-options'>Key Options</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#output-format'>Output Format</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#taxonomic-profile-(--p-/---taxonomic-profile-)-—-singlem-condensed-format'>Taxonomic profile (-p / --taxonomic-profile) — SingleM condensed format</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#otu-table-(---otu-table-)'>OTU table (--otu-table)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#important-caveats'>Important Caveats</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#downstream-analysis'>Downstream Analysis</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#convert-condensed-profile-to-other-formats-(-singlem-summarise-)'>Convert condensed profile to other formats (singlem summarise)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-4'>
+                            <a href='#krona-chart-(interactive-html)'>Krona chart (interactive HTML)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-4'>
+                            <a href='#relative-abundance-species-by-site-table'>Relative abundance species-by-site table</a>
+                        </li>
+                        
+                        <li class='page-nav-level-4'>
+                            <a href='#long-form-with-extra-columns-(filled-coverage,-relative-abundance,-level)'>Long form with extra columns (filled coverage, relative abundance, level)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#estimate-fraction-of-reads-that-are-bacterial/archaeal-(prokaryotic)-rather-than-eukaryotic/phage/etc'>Estimate fraction of reads that are bacterial/archaeal (prokaryotic) rather than eukaryotic/phage/etc</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#re-profile-with-updated-reference-database-(no-re-running-pipe)'>Re-profile with updated reference database (no re-running pipe)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#combine-otu-tables-from-multiple-separate-runs'>Combine OTU tables from multiple separate runs</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#assess-how-much-of-a-metagenome&#x27;s-prokaryotes-have-an-associated-genome/mag-(-singlem-appraise-)'>Assess how much of a metagenome&#x27;s prokaryotes have an associated genome/MAG (singlem appraise)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#advanced-&amp;-expert-modes'>Advanced &amp; Expert Modes</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#add-genomes-to-a-reference-metapackage-(-singlem-supplement-)'>Add genomes to a reference metapackage (singlem supplement)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#build-and-query-a-singlem-database-(-singlem-makedb-/-singlem-query-)'>Build and query a SingleM database (singlem makedb / singlem query)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#re-derive-a-profile-from-an-otu-table-(-singlem-condense-)'>Re-derive a profile from an OTU table (singlem condense)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#create-or-inspect-a-metapackage-(-singlem-metapackage-)'>Create or inspect a metapackage (singlem metapackage)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-3'>
+                            <a href='#build-singlem-packages-from-scratch-(-singlem-seqs-→-create-→-regenerate-)'>Build SingleM packages from scratch (singlem seqs → create → regenerate)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#phage-profiling-(lyrebird)'>Phage Profiling (Lyrebird)</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#quick-reference-—-most-common-commands'>Quick Reference — Most Common Commands</a>
+                        </li>
+                        
+                        <li class='page-nav-level-2'>
+                            <a href='#citation'>Citation</a>
+                        </li>
+                        
+                    </ul>
+                </div>
+            </div>
+            <div class='wave-container'>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320">
+                    <path fill-opacity="0.35"
+                        d="M0,192L60,213.3C120,235,240,277,360,277.3C480,277,600,235,720,192C840,149,960,107,1080,122.7C1200,139,1320,213,1380,250.7L1440,288L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.5"
+                        d="M0,160L60,181.3C120,203,240,245,360,229.3C480,213,600,139,720,138.7C840,139,960,213,1080,229.3C1200,245,1320,203,1380,181.3L1440,160L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                    <path fill-opacity="0.2"
+                        d="M0,224L60,197.3C120,171,240,117,360,117.3C480,117,600,171,720,186.7C840,203,960,181,1080,186.7C1200,192,1320,224,1380,240L1440,256L1440,320L1380,320C1320,320,1200,320,1080,320C960,320,840,320,720,320C600,320,480,320,360,320C240,320,120,320,60,320L0,320Z">
+                    </path>
+                </svg>
+                <p>Powered by <a href='https://cli.doctave.com' target='_blank'>Doctave</a></p>
+            </div>
+        </div>
+    </div>
+    <script type="text/javascript" src="/singlem/assets/katex.js?v=1779076724"></script>
+    <script type="text/javascript" src="/singlem/assets/mermaid.js?v=1779076724"></script>
+    <script type="text/javascript" src="/singlem/assets/elasticlunr.js?v=1779076724"></script>
+    <script type="text/javascript" src="/singlem/assets/prism.js?v=1779076724"></script>
+    <script type="text/javascript" src="/singlem/assets/doctave-app.js?v=1779076724"></script>
+
+    
+</body>
+
+</html>
