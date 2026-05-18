@@ -1,3 +1,7 @@
+## v0.21.3
+
+* Fix PyPI dependency list by generating `admin/requirements.txt` in CI before the wheel build; previous releases shipped without dependencies because the generated file was never committed to release tags.
+
 ## v0.21.2
 
 * Fix PyPI dependency list structurally, and include bird_tool_utils.
