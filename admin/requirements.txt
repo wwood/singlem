@@ -1,0 +1,4 @@
+# Stub file — pyproject.toml requires this to exist for setuptools to read
+# `[project].dependencies`. The real contents are generated from pixi.toml
+# and pixi.lock by admin/build_dep_defs_from_pixi.py, which runs locally
+# during release and in CI before the PyPI build. Do not edit by hand.
