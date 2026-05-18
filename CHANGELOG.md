@@ -1,3 +1,7 @@
+## v0.21.2
+
+* Fix PyPI dependency list structurally, and include bird_tool_utils.
+
 ## v0.21.1
 
 * Fix PyPI dependency list
