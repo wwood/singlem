@@ -1381,7 +1381,7 @@ class SearchPipe:
                 io.write(s.unaligned_sequence)
                 io.write("\n")
 
-        num_seqs_assigned_by_query = None
+        num_seqs_before_query = None
         if assignment_method in (
             ANNOY_ASSIGNMENT_METHOD,
             ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
@@ -1405,15 +1405,16 @@ class SearchPipe:
             else:
                 raise Exception("Programming error")
             
-            # Count number of reads to be assigned by query. Used here and then
-            # below when diamond blastx is used as a fallback.
-            num_seqs_assigned_by_query = 0
+            # Count number of unknown sequences entering the query step (before
+            # any are assigned). Used below to report the fraction that fall
+            # through to diamond blastx as a fallback.
+            num_seqs_before_query = 0
             for _, readsets in extracted_reads.each_package_wise():
                 for readset in readsets:
                     if extracted_reads.analysing_pairs:
-                        num_seqs_assigned_by_query += len(readset[0].unknown_sequences) + len(readset[1].unknown_sequences)
+                        num_seqs_before_query += len(readset[0].unknown_sequences) + len(readset[1].unknown_sequences)
                     else:
-                        num_seqs_assigned_by_query += len(readset.unknown_sequences)
+                        num_seqs_before_query += len(readset.unknown_sequences)
 
             query_based_assignment_result = PipeTaxonomyAssignerByQuery().assign_taxonomy(
                 extracted_reads, assignment_singlem_db, method, self._max_species_divergence)
@@ -1640,12 +1641,12 @@ class SearchPipe:
             num_packages = len(package_data)
             if total_sequences == 0:
                 logging.info("No OTUs to assign taxonomy to with DIAMOND blastx.")
-            elif num_seqs_assigned_by_query is None:
+            elif num_seqs_before_query is None:
                 logging.info("Assigning taxonomy with DIAMOND blastx to {} OTUs ..".format(total_sequences))
             else:
                 logging.info("Assigning taxonomy with DIAMOND blastx to {} OTUs (The {:.1f}% that were not assigned by smafa) ..".format(
-                    num_seqs_assigned_by_query - total_sequences,
-                    100 * (num_seqs_assigned_by_query - total_sequences) / total_sequences))
+                    total_sequences,
+                    100 * total_sequences / num_seqs_before_query))
 
             do_logging = not sys.stderr.isatty() or total_sequences == 0 or logging.getLogger().level != logging.INFO
             logging_counter = 0
