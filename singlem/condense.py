@@ -75,16 +75,25 @@ class Condenser:
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
         sylph_profile = kwargs.pop('sylph_profile', None)
         alpha = kwargs.pop('alpha', None)
+        joint = kwargs.pop('joint', False)
+        joint_l1_penalty = kwargs.pop('joint_l1_penalty', 1.0)
+        joint_absence_weight = kwargs.pop('joint_absence_weight', 100.0)
+        joint_min_markers = kwargs.pop('joint_min_markers', 3)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
 
-        # Parse the sylph profile once (Regime 3: sylph-only species injection).
+        if joint and sylph_profile is None:
+            raise Exception("condense --joint requires a sylph profile (--sylph-profile)")
+
+        # Parse the sylph profile once. Used for Regime 3 injection, or for the
+        # joint NNLS deconvolution when --joint is set.
         sylph_sample_to_hits = {}
         if sylph_profile is not None:
             sylph_sample_to_hits = SylphProfile.read_tsv(sylph_profile)
             logging.info("Read sylph coverage for {} sample(s) from {}".format(
                 len(sylph_sample_to_hits), sylph_profile))
+            self._validate_sylph_against_metapackage(sylph_sample_to_hits, metapackage)
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
@@ -119,7 +128,26 @@ class Condenser:
             sylph_hits = self._sylph_hits_for_sample(sample, sylph_sample_to_hits) if sylph_profile is not None else None
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
                 True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
-                sylph_hits, alpha)
+                sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers)
+
+    def _validate_sylph_against_metapackage(self, sylph_sample_to_hits, metapackage):
+        '''Shared-DB sanity check: warn if many sylph species are not found among
+        the metapackage's known species (indicating a GTDB-release mismatch).'''
+        sylph_keys = set()
+        for hits in sylph_sample_to_hits.values():
+            sylph_keys.update(hits.keys())
+        if len(sylph_keys) == 0:
+            return
+        try:
+            db_keys = set(_canonical_species_key(t) for t in metapackage.get_all_taxonomy_strings())
+        except Exception as e:
+            logging.debug("Could not load metapackage taxonomy strings for sylph validation: {}".format(e))
+            return
+        missing = [k for k in sylph_keys if k not in db_keys]
+        if len(missing) > len(sylph_keys) * 0.5:
+            logging.warning("{} of {} sylph species are not in the metapackage's taxonomy. Are sylph and "
+                "SingleM built from the same GTDB release? (e.g. {})".format(
+                    len(missing), len(sylph_keys), missing[0]))
 
     def _sylph_hits_for_sample(self, sample, sylph_sample_to_hits):
         '''Return the per-taxon sylph hits for a SingleM sample, matching on the
@@ -134,7 +162,8 @@ class Condenser:
 
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
-            output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None):
+            output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None,
+            joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3):
 
 
         # Remove off-target OTUs genes
@@ -164,6 +193,24 @@ class Condenser:
                         query_best_hits.add(best_hit.replace('; ',';')) # pre-emptively strip to avoid issues with whitespace
             # query_best_hits = [o.equal_best_hit_taxonomies() for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD]
             taxon_marker_counts = metapackage.get_taxon_marker_counts(query_best_hits)
+
+        # Joint mode replaces the EM + trimmed-mean condense (steps 2-4) with a
+        # single NNLS deconvolution against the sylph profile.
+        if joint and not viral_mode:
+            from .condense_joint import JointDeconvolver
+            logging.info("Converting DIAMOND IDs to taxons")
+            self._convert_diamond_best_hit_ids_to_taxonomies(metapackage, sample_otus)
+            domain_marker_counts = {domain: len(genes) for domain, genes in target_domains.items()}
+            condensed_otus = JointDeconvolver().solve(
+                sample, sample_otus, sylph_hits if sylph_hits is not None else {},
+                domain_marker_counts=domain_marker_counts,
+                alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
+                min_markers=joint_min_markers)
+            self._push_down_genus_to_species(condensed_otus, 0.1)
+            self._report_taxonomic_level_assignment_stats(condensed_otus)
+            return condensed_otus
+        elif joint and viral_mode:
+            logging.warning("condense --joint is not supported in viral mode; falling back to the standard algorithm")
 
         if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains, taxon_marker_counts)
