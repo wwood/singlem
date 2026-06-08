@@ -335,6 +335,95 @@ class Tests(unittest.TestCase):
         self.assertIn(ecoli_key, hits)
         self.assertEqual(9.0, hits[ecoli_key].eff_cov)
 
+    # ---- Joint NNLS deconvolution (--joint) ----
+
+    JOINT_SP1 = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S1'
+    JOINT_SP2 = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S2'
+    JOINT_GENUS = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G'
+
+    def _joint_otus(self, rows):
+        '''rows: list of (coverage, equal_best_list, method). Returns an ArchiveOtuTable.'''
+        from singlem.pipe import DIAMOND_ASSIGNMENT_METHOD
+        otus = ArchiveOtuTable()
+        otus.fields = ArchiveOtuTable.FIELDS_VERSION4
+        otus.data = []
+        for i, (coverage, equal_best, method) in enumerate(rows):
+            otus.data.append(
+                str.split('g{} sample1 seq{}'.format(i, i)) + [1, coverage, '', '', '', '', '', equal_best, method])
+        return otus
+
+    def _coverage_of(self, profile, word):
+        node = self._find_node(profile, word)
+        return node.coverage if node is not None else 0.0
+
+    def test_joint_splits_shared_window_toward_sylph(self):
+        from singlem.condense_joint import JointDeconvolver
+        # One window shared by S1 and S2; sylph only supports S1.
+        otus = self._joint_otus([(5.0, [self.JOINT_SP1, self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD)])
+        sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 5.0)}
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, sylph_hits, alpha=1.0)
+        cov = deconv.coverage_by_key
+        self.assertGreater(cov[_canonical_species_key(self.JOINT_SP1)], cov.get(_canonical_species_key(self.JOINT_SP2), 0.0))
+        self.assertLess(cov.get(_canonical_species_key(self.JOINT_SP2), 0.0), 0.5)
+
+    def test_joint_injects_sylph_only_species(self):
+        from singlem.condense_joint import JointDeconvolver
+        # No SingleM evidence at all; sylph reports S1 at eff_cov 4. With l1=1,
+        # the soft threshold gives a = 4 - l1/2 = 3.5.
+        otus = self._joint_otus([])
+        sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 4.0)}
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, sylph_hits, alpha=1.0, l1_penalty=1.0)
+        self.assertAlmostEqual(3.5, deconv.coverage_by_key[_canonical_species_key(self.JOINT_SP1)], places=2)
+
+    def test_joint_absent_species_routed_to_novel(self):
+        from singlem.condense_joint import JointDeconvolver
+        # A window equal-best between species S1 and the genus-level (novel) clade.
+        # S1 is absent from sylph, so its coverage is routed to the novel-at-genus leaf.
+        otus = self._joint_otus([(5.0, [self.JOINT_SP1, self.JOINT_GENUS], QUERY_BASED_ASSIGNMENT_METHOD)])
+        sylph_hits = {}  # S1 not reported by sylph
+        deconv = JointDeconvolver()
+        profile = deconv.solve('sample1', otus, sylph_hits, alpha=1.0, l1_penalty=0.5, absence_weight=10.0)
+        cov = deconv.coverage_by_key
+        self.assertLess(cov[_canonical_species_key(self.JOINT_SP1)], 0.5)
+        self.assertGreater(cov[_canonical_species_key(self.JOINT_GENUS)], 3.0)
+        # In the tree the novel coverage sits on the genus node, not a species leaf.
+        self.assertGreater(self._coverage_of(profile, 'g__G'), 3.0)
+
+    def test_joint_min_markers_suppresses_few_marker_species(self):
+        from singlem.condense_joint import JointDeconvolver
+        # S2 is absent from sylph and uniquely resolved by only one marker (the
+        # rest of its support is shared with the sylph-detected S1).
+        otus = self._joint_otus([
+            (5.0, [self.JOINT_SP1, self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD),  # shared marker
+            (8.0, [self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD),                  # one unique marker
+        ])
+        sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 5.0)}
+        s2 = _canonical_species_key(self.JOINT_SP2)
+
+        # Default min_markers=3: one unique marker is insufficient -> zeroed.
+        d3 = JointDeconvolver()
+        d3.solve('s', otus, sylph_hits, alpha=1.0, min_markers=3)
+        self.assertEqual(0.0, d3.coverage_by_key.get(s2, 0.0))
+
+        # min_markers=1: the single unique marker now suffices -> retained.
+        d1 = JointDeconvolver()
+        d1.solve('s', otus, sylph_hits, alpha=1.0, min_markers=1)
+        self.assertGreater(d1.coverage_by_key.get(s2, 0.0), 0.0)
+
+    def test_joint_alpha_variable_projection(self):
+        from singlem.condense_joint import JointDeconvolver
+        # Three species each with a unique window at SingleM coverage 10 and sylph
+        # eff_cov 5 -> variable projection should recover alpha ~ 0.5.
+        species = [self.JOINT_SP1, self.JOINT_SP2,
+                   'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S3']
+        otus = self._joint_otus([(10.0, [s], QUERY_BASED_ASSIGNMENT_METHOD) for s in species])
+        sylph_hits = {_canonical_species_key(s): SylphHit(s, 5.0) for s in species}
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, sylph_hits, alpha=None, l1_penalty=0.0)
+        self.assertAlmostEqual(0.5, deconv.fitted_alpha, places=2)
+
     # End-to-end Regime 3 test. Reads the mock-metagenome outputs produced by
     # test/data/condense/regime3/Snakefile (run that workflow first) into
     # condense and confirms both the high-coverage genome (recovered by SingleM)
@@ -362,6 +451,26 @@ class Tests(unittest.TestCase):
         self.assertIn('s__Methanobacterium_B sp000744455', output)
         # Low-coverage genome (0.5x): below SingleM's marker sensitivity, so
         # recovered only via sylph and injected by Regime 3.
+        self.assertIn('s__Methanobacterium_B lacus', output)
+
+    def test_condense_joint_mock_metagenome(self):
+        import tempfile
+        regime3_output = os.path.join(path_to_data, 'regime3', 'output')
+        archive = os.path.join(regime3_output, 'archive.json')
+        sylph = os.path.join(regime3_output, 'sylph_annotated.tsv')
+        for required in (archive, sylph, self.REGIME3_METAPACKAGE):
+            if not os.path.exists(required):
+                self.skipTest("Joint input not present ({}); run test/data/condense/regime3/Snakefile first".format(required))
+
+        with tempfile.NamedTemporaryFile(suffix='.profile.tsv', mode='w') as profile:
+            extern.run("{} condense --joint --input-archive-otu-table {} --metapackage {} "
+                "--sylph-profile {} -p {}".format(
+                    path_to_script, archive, self.REGIME3_METAPACKAGE, sylph, profile.name))
+            with open(profile.name) as f:
+                output = f.read()
+
+        # Both genomes resolved by the joint deconvolution.
+        self.assertIn('s__Methanobacterium_B sp000744455', output)
         self.assertIn('s__Methanobacterium_B lacus', output)
 
 if __name__ == "__main__":

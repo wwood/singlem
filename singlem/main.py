@@ -276,6 +276,14 @@ def add_condense_arguments(parser):
         help="pre-annotated sylph profile TSV (GTDB taxonomy + Eff_cov columns). Species sylph detected but SingleM missed are injected into the profile.")
     optional_condense_arguments.add_argument('--alpha', type=float,
         help="scale factor converting sylph effective coverage to SingleM coverage units when injecting sylph-only species. [default: fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
+    optional_condense_arguments.add_argument('--joint', action='store_true',
+        help="jointly profile SingleM and sylph with an NNLS deconvolution instead of the default EM-based condense. Requires --sylph-profile.")
+    optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
+        help="[--joint] L1 sparsity penalty (controls pruning of low-coverage taxa) [default: 1.0]")
+    optional_condense_arguments.add_argument('--joint-absence-weight', type=float, default=100.0,
+        help="[--joint] weight suppressing species in the DB that sylph did not report [default: 100.0]")
+    optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
+        help="[--joint] minimum number of uniquely-assigned markers required for a taxon that sylph did not detect; taxa below this are set to zero coverage [default: 3]")
 
 def generate_streaming_otu_table_from_args(args,
     input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
@@ -1389,7 +1397,11 @@ def main():
             min_taxon_coverage = args.min_taxon_coverage,
             output_after_em_otu_table = args.output_after_em_otu_table,
             sylph_profile = args.sylph_profile,
-            alpha = args.alpha)
+            alpha = args.alpha,
+            joint = args.joint,
+            joint_l1_penalty = args.joint_l1_penalty,
+            joint_absence_weight = args.joint_absence_weight,
+            joint_min_markers = args.joint_min_markers)
 
     elif args.subparser_name == 'trim_package_hmms':
         from singlem.trim_package_hmms import PackageHmmTrimmer

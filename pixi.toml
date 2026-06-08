@@ -33,6 +33,8 @@ biopython = "*"
 extern = "*"
 zenodo_backpack = ">=0.4.0"
 graftm = "*"
+numpy = "*"
+scipy = "*"  # Used by condense --joint NNLS deconvolution
 
 # These dependencies are used alongside the "typical" ones listed above.
 [feature.main.dependencies]
