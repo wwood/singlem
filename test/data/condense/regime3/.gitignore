@@ -1,0 +1,24 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+
+# Large / volatile workflow intermediates (these patterns match at any depth,
+# so they also cover backup_standard_error/{reads,logs,benchmark}).
+reads/
+sketch/
+logs/
+benchmark/
+.snakemake/
+pixi.lock
+
+# Low-error run: ignore everything generated except the small committed fixtures
+output/*
+!output/archive.json
+!output/sylph_annotated.tsv
+!output/sylph_profile.tsv
+
+# Preserved standard-error (wgsim -e 0.02) run: keep only the small fixtures
+backup_standard_error/output/*
+!backup_standard_error/output/archive.json
+!backup_standard_error/output/sylph_annotated.tsv
+!backup_standard_error/output/sylph_profile.tsv

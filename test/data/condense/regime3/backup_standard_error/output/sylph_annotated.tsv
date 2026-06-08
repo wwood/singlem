@@ -1,0 +1,3 @@
+Sample_file	taxonomy	Eff_cov
+reads/mock.r1.fq	d__Archaea;p__Methanobacteriota;c__Methanobacteria;o__Methanobacteriales;f__Methanobacteriaceae;g__Methanobacterium_B;s__Methanobacterium_B sp000744455	4.291
+reads/mock.r1.fq	d__Archaea;p__Methanobacteriota;c__Methanobacteria;o__Methanobacteriales;f__Methanobacteriaceae;g__Methanobacterium_B;s__Methanobacterium_B lacus	0.225
