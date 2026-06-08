@@ -73,9 +73,18 @@ class Condenser:
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', DEFAULT_MIN_TAXON_COVERAGE)
         # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
+        sylph_profile = kwargs.pop('sylph_profile', None)
+        alpha = kwargs.pop('alpha', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
+
+        # Parse the sylph profile once (Regime 3: sylph-only species injection).
+        sylph_sample_to_hits = {}
+        if sylph_profile is not None:
+            sylph_sample_to_hits = SylphProfile.read_tsv(sylph_profile)
+            logging.info("Read sylph coverage for {} sample(s) from {}".format(
+                len(sylph_sample_to_hits), sylph_profile))
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
@@ -107,12 +116,25 @@ class Condenser:
 
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
-            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode)
+            sylph_hits = self._sylph_hits_for_sample(sample, sylph_sample_to_hits) if sylph_profile is not None else None
+            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
+                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
+                sylph_hits, alpha)
 
-    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
+    def _sylph_hits_for_sample(self, sample, sylph_sample_to_hits):
+        '''Return the per-taxon sylph hits for a SingleM sample, matching on the
+        sylph Sample_file column. If the sylph TSV carried no sample column (a
+        single None key), or a single sample, use those hits for every sample.'''
+        if sample in sylph_sample_to_hits:
+            return sylph_sample_to_hits[sample]
+        if len(sylph_sample_to_hits) == 1:
+            return list(sylph_sample_to_hits.values())[0]
+        logging.warning("No sylph coverage found for sample {}, skipping sylph injection for it".format(sample))
+        return {}
+
+    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
-            output_after_em_otu_table, viral_mode):
+            output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None):
 
 
         # Remove off-target OTUs genes
@@ -170,6 +192,13 @@ class Condenser:
         self._push_down_genus_to_species(condensed_otus, 0.1)
         logging.info("Total profile coverage after push down: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
+        # Regime 3: inject species that sylph detected but SingleM missed. Done
+        # after the EM and the condense tree is built, so injected leaves bypass
+        # the EM proximity pruning entirely.
+        if sylph_hits:
+            self._inject_sylph_only_species(condensed_otus, sylph_hits, alpha)
+            logging.info("Total profile coverage after sylph injection: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
+
         self._report_taxonomic_level_assignment_stats(condensed_otus)
 
         return condensed_otus
@@ -191,6 +220,89 @@ class Condenser:
                 rank,
                 level_coverage[level]/total_coverage*100 if total_coverage > 0 else 0,
                 level_count[level]))
+
+    def _fit_alpha(self, singlem_species_coverage, sylph_hits, min_coverage=10.0, min_anchors=3):
+        '''Fit the scale factor alpha that converts sylph effective coverage onto
+        SingleM's genome-equivalent coverage scale, by regressing SingleM
+        coverage against sylph eff_cov (through the origin) over the species both
+        tools detect at moderate abundance. If fewer than min_anchors species are
+        detected by both tools at >= min_coverage SingleM coverage, default to 1.'''
+        eff_covs = []
+        singlem_covs = []
+        for key, singlem_cov in singlem_species_coverage.items():
+            if singlem_cov >= min_coverage and key in sylph_hits:
+                eff_covs.append(sylph_hits[key].eff_cov)
+                singlem_covs.append(singlem_cov)
+
+        if len(eff_covs) < min_anchors:
+            logging.info("Found only {} anchor species (>= {}x SingleM coverage and sylph-detected), "
+                "fewer than {}; defaulting alpha to 1".format(len(eff_covs), min_coverage, min_anchors))
+            return 1.0
+
+        denominator = sum(e * e for e in eff_covs)
+        if denominator == 0:
+            logging.info("Sylph effective coverage is zero across anchor species; defaulting alpha to 1")
+            return 1.0
+        alpha = sum(e * s for e, s in zip(eff_covs, singlem_covs)) / denominator
+        logging.info("Fit alpha={:.4f} by regression over {} anchor species".format(alpha, len(eff_covs)))
+        return alpha
+
+    def _inject_sylph_only_species(self, condensed_otus, sylph_hits, alpha):
+        '''Regime 3: inject species that sylph detected but SingleM placed at zero
+        as new species leaves at coverage alpha*eff_cov. Injected coverage is
+        drawn down from the nearest ancestor internal node's (novel/unresolved)
+        coverage so SingleM stays the authority on each clade's budget; only the
+        residual beyond that budget is genuinely new coverage.'''
+
+        # Species already present in the SingleM profile (collected before any
+        # injection so injected leaves do not pollute the anchor set).
+        singlem_species_coverage = {}
+        for node in condensed_otus.breadth_first_iter():
+            if node.calculate_level() == 7 and node.word.startswith('s__') and node.coverage > 0:
+                key = _canonical_species_key(';'.join(node.get_taxonomy()))
+                singlem_species_coverage[key] = node.coverage
+
+        if alpha is None:
+            alpha = self._fit_alpha(singlem_species_coverage, sylph_hits)
+        else:
+            logging.info("Using user-supplied alpha={}".format(alpha))
+
+        num_injected = 0
+        total_injected = 0.0
+        total_residual = 0.0
+        for key, hit in sylph_hits.items():
+            if key in singlem_species_coverage:
+                continue  # Detected by both tools; left to the EM (Regimes 1/2)
+            coverage = alpha * hit.eff_cov
+            if coverage <= 0:
+                continue
+            taxon_array = _gtdb_string_to_wordnode_array(hit.taxonomy)
+            if len(taxon_array) < 2 or not taxon_array[-1].startswith('s__'):
+                logging.debug("Skipping sylph taxon without a species rank: {}".format(hit.taxonomy))
+                continue
+
+            # Materialise the lineage and add the species leaf coverage.
+            condensed_otus.tree.add_words(taxon_array, coverage)
+            leaf = condensed_otus.tree
+            for word in taxon_array[1:]:
+                leaf = leaf.children[word]
+
+            # Reconcile against the clade's SingleM budget: draw the injected
+            # coverage down from the nearest ancestors' novel coverage first.
+            remaining = coverage
+            ancestor = leaf.parent
+            while ancestor is not None and ancestor.word != 'Root' and remaining > 0:
+                take = min(remaining, ancestor.coverage)
+                ancestor.coverage -= take
+                remaining -= take
+                ancestor = ancestor.parent
+
+            num_injected += 1
+            total_injected += coverage
+            total_residual += remaining
+
+        logging.info("Injected {} sylph-only species (alpha={:.4f}): {:.2f} coverage at species level, "
+            "{:.2f} net new coverage after reconciliation".format(num_injected, alpha, total_injected, total_residual))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
         '''Input OTU tables assigned taxonomy with diamond have sequence IDs as
@@ -815,6 +927,71 @@ class Condenser:
                     else:
                         more_to_go = False
         return species_to_eq_class
+
+def _canonical_species_key(taxon_string):
+    '''Normalise a taxonomy string to a canonical key for matching sylph GTDB
+    strings against condense tree nodes: drop a leading "Root" and any empty
+    ranks, strip whitespace, and rejoin with ";".'''
+    parts = [p.strip() for p in taxon_string.split(';')]
+    return ';'.join([p for p in parts if p != '' and p != 'Root'])
+
+def _gtdb_string_to_wordnode_array(taxon_string):
+    '''Convert a GTDB taxonomy string into the ["Root", "d__..", .., "s__X"]
+    array form used by WordNode.add_words.'''
+    parts = [p.strip() for p in taxon_string.split(';')]
+    return ['Root'] + [p for p in parts if p != '' and p != 'Root']
+
+class SylphHit:
+    def __init__(self, taxonomy, eff_cov):
+        self.taxonomy = taxonomy # Original GTDB taxonomy string from the TSV
+        self.eff_cov = eff_cov
+
+class SylphProfile:
+    '''Parser for a pre-annotated sylph profile TSV carrying a GTDB taxonomy
+    column and a sylph effective coverage column (and an optional sample
+    column).'''
+    TAXONOMY_COLUMNS = ['taxonomy', 'Taxonomy', 'clade_name']
+    COVERAGE_COLUMNS = ['Eff_cov', 'eff_cov']
+    SAMPLE_COLUMNS = ['Sample_file', 'sample']
+
+    @staticmethod
+    def _pick_column(fields, candidates, description, path):
+        for candidate in candidates:
+            if candidate in fields:
+                return candidate
+        raise Exception("Sylph profile {} must contain a {} column (one of {}); found columns {}".format(
+            path, description, candidates, fields))
+
+    @staticmethod
+    def read_tsv(path):
+        '''Parse the sylph TSV into {sample: {canonical_key: SylphHit}}. When the
+        TSV has no recognised sample column, a single None key holds all hits.'''
+        sample_to_hits = {}
+        with open(path) as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            fields = reader.fieldnames
+            if fields is None:
+                raise Exception("Sylph profile {} appears to be empty".format(path))
+            tax_col = SylphProfile._pick_column(fields, SylphProfile.TAXONOMY_COLUMNS, 'taxonomy', path)
+            cov_col = SylphProfile._pick_column(fields, SylphProfile.COVERAGE_COLUMNS, 'effective coverage', path)
+            sample_col = next((c for c in SylphProfile.SAMPLE_COLUMNS if c in fields), None)
+
+            for row in reader:
+                taxonomy = row[tax_col]
+                if taxonomy is None or taxonomy.strip() == '':
+                    continue
+                try:
+                    eff_cov = float(row[cov_col])
+                except (TypeError, ValueError):
+                    continue
+                sample = None
+                if sample_col is not None and row[sample_col] is not None:
+                    sample = row[sample_col].strip()
+                if sample not in sample_to_hits:
+                    sample_to_hits[sample] = {}
+                key = _canonical_species_key(taxonomy)
+                sample_to_hits[sample][key] = SylphHit(taxonomy.strip(), eff_cov)
+        return sample_to_hits
 
 def _tmean(data, proportiontocut):
     """

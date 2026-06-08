@@ -1,0 +1,173 @@
+# Snakemake workflow that builds a mock metagenome and runs sylph + singlem to
+# produce the inputs needed to test SingleM condense's Regime 3 (sylph-only
+# species injection).
+#
+# A mock metagenome is simulated with wgsim from two Methanobacteria genomes in
+# the repository's test data: one at high coverage (detected by both tools) and
+# one at low coverage (below singlem's marker-gene sensitivity, so it should
+# only be recovered via sylph and injected by condense).
+#
+# Run with:   pixi run run            (or: pixi run snakemake --cores 8)
+# Outputs:    output/archive.json           (singlem archive OTU table)
+#             output/sylph_annotated.tsv    (sylph profile + GTDB taxonomy)
+
+import os
+import re
+
+# ---- Configuration -------------------------------------------------------
+SNAKEDIR = os.path.dirname(os.path.abspath(workflow.snakefile))
+# Repository root is four levels up: regime3 -> condense -> data -> test -> repo
+REPO = os.path.abspath(os.path.join(SNAKEDIR, "..", "..", "..", ".."))
+GENOME_DIR = os.path.join(REPO, "test", "data", "methanobacteria", "genomes")
+
+# The two genomes that make up the mock metagenome. Both are GTDB r232 species
+# representatives, so both are present in the sylph and singlem databases.
+HIGH_ACC = "GCF_000744455.1"   # 10x  -> s__Methanobacterium_B sp000744455 (detected by both)
+LOW_ACC = "GCF_000191585.1"    # 0.5x -> s__Methanobacterium_B lacus (Regime 3: sylph-only)
+GENOME_COVERAGE = {HIGH_ACC: 10.0, LOW_ACC: 0.5}
+
+READ_LENGTH = 150
+SEED = 12345
+# wgsim's default base error rate is 0.02 (2%), which destroys ~47% of 31-mers
+# and roughly halves sylph's effective coverage relative to the true depth. Use
+# a lower, more Illumina-like rate so sylph eff_cov tracks the true coverage.
+# (The standard-error-rate outputs are preserved under backup_standard_error/.)
+WGSIM_ERROR_RATE = 0.001
+
+SYLPH_DB = "/work/microbiome/db/sylph/gtdb-r232-c200-dbv1.syldb"
+SYLPH_C = 200  # Must match the -c the database was built with.
+SINGLEM_METAPACKAGE = "/work/microbiome/db/singlem/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb"
+GTDB_TAXONOMIES = [
+    "/work/microbiome/db/gtdb/gtdb_release232/ar53_taxonomy_r232.tsv",
+    "/work/microbiome/db/gtdb/gtdb_release232/bac120_taxonomy_r232.tsv",
+]
+
+# pixi is used to run singlem from the parent repository's own environment, so
+# the dev version of condense/pipe and all its binary dependencies are used.
+PIXI = "pixi"
+
+
+def genome_path(accession):
+    return os.path.join(GENOME_DIR, accession + "_genomic.fna")
+
+
+def genome_length(path):
+    total = 0
+    with open(path) as handle:
+        for line in handle:
+            if not line.startswith('>'):
+                total += len(line.strip())
+    return total
+
+
+def num_read_pairs(accession, coverage):
+    # coverage = (num_pairs * 2 * read_length) / genome_length
+    length = genome_length(genome_path(accession))
+    return max(1, int(round(coverage * length / (2 * READ_LENGTH))))
+
+
+# ---- Rules ---------------------------------------------------------------
+# Restrict the wgsim {acc} wildcard to the two genome accessions so that the
+# combined "reads/mock.*" files are not ambiguously matched by the wgsim rule.
+wildcard_constraints:
+    acc="|".join(re.escape(a) for a in GENOME_COVERAGE),
+
+
+rule all:
+    input:
+        "output/archive.json",
+        "output/sylph_annotated.tsv",
+
+
+rule wgsim:
+    input:
+        genome=lambda wildcards: genome_path(wildcards.acc),
+    output:
+        r1="reads/{acc}.r1.fq",
+        r2="reads/{acc}.r2.fq",
+    params:
+        pairs=lambda wildcards: num_read_pairs(wildcards.acc, GENOME_COVERAGE[wildcards.acc]),
+        readlen=READ_LENGTH,
+        seed=SEED,
+        error_rate=WGSIM_ERROR_RATE,
+    log:
+        "logs/wgsim.{acc}.log",
+    benchmark:
+        "benchmark/wgsim.{acc}.tsv"
+    shell:
+        "wgsim -e {params.error_rate} -N {params.pairs} -1 {params.readlen} -2 {params.readlen} "
+        "-S {params.seed} {input.genome} {output.r1} {output.r2} > {log} 2>&1"
+
+
+rule combine_reads:
+    # Trivial rule (concatenation): log only, no benchmark.
+    input:
+        r1=expand("reads/{acc}.r1.fq", acc=list(GENOME_COVERAGE.keys())),
+        r2=expand("reads/{acc}.r2.fq", acc=list(GENOME_COVERAGE.keys())),
+    output:
+        r1="reads/mock.r1.fq",
+        r2="reads/mock.r2.fq",
+    log:
+        "logs/combine_reads.log",
+    shell:
+        "cat {input.r1} > {output.r1} 2> {log} && cat {input.r2} > {output.r2} 2>> {log}"
+
+
+rule sylph_profile:
+    input:
+        r1="reads/mock.r1.fq",
+        r2="reads/mock.r2.fq",
+    output:
+        "output/sylph_profile.tsv",
+    params:
+        db=SYLPH_DB,
+        c=SYLPH_C,
+    threads: 8
+    log:
+        "logs/sylph_profile.log",
+    benchmark:
+        "benchmark/sylph_profile.tsv"
+    shell:
+        "sylph profile {params.db} -1 {input.r1} -2 {input.r2} "
+        "-c {params.c} -t {threads} -o {output} > {log} 2>&1"
+
+
+rule annotate_sylph:
+    input:
+        sylph="output/sylph_profile.tsv",
+        script=os.path.join(SNAKEDIR, "annotate_sylph.py"),
+    output:
+        "output/sylph_annotated.tsv",
+    params:
+        taxonomies=GTDB_TAXONOMIES,
+    log:
+        "logs/annotate_sylph.log",
+    benchmark:
+        "benchmark/annotate_sylph.tsv"
+    shell:
+        "python {input.script} --sylph-tsv {input.sylph} "
+        "--taxonomy {params.taxonomies} --output {output} > {log} 2>&1"
+
+
+rule singlem_pipe:
+    # singlem is run from the parent repository's pixi environment so that the
+    # development version of pipe and all of its binary dependencies are used.
+    input:
+        r1="reads/mock.r1.fq",
+        r2="reads/mock.r2.fq",
+    output:
+        "output/archive.json",
+    params:
+        pixi=PIXI,
+        repo=REPO,
+        metapackage=SINGLEM_METAPACKAGE,
+    threads: 8
+    log:
+        "logs/singlem_pipe.log",
+    benchmark:
+        "benchmark/singlem_pipe.tsv"
+    shell:
+        "{params.pixi} run --manifest-path {params.repo}/pixi.toml -e default "
+        "singlem pipe --forward {input.r1} --reverse {input.r2} "
+        "--metapackage {params.metapackage} --threads {threads} "
+        "--archive-otu-table {output} > {log} 2>&1"

@@ -1,0 +1,19 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "regime3"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+# Build the mock metagenome, run sylph + singlem, and annotate the sylph profile.
+# singlem itself is run from the parent repository's own pixi environment (see
+# the singlem_pipe rule in the Snakefile), so it is not a dependency here.
+run = "snakemake --cores 8 --printshellcmds"
+
+[dependencies]
+snakemake = "*"
+snakemake-executor-plugin-cluster-generic = "*"
+wgsim = "*"
+sylph = "*"
+python = ">=3.10"

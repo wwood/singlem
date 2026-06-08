@@ -272,6 +272,10 @@ def add_condense_arguments(parser):
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+    optional_condense_arguments.add_argument('--sylph-profile', metavar='filename',
+        help="pre-annotated sylph profile TSV (GTDB taxonomy + Eff_cov columns). Species sylph detected but SingleM missed are injected into the profile.")
+    optional_condense_arguments.add_argument('--alpha', type=float,
+        help="scale factor converting sylph effective coverage to SingleM coverage units when injecting sylph-only species. [default: fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
 
 def generate_streaming_otu_table_from_args(args,
     input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
@@ -1383,7 +1387,9 @@ def main():
             output_otu_table = args.taxonomic_profile,
             krona = args.taxonomic_profile_krona,
             min_taxon_coverage = args.min_taxon_coverage,
-            output_after_em_otu_table = args.output_after_em_otu_table)
+            output_after_em_otu_table = args.output_after_em_otu_table,
+            sylph_profile = args.sylph_profile,
+            alpha = args.alpha)
 
     elif args.subparser_name == 'trim_package_hmms':
         from singlem.trim_package_hmms import PackageHmmTrimmer

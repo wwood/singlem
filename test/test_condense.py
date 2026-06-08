@@ -28,7 +28,8 @@ import extern
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.otu_table import OtuTable
-from singlem.condense  import Condenser
+from singlem.condense  import Condenser, WordNode, CondensedCommunityProfile, SylphHit, SylphProfile
+from singlem.condense import _canonical_species_key, _gtdb_string_to_wordnode_array
 from singlem.archive_otu_table import ArchiveOtuTable
 from singlem.pipe import QUERY_BASED_ASSIGNMENT_METHOD
 
@@ -248,6 +249,120 @@ class Tests(unittest.TestCase):
                 {'Rooter; tax1': {'Rooter; tax1'}, 'Rooter; tax2': {'Rooter; tax2'}}, QUERY_BASED_ASSIGNMENT_METHOD \
                 ).data
         )
+
+    # ---- Regime 3: sylph-only species injection ----
+
+    G_ECOLI = 'd__Bacteria;p__Proteobacteria;c__Gammaproteobacteria;o__Enterobacterales;f__Enterobacteriaceae;g__Escherichia'
+    S_ECOLI = G_ECOLI + ';s__Escherichia coli'
+    S_SHIGELLA = G_ECOLI + ';s__Shigella flexneri'
+
+    def test_canonical_species_key(self):
+        self.assertEqual(
+            'd__Bacteria;p__P;s__X',
+            _canonical_species_key('Root; d__Bacteria; p__P; s__X'))
+        self.assertEqual(
+            'd__Bacteria;p__P;s__X',
+            _canonical_species_key('d__Bacteria;p__P;s__X'))
+
+    def test_gtdb_string_to_wordnode_array(self):
+        self.assertEqual(
+            ['Root', 'd__Bacteria', 'p__P', 's__X'],
+            _gtdb_string_to_wordnode_array('d__Bacteria;p__P;s__X'))
+        self.assertEqual(
+            ['Root', 'd__Bacteria', 'p__P', 's__X'],
+            _gtdb_string_to_wordnode_array('Root; d__Bacteria; p__P; s__X'))
+
+    def test_fit_alpha_enough_anchors(self):
+        # singlem = 2 * eff_cov exactly => alpha == 2.0
+        singlem = {'a': 10.0, 'b': 20.0, 'c': 30.0}
+        sylph = {'a': SylphHit('a', 5.0), 'b': SylphHit('b', 10.0), 'c': SylphHit('c', 15.0)}
+        self.assertAlmostEqual(2.0, Condenser()._fit_alpha(singlem, sylph))
+
+    def test_fit_alpha_too_few_anchors(self):
+        # Only two species at >= 10x coverage => default to 1.0
+        singlem = {'a': 10.0, 'b': 20.0, 'c': 3.0}
+        sylph = {'a': SylphHit('a', 5.0), 'b': SylphHit('b', 10.0), 'c': SylphHit('c', 1.5)}
+        self.assertEqual(1.0, Condenser()._fit_alpha(singlem, sylph))
+
+    def _find_node(self, profile, word):
+        for node in profile.breadth_first_iter():
+            if node.word == word:
+                return node
+        return None
+
+    def test_inject_sylph_only_species_reconciles_with_genus(self):
+        root = WordNode(None, 'Root')
+        root.add_words(['Root'] + self.S_ECOLI.split(';'), 5.0)
+        # Genus-level novel coverage that injection should draw down
+        root.add_words(['Root'] + self.G_ECOLI.split(';'), 3.0)
+        profile = CondensedCommunityProfile('sample1', root)
+
+        sylph_hits = {
+            _canonical_species_key(self.S_ECOLI): SylphHit(self.S_ECOLI, 9.0),  # already present
+            _canonical_species_key(self.S_SHIGELLA): SylphHit(self.S_SHIGELLA, 2.0),  # sylph-only
+        }
+        Condenser()._inject_sylph_only_species(profile, sylph_hits, alpha=1.0)
+
+        # E. coli already in profile, untouched
+        self.assertEqual(5.0, self._find_node(profile, 's__Escherichia coli').coverage)
+        # Shigella injected at alpha*eff_cov = 2.0
+        self.assertEqual(2.0, self._find_node(profile, 's__Shigella flexneri').coverage)
+        # Genus novel coverage drawn down from 3.0 to 1.0 (residual 0, no new total)
+        self.assertEqual(1.0, self._find_node(profile, 'g__Escherichia').coverage)
+
+    def test_inject_sylph_only_species_residual_is_new_coverage(self):
+        root = WordNode(None, 'Root')
+        # Only 0.5 of genus novel budget available
+        root.add_words(['Root'] + self.G_ECOLI.split(';'), 0.5)
+        profile = CondensedCommunityProfile('sample1', root)
+        total_before = sum([n.coverage for n in profile.breadth_first_iter()])
+
+        sylph_hits = {_canonical_species_key(self.S_SHIGELLA): SylphHit(self.S_SHIGELLA, 2.0)}
+        Condenser()._inject_sylph_only_species(profile, sylph_hits, alpha=1.0)
+
+        self.assertEqual(2.0, self._find_node(profile, 's__Shigella flexneri').coverage)
+        self.assertEqual(0.0, self._find_node(profile, 'g__Escherichia').coverage)
+        # Total rises only by the residual (2.0 injected - 0.5 reconciled = 1.5)
+        total_after = sum([n.coverage for n in profile.breadth_first_iter()])
+        self.assertAlmostEqual(total_before + 1.5, total_after)
+
+    def test_sylph_profile_read_tsv(self):
+        sample_to_hits = SylphProfile.read_tsv(os.path.join(path_to_data, 'small_sylph_profile.tsv'))
+        self.assertEqual(['sample1'], list(sample_to_hits.keys()))
+        hits = sample_to_hits['sample1']
+        self.assertEqual(2, len(hits))
+        ecoli_key = _canonical_species_key(self.S_ECOLI)
+        self.assertIn(ecoli_key, hits)
+        self.assertEqual(9.0, hits[ecoli_key].eff_cov)
+
+    # End-to-end Regime 3 test. Reads the mock-metagenome outputs produced by
+    # test/data/condense/regime3/Snakefile (run that workflow first) into
+    # condense and confirms both the high-coverage genome (recovered by SingleM)
+    # and the low-coverage, sylph-only genome (injected by Regime 3) appear in
+    # the taxonomic profile.
+    REGIME3_METAPACKAGE = '/work/microbiome/db/singlem/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb'
+
+    def test_condense_regime3_mock_metagenome(self):
+        import tempfile
+        regime3_output = os.path.join(path_to_data, 'regime3', 'output')
+        archive = os.path.join(regime3_output, 'archive.json')
+        sylph = os.path.join(regime3_output, 'sylph_annotated.tsv')
+        for required in (archive, sylph, self.REGIME3_METAPACKAGE):
+            if not os.path.exists(required):
+                self.skipTest("Regime 3 input not present ({}); run test/data/condense/regime3/Snakefile first".format(required))
+
+        with tempfile.NamedTemporaryFile(suffix='.profile.tsv', mode='w') as profile:
+            extern.run("{} condense --input-archive-otu-table {} --metapackage {} "
+                "--sylph-profile {} -p {}".format(
+                    path_to_script, archive, self.REGIME3_METAPACKAGE, sylph, profile.name))
+            with open(profile.name) as f:
+                output = f.read()
+
+        # High-coverage genome (10x) detected directly by SingleM.
+        self.assertIn('s__Methanobacterium_B sp000744455', output)
+        # Low-coverage genome (0.5x): below SingleM's marker sensitivity, so
+        # recovered only via sylph and injected by Regime 3.
+        self.assertIn('s__Methanobacterium_B lacus', output)
 
 if __name__ == "__main__":
     import logging
