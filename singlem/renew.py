@@ -206,7 +206,7 @@ class Renew:
                 # Integrate sylph from a previously-saved sketch, so renew needs
                 # no access to the raw reads.
                 if input_sylph_sketch is not None:
-                    if metapackage.sylph_db_path() is None:
+                    if len(metapackage.sylph_databases()) == 0:
                         raise Exception("--input-sylph-sketch was given but the metapackage does not bundle a sylph database")
                     from .sylph import SylphProfiler
                     sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')

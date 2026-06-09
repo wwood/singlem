@@ -685,8 +685,8 @@ def main():
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
     metapackage_parser.add_argument('--taxon-genome-lengths', help="TSV file of genome lengths for each taxon")
     metapackage_parser.add_argument('--no-taxon-genome-lengths', action='store_true', help="Skip taxon genome lengths")
-    metapackage_parser.add_argument('--sylph-db', help="Sylph database (.syldb) to bundle into the metapackage, for joint SingleM + sylph profiling [default: none]")
-    metapackage_parser.add_argument('--sylph-c', type=int, help="The sylph -c subsampling value the bundled sylph database was built with. Required when --sylph-db is given.")
+    metapackage_parser.add_argument('--sylph-db', nargs='+', metavar='SYLDB', help="One or more sylph databases (.syldb) to bundle into the metapackage, for joint SingleM + sylph profiling [default: none]")
+    metapackage_parser.add_argument('--sylph-c', nargs='+', type=int, metavar='C', help="The sylph -c subsampling value each --sylph-db was built with, in the same order. One value per database; required when --sylph-db is given.")
     current_default = CUSTOM_TAXONOMY_DATABASE_NAME
     metapackage_parser.add_argument('--taxonomy-database-name', help='Name of the taxonomy database to use [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--taxonomy-database-version', help='Version of the taxonomy database to use [default: unspecified]')
