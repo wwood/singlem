@@ -35,12 +35,15 @@ class SylphProfiler:
             raise Exception("sylph sketch produced no .sylsp file")
         return sylsps
 
-    def profile(self, sylsp_paths, sylph_db, threads, output_tsv):
-        '''Profile sample sketches against the sylph database, writing the raw
-        sylph TSV to output_tsv. The -c is baked into the sketches.'''
-        logging.info("Profiling {} sample sketch(es) against the sylph database ..".format(len(sylsp_paths)))
+    def profile(self, sylsp_paths, sylph_dbs, threads, output_tsv):
+        '''Profile sample sketches against one or more sylph databases (all of
+        which must share the -c baked into the sketches), writing the raw sylph
+        TSV to output_tsv. Passing the databases together lets sylph reassign
+        shared k-mers across them.'''
+        logging.info("Profiling {} sample sketch(es) against {} sylph database(s) ..".format(
+            len(sylsp_paths), len(sylph_dbs)))
         extern.run("sylph profile {} {} -t {} -o {}".format(
-            sylph_db, ' '.join(sylsp_paths), threads, output_tsv))
+            ' '.join(sylph_dbs), ' '.join(sylsp_paths), threads, output_tsv))
         return output_tsv
 
     def annotate(self, raw_profile_tsv, metapackage, output_tsv):
@@ -79,41 +82,100 @@ class SylphProfiler:
 
     def run_from_reads(self, forward_reads, reverse_reads, metapackage, threads,
                        output_annotated_tsv, working_directory, sketch_output=None):
-        '''Sketch reads, optionally save the sketch(es), profile against the
-        metapackage's sylph DB, and annotate. Returns output_annotated_tsv.'''
-        sketch_dir = os.path.join(working_directory, 'sylph_sketch')
-        os.makedirs(sketch_dir, exist_ok=True)
-        sylsps = self.sketch_reads(
-            forward_reads, reverse_reads, metapackage.sylph_c(), threads, sketch_dir)
+        '''Sketch reads (once per distinct -c across the metapackage's sylph
+        databases), optionally save the sketches, profile each database against
+        the sketch made at its -c, merge, and annotate. Returns output_annotated_tsv.'''
+        databases = metapackage.sylph_databases()
+        if len(databases) == 0:
+            raise Exception("Metapackage bundles no sylph databases")
+
+        # Sketch reads once per distinct -c value.
+        databases_by_c = self._group_databases_by_c(databases)
+        sketches_by_c = {}
+        for c in sorted(databases_by_c):
+            sketch_dir = os.path.join(working_directory, 'sketch_c{}'.format(c))
+            os.makedirs(sketch_dir, exist_ok=True)
+            sketches_by_c[c] = self.sketch_reads(forward_reads, reverse_reads, c, threads, sketch_dir)
         if sketch_output is not None:
-            self._save_sketches(sylsps, sketch_output)
-        raw_tsv = os.path.join(working_directory, 'sylph_profile.tsv')
-        self.profile(sylsps, metapackage.sylph_db_path(), threads, raw_tsv)
-        return self.annotate(raw_tsv, metapackage, output_annotated_tsv)
+            self._save_sketches_by_c(sketches_by_c, sketch_output)
+
+        # Profile all databases that share a -c together, so sylph can reassign
+        # shared k-mers across them.
+        raw_tsvs = []
+        for i, c in enumerate(sorted(databases_by_c)):
+            raw_tsv = os.path.join(working_directory, 'sylph_profile_{}.tsv'.format(i))
+            self.profile(sketches_by_c[c], databases_by_c[c], threads, raw_tsv)
+            raw_tsvs.append(raw_tsv)
+        merged = self._merge_raw_profiles(raw_tsvs, os.path.join(working_directory, 'sylph_profile_merged.tsv'))
+        return self.annotate(merged, metapackage, output_annotated_tsv)
 
     def run_from_sketch(self, sketch_path, metapackage, threads, output_annotated_tsv, working_directory):
-        '''Profile a previously-saved sketch (a .sylsp file or a directory of
-        them) against the metapackage's sylph DB, and annotate.'''
+        '''Profile previously-saved sketch(es) against each of the metapackage's
+        sylph databases (matching sketch to database by -c), merge, and annotate.'''
+        databases = metapackage.sylph_databases()
+        if len(databases) == 0:
+            raise Exception("Metapackage bundles no sylph databases")
+        databases_by_c = self._group_databases_by_c(databases)
+        raw_tsvs = []
+        for i, c in enumerate(sorted(databases_by_c)):
+            sylsps = self._sketches_for_c(sketch_path, c)
+            raw_tsv = os.path.join(working_directory, 'sylph_profile_{}.tsv'.format(i))
+            self.profile(sylsps, databases_by_c[c], threads, raw_tsv)
+            raw_tsvs.append(raw_tsv)
+        merged = self._merge_raw_profiles(raw_tsvs, os.path.join(working_directory, 'sylph_profile_merged.tsv'))
+        return self.annotate(merged, metapackage, output_annotated_tsv)
+
+    def _group_databases_by_c(self, databases):
+        '''Group (db_path, c) tuples into {c: [db_path, ...]} so databases sharing
+        a -c can be profiled together.'''
+        databases_by_c = {}
+        for db, c in databases:
+            databases_by_c.setdefault(c, []).append(db)
+        return databases_by_c
+
+    def _save_sketches_by_c(self, sketches_by_c, sketch_output):
+        '''Save sketches into sketch_output/c<C>/ subdirectories, so they can be
+        matched back to each database's -c when reused by renew.'''
+        os.makedirs(sketch_output, exist_ok=True)
+        total = 0
+        for c, sylsps in sketches_by_c.items():
+            subdir = os.path.join(sketch_output, 'c{}'.format(c))
+            os.makedirs(subdir, exist_ok=True)
+            for s in sylsps:
+                shutil.copy(s, os.path.join(subdir, os.path.basename(s)))
+                total += 1
+        logging.info("Saved {} sylph sketch(es) to {}/".format(total, sketch_output))
+
+    def _sketches_for_c(self, sketch_path, c):
+        '''Locate the saved sketch(es) made at -c. Accepts a directory written by
+        _save_sketches_by_c (c<C>/ subdirs), a flat directory of .sylsp, or a
+        single .sylsp file.'''
         if os.path.isdir(sketch_path):
-            sylsps = sorted(glob.glob(os.path.join(sketch_path, '*.sylsp')))
+            subdir = os.path.join(sketch_path, 'c{}'.format(c))
+            search_dir = subdir if os.path.isdir(subdir) else sketch_path
+            sylsps = sorted(glob.glob(os.path.join(search_dir, '*.sylsp')))
         else:
             sylsps = [sketch_path]
         if len(sylsps) == 0:
-            raise Exception("No .sylsp sketch found at {}".format(sketch_path))
-        raw_tsv = os.path.join(working_directory, 'sylph_profile.tsv')
-        self.profile(sylsps, metapackage.sylph_db_path(), threads, raw_tsv)
-        return self.annotate(raw_tsv, metapackage, output_annotated_tsv)
+            raise Exception("No sylph sketch (.sylsp) for c={} found at {}".format(c, sketch_path))
+        return sylsps
 
-    def _save_sketches(self, sylsps, sketch_output):
-        '''Save a single sketch to the given path, or multiple into a directory.'''
-        if len(sylsps) == 1:
-            shutil.copy(sylsps[0], sketch_output)
-            logging.info("Saved sylph sketch to {}".format(sketch_output))
-        else:
-            os.makedirs(sketch_output, exist_ok=True)
-            for s in sylsps:
-                shutil.copy(s, os.path.join(sketch_output, os.path.basename(s)))
-            logging.info("Saved {} sylph sketches to {}/".format(len(sylsps), sketch_output))
+    def _merge_raw_profiles(self, raw_tsvs, output_tsv):
+        '''Concatenate raw sylph profile TSVs (one header, then all data rows).'''
+        if len(raw_tsvs) == 1:
+            return raw_tsvs[0]
+        with open(output_tsv, 'w') as out:
+            wrote_header = False
+            for raw in raw_tsvs:
+                with open(raw) as f:
+                    header = f.readline()
+                    if not header:
+                        continue
+                    if not wrote_header:
+                        out.write(header)
+                        wrote_header = True
+                    shutil.copyfileobj(f, out)
+        return output_tsv
 
     def _extract_accession(self, genome_file):
         match = _GENOME_ACCESSION_REGEX.search(genome_file)

@@ -49,5 +49,42 @@ class Tests(unittest.TestCase):
         self.assertEqual('mock.fq\t{}\t9.8'.format(tax), lines[1])
 
 
+    def test_merge_raw_profiles(self):
+        with tempfile.TemporaryDirectory(prefix='singlem-sylph-test') as d:
+            a = os.path.join(d, 'a.tsv')
+            b = os.path.join(d, 'b.tsv')
+            with open(a, 'w') as f:
+                f.write("Sample_file\tGenome_file\tEff_cov\ns\tg1\t5\n")
+            with open(b, 'w') as f:
+                f.write("Sample_file\tGenome_file\tEff_cov\ns\tg2\t3\ns\tg3\t1\n")
+            out = os.path.join(d, 'merged.tsv')
+            SylphProfiler()._merge_raw_profiles([a, b], out)
+            lines = open(out).read().strip().split('\n')
+        self.assertEqual('Sample_file\tGenome_file\tEff_cov', lines[0])
+        self.assertEqual(4, len(lines))  # one header + three data rows
+        self.assertEqual(['s\tg1\t5', 's\tg2\t3', 's\tg3\t1'], lines[1:])
+
+    def test_merge_raw_profiles_single_passthrough(self):
+        with tempfile.TemporaryDirectory(prefix='singlem-sylph-test') as d:
+            a = os.path.join(d, 'a.tsv')
+            open(a, 'w').write("h\nx\n")
+            # A single input is returned as-is (no merge file needed).
+            self.assertEqual(a, SylphProfiler()._merge_raw_profiles([a], os.path.join(d, 'm.tsv')))
+
+    def test_sketches_for_c(self):
+        p = SylphProfiler()
+        with tempfile.TemporaryDirectory(prefix='singlem-sylph-test') as d:
+            # Directory written by _save_sketches_by_c: c200/ and c100/ subdirs.
+            os.makedirs(os.path.join(d, 'c200'))
+            os.makedirs(os.path.join(d, 'c100'))
+            open(os.path.join(d, 'c200', 'x.sylsp'), 'w').close()
+            open(os.path.join(d, 'c100', 'y.sylsp'), 'w').close()
+            self.assertEqual(['x.sylsp'], [os.path.basename(s) for s in p._sketches_for_c(d, 200)])
+            self.assertEqual(['y.sylsp'], [os.path.basename(s) for s in p._sketches_for_c(d, 100)])
+            # A single .sylsp file is used directly.
+            single = os.path.join(d, 'c200', 'x.sylsp')
+            self.assertEqual([single], p._sketches_for_c(single, 200))
+
+
 if __name__ == "__main__":
     unittest.main()

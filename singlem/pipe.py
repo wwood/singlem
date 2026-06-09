@@ -105,7 +105,7 @@ class SearchPipe:
                     use_joint = False
                     # If the metapackage bundles a sylph database, run sylph on the
                     # reads and integrate it into the taxonomic profile.
-                    if not no_sylph and metapackage.sylph_db_path() is not None:
+                    if not no_sylph and len(metapackage.sylph_databases()) > 0:
                         if not sylph_forward_reads or sylph_unsupported_input:
                             logging.warning("Metapackage bundles a sylph database, but sylph integration "
                                 "is currently only supported for read inputs; skipping sylph.")

@@ -47,8 +47,11 @@ class Metapackage:
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
     AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
-    SYLPH_DB_KEY = 'sylph_db'
-    SYLPH_C_KEY = 'sylph_c'
+    # A list of {'db': <basename>, 'c': <int>} entries, one per bundled sylph
+    # database, so each database is tightly coupled to the -c it was built with.
+    SYLPH_DBS_KEY = 'sylph_dbs'
+    SYLPH_DB_SUBKEY = 'db'
+    SYLPH_C_SUBKEY = 'c'
 
     _CURRENT_FORMAT_VERSION = 7
 
@@ -106,8 +109,7 @@ class Metapackage:
                         DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
                         MAKEIDX_SENSITIVITY_PARAMS,
                         AVG_NUM_GENES_PER_SPECIES,
-                        SYLPH_DB_KEY,
-                        SYLPH_C_KEY,
+                        SYLPH_DBS_KEY,
                         ],
                       }
 
@@ -240,12 +242,9 @@ class Metapackage:
             else:
                 mpkg._avg_num_genes_per_species = None
         if v >= 7:
-            if contents_hash.get(Metapackage.SYLPH_DB_KEY, None) is not None:
-                mpkg._sylph_db_path = os.path.join(metapackage_path, contents_hash[Metapackage.SYLPH_DB_KEY])
-            else:
-                # metapackage was created without a sylph database
-                mpkg._sylph_db_path = None
-            mpkg._sylph_c = contents_hash.get(Metapackage.SYLPH_C_KEY, None)
+            mpkg._sylph_databases = [
+                (os.path.join(metapackage_path, entry[Metapackage.SYLPH_DB_SUBKEY]), entry[Metapackage.SYLPH_C_SUBKEY])
+                for entry in (contents_hash.get(Metapackage.SYLPH_DBS_KEY) or [])]
         return mpkg
 
     @staticmethod
@@ -330,15 +329,21 @@ class Metapackage:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
         calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
-        sylph_db = kwargs.pop('sylph_db', None)
-        sylph_c = kwargs.pop('sylph_c', None)
+        sylph_db = kwargs.pop('sylph_db', None)  # list of database paths, or None
+        sylph_c = kwargs.pop('sylph_c', None)    # list of -c values, or None
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        if sylph_db and sylph_c is None:
-            raise Exception("A sylph -c value (--sylph-c) must be specified when a sylph database is bundled, "
-                "since it is required to sketch reads. The value must match the -c used to build the database.")
+        sylph_db_paths = list(sylph_db) if sylph_db else []
+        sylph_c_values = list(sylph_c) if sylph_c else []
+        if len(sylph_db_paths) != len(sylph_c_values):
+            raise Exception("Each sylph database (--sylph-db) requires a matching -c (--sylph-c), since -c is "
+                "needed to sketch reads and must match the -c used to build the database. Got {} database(s) "
+                "and {} -c value(s).".format(len(sylph_db_paths), len(sylph_c_values)))
+        if len(set(sylph_c_values)) > 1:
+            raise Exception("Bundling sylph databases with differing -c values is not yet supported (got -c "
+                "values {}). All --sylph-db must share a single --sylph-c.".format(sorted(set(sylph_c_values))))
 
         if calculate_average_num_genes_per_species not in (True, False):
             raise Exception("calculate_average_num_genes_per_species must be a boolean")
@@ -406,16 +411,24 @@ class Metapackage:
             logging.info("Skipping taxon genome lengths csv")
             taxon_genome_lengths_csv_name = None
 
-        # Copy sylph database into output directory
-        if sylph_db:
-            sylph_db_abspath = os.path.abspath(sylph_db)
-            sylph_db_name = os.path.basename(sylph_db_abspath)
-            sylph_db_path = os.path.join(output_path, sylph_db_name)
-            logging.info("Copying sylph database {} to {} ..".format(sylph_db, sylph_db_path))
-            shutil.copy(sylph_db_abspath, sylph_db_path)
-        else:
+        # Copy sylph database(s) into output directory, each paired with its -c
+        sylph_db_entries = []
+        seen_sylph_db_names = set()
+        for db_path, c in zip(sylph_db_paths, sylph_c_values):
+            db_abspath = os.path.abspath(db_path)
+            db_name = os.path.basename(db_abspath)
+            if db_name in seen_sylph_db_names:
+                raise Exception("Cannot bundle two sylph databases with the same basename: {}".format(db_name))
+            seen_sylph_db_names.add(db_name)
+            dest = os.path.join(output_path, db_name)
+            logging.info("Copying sylph database {} (c={}) to {} ..".format(db_path, c, dest))
+            shutil.copy(db_abspath, dest)
+            sylph_db_entries.append({
+                Metapackage.SYLPH_DB_SUBKEY: db_name,
+                Metapackage.SYLPH_C_SUBKEY: c,
+            })
+        if not sylph_db_entries:
             logging.info("Skipping sylph database")
-            sylph_db_name = None
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -474,8 +487,7 @@ class Metapackage:
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
                         Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params,
                         Metapackage.AVG_NUM_GENES_PER_SPECIES: avg_num_genes_per_species,
-                        Metapackage.SYLPH_DB_KEY: sylph_db_name,
-                        Metapackage.SYLPH_C_KEY: sylph_c,
+                        Metapackage.SYLPH_DBS_KEY: sylph_db_entries,
                         }
 
         # save contents file
@@ -622,21 +634,15 @@ class Metapackage:
             return None
         return pl.read_csv(tsv, separator='\t')
     
-    def sylph_db_path(self):
-        '''Path to the bundled sylph database, or None if the metapackage has none
-        (version < 7, created without --sylph-db, or from spkgs directly).'''
+    def sylph_databases(self):
+        '''Return a list of (sylph_db_path, c) tuples bundled in the metapackage,
+        each database paired with the -c it was built with. Empty if the
+        metapackage has no sylph databases (version < 7, created without
+        --sylph-db, or from spkgs directly).'''
         try:
-            return self._sylph_db_path
+            return list(self._sylph_databases)
         except AttributeError:
-            return None
-
-    def sylph_c(self):
-        '''The sylph -c subsampling value the bundled sylph database was built with
-        (needed to sketch reads), or None if not set.'''
-        try:
-            return self._sylph_c
-        except AttributeError:
-            return None
+            return []
 
     def genome_accession_to_taxonomy(self, accessions=None):
         '''Return a dict of genome accession (e.g. GCF_000744455.1) to GTDB
