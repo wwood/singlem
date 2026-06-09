@@ -471,7 +471,7 @@ class Metapackage:
             os.remove(prefilter_path)
 
         logging.info("Generating read name taxonomy store ..")
-        sqlitedb_path = os.path.join(output_path, 'read_taxonomies.sqlite3')
+        sqlitedb_path = os.path.join(output_path, 'read_taxonomies.duckdb')
         MetapackageReadNameStore.generate(
             singlem_packages, sqlitedb_path, taxonomy_marker_counts)
 
