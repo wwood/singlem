@@ -25,6 +25,7 @@ sylph = "*"  # For sylph-integrated taxonomic profiling (condense --joint / --sy
 [feature.typical-python.dependencies]
 python = ">=3.7"
 sqlalchemy = "*"
+duckdb = "*"  # v7+ metapackage read-name taxonomy store
 bird_tool_utils_python = ">=0.6.0"
 pyranges = "*"
 polars = "*"
