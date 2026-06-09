@@ -47,8 +47,10 @@ class Metapackage:
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
     AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
+    SYLPH_DB_KEY = 'sylph_db'
+    SYLPH_C_KEY = 'sylph_c'
 
-    _CURRENT_FORMAT_VERSION = 6
+    _CURRENT_FORMAT_VERSION = 7
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -91,6 +93,21 @@ class Metapackage:
                         DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
                         MAKEIDX_SENSITIVITY_PARAMS,
                         AVG_NUM_GENES_PER_SPECIES,
+                        ],
+                    '7': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_KEY,
+                        TAXONOMY_DATABASE_NAME_KEY,
+                        TAXONOMY_DATABASE_VERSION_KEY,
+                        DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
+                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
+                        MAKEIDX_SENSITIVITY_PARAMS,
+                        AVG_NUM_GENES_PER_SPECIES,
+                        SYLPH_DB_KEY,
+                        SYLPH_C_KEY,
                         ],
                       }
 
@@ -186,7 +203,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v not in range(1,7):
+        if v not in range(1,8):
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -222,6 +239,13 @@ class Metapackage:
                 mpkg._avg_num_genes_per_species = contents_hash.get(Metapackage.AVG_NUM_GENES_PER_SPECIES, None)
             else:
                 mpkg._avg_num_genes_per_species = None
+        if v >= 7:
+            if contents_hash.get(Metapackage.SYLPH_DB_KEY, None) is not None:
+                mpkg._sylph_db_path = os.path.join(metapackage_path, contents_hash[Metapackage.SYLPH_DB_KEY])
+            else:
+                # metapackage was created without a sylph database
+                mpkg._sylph_db_path = None
+            mpkg._sylph_c = contents_hash.get(Metapackage.SYLPH_C_KEY, None)
         return mpkg
 
     @staticmethod
@@ -306,9 +330,15 @@ class Metapackage:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
         calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
+        sylph_db = kwargs.pop('sylph_db', None)
+        sylph_c = kwargs.pop('sylph_c', None)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        if sylph_db and sylph_c is None:
+            raise Exception("A sylph -c value (--sylph-c) must be specified when a sylph database is bundled, "
+                "since it is required to sketch reads. The value must match the -c used to build the database.")
 
         if calculate_average_num_genes_per_species not in (True, False):
             raise Exception("calculate_average_num_genes_per_species must be a boolean")
@@ -376,6 +406,17 @@ class Metapackage:
             logging.info("Skipping taxon genome lengths csv")
             taxon_genome_lengths_csv_name = None
 
+        # Copy sylph database into output directory
+        if sylph_db:
+            sylph_db_abspath = os.path.abspath(sylph_db)
+            sylph_db_name = os.path.basename(sylph_db_abspath)
+            sylph_db_path = os.path.join(output_path, sylph_db_name)
+            logging.info("Copying sylph database {} to {} ..".format(sylph_db, sylph_db_path))
+            shutil.copy(sylph_db_abspath, sylph_db_path)
+        else:
+            logging.info("Skipping sylph database")
+            sylph_db_name = None
+
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
             postfix = '.dmnd'
@@ -421,7 +462,7 @@ class Metapackage:
         MetapackageReadNameStore.generate(
             singlem_packages, sqlitedb_path, taxonomy_marker_counts)
 
-        contents_hash = {Metapackage.VERSION_KEY: 6,
+        contents_hash = {Metapackage.VERSION_KEY: 7,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
@@ -433,6 +474,8 @@ class Metapackage:
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
                         Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params,
                         Metapackage.AVG_NUM_GENES_PER_SPECIES: avg_num_genes_per_species,
+                        Metapackage.SYLPH_DB_KEY: sylph_db_name,
+                        Metapackage.SYLPH_C_KEY: sylph_c,
                         }
 
         # save contents file
@@ -579,6 +622,29 @@ class Metapackage:
             return None
         return pl.read_csv(tsv, separator='\t')
     
+    def sylph_db_path(self):
+        '''Path to the bundled sylph database, or None if the metapackage has none
+        (version < 7, created without --sylph-db, or from spkgs directly).'''
+        try:
+            return self._sylph_db_path
+        except AttributeError:
+            return None
+
+    def sylph_c(self):
+        '''The sylph -c subsampling value the bundled sylph database was built with
+        (needed to sketch reads), or None if not set.'''
+        try:
+            return self._sylph_c
+        except AttributeError:
+            return None
+
+    def genome_accession_to_taxonomy(self, accessions=None):
+        '''Return a dict of genome accession (e.g. GCF_000744455.1) to GTDB
+        taxonomy string, derived from the read-name taxonomy store. If accessions
+        is given, only those are returned.'''
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_taxonomy_by_genome_accession(accessions)
+
     def taxonomy_database_name(self):
         try:
             return self._taxonomy_database_name

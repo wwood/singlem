@@ -57,6 +57,16 @@ class SearchPipe:
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
+        no_sylph = kwargs.pop('no_sylph', False)
+        output_sylph_sketch = kwargs.pop('output_sylph_sketch', None)
+        sylph_injection = kwargs.pop('sylph_injection', False)
+
+        # The original read inputs, captured before run_to_otu_table consumes them,
+        # so sylph can sketch them if the metapackage bundles a sylph database.
+        sylph_forward_reads = kwargs.get('sequences')
+        sylph_reverse_reads = kwargs.get('reverse_read_files')
+        sylph_unsupported_input = kwargs.get('genomes') or kwargs.get('input_sra_files')
+        sylph_threads = kwargs.get('threads')
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
         if outputting_taxonomic_profile:
@@ -89,14 +99,34 @@ class SearchPipe:
                 from .condense import Condenser
                 otu_table_collection = StreamingOtuTableCollection()
                 otu_table_collection.add_archive_otu_table_object(otu_table_object)
-                Condenser().condense(
-                    input_streaming_otu_table = otu_table_collection,
-                    output_otu_table = output_taxonomic_profile,
-                    krona = output_taxonomic_profile_krona,
-                    metapackage = metapackage,
-                    min_taxon_coverage = min_taxon_coverage,
-                    viral_mode = viral_profile_output,
-                )
+
+                with tempfile.TemporaryDirectory(prefix='singlem-sylph') as sylph_working_directory:
+                    sylph_profile = None
+                    use_joint = False
+                    # If the metapackage bundles a sylph database, run sylph on the
+                    # reads and integrate it into the taxonomic profile.
+                    if not no_sylph and metapackage.sylph_db_path() is not None:
+                        if not sylph_forward_reads or sylph_unsupported_input:
+                            logging.warning("Metapackage bundles a sylph database, but sylph integration "
+                                "is currently only supported for read inputs; skipping sylph.")
+                        else:
+                            from .sylph import SylphProfiler
+                            sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')
+                            SylphProfiler().run_from_reads(
+                                sylph_forward_reads, sylph_reverse_reads, metapackage, sylph_threads,
+                                sylph_profile, sylph_working_directory, sketch_output=output_sylph_sketch)
+                            use_joint = not sylph_injection
+
+                    Condenser().condense(
+                        input_streaming_otu_table = otu_table_collection,
+                        output_otu_table = output_taxonomic_profile,
+                        krona = output_taxonomic_profile_krona,
+                        metapackage = metapackage,
+                        min_taxon_coverage = min_taxon_coverage,
+                        viral_mode = viral_profile_output,
+                        sylph_profile = sylph_profile,
+                        joint = use_joint,
+                    )
 
 
 
