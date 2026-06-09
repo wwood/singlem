@@ -1381,6 +1381,19 @@ class SearchPipe:
                 io.write(s.unaligned_sequence)
                 io.write("\n")
 
+        def deduplicate_sequences_to_most_common(sequences):
+            from collections import defaultdict
+            seq_groups = defaultdict(list)
+            for s in sequences:
+                seq_groups[s.unaligned_sequence].append(s)
+            representatives = []
+            rep_to_originals = {}
+            for window_seq, group in seq_groups.items():
+                rep = group[0]
+                representatives.append(rep)
+                rep_to_originals[rep.name] = [s.name for s in group]
+            return representatives, rep_to_originals
+
         num_seqs_before_query = None
         if assignment_method in (
             ANNOY_ASSIGNMENT_METHOD,
@@ -1432,6 +1445,7 @@ class SearchPipe:
         all_tmp_files = []
         # Collect all package data for batch processing
         package_data = []  # List of (singlem_package, tmp_files)
+        all_rep_to_originals = {}
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
@@ -1480,21 +1494,25 @@ class SearchPipe:
                         reverse_tmp.write(">dummy\n{}\n".format(dummy_sequence))
                         forward_tmp.write(">dummy\n{}\n".format(dummy_sequence))
 
+                        fwd_reps, fwd_rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences[0])
+                        rev_reps, rev_rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences[1])
+                        all_rep_to_originals[(singlem_package, readset[0].sample_name, 0)] = fwd_rep_to_originals
+                        all_rep_to_originals[(singlem_package, readset[0].sample_name, 1)] = rev_rep_to_originals
+                        logging.debug("Deduplicated {}/{} fwd/rev sequences to {}/{} representatives for DIAMOND".format(
+                            len(still_unknown_sequences[0]), len(still_unknown_sequences[1]),
+                            len(fwd_reps), len(rev_reps)))
                         forward_seq_names = {}
-                        for (i, s) in enumerate(still_unknown_sequences[0]):
+                        for (i, s) in enumerate(fwd_reps):
                             forward_seq_names[s.name] = i
                             write_unaligned_fasta([s], forward_tmp)
                         reverse_name_to_seq = {}
-                        for s in still_unknown_sequences[1]:
+                        for s in rev_reps:
                             reverse_name_to_seq[s.name] = s
                         for name in forward_seq_names.keys():
                             if name in reverse_name_to_seq:
-                                # Write corresponding reverse and delete it
-                                # from dict.
                                 write_unaligned_fasta(
                                     [reverse_name_to_seq.pop(name)], reverse_tmp)
                         for name, seq in reverse_name_to_seq.items():
-                            # Reverse read matched only
                             write_unaligned_fasta([seq], reverse_tmp)
 
                         # Close immediately to avoid the "too many open files" error.
@@ -1525,7 +1543,11 @@ class SearchPipe:
                                 os.path.basename(singlem_package.base_directory())))
                         else:
                             still_unknown_sequences = readset.unknown_sequences
-                        write_unaligned_fasta(still_unknown_sequences, tmp)
+                        reps, rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences)
+                        all_rep_to_originals[(singlem_package, readset.sample_name, None)] = rep_to_originals
+                        logging.debug("Deduplicated {} sequences to {} representatives for DIAMOND".format(
+                            len(still_unknown_sequences), len(reps)))
+                        write_unaligned_fasta(reps, tmp)
                         tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
@@ -1709,6 +1731,17 @@ class SearchPipe:
             for chunk_files in all_sample_chunks.values():
                 for chunk_file in chunk_files:
                     os.remove(chunk_file)
+
+            # Phase 3b: Expand representative results back to all original sequences
+            for key, rep_map in all_rep_to_originals.items():
+                if key in chunk_results:
+                    expanded = {}
+                    for rep_name, orig_names in rep_map.items():
+                        if rep_name in chunk_results[key]:
+                            result = chunk_results[key][rep_name]
+                            for orig_name in orig_names:
+                                expanded[orig_name] = result
+                    chunk_results[key].update(expanded)
 
             # Reorganize results into the expected format per package
             for singlem_package, tmp_files in package_data:
