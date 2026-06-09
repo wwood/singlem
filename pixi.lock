@@ -6,6 +6,8 @@ environments:
     - url: https://conda.anaconda.org/bioconda/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -234,6 +236,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/sqlparse-0.5.5-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/squarify-0.4.3-py_0.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.2.1-h4304569_1.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/linux-64/sylph-0.9.0-ha6fb395_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tabulate-0.10.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/taxtastic-0.10.0-pyhdfd78af_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
@@ -260,6 +263,8 @@ environments:
     - url: https://conda.anaconda.org/bioconda/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -531,6 +536,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.2.1-h4304569_1.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/sracat-0.2-h077b44d_3.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/stack_data-0.6.3-pyhd8ed1ab_1.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/sylph-0.9.0-ha6fb395_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tabulate-0.10.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/taxtastic-1.0.1-pyhdfd78af_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
@@ -560,6 +566,8 @@ environments:
     - url: https://conda.anaconda.org/bioconda/
     indexes:
     - https://pypi.org/simple
+    options:
+      pypi-prerelease-mode: if-necessary-or-explicit
     packages:
       linux-64:
       - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -722,6 +730,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/sorted_nearest-0.0.41-py312h0fa9677_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/sqlalchemy-2.0.49-py312h5253ce2_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/sqlparse-0.5.5-pyhcf101f3_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/sylph-0.9.0-ha6fb395_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/tabulate-0.10.0-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/taxtastic-1.0.1-pyhdfd78af_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/tk-8.6.13-noxft_h366c992_103.conda
@@ -735,6 +744,10 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/zipp-3.23.1-pyhcf101f3_0.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zlib-1.3.2-h25fd6f3_2.conda
       - conda: https://conda.anaconda.org/conda-forge/linux-64/zstd-1.5.7-hb78ec9c_6.conda
+      - pypi: https://files.pythonhosted.org/packages/3a/eb/fea4d1d51c49832120f7f285d07306db3960f423a2612c6057caf3e8196f/pip-26.1.1-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/ec/cd/bd196b2cf014afb1009de8b0f05ecd54011d881944e62763f3c1b1e8ef37/pygtrie-2.5.0-py3-none-any.whl
+      - pypi: https://files.pythonhosted.org/packages/0d/d1/27bb501b89678f9adcdcc3fc0ea744a052560bab3540dbeb608a96bfb1b2/seqmagick-0.8.6.tar.gz
+      - pypi: https://files.pythonhosted.org/packages/0b/2b/2e77c35326efec19819cd1d729540d4d235e6c2a3f37658288a363a67da5/squarify-0.4.3-py3-none-any.whl
       - pypi: ./
 packages:
 - conda: https://conda.anaconda.org/conda-forge/linux-64/_openmp_mutex-4.5-20_gnu.conda
@@ -3758,6 +3771,11 @@ packages:
   - pkg:pypi/pillow?source=hash-mapping
   size: 1039561
   timestamp: 1775060059882
+- pypi: https://files.pythonhosted.org/packages/3a/eb/fea4d1d51c49832120f7f285d07306db3960f423a2612c6057caf3e8196f/pip-26.1.1-py3-none-any.whl
+  name: pip
+  version: 26.1.1
+  sha256: 99cb1c2899893b075ff56e4ed0af55669a955b49ad7fb8d8603ecdaf4ed653fb
+  requires_python: '>=3.10'
 - conda: https://conda.anaconda.org/conda-forge/noarch/pip-26.1.1-pyh8b19718_0.conda
   sha256: 1bd94ef1ae08fd811ef3b26857e46ba460c7430bf1f3ccd94a4d6614fd619bd5
   md5: 35870d32aed92041d31cbb15e822dca3
@@ -4024,6 +4042,10 @@ packages:
   - pkg:pypi/pygments?source=hash-mapping
   size: 893031
   timestamp: 1774796815820
+- pypi: https://files.pythonhosted.org/packages/ec/cd/bd196b2cf014afb1009de8b0f05ecd54011d881944e62763f3c1b1e8ef37/pygtrie-2.5.0-py3-none-any.whl
+  name: pygtrie
+  version: 2.5.0
+  sha256: 8795cda8105493d5ae159a5bef313ff13156c5d4d72feddefacaad59f8c8ce16
 - conda: https://conda.anaconda.org/conda-forge/noarch/pygtrie-2.5.0-pyhd8ed1ab_1.conda
   sha256: c4f840c064e62d697a6e55fb05585ad9f22e1b21b53a45bd6c27f60e134bafb8
   md5: ffa9a72b339edc8856c3fc17e8d74128
@@ -4313,6 +4335,14 @@ packages:
   - pkg:pypi/scipy?source=hash-mapping
   size: 17109648
   timestamp: 1771880675810
+- pypi: https://files.pythonhosted.org/packages/0d/d1/27bb501b89678f9adcdcc3fc0ea744a052560bab3540dbeb608a96bfb1b2/seqmagick-0.8.6.tar.gz
+  name: seqmagick
+  version: 0.8.6
+  sha256: 7f09ef40836b12a2d4c842b179633f1087352855b6ff8fcd045d56003fee622a
+  requires_dist:
+  - biopython>=1.78
+  - pygtrie>=2.1
+  requires_python: '>=3.5'
 - conda: https://conda.anaconda.org/bioconda/noarch/seqmagick-0.8.6-pyhdfd78af_0.tar.bz2
   sha256: 142ff8f89f681c5eeb9429129830d33cf3f8af368109ea9cfb3de5bcced6c3a6
   md5: 48bf0962ccaa5778ed48b50749f4b85d
@@ -4355,10 +4385,26 @@ packages:
   timestamp: 1760965125925
 - pypi: ./
   name: singlem
-  version: 0.20.3
+  version: 0.21.3
   sha256: bd38a49243339eb4b945a5cc032c864ae48eafe193584f6c113c1a0f5c1ea28f
+  requires_dist:
+  - biopython==1.87
+  - bird-tool-utils==0.6.0
+  - extern==0.4.1
+  - fastalite
+  - graftm==0.15.1
+  - jinja2==3.1.6
+  - pip==26.1.1
+  - polars==1.40.1
+  - pyarrow==24.0.0
+  - pyranges==0.1.4
+  - seqmagick==0.8.6
+  - sqlalchemy==2.0.49
+  - sqlparse==0.5.5
+  - squarify==0.4.3
+  - tqdm==4.67.3
+  - zenodo-backpack==0.4.0
   requires_python: '>=3.7'
-  editable: true
 - conda: https://conda.anaconda.org/conda-forge/noarch/six-1.17.0-pyhe01879c_1.conda
   sha256: 458227f759d5e3fcec5d9b7acce54e10c9e1f4f4b7ec978f3bfd54ce4ee9853d
   md5: 3339e3b65d58accf4ca4fb8748ab16b3
@@ -4465,6 +4511,10 @@ packages:
   - pkg:pypi/sqlparse?source=hash-mapping
   size: 44238
   timestamp: 1766143791089
+- pypi: https://files.pythonhosted.org/packages/0b/2b/2e77c35326efec19819cd1d729540d4d235e6c2a3f37658288a363a67da5/squarify-0.4.3-py3-none-any.whl
+  name: squarify
+  version: 0.4.3
+  sha256: bec7011e0c7f4103fe57a1c16a7c091d9dc1be0f23d774e1c568b748a6f818f6
 - conda: https://conda.anaconda.org/conda-forge/noarch/squarify-0.4.3-py_0.tar.bz2
   sha256: 06fac011376dc30e61423469960db7b29f3a83aeac7efc15672e70643b3f0059
   md5: c475458b05eedee1b4ba031652fefb02
@@ -4525,6 +4575,19 @@ packages:
   - pkg:pypi/stack-data?source=hash-mapping
   size: 26988
   timestamp: 1733569565672
+- conda: https://conda.anaconda.org/bioconda/linux-64/sylph-0.9.0-ha6fb395_0.conda
+  sha256: f6f172ed468acc2761bad24e03fcfb2732e3b8050819ab7862c6dd056b021d94
+  md5: 6d61c08eea7159295c8a122fa2ec1cba
+  depends:
+  - libgcc >=13
+  - libstdcxx >=13
+  constrains:
+  - __glibc >=2.17
+  license: MIT
+  license_family: MIT
+  purls: []
+  size: 692682
+  timestamp: 1760387701277
 - conda: https://conda.anaconda.org/conda-forge/noarch/tabulate-0.10.0-pyhcf101f3_0.conda
   sha256: 3f661e98a09f976775a494488beb3d35ebb00f535b169c6bd891f2e280d55783
   md5: 3b887b7b3468b0f494b4fad40178b043

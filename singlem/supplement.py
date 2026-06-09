@@ -652,7 +652,9 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
                          diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
                          makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params(),
-                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species)
+                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species,
+                         sylph_db=old_metapackage.sylph_db_path(),
+                         sylph_c=old_metapackage.sylph_c())
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     if not no_taxon_genome_lengths:

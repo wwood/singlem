@@ -1,4 +1,5 @@
 import logging
+import re
 import tempfile
 import extern
 
@@ -12,6 +13,8 @@ from .singlem_package import SingleMPackage
 
 mapper_registry = registry()
 Base = declarative_base()
+
+_GENOME_ACCESSION_REGEX = re.compile(r'(GC[AF]_\d+\.\d+)')
 
 class MetapackageReadNameStore:
     @staticmethod
@@ -94,6 +97,26 @@ class MetapackageReadNameStore:
         stmt = select(ReadNameTaxonomy.taxonomy).distinct()
         with self.engine.connect() as conn:
             return list([res.taxonomy for res in conn.execute(stmt)])
+
+    def get_taxonomy_by_genome_accession(self, accessions=None):
+        '''Return a dict of genome accession (e.g. GCF_000744455.1) to taxonomy
+        string. Read names are formatted '<marker>~<accession>' (the accession
+        carrying the usual GB_/RS_ prefix), so the accession is parsed out of each
+        read name. If accessions is given, only those are returned.'''
+        wanted = set(accessions) if accessions is not None else None
+        accession_to_taxonomy = {}
+        stmt = select(ReadNameTaxonomy.read_name, ReadNameTaxonomy.taxonomy)
+        with self.engine.connect() as conn:
+            for res in conn.execute(stmt):
+                match = _GENOME_ACCESSION_REGEX.search(res.read_name)
+                if match is None:
+                    continue
+                accession = match.group(1)
+                if wanted is not None and accession not in wanted:
+                    continue
+                if accession not in accession_to_taxonomy:
+                    accession_to_taxonomy[accession] = res.taxonomy
+        return accession_to_taxonomy
 
     def get_marker_counts_of_species(self, taxons):
         '''Return dict of taxonomy string to marker count'''

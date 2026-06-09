@@ -46,7 +46,7 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 6, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null}',
+                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "sylph_db": null, "sylph_c": null}',
                 con.read())
 
     def test_metapackage_create_with_sdb(self):
@@ -56,8 +56,44 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 6, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null}',
+                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "sylph_db": null, "sylph_c": null}',
                 con.read())
+
+    def test_metapackage_create_with_sylph_db(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --sylph-db test/data/dummy.syldb --sylph-c 200 --metapackage {}/a.smpkg".format(
+                path_to_script, f
+            )
+            extern.run(cmd)
+            with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
+                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.sqlite3", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "sylph_db": "dummy.syldb", "sylph_c": 200}',
+                    con.read())
+            mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))
+            self.assertEqual(7, mp.version)
+            self.assertTrue(mp.sylph_db_path().endswith('a.smpkg/dummy.syldb'))
+            self.assertTrue(os.path.exists(mp.sylph_db_path()))
+            self.assertEqual(200, mp.sylph_c())
+            # A metapackage without a sylph DB exposes None.
+            self.assertIsNone(Metapackage(package_paths=['test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/']).sylph_db_path())
+
+    def test_metapackage_sylph_db_without_c_croaks(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --sylph-db test/data/dummy.syldb --metapackage {}/a.smpkg".format(
+                path_to_script, f
+            )
+            with self.assertRaises(Exception):
+                extern.run(cmd)
+
+    REGIME3_METAPACKAGE = '/work/microbiome/db/singlem/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb'
+
+    def test_genome_accession_to_taxonomy(self):
+        if not os.path.exists(self.REGIME3_METAPACKAGE):
+            self.skipTest("GTDB r232 metapackage not present")
+        mp = Metapackage.acquire(self.REGIME3_METAPACKAGE)
+        d = mp.genome_accession_to_taxonomy(['GCF_000744455.1', 'GCF_000191585.1'])
+        self.assertEqual(2, len(d))
+        self.assertIn('s__Methanobacterium_B sp000744455', d['GCF_000744455.1'])
+        self.assertIn('s__Methanobacterium_B lacus', d['GCF_000191585.1'])
 
     def test_metapackage_read_name_store(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:

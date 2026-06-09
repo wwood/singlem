@@ -20,6 +20,7 @@ orfm = ">=2.1.1" #2.1.0 was fail.
 mfqe = "*"
 krona = "*"
 smafa = "*"
+sylph = "*"  # For sylph-integrated taxonomic profiling (condense --joint / --sylph-profile)
 
 [feature.typical-python.dependencies]
 python = ">=3.7"

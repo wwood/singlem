@@ -1,5 +1,6 @@
 import gzip
 import logging
+import os
 import tempfile
 import zipfile
 
@@ -35,6 +36,8 @@ class Renew:
         viral_mode = kwargs.pop('viral_mode', False)
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
+        input_sylph_sketch = kwargs.pop('input_sylph_sketch', None)
+        sylph_injection = kwargs.pop('sylph_injection', False)
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -196,12 +199,29 @@ class Renew:
             from .condense import Condenser
             otu_table_collection = StreamingOtuTableCollection()
             otu_table_collection.add_archive_otu_table_object(otu_table_object)
-            Condenser().condense(
-                input_streaming_otu_table = otu_table_collection,
-                output_otu_table = output_taxonomic_profile,
-                krona = output_taxonomic_profile_krona,
-                metapackage = metapackage,
-                viral_mode = viral_mode)
+
+            with tempfile.TemporaryDirectory(prefix='singlem-renew-sylph') as sylph_working_directory:
+                sylph_profile = None
+                use_joint = False
+                # Integrate sylph from a previously-saved sketch, so renew needs
+                # no access to the raw reads.
+                if input_sylph_sketch is not None:
+                    if metapackage.sylph_db_path() is None:
+                        raise Exception("--input-sylph-sketch was given but the metapackage does not bundle a sylph database")
+                    from .sylph import SylphProfiler
+                    sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')
+                    SylphProfiler().run_from_sketch(
+                        input_sylph_sketch, metapackage, threads, sylph_profile, sylph_working_directory)
+                    use_joint = not sylph_injection
+
+                Condenser().condense(
+                    input_streaming_otu_table = otu_table_collection,
+                    output_otu_table = output_taxonomic_profile,
+                    krona = output_taxonomic_profile_krona,
+                    metapackage = metapackage,
+                    viral_mode = viral_mode,
+                    sylph_profile = sylph_profile,
+                    joint = use_joint)
 
         logging.info("Renew is finished")
 
