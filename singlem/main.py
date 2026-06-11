@@ -65,7 +65,7 @@ def seqs(args):
     print(best_position)
 
 # Make pipe argument functions here so the code can be re-used between pipe and renew
-def add_common_pipe_arguments(argument_group, extra_args=False):
+def add_common_pipe_arguments(argument_group, extra_args=False, include_sylph=True):
     if extra_args:
         sequence_input_group = argument_group.add_mutually_exclusive_group(required=True)
         # Keep parity of these arguments with the 'read_fraction' command
@@ -97,15 +97,20 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                 help='"sra" format files (usually from NCBI SRA) to be searched')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-    argument_group.add_argument('--sylph-injection', action='store_true',
-        help="When the metapackage bundles a sylph database, integrate sylph via additive injection rather than the default joint deconvolution.")
-    argument_group.add_argument('--sylph-reconcile', action='store_true',
-        help="When the metapackage bundles a sylph database, integrate sylph via full reconciliation (injection that also lifts shared species to sylph's coverage) rather than the default joint deconvolution.")
-    if extra_args:
-        argument_group.add_argument('--no-sylph', action='store_true',
-            help="Do not run sylph even if the metapackage bundles a sylph database.")
-        argument_group.add_argument('--output-sylph-sketch', metavar='FILE',
-            help="Save the sylph read sketch (.sylsp) here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
+    # Sylph integration is a non-viral (GTDB-genome) feature, so it is omitted
+    # for callers that do not support it (e.g. Lyrebird's viral workflows pass
+    # include_sylph=False) rather than offering flags that would be silently
+    # ignored.
+    if include_sylph:
+        argument_group.add_argument('--sylph-injection', action='store_true',
+            help="When the metapackage bundles a sylph database, integrate sylph via additive injection rather than the default joint deconvolution.")
+        argument_group.add_argument('--sylph-reconcile', action='store_true',
+            help="When the metapackage bundles a sylph database, integrate sylph via full reconciliation (injection that also lifts shared species to sylph's coverage) rather than the default joint deconvolution.")
+        if extra_args:
+            argument_group.add_argument('--no-sylph', action='store_true',
+                help="Do not run sylph even if the metapackage bundles a sylph database.")
+            argument_group.add_argument('--output-sylph-sketch', metavar='FILE',
+                help="Save the sylph read sketch (.sylsp) here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
