@@ -326,6 +326,53 @@ class Tests(unittest.TestCase):
         total_after = sum([n.coverage for n in profile.breadth_first_iter()])
         self.assertAlmostEqual(total_before + 1.5, total_after)
 
+    # ---- Full reconciliation (--sylph-reconcile) ----
+
+    def test_reconcile_lifts_shared_species_to_sylph(self):
+        # E. coli at SingleM 5.0 with 3.0 of genus novel budget; sylph credits
+        # 7.0 -> lift to 7.0, drawing the 2.0 increase from genus novel (3 -> 1).
+        root = WordNode(None, 'Root')
+        root.add_words(['Root'] + self.S_ECOLI.split(';'), 5.0)
+        root.add_words(['Root'] + self.G_ECOLI.split(';'), 3.0)
+        profile = CondensedCommunityProfile('sample1', root)
+
+        sylph_hits = {_canonical_species_key(self.S_ECOLI): SylphHit(self.S_ECOLI, 7.0)}
+        Condenser()._reconcile_with_sylph(profile, sylph_hits, alpha=1.0)
+
+        self.assertEqual(7.0, self._find_node(profile, 's__Escherichia coli').coverage)
+        self.assertEqual(1.0, self._find_node(profile, 'g__Escherichia').coverage)
+
+    def test_reconcile_keeps_singlem_when_sylph_is_lower(self):
+        # Sylph credits less than SingleM -> SingleM's estimate is kept unchanged
+        # (a shared species is never reduced) and novel coverage is untouched.
+        root = WordNode(None, 'Root')
+        root.add_words(['Root'] + self.S_ECOLI.split(';'), 5.0)
+        root.add_words(['Root'] + self.G_ECOLI.split(';'), 3.0)
+        profile = CondensedCommunityProfile('sample1', root)
+
+        sylph_hits = {_canonical_species_key(self.S_ECOLI): SylphHit(self.S_ECOLI, 2.0)}
+        Condenser()._reconcile_with_sylph(profile, sylph_hits, alpha=1.0)
+
+        self.assertEqual(5.0, self._find_node(profile, 's__Escherichia coli').coverage)
+        self.assertEqual(3.0, self._find_node(profile, 'g__Escherichia').coverage)
+
+    def test_reconcile_also_injects_sylph_only_species(self):
+        # Reconciliation still adds sylph-only species, like injection.
+        root = WordNode(None, 'Root')
+        root.add_words(['Root'] + self.S_ECOLI.split(';'), 5.0)
+        root.add_words(['Root'] + self.G_ECOLI.split(';'), 3.0)
+        profile = CondensedCommunityProfile('sample1', root)
+
+        sylph_hits = {
+            _canonical_species_key(self.S_ECOLI): SylphHit(self.S_ECOLI, 5.0),       # equal -> unchanged
+            _canonical_species_key(self.S_SHIGELLA): SylphHit(self.S_SHIGELLA, 2.0),  # sylph-only -> injected
+        }
+        Condenser()._reconcile_with_sylph(profile, sylph_hits, alpha=1.0)
+
+        self.assertEqual(5.0, self._find_node(profile, 's__Escherichia coli').coverage)
+        self.assertEqual(2.0, self._find_node(profile, 's__Shigella flexneri').coverage)
+        self.assertEqual(1.0, self._find_node(profile, 'g__Escherichia').coverage)
+
     def test_sylph_profile_read_tsv(self):
         sample_to_hits = SylphProfile.read_tsv(os.path.join(path_to_data, 'small_sylph_profile.tsv'))
         self.assertEqual(['sample1'], list(sample_to_hits.keys()))

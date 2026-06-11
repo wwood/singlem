@@ -76,6 +76,7 @@ class Condenser:
         sylph_profile = kwargs.pop('sylph_profile', None)
         alpha = kwargs.pop('alpha', None)
         joint = kwargs.pop('joint', False)
+        reconcile = kwargs.pop('reconcile', False)
         joint_l1_penalty = kwargs.pop('joint_l1_penalty', 1.0)
         joint_absence_weight = kwargs.pop('joint_absence_weight', 100.0)
         joint_min_markers = kwargs.pop('joint_min_markers', 3)
@@ -85,9 +86,13 @@ class Condenser:
 
         if joint and sylph_profile is None:
             raise Exception("condense --joint requires a sylph profile (--sylph-profile)")
+        if reconcile and sylph_profile is None:
+            raise Exception("condense --sylph-reconcile requires a sylph profile (--sylph-profile)")
+        if joint and reconcile:
+            raise Exception("condense --joint and --sylph-reconcile are mutually exclusive")
 
-        # Parse the sylph profile once. Used for Regime 3 injection, or for the
-        # joint NNLS deconvolution when --joint is set.
+        # Parse the sylph profile once. Used for Regime 3 injection or full
+        # reconciliation, or for the joint NNLS deconvolution when --joint is set.
         sylph_sample_to_hits = {}
         if sylph_profile is not None:
             sylph_sample_to_hits = SylphProfile.read_tsv(sylph_profile)
@@ -128,7 +133,7 @@ class Condenser:
             sylph_hits = self._sylph_hits_for_sample(sample, sylph_sample_to_hits) if sylph_profile is not None else None
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
                 True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
-                sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers)
+                sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers, reconcile)
 
     def _validate_sylph_against_metapackage(self, sylph_sample_to_hits, metapackage):
         '''Shared-DB sanity check: warn if many sylph species are not found among
@@ -163,7 +168,7 @@ class Condenser:
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
             output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None,
-            joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3):
+            joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3, reconcile=False):
 
 
         # Remove off-target OTUs genes
@@ -239,12 +244,17 @@ class Condenser:
         self._push_down_genus_to_species(condensed_otus, 0.1)
         logging.info("Total profile coverage after push down: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
-        # Regime 3: inject species that sylph detected but SingleM missed. Done
-        # after the EM and the condense tree is built, so injected leaves bypass
-        # the EM proximity pruning entirely.
+        # Sylph integration, after the EM and once the condense tree is built, so
+        # added leaves bypass the EM proximity pruning entirely. Regime 3
+        # injection adds only sylph-only species; full reconciliation
+        # (--sylph-reconcile) additionally lifts shared species to sylph's
+        # coverage where sylph exceeds SingleM.
         if sylph_hits:
-            self._inject_sylph_only_species(condensed_otus, sylph_hits, alpha)
-            logging.info("Total profile coverage after sylph injection: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
+            if reconcile:
+                self._reconcile_with_sylph(condensed_otus, sylph_hits, alpha)
+            else:
+                self._inject_sylph_only_species(condensed_otus, sylph_hits, alpha)
+            logging.info("Total profile coverage after sylph integration: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
         self._report_taxonomic_level_assignment_stats(condensed_otus)
 
@@ -299,10 +309,45 @@ class Condenser:
         as new species leaves at coverage alpha*eff_cov. Injected coverage is
         drawn down from the nearest ancestor internal node's (novel/unresolved)
         coverage so SingleM stays the authority on each clade's budget; only the
-        residual beyond that budget is genuinely new coverage.'''
+        residual beyond that budget is genuinely new coverage.
 
-        # Species already present in the SingleM profile (collected before any
-        # injection so injected leaves do not pollute the anchor set).
+        This is the conservative special case of _apply_sylph_coverage that
+        touches only species SingleM missed entirely (include_shared=False).'''
+        self._apply_sylph_coverage(condensed_otus, sylph_hits, alpha, include_shared=False)
+
+    def _reconcile_with_sylph(self, condensed_otus, sylph_hits, alpha):
+        '''Full reconciliation: like the additive injection, but also lifts
+        species that *both* tools detected up to sylph's (more sensitive and
+        precise) coverage where sylph credits more than SingleM, drawing the
+        increase from the same clade novel budget. Coverage is never removed from
+        a SingleM-resolved species, so the method only adds resolution; SingleM's
+        per-clade totals remain a conserved floor.'''
+        self._apply_sylph_coverage(condensed_otus, sylph_hits, alpha, include_shared=True)
+
+    def _apply_sylph_coverage(self, condensed_otus, sylph_hits, alpha, include_shared):
+        '''Reconcile sylph species coverages into a built condense tree.
+
+        For each sylph species, the target leaf coverage is alpha*eff_cov. The
+        leaf is raised toward that target by delta = max(0, target - current),
+        and the delta is drawn down from the nearest ancestors' novel/unresolved
+        coverage first (genus, then family, ...), so SingleM stays authoritative
+        on each clade's budget and only coverage in excess of that budget is
+        added to the community total. A species is never reduced (delta is
+        clamped at 0): where sylph credits a species less than SingleM, SingleM's
+        more-conservative estimate is kept.
+
+        When include_shared is False this reduces to Regime-3 injection (only
+        species absent from the SingleM profile, for which current == 0, are
+        affected). When True, species detected by both tools are also lifted to
+        sylph's coverage where sylph exceeds SingleM, converting clade-level
+        unresolved coverage into concrete species.
+
+        The final tree is independent of the order in which species are
+        processed: each ancestor's novel coverage is drawn down to
+        max(0, original - total_demand_routed_through_it), which is commutative.'''
+
+        # Species coverage in the SingleM profile (collected before any change so
+        # leaf updates do not pollute the anchor set used for the alpha fit).
         singlem_species_coverage = {}
         for node in condensed_otus.breadth_first_iter():
             if node.calculate_level() == 7 and node.word.startswith('s__') and node.coverage > 0:
@@ -314,29 +359,34 @@ class Condenser:
         else:
             logging.info("Using user-supplied alpha={}".format(alpha))
 
-        num_injected = 0
-        total_injected = 0.0
+        num_added = 0
+        num_lifted = 0
+        total_delta = 0.0
         total_residual = 0.0
         for key, hit in sylph_hits.items():
-            if key in singlem_species_coverage:
+            current = singlem_species_coverage.get(key, 0.0)
+            is_shared = key in singlem_species_coverage
+            if is_shared and not include_shared:
                 continue  # Detected by both tools; left to the EM (Regimes 1/2)
-            coverage = alpha * hit.eff_cov
-            if coverage <= 0:
-                continue
+            target = alpha * hit.eff_cov
+            delta = target - current
+            if delta <= 0:
+                continue  # sylph credits <= SingleM here; keep SingleM's estimate
             taxon_array = _gtdb_string_to_wordnode_array(hit.taxonomy)
             if len(taxon_array) < 2 or not taxon_array[-1].startswith('s__'):
                 logging.debug("Skipping sylph taxon without a species rank: {}".format(hit.taxonomy))
                 continue
 
-            # Materialise the lineage and add the species leaf coverage.
-            condensed_otus.tree.add_words(taxon_array, coverage)
+            # Raise the species leaf by delta (materialising the lineage if the
+            # species is sylph-only), so the leaf ends at the sylph target.
+            condensed_otus.tree.add_words(taxon_array, delta)
             leaf = condensed_otus.tree
             for word in taxon_array[1:]:
                 leaf = leaf.children[word]
 
-            # Reconcile against the clade's SingleM budget: draw the injected
-            # coverage down from the nearest ancestors' novel coverage first.
-            remaining = coverage
+            # Reconcile against the clade's SingleM budget: draw the increase
+            # down from the nearest ancestors' novel coverage first.
+            remaining = delta
             ancestor = leaf.parent
             while ancestor is not None and ancestor.word != 'Root' and remaining > 0:
                 take = min(remaining, ancestor.coverage)
@@ -344,12 +394,16 @@ class Condenser:
                 remaining -= take
                 ancestor = ancestor.parent
 
-            num_injected += 1
-            total_injected += coverage
+            if is_shared:
+                num_lifted += 1
+            else:
+                num_added += 1
+            total_delta += delta
             total_residual += remaining
 
-        logging.info("Injected {} sylph-only species (alpha={:.4f}): {:.2f} coverage at species level, "
-            "{:.2f} net new coverage after reconciliation".format(num_injected, alpha, total_injected, total_residual))
+        logging.info("Sylph reconciliation (alpha={:.4f}): added {} sylph-only species, lifted {} shared "
+            "species; {:.2f} coverage moved to species level, {:.2f} net new coverage after "
+            "reconciliation".format(alpha, num_added, num_lifted, total_delta, total_residual))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
         '''Input OTU tables assigned taxonomy with diamond have sequence IDs as
