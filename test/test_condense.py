@@ -471,6 +471,25 @@ class Tests(unittest.TestCase):
         deconv.solve('sample1', otus, sylph_hits, alpha=None, l1_penalty=0.0)
         self.assertAlmostEqual(0.5, deconv.fitted_alpha, places=2)
 
+    def test_joint_padding_waived_for_sylph_species(self):
+        from singlem.condense_joint import JointDeconvolver
+        # A species seen on only 3 of 10 markers at coverage 9. The marker-count
+        # padding shrinks a sylph-absent species toward zero (~3/10 of its
+        # coverage), but is waived when sylph detects the species, so it recovers
+        # its marker coverage instead of being dragged below the sylph value.
+        otus = self._joint_otus([(9.0, [self.JOINT_SP1], QUERY_BASED_ASSIGNMENT_METHOD) for _ in range(3)])
+        s1 = _canonical_species_key(self.JOINT_SP1)
+        dmc = {'Bacteria': 10}
+
+        seen = JointDeconvolver()
+        seen.solve('s', otus, {s1: SylphHit(self.JOINT_SP1, 9.0)}, alpha=1.0,
+                   domain_marker_counts=dmc, l1_penalty=0.0)
+        absent = JointDeconvolver()
+        absent.solve('s', otus, {}, alpha=1.0, domain_marker_counts=dmc, l1_penalty=0.0, min_markers=3)
+
+        self.assertGreater(seen.coverage_by_key.get(s1, 0.0), 8.0)
+        self.assertLess(absent.coverage_by_key.get(s1, 0.0), 4.0)
+
     # End-to-end Regime 3 test. Reads the mock-metagenome outputs produced by
     # test/data/condense/regime3/Snakefile (run that workflow first) into
     # condense and confirms both the high-coverage genome (recovered by SingleM)

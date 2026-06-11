@@ -56,9 +56,21 @@ class JointDeconvolver:
         # a few markers is penalised toward zero by its unobserved markers (the
         # zero-padding the trimmed-mean condense applies). padding_weight[c] is the
         # number of unobserved markers for column c.
+        #
+        # This shrinkage is an anti-false-positive prior for when SingleM markers
+        # are the only evidence: a real genome should appear on most of its
+        # markers, so a taxon seen on few is down-weighted. When sylph detects the
+        # species, however, its genome-wide containment already confirms presence,
+        # the unobserved markers are simply recovery dropout, and the shrinkage
+        # would only fight the sylph row -- systematically under-estimating a
+        # sylph-detected species seen on few markers. Such columns are therefore
+        # exempt, consistent with their exemption from the identifiability floor
+        # and the strong absence weight.
         domain_marker_counts = domain_marker_counts or {}
         padding_weight = np.zeros(num_columns)
         for idx, column in enumerate(columns):
+            if column.kind == 'species' and column.key in sylph_hits:
+                continue  # sylph confirms presence; marker-completeness shrinkage does not apply
             domain = column.key.split(';')[0].replace('d__', '')
             expected = domain_marker_counts.get(domain, observed_marker_count[idx])
             padding_weight[idx] = max(0.0, float(expected) - observed_marker_count[idx])
