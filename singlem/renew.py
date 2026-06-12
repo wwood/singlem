@@ -38,6 +38,7 @@ class Renew:
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
         input_sylph_sketch = kwargs.pop('input_sylph_sketch', None)
         sylph_injection = kwargs.pop('sylph_injection', False)
+        sylph_reconcile = kwargs.pop('sylph_reconcile', False)
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -203,6 +204,7 @@ class Renew:
             with tempfile.TemporaryDirectory(prefix='singlem-renew-sylph') as sylph_working_directory:
                 sylph_profile = None
                 use_joint = False
+                use_reconcile = False
                 # Integrate sylph from a previously-saved sketch, so renew needs
                 # no access to the raw reads.
                 if input_sylph_sketch is not None:
@@ -212,7 +214,8 @@ class Renew:
                     sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')
                     SylphProfiler().run_from_sketch(
                         input_sylph_sketch, metapackage, threads, sylph_profile, sylph_working_directory)
-                    use_joint = not sylph_injection
+                    use_reconcile = sylph_reconcile
+                    use_joint = not (sylph_injection or sylph_reconcile)
 
                 Condenser().condense(
                     input_streaming_otu_table = otu_table_collection,
@@ -221,7 +224,8 @@ class Renew:
                     metapackage = metapackage,
                     viral_mode = viral_mode,
                     sylph_profile = sylph_profile,
-                    joint = use_joint)
+                    joint = use_joint,
+                    reconcile = use_reconcile)
 
         logging.info("Renew is finished")
 

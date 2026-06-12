@@ -56,9 +56,21 @@ class JointDeconvolver:
         # a few markers is penalised toward zero by its unobserved markers (the
         # zero-padding the trimmed-mean condense applies). padding_weight[c] is the
         # number of unobserved markers for column c.
+        #
+        # This shrinkage is an anti-false-positive prior for when SingleM markers
+        # are the only evidence: a real genome should appear on most of its
+        # markers, so a taxon seen on few is down-weighted. When sylph detects the
+        # species, however, its genome-wide containment already confirms presence,
+        # the unobserved markers are simply recovery dropout, and the shrinkage
+        # would only fight the sylph row -- systematically under-estimating a
+        # sylph-detected species seen on few markers. Such columns are therefore
+        # exempt, consistent with their exemption from the identifiability floor
+        # and the strong absence weight.
         domain_marker_counts = domain_marker_counts or {}
         padding_weight = np.zeros(num_columns)
         for idx, column in enumerate(columns):
+            if column.kind == 'species' and column.key in sylph_hits:
+                continue  # sylph confirms presence; marker-completeness shrinkage does not apply
             domain = column.key.split(';')[0].replace('d__', '')
             expected = domain_marker_counts.get(domain, observed_marker_count[idx])
             padding_weight[idx] = max(0.0, float(expected) - observed_marker_count[idx])
@@ -79,8 +91,8 @@ class JointDeconvolver:
         else:
             M = Mt = None
 
-        # Sylph presence rows (coefficient alpha) and absence rows (zero target).
-        sylph_col, sylph_eff, absence_col = [], [], []
+        # Sylph presence rows (coefficient alpha).
+        sylph_col, sylph_eff = [], []
         for idx, column in enumerate(columns):
             if column.kind != 'species':
                 continue
@@ -88,12 +100,10 @@ class JointDeconvolver:
             if hit is not None:
                 sylph_col.append(idx)
                 sylph_eff.append(hit.eff_cov)
-            else:
-                absence_col.append(idx)
         sylph_col = np.array(sylph_col, dtype=int)
         sylph_eff = np.array(sylph_eff, dtype=float)
         sylph_w = np.full(len(sylph_col), float(sylph_weight))
-        absence_col = np.array(absence_col, dtype=int)
+        sylph_columns = set(int(c) for c in sylph_col)
 
         if alpha is None:
             current_alpha = 1.0
@@ -101,16 +111,14 @@ class JointDeconvolver:
         else:
             current_alpha = float(alpha)
             fit_alpha = False
-        logging.info("Joint deconvolution of sample {}: {} columns ({} sylph species, {} SingleM-only "
-            "candidates), {} SingleM rows".format(sample, num_columns, len(sylph_col), len(absence_col), num_singlem))
 
-        # Identifiability floor: a taxon with no sylph support must be uniquely
+        # Identifiability floor: a sylph-unsupported taxon must be uniquely
         # resolved by at least min_markers markers, otherwise its coverage is
         # fixed to zero. This suppresses false positives that ride on a single
         # uniquely-assigned marker amid windows shared with a sylph-supported
-        # neighbour. Sylph-detected species (including sylph-only injections) are
-        # exempt, since sylph itself provides the evidence.
-        sylph_columns = set(int(c) for c in sylph_col)
+        # neighbour, and routes the shared coverage of such a species to the
+        # clade's novel column. Sylph-detected species (including sylph-only
+        # injections) are exempt, since sylph itself provides the evidence.
         bounds = [(0.0, None)] * num_columns
         num_fixed = 0
         if min_markers > 0:
@@ -121,6 +129,34 @@ class JointDeconvolver:
         if num_fixed > 0:
             logging.info("Fixed {} sylph-unsupported columns to zero (< {} unique markers)".format(
                 num_fixed, min_markers))
+
+        # Sylph absence rows (zero target) for DB species sylph did not report.
+        #
+        # Suppression of weakly-supported sylph-absent species, and the routing
+        # of their shared coverage to novelty, is handled by the floor above; the
+        # absence row must not additionally crush species the floor *kept*, which
+        # have >= min_markers uniquely-assigned markers and so carry genuine
+        # SingleM evidence (a divergent genome below sylph's ANI cutoff, or a
+        # species below sylph's coverage threshold -- precisely what SingleM
+        # detects that sylph cannot). The per-species absence weight therefore
+        # decays with unique-marker support, so the constraint is strong for a
+        # species with no unique markers (a shared-window rider, when the floor is
+        # disabled) but negligible once several markers resolve to it alone. A
+        # uniform weight (the previous behaviour) shrank a confidently-detected,
+        # sylph-missed species toward zero regardless of its marker support.
+        absence_col, absence_w = [], []
+        for idx, column in enumerate(columns):
+            if column.kind != 'species' or idx in sylph_columns:
+                continue
+            if bounds[idx] == (0.0, 0.0):
+                continue  # already fixed to zero by the floor; an absence row is inert
+            absence_col.append(idx)
+            absence_w.append(absence_weight / (1.0 + unique_marker_count[idx]) ** 3)
+        absence_col = np.array(absence_col, dtype=int)
+        absence_w = np.array(absence_w, dtype=float)
+
+        logging.info("Joint deconvolution of sample {}: {} columns ({} sylph species, {} SingleM-only "
+            "candidates), {} SingleM rows".format(sample, num_columns, len(sylph_col), len(absence_col), num_singlem))
 
         a = np.zeros(num_columns)
         singlem_weights = np.ones(num_singlem)
@@ -141,8 +177,8 @@ class JointDeconvolver:
                     np.add.at(g, sylph_col, -2.0 * sylph_w * current_alpha * residual_sylph)
                 if len(absence_col) > 0:
                     a_absent = x[absence_col]
-                    f += absence_weight * float(np.dot(a_absent, a_absent))
-                    np.add.at(g, absence_col, 2.0 * absence_weight * a_absent)
+                    f += float(np.dot(absence_w, a_absent * a_absent))
+                    np.add.at(g, absence_col, 2.0 * absence_w * a_absent)
                 # Marker-count normalisation (zero-padding of unobserved markers).
                 f += float(np.dot(padding_weight, x * x))
                 g += 2.0 * padding_weight * x

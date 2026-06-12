@@ -65,7 +65,7 @@ def seqs(args):
     print(best_position)
 
 # Make pipe argument functions here so the code can be re-used between pipe and renew
-def add_common_pipe_arguments(argument_group, extra_args=False):
+def add_common_pipe_arguments(argument_group, extra_args=False, include_sylph=True):
     if extra_args:
         sequence_input_group = argument_group.add_mutually_exclusive_group(required=True)
         # Keep parity of these arguments with the 'read_fraction' command
@@ -97,13 +97,20 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                 help='"sra" format files (usually from NCBI SRA) to be searched')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-    argument_group.add_argument('--sylph-injection', action='store_true',
-        help="When the metapackage bundles a sylph database, integrate sylph via additive injection rather than the default joint deconvolution.")
-    if extra_args:
-        argument_group.add_argument('--no-sylph', action='store_true',
-            help="Do not run sylph even if the metapackage bundles a sylph database.")
-        argument_group.add_argument('--output-sylph-sketch', metavar='FILE',
-            help="Save the sylph read sketch (.sylsp) here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
+    # Sylph integration is a non-viral (GTDB-genome) feature, so it is omitted
+    # for callers that do not support it (e.g. Lyrebird's viral workflows pass
+    # include_sylph=False) rather than offering flags that would be silently
+    # ignored.
+    if include_sylph:
+        argument_group.add_argument('--sylph-injection', action='store_true',
+            help="When the metapackage bundles a sylph database, integrate sylph via additive injection rather than the default joint deconvolution.")
+        argument_group.add_argument('--sylph-reconcile', action='store_true',
+            help="When the metapackage bundles a sylph database, integrate sylph via full reconciliation (injection that also lifts shared species to sylph's coverage) rather than the default joint deconvolution.")
+        if extra_args:
+            argument_group.add_argument('--no-sylph', action='store_true',
+                help="Do not run sylph even if the metapackage bundles a sylph database.")
+            argument_group.add_argument('--output-sylph-sketch', metavar='FILE',
+                help="Save the sylph read sketch (.sylsp) here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -283,12 +290,14 @@ def add_condense_arguments(parser):
         help="pre-annotated sylph profile TSV (GTDB taxonomy + Eff_cov columns). Species sylph detected but SingleM missed are injected into the profile.")
     optional_condense_arguments.add_argument('--alpha', type=float,
         help="scale factor converting sylph effective coverage to SingleM coverage units when injecting sylph-only species. [default: fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
+    optional_condense_arguments.add_argument('--sylph-reconcile', action='store_true',
+        help="full reconciliation: like the default sylph injection, but also lift species detected by both tools up to sylph's coverage where sylph exceeds SingleM, drawing the increase from clade novel coverage. Never reduces a SingleM-resolved species. Requires --sylph-profile.")
     optional_condense_arguments.add_argument('--joint', action='store_true',
         help="jointly profile SingleM and sylph with an NNLS deconvolution instead of the default EM-based condense. Requires --sylph-profile.")
     optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
         help="[--joint] L1 sparsity penalty (controls pruning of low-coverage taxa) [default: 1.0]")
     optional_condense_arguments.add_argument('--joint-absence-weight', type=float, default=100.0,
-        help="[--joint] weight suppressing species in the DB that sylph did not report [default: 100.0]")
+        help="[--joint] base weight suppressing species in the DB that sylph did not report. The effective per-species weight decays with the number of uniquely-assigned markers, so confidently-detected species are not crushed [default: 100.0]")
     optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
         help="[--joint] minimum number of uniquely-assigned markers required for a taxon that sylph did not detect; taxa below this are set to zero coverage [default: 3]")
 
@@ -845,6 +854,7 @@ def main():
             no_sylph = args.no_sylph,
             output_sylph_sketch = args.output_sylph_sketch,
             sylph_injection = args.sylph_injection,
+            sylph_reconcile = args.sylph_reconcile,
         )
 
     elif args.subparser_name=='renew':
@@ -875,6 +885,7 @@ def main():
             max_species_divergence = args.max_species_divergence,
             input_sylph_sketch = args.input_sylph_sketch,
             sylph_injection = args.sylph_injection,
+            sylph_reconcile = args.sylph_reconcile,
             )
 
     elif args.subparser_name == 'summarise':
@@ -1416,6 +1427,7 @@ def main():
             sylph_profile = args.sylph_profile,
             alpha = args.alpha,
             joint = args.joint,
+            reconcile = args.sylph_reconcile,
             joint_l1_penalty = args.joint_l1_penalty,
             joint_absence_weight = args.joint_absence_weight,
             joint_min_markers = args.joint_min_markers)

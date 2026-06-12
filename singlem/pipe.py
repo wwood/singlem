@@ -60,6 +60,7 @@ class SearchPipe:
         no_sylph = kwargs.pop('no_sylph', False)
         output_sylph_sketch = kwargs.pop('output_sylph_sketch', None)
         sylph_injection = kwargs.pop('sylph_injection', False)
+        sylph_reconcile = kwargs.pop('sylph_reconcile', False)
 
         # The original read inputs, captured before run_to_otu_table consumes them,
         # so sylph can sketch them if the metapackage bundles a sylph database.
@@ -103,6 +104,7 @@ class SearchPipe:
                 with tempfile.TemporaryDirectory(prefix='singlem-sylph') as sylph_working_directory:
                     sylph_profile = None
                     use_joint = False
+                    use_reconcile = False
                     # If the metapackage bundles a sylph database, run sylph on the
                     # reads and integrate it into the taxonomic profile.
                     if not no_sylph and len(metapackage.sylph_databases()) > 0:
@@ -115,7 +117,9 @@ class SearchPipe:
                             SylphProfiler().run_from_reads(
                                 sylph_forward_reads, sylph_reverse_reads, metapackage, sylph_threads,
                                 sylph_profile, sylph_working_directory, sketch_output=output_sylph_sketch)
-                            use_joint = not sylph_injection
+                            # Mode precedence: explicit injection or reconcile, else joint (default).
+                            use_reconcile = sylph_reconcile
+                            use_joint = not (sylph_injection or sylph_reconcile)
 
                     Condenser().condense(
                         input_streaming_otu_table = otu_table_collection,
@@ -126,6 +130,7 @@ class SearchPipe:
                         viral_mode = viral_profile_output,
                         sylph_profile = sylph_profile,
                         joint = use_joint,
+                        reconcile = use_reconcile,
                     )
 
 
