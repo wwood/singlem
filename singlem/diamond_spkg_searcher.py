@@ -144,7 +144,11 @@ class DiamondSpkgSearcher:
                         try:
                             qseqid, full_qseq, sseqid, qstart, qend = line.strip().split('\t')
                         except ValueError:
-                            raise Exception(f"Unexpected line format for DIAMOND output line '{line.strip()}'")
+                            raise Exception(
+                                f"Unexpected line format for DIAMOND output line '{line.strip()}'. "
+                                "DIAMOND can emit malformed rows when input read files are corrupted; "
+                                "please validate the integrity and format of the input FASTQ/FASTA files."
+                            )
                         
                         # qstart can be > qend if the sequences is reverse complemented.
                         qstart_int = int(qstart)
