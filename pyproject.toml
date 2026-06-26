@@ -34,7 +34,7 @@ dependencies = { file = ["admin/requirements.txt"] }
 
 [tool.setuptools_scm]
 # Otherwise the push to pypi will fail on GitHub actions, because the version is malformed.
-version_scheme = "only-version"
+version_scheme = "guess-next-dev"
 local_scheme = "no-local-version"
 
 [tool.uv.sources]
