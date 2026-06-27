@@ -451,10 +451,18 @@ class Metapackage:
         fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]
         temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='singlem-diamond-prefilter',
                                                 suffix='.dmnd', delete=False).name
-        cmd = 'cat %s | '\
-            'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
 
-        extern.run(cmd)
+        # Recent DIAMOND versions do not accept '--in -' to read the input
+        # FASTA from stdin, so concatenate the per-package FASTA files into a
+        # temporary file and pass that to 'diamond makedb' instead.
+        with tempfile.NamedTemporaryFile(mode="wb", prefix='singlem-diamond-prefilter-input',
+                                         suffix='.fasta') as temp_fasta:
+            for fasta_path in fasta_paths:
+                with open(fasta_path, 'rb') as f:
+                    shutil.copyfileobj(f, temp_fasta)
+            temp_fasta.flush()
+            extern.run('diamond makedb --in %s --db %s' % (temp_fasta.name, temp_dmnd))
+
         extern.run("diamond makeidx -d {}".format(temp_dmnd))
 
         return temp_dmnd
