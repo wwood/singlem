@@ -145,6 +145,25 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                 extern.run(cmd).replace('input',''))
 
 
+    def test_compressed_fastq_input_from_small_fasta(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs	small	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        with tempfile.TemporaryDirectory() as td:
+            fastq_gz_path = os.path.join(td, 'small.fastq.gz')
+            with open(os.path.join(path_to_data, '1_pipe/small.fa')) as fasta, \
+                    gzip.open(fastq_gz_path, 'wt') as fastq:
+                for name, seq, _ in SeqReader().readfq(fasta):
+                    fastq.write("@{}\n{}\n+\n{}\n".format(name, seq, "I" * len(seq)))
+
+            cmd = "%s pipe --sequences %s --otu-table /dev/stdout --assignment-method diamond --singlem-packages %s" % (
+                path_to_script, fastq_gz_path, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
+
+
     def test_fast_protein_package_diamond_package_assignment(self):
         expected = [
             "\t".join(self.headers),

@@ -14,7 +14,8 @@ scripts = ["admin/set_env_vars.sh"]
 # that users of the "Installation from PyPI" method have an organised set of
 # dependencencies to install.
 [feature.typical-non-python.dependencies]
-diamond = ">=2.1.21"  # some issues e.g. RAM before this, though not extensively tested.
+# <= because of https://github.com/wwood/singlem/issues/305
+diamond = ">=2.1.21, <=2.2.1"  # some issues e.g. RAM before this, though not extensively tested.
 hmmer = "*"
 orfm = ">=2.1.1" #2.1.0 was fail.
 mfqe = "*"
