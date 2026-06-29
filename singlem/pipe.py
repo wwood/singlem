@@ -1543,11 +1543,18 @@ class SearchPipe:
                                 os.path.basename(singlem_package.base_directory())))
                         else:
                             still_unknown_sequences = readset.unknown_sequences
-                        reps, rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences)
-                        all_rep_to_originals[(singlem_package, readset.sample_name, None)] = rep_to_originals
-                        logging.debug("Deduplicated {} sequences to {} representatives for DIAMOND".format(
-                            len(still_unknown_sequences), len(reps)))
-                        write_unaligned_fasta(reps, tmp)
+                        if assignment_method in (
+                            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                            reps, rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences)
+                            all_rep_to_originals[(singlem_package, readset.sample_name, None)] = rep_to_originals
+                            logging.debug("Deduplicated {} sequences to {} representatives for DIAMOND".format(
+                                len(still_unknown_sequences), len(reps)))
+                            write_unaligned_fasta(reps, tmp)
+                        else:
+                            write_unaligned_fasta(still_unknown_sequences, tmp)
                         tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
