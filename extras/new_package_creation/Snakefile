@@ -1,5 +1,9 @@
 import shutil
 
+# Run singlem (and its deps) via this workflow's own pixi manifest, anchored to
+# the Snakefile directory so the rules work regardless of the invocation cwd.
+pixi = "pixi run --manifest-path " + os.path.join(workflow.basedir, "pixi.toml") + " -e singlem"
+
 metapackage = config['metapackage_path']
 spkgs = config['singlem_packages'] if 'singlem_packages' in config else {}
 test_file = config['test_file'] if 'test_file' in config else None
@@ -72,7 +76,7 @@ rule create_gpkg:
         aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
         hmm_arg = lambda wildcards: graftm_create_hmm_arg(spkgs[wildcards.name]),
     shell:
-        "pixi run -e singlem graftM create --min_aligned_percent 0 --force --sequences {params.aa_sequences_file} {params.hmm_arg} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
+        "{pixi} graftM create --min_aligned_percent 0 --force --sequences {params.aa_sequences_file} {params.hmm_arg} --output {output.gpkg} --threads {threads} --no_tree --taxonomy {params.taxonomy_file} 2> {log}"
     
 def get_final_hmm_file(spkg_def, gpkg):
     if 'hmm_file' in spkg_def:
@@ -94,7 +98,7 @@ rule create_alignment:
         aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
         hmm_file = lambda wildcards, input: get_final_hmm_file(spkgs[wildcards.name], input.gpkg),
     shell:
-        "pixi run -e singlem bash -c 'hmmalign --amino {params.hmm_file} {params.aa_sequences_file} |seqmagick convert --input-format stockholm --output-format fasta - {output.alignment}' 2> {log}"
+        "{pixi} bash -c 'hmmalign --amino {params.hmm_file} {params.aa_sequences_file} |seqmagick convert --input-format stockholm --output-format fasta - {output.alignment}' 2> {log}"
 
 rule singlem_seqs:
     input:
@@ -111,7 +115,7 @@ rule singlem_seqs:
         aa_sequences_file = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
         hmm_file = lambda wildcards, input: get_final_hmm_file(spkgs[wildcards.name], input.gpkg),
     shell:
-        "pixi run -e singlem singlem seqs --alignment {input.alignment} --alignment-type aa --hmm {params.hmm_file} >{output.window_position_file} 2> {log}"
+        "{pixi} singlem seqs --alignment {input.alignment} --alignment-type aa --hmm {params.hmm_file} >{output.window_position_file} 2> {log}"
 
 rule singlem_create:
     input:
@@ -128,7 +132,7 @@ rule singlem_create:
         gene_description = lambda wildcards: spkgs[wildcards.name]['gene_description'],
         target_domains = lambda wildcards: spkgs[wildcards.name]['target_domains'],
     shell:
-        "pixi run -e singlem singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
+        "{pixi} singlem create --input-graftm-package {input.gpkg} --output {output.spkg} --target-domains {params.target_domains} --hmm-position `cat {input.window_position_file}` --gene-description '{params.gene_description}' --force --input-taxonomy {params.taxonomy_file} 2> {log}"
 
 def get_regenerate_decoy_args():
     if 'decoy_sequences' in config:
@@ -151,7 +155,7 @@ rule add_decoy_sequences_via_regenerate:
         spkg_seq = lambda wildcards: spkgs[wildcards.name]['aa_sequences_file'],
         spkg_tax = lambda wildcards: spkgs[wildcards.name]['taxonomy_file'],
     shell: # "--sequence-prefix {params.sequence_prefix} "
-        "pixi run -e singlem singlem regenerate "
+        "{pixi} singlem regenerate "
         "--input-singlem-package {input.spkg} "
         "--input-sequences {params.spkg_seq} "
         "--input-taxonomy {params.spkg_tax} "
@@ -169,7 +173,7 @@ rule chainsaw:
     log:
         log = os.path.join(output_directory, "logs", "{name}.chainsaw.log")
     shell:
-        "pixi run -e singlem singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output.spkg} 2> {log}"
+        "{pixi} singlem chainsaw --input-singlem-package {input.spkg} --output-singlem-package {output.spkg} 2> {log}"
 
 rule create_metapackage:
     input:
@@ -191,7 +195,7 @@ rule create_metapackage:
     shell:
         # "singlem metapackage --singlem-package {input.spkg} --nucleotide-sdb {input.sdb} --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
         # "singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} 2> {log}"
-        "pixi run -e singlem singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} {input.taxonomy_database} {input.taxonomy_version} {input.diamond_prefilter_performance_params} {input.diamond_assign_taxonomy_performance_params} {input.makeidx_sensitivity_params} 2> {log}"
+        "{pixi} singlem metapackage --singlem-packages {input.spkgs} --no-nucleotide-sdb --no-taxon-genome-lengths --metapackage {output.metapackage} --threads {threads} {input.taxonomy_database} {input.taxonomy_version} {input.diamond_prefilter_performance_params} {input.diamond_assign_taxonomy_performance_params} {input.makeidx_sensitivity_params} 2> {log}"
 
 rule test_metapackage:
     input:
@@ -204,7 +208,7 @@ rule test_metapackage:
         log = os.path.join(output_directory, "logs", "test_metapackage.log")
     benchmark: os.path.join(output_directory, "benchmarks", "test_metapackage.benchmark")
     shell:
-        "pixi run -e singlem singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug --output-extras 2> {log}"
+        "{pixi} singlem pipe --forward {input.test_file} --metapackage {input.metapackage} --otu-table {output.otu_table} --threads {threads} --assignment-method diamond --debug --output-extras 2> {log}"
 
 rule verify_tested_metapackage:
     input:
