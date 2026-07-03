@@ -1,0 +1,11 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "new_package_creation"
+platforms = ["linux-64"]
+
+[feature.singlem.dependencies]
+singlem = "*"
+
+[environments]
+singlem = ["singlem"]
