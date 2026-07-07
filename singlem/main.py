@@ -30,6 +30,7 @@ from singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 from singlem.condense import DEFAULT_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_GENOME_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_TRIM_PERCENT as CONDENSE_DEFAULT_TRIM_PERCENT
+from singlem.prefilter_pad import DEFAULT_FLANK_LENGTH
 
 DEFAULT_WINDOW_SIZE = 60
 SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
@@ -698,6 +699,14 @@ def main():
     required_trim_package_hmmsarguments = trim_package_hmms_parser.add_argument_group("required arguments")
     required_trim_package_hmmsarguments.add_argument('--input-singlem-package', required=True, help="Input package to trim HMMs from")
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
+
+    prefilter_pad_description = 'Create a prefilter FASTA where each on-target sequence is padded to a fixed length with the window in a consistent position (expert mode)'
+    prefilter_pad_parser = bird_argparser.new_subparser('prefilter-pad', prefilter_pad_description)
+    required_prefilter_pad_arguments = prefilter_pad_parser.add_argument_group("required arguments")
+    required_prefilter_pad_arguments.add_argument('--metapackage', required=True, help="Metapackage to read on-target sequences and window positions from")
+    required_prefilter_pad_arguments.add_argument('--output-fasta', required=True, help="Padded prefilter FASTA to create")
+    current_default = DEFAULT_FLANK_LENGTH
+    prefilter_pad_parser.add_argument('--flank-length', type=int, metavar='num_residues', help='number of flanking residues to include on each side of the window [default: %i]' % current_default, default=current_default)
 
     supplement_description = 'Create a new metapackage from a vanilla one plus new genomes'
     supplement_parser = bird_argparser.new_subparser('supplement', supplement_description, parser_group='Tools')
@@ -1391,6 +1400,17 @@ def main():
         PackageHmmTrimmer().trim(
             args.input_singlem_package,
             args.output_singlem_package,
+        )
+
+    elif args.subparser_name == 'prefilter-pad':
+        from singlem.metapackage import Metapackage
+        from singlem.prefilter_pad import PrefilterPadder
+
+        metapackage = Metapackage.acquire(args.metapackage)
+        PrefilterPadder().pad_metapackage(
+            metapackage = metapackage,
+            output_fasta = args.output_fasta,
+            flank_length = args.flank_length,
         )
 
     elif args.subparser_name == 'seqs':
