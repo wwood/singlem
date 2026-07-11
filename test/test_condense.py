@@ -409,8 +409,32 @@ class Tests(unittest.TestCase):
 
         # min_markers=1: the single unique marker now suffices -> retained.
         d1 = JointDeconvolver()
-        d1.solve('s', otus, sylph_hits, alpha=1.0, min_markers=1)
+        d1.solve('s', otus, sylph_hits, alpha=1.0, min_markers=1,
+                 min_singlem_coverage=0.0)
         self.assertGreater(d1.coverage_by_key.get(s2, 0.0), 0.0)
+
+    def test_joint_filters_low_coverage_singlem_only_genus(self):
+        from singlem.condense_joint import JointDeconvolver
+        otus = self._joint_otus([
+            (0.2, [self.JOINT_GENUS], QUERY_BASED_ASSIGNMENT_METHOD),
+        ])
+        deconv = JointDeconvolver()
+        profile = deconv.solve(
+            'sample1', otus, {}, alpha=1.0, l1_penalty=0.0,
+            min_singlem_coverage=0.35)
+        self.assertEqual(0.0, deconv.coverage_by_key[_canonical_species_key(self.JOINT_GENUS)])
+        self.assertEqual(0.0, self._coverage_of(profile, 'g__G'))
+
+    def test_joint_retains_low_coverage_sylph_species(self):
+        from singlem.condense_joint import JointDeconvolver
+        otus = self._joint_otus([])
+        sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 0.2)}
+        deconv = JointDeconvolver()
+        profile = deconv.solve(
+            'sample1', otus, sylph_hits, alpha=1.0, l1_penalty=0.0,
+            min_singlem_coverage=0.35)
+        self.assertAlmostEqual(0.2, deconv.coverage_by_key[_canonical_species_key(self.JOINT_SP1)], places=3)
+        self.assertAlmostEqual(0.2, self._coverage_of(profile, 's__S1'), places=3)
 
     def test_joint_alpha_variable_projection(self):
         from singlem.condense_joint import JointDeconvolver

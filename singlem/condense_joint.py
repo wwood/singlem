@@ -36,7 +36,8 @@ class JointDeconvolver:
 
     def solve(self, sample, sample_otus, sylph_hits, domain_marker_counts=None, alpha=None,
               l1_penalty=1.0, absence_weight=100.0, sylph_weight=1.0, min_markers=3,
-              max_outer_iterations=25, tolerance=1e-4, prune_below=0.05):
+              max_outer_iterations=25, tolerance=1e-4, prune_below=0.05,
+              min_singlem_coverage=0.35):
         try:
             from scipy.optimize import minimize
             from scipy.sparse import csr_matrix
@@ -125,7 +126,9 @@ class JointDeconvolver:
         a = np.zeros(num_columns)
         singlem_weights = np.ones(num_singlem)
 
-        for outer in range(max_outer_iterations):
+        def optimise(current_a, current_alpha, singlem_weights):
+            """Optimise once for the currently permitted candidate columns."""
+            a = current_a
             def objective(x):
                 f = 0.0
                 g = np.zeros(num_columns)
@@ -150,33 +153,57 @@ class JointDeconvolver:
                 g += l1_penalty
                 return f, g
 
-            result = minimize(objective, a, jac=True, method='L-BFGS-B', bounds=bounds)
-            new_a = np.maximum(result.x, 0.0)
+            for outer in range(max_outer_iterations):
+                result = minimize(objective, a, jac=True, method='L-BFGS-B', bounds=bounds)
+                new_a = np.maximum(result.x, 0.0)
 
-            # Variable-projection alpha update.
-            new_alpha = current_alpha
-            if fit_alpha and len(sylph_col) > 0:
-                a_sylph = new_a[sylph_col]
-                denominator = float(np.dot(sylph_w, a_sylph * a_sylph))
-                if denominator > 0:
-                    new_alpha = float(np.dot(sylph_w, sylph_eff * a_sylph) / denominator)
+                # Variable-projection alpha update.
+                new_alpha = current_alpha
+                if fit_alpha and len(sylph_col) > 0:
+                    a_sylph = new_a[sylph_col]
+                    denominator = float(np.dot(sylph_w, a_sylph * a_sylph))
+                    if denominator > 0:
+                        new_alpha = float(np.dot(sylph_w, sylph_eff * a_sylph) / denominator)
 
-            # IRLS reweighting of SingleM rows (bisquare on residuals).
-            if num_singlem > 0:
-                singlem_weights = self._bisquare_weights(b_singlem - M.dot(new_a))
+                # IRLS reweighting of SingleM rows (bisquare on residuals).
+                if num_singlem > 0:
+                    singlem_weights = self._bisquare_weights(b_singlem - M.dot(new_a))
 
-            converged = (np.max(np.abs(new_a - a)) < tolerance and abs(new_alpha - current_alpha) < tolerance)
-            a, current_alpha = new_a, new_alpha
-            if converged:
-                logging.debug("Joint deconvolution converged after {} iterations".format(outer + 1))
+                converged = (np.max(np.abs(new_a - a)) < tolerance and abs(new_alpha - current_alpha) < tolerance)
+                a, current_alpha = new_a, new_alpha
+                if converged:
+                    logging.debug("Joint deconvolution converged after {} iterations".format(outer + 1))
+                    break
+            return a, current_alpha, singlem_weights
+
+        # First obtain provisional coverages for every eligible column. Then
+        # remove low-coverage SingleM-only candidates and solve again. Repeat
+        # until the active set is stable. Sylph-supported species are exempt:
+        # genome-wide evidence can support them below SingleM's general taxon
+        # coverage threshold.
+        while True:
+            a, current_alpha, singlem_weights = optimise(a, current_alpha, singlem_weights)
+            newly_fixed = []
+            if min_singlem_coverage is not None and min_singlem_coverage > 0:
+                for j in range(num_columns):
+                    if j not in sylph_columns and bounds[j] != (0.0, 0.0) and a[j] < min_singlem_coverage:
+                        bounds[j] = (0.0, 0.0)
+                        newly_fixed.append(j)
+            if len(newly_fixed) == 0:
                 break
+            a[newly_fixed] = 0.0
+            logging.info("Removed {} SingleM-only candidates below {:.2f} coverage; re-optimising".format(
+                len(newly_fixed), min_singlem_coverage))
 
         logging.info("Joint deconvolution of sample {}: alpha={:.4f}, total coverage={:.2f}".format(
             sample, current_alpha, float(np.sum(a))))
 
-        # L-BFGS-B only approximates the L1 kink at zero, leaving tiny non-zero
-        # values; clear them so the profile is genuinely sparse.
-        a[a < prune_below] = 0.0
+        # Use the lower numerical/output floor only for sylph-supported species.
+        # SingleM-only calls at any rank must satisfy the normal taxon threshold.
+        for j in range(num_columns):
+            threshold = prune_below if j in sylph_columns else min_singlem_coverage
+            if threshold is not None and a[j] < threshold:
+                a[j] = 0.0
 
         # Stash the solution for diagnostics / testing.
         self.fitted_alpha = current_alpha

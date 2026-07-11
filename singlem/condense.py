@@ -205,7 +205,8 @@ class Condenser:
                 sample, sample_otus, sylph_hits if sylph_hits is not None else {},
                 domain_marker_counts=domain_marker_counts,
                 alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
-                min_markers=joint_min_markers)
+                min_markers=joint_min_markers,
+                min_singlem_coverage=min_taxon_coverage)
             self._push_down_genus_to_species(condensed_otus, 0.1)
             self._report_taxonomic_level_assignment_stats(condensed_otus)
             return condensed_otus
@@ -1266,7 +1267,6 @@ class CondensedCommunityProfileKronaWriter:
         extern.run(cmd)
         for f in sample_tempfiles:
             f.close()
-
 
 
 
