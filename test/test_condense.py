@@ -423,6 +423,36 @@ class Tests(unittest.TestCase):
                  min_singlem_coverage=0.0)
         self.assertGreater(d1.coverage_by_key.get(s2, 0.0), 0.0)
 
+    def test_joint_species_level_tie_is_evidence_for_the_novel_clade(self):
+        from singlem.condense_joint import JointDeconvolver
+        # A novel organism in a genus whose species are all in the database need never
+        # produce a window that SingleM resolves to the genus: its window can tie across
+        # the DB species on every single marker. The tie resolves the read no deeper than
+        # the genus, so it is evidence for the genus's novel column, and the marker floor
+        # must accept it as such. Otherwise the novel column earns zero markers, is fixed
+        # to zero before the optimiser runs, and the organism's coverage disappears from
+        # the profile rather than being reported as novel.
+        rows = []
+        for _ in range(3):
+            rows.append((30.0, [self.JOINT_SP1], QUERY_BASED_ASSIGNMENT_METHOD))
+            rows.append((100.0, [self.JOINT_SP1, self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD))
+        # _joint_otus gives each row its own marker, so pair them up onto three markers.
+        otus = self._joint_otus(rows)
+        for i, otu in enumerate(otus.data):
+            otu[0] = 'g{}'.format(i // 2)
+        sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 30.0)}
+
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, sylph_hits, domain_marker_counts={'Bacteria': 3},
+                     alpha=1.0, min_markers=3)
+        cov = deconv.coverage_by_key
+        # The novel organism is recovered at close to its true 100x, and S1 is not
+        # inflated by it: sylph pins S1 at 30x and the tie's coverage goes to the genus.
+        self.assertGreater(cov[_canonical_species_key(self.JOINT_GENUS)], 90.0)
+        self.assertAlmostEqual(30.0, cov[_canonical_species_key(self.JOINT_SP1)], delta=1.0)
+        # S2, which sylph does not report and which no window resolves to alone, stays out.
+        self.assertEqual(0.0, cov.get(_canonical_species_key(self.JOINT_SP2), 0.0))
+
     def test_joint_filters_low_coverage_singlem_only_genus(self):
         from singlem.condense_joint import JointDeconvolver
         otus = self._joint_otus([

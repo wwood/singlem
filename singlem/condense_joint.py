@@ -357,11 +357,26 @@ class JointDeconvolver:
             # coverage is recorded too: these are the only observations that speak
             # about this taxon alone, so they are what the coherence ceiling is built
             # from.
+            #
+            # A species-level tie counts as unique evidence for the clade it ties
+            # within. "Unique" must mean "nothing deeper than this taxon explains the
+            # read", not "no other column appears in the row" -- and a window tied
+            # across a genus's DB species is exactly the former: it resolves the read
+            # to the genus and no further, which is what a clade-level hit is. The two
+            # are the same observation reported differently, and which one SingleM emits
+            # is an accident of how well the clade is sampled in the database. Withheld,
+            # a novel organism whose windows always tie -- the common case in a genus
+            # whose species are all in the DB, which is precisely where novelty is
+            # hardest to see -- earns zero markers, is fixed to zero by the
+            # identifiability floor before the optimiser runs, and its coverage vanishes
+            # from the profile entirely rather than being misassigned.
             sole = None
             if len(species_cols) == 1 and len(clade_keys) == 0:
                 sole = next(iter(species_cols))
             elif len(clade_keys) == 1 and len(species_cols) == 0:
                 sole = novel_key_to_index[next(iter(clade_keys))]
+            elif tie_column is not None:
+                sole = tie_column
             if sole is not None:
                 unique_markers.setdefault(sole, set()).add(otu.marker)
                 coverages = unique_marker_coverage.setdefault(sole, {})
