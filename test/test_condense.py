@@ -339,6 +339,7 @@ class Tests(unittest.TestCase):
 
     JOINT_SP1 = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S1'
     JOINT_SP2 = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S2'
+    JOINT_SP3 = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S3'
     JOINT_GENUS = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G'
 
     def _joint_otus(self, rows):
@@ -452,6 +453,58 @@ class Tests(unittest.TestCase):
         self.assertAlmostEqual(30.0, cov[_canonical_species_key(self.JOINT_SP1)], delta=1.0)
         # S2, which sylph does not report and which no window resolves to alone, stays out.
         self.assertEqual(0.0, cov.get(_canonical_species_key(self.JOINT_SP2), 0.0))
+
+    def test_joint_diverged_window_of_known_species_is_not_novelty(self):
+        from singlem.condense_joint import JointDeconvolver
+        # S1 is abundant and confirmed by sylph, and has its own window on m0 and m1.
+        # On m2 the sample's strain has diverged from the database representative at that
+        # one window, so the read ties across congeners *without naming S1 at all*. Those
+        # are S1's reads: single-copy markers are universal, so S1 has a window on m2, and
+        # if it is not in a row of its own it is in this one. Unless S1 may claim them,
+        # the genus's novel column is the only bidder and ordinary strain variation in a
+        # known species is reported as a novel congener.
+        otus = self._joint_otus([
+            (10.0, [self.JOINT_SP1], QUERY_BASED_ASSIGNMENT_METHOD),
+            (10.0, [self.JOINT_SP1], QUERY_BASED_ASSIGNMENT_METHOD),
+            (10.0, [self.JOINT_SP2, self.JOINT_SP3], QUERY_BASED_ASSIGNMENT_METHOD),
+        ])
+        for i, otu in enumerate(otus.data):
+            otu[0] = 'g{}'.format(i)
+        sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 10.0)}
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, sylph_hits, domain_marker_counts={'Bacteria': 3},
+                     alpha=1.0, min_markers=2)
+        cov = deconv.coverage_by_key
+        # S1 keeps its coverage and the tie does not become a novel organism.
+        self.assertAlmostEqual(10.0, cov[_canonical_species_key(self.JOINT_SP1)], delta=1.0)
+        self.assertLess(cov.get(_canonical_species_key(self.JOINT_GENUS), 0.0), 3.0)
+
+    def test_joint_sylph_ceiling_stops_rare_species_absorbing_clade_coverage(self):
+        from singlem.condense_joint import JointDeconvolver
+        # S2 is reported by sylph at 0.2x -- it is barely there -- but it is a candidate
+        # in a genus carrying a great deal of ambiguous coverage. The sylph rows alone are
+        # a quadratic on an absolute residual, so enough high-coverage SingleM rows can
+        # drag S2 far above what sylph says; the ceiling is what stops the rarest species
+        # in a clade from becoming the cheapest home for the clade's ambiguous coverage.
+        otus = self._joint_otus([
+            (100.0, [self.JOINT_SP1, self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD),
+            (100.0, [self.JOINT_SP1, self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD),
+            (100.0, [self.JOINT_SP1, self.JOINT_SP2], QUERY_BASED_ASSIGNMENT_METHOD),
+        ])
+        for i, otu in enumerate(otus.data):
+            otu[0] = 'g{}'.format(i)
+        sylph_hits = {
+            _canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 100.0),
+            _canonical_species_key(self.JOINT_SP2): SylphHit(self.JOINT_SP2, 0.2),
+        }
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, sylph_hits, domain_marker_counts={'Bacteria': 3},
+                     alpha=1.0, min_markers=0)
+        cov = deconv.coverage_by_key
+        # S2 stays near sylph's 0.2x (the ceiling allows slack, not a free hand), and the
+        # ambiguous coverage goes to S1, which sylph says is the abundant one.
+        self.assertLess(cov[_canonical_species_key(self.JOINT_SP2)], 2.0)
+        self.assertGreater(cov[_canonical_species_key(self.JOINT_SP1)], 90.0)
 
     def test_joint_filters_low_coverage_singlem_only_genus(self):
         from singlem.condense_joint import JointDeconvolver

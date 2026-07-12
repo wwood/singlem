@@ -38,7 +38,7 @@ class JointDeconvolver:
               l1_penalty=1.0, absence_weight=100.0, sylph_weight=50.0, min_markers=3,
               max_outer_iterations=25, tolerance=1e-4, prune_below=0.05,
               min_singlem_coverage=0.35, robust_coverage_floor=1.0, robust_min_weight=1e-3,
-              alpha_min_coverage=0.1, coherence_weight=1000.0):
+              alpha_min_coverage=0.1, coherence_weight=1000.0, sylph_ceiling=1.5):
         try:
             from scipy.optimize import minimize
             from scipy.sparse import csr_matrix
@@ -46,7 +46,7 @@ class JointDeconvolver:
             raise Exception("condense --joint requires scipy, which could not be imported")
 
         columns, singlem_rows, observed_marker_count, unique_marker_count, unique_marker_coverage = \
-            self._build_columns_and_singlem_rows(sample_otus, sylph_hits)
+            self._build_columns_and_singlem_rows(sample_otus, sylph_hits, min_markers)
         if len(columns) == 0:
             logging.warning("Sample {}: no SingleM or sylph taxa to deconvolve".format(sample))
             return CondensedCommunityProfile(sample, WordNode(None, 'Root'))
@@ -131,6 +131,24 @@ class JointDeconvolver:
         else:
             current_alpha = float(alpha)
             fit_alpha = False
+
+        # Deferring to sylph is a ceiling, not just a quadratic pull. The sylph rows are
+        # a squared penalty on an absolute residual, so a species can be dragged far
+        # above sylph's value whenever enough SingleM rows want it there: in known50,
+        # sylph puts S. sp900091845 at 0.19x (it is truly absent) and the model gave it
+        # 14x, because thirty Streptomyces rows carrying ~1000x each outvote one sylph
+        # row, and the novel column that should have taken the coverage is priced out of
+        # the row by the padding ridge. A rare species then becomes the cheapest sink in
+        # its genus. Sylph's effective coverage is a fixed multiple of the truth to
+        # within a few percent over a 300-fold range, so a species it reports has no
+        # business sitting far above e/alpha, and the one-sided coherence ceiling already
+        # in the objective is the natural place to say so. Slack is allowed because sylph
+        # is biased upward near its detection limit and falls back to an integer k-mer
+        # multiplicity at high coverage; the ceiling is meant to stop a species absorbing
+        # a clade's ambiguous coverage, not to pin it to sylph's third decimal place.
+        for i, c in enumerate(sylph_col):
+            centres[c] = min(centres[c], sylph_ceiling * sylph_eff[i] / current_alpha)
+
         logging.info("Joint deconvolution of sample {}: {} columns ({} sylph species, {} SingleM-only "
             "candidates), {} SingleM rows".format(sample, num_columns, len(sylph_col), len(absence_col), num_singlem))
 
@@ -275,7 +293,7 @@ class JointDeconvolver:
 
         return self._build_profile(sample, columns, a)
 
-    def _build_columns_and_singlem_rows(self, sample_otus, sylph_hits):
+    def _build_columns_and_singlem_rows(self, sample_otus, sylph_hits, min_markers=3):
         '''Return (columns, singlem_rows). columns is a list of _Column; each
         singlem row is (sorted_list_of_column_indices, coverage).
 
@@ -474,6 +492,37 @@ class JointDeconvolver:
             # Merge on the deepest clade the window reached: that is the one whose
             # novel coverage this marker is measuring.
             deepest = max(novel_cols, key=lambda c: (len(columns[c].key.split(';')), c))
+            if hidden is None:
+                # A sylph-confirmed species of this clade that has no window at all on
+                # this marker is also a candidate, even when the tie does not name it.
+                # Its markers are single-copy and universal, and sylph says the organism
+                # is there, so its window on this marker exists and its reads are in one
+                # of this marker's rows -- and if it is not in a row of its own, this
+                # ambiguous row is where they are. A strain diverged from the database
+                # representative at one window will match a handful of its congeners
+                # rather than itself, which produces a tie among congeners that excludes
+                # the very species that was sequenced: in toy_sim, V. tobetsuensis (27.6x,
+                # and confirmed by sylph) is missing from several Veillonella ties on
+                # markers where it has no window. Without this, no species in the row can
+                # explain those reads and the clade's novel column is the only bidder for
+                # them -- so ordinary strain variation in an abundant, known species is
+                # booked as a novel congener.
+                #
+                # The species must be established elsewhere in the sample -- seen on its
+                # own on at least min_markers other markers -- for its absence here to
+                # mean divergence. A species SingleM barely sees at all is not diverged,
+                # it is rare: at 0.1x coverage most of its markers go unsequenced, and
+                # their absence says nothing about any window. Admitting such a species
+                # to an ambiguous row makes it a sink that is cheaper than the novel
+                # column, since the novel column pays the padding ridge for every marker
+                # it was not seen on while a rare species pays only sylph's much lighter
+                # objection. In known50, S. sp900091845 (truly 0.1x, and reported by
+                # sylph at 0.19x) collected 23x of the Streptomyces tie coverage this way.
+                for c in clade_to_species.get(columns[deepest].key, []):
+                    if (columns[c].key in sylph_hits
+                            and marker not in observed_markers.get(c, ())
+                            and len(unique_markers.get(c, ())) >= min_markers):
+                        cols.add(c)
             entry = clade_rows.setdefault((marker, deepest), [0.0, set()])
             entry[0] += coverage
             entry[1].update(cols)
