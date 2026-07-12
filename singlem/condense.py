@@ -207,7 +207,16 @@ class Condenser:
                 alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
                 min_markers=joint_min_markers,
                 min_singlem_coverage=min_taxon_coverage)
-            self._push_down_genus_to_species(condensed_otus, 0.1)
+            # No push-down of genus coverage into species here. The trimmed-mean condense
+            # needs it because it has no way to say "something in this genus that is not
+            # one of these species", so coverage stranded at the genus node is assumed to
+            # be its species' reads scattered by sequencing error. The joint model says
+            # exactly that, with a novel-at-clade column, and pushing 10% of the genus
+            # down afterwards takes the novel organism's reads and hands them to its named
+            # relatives -- which is the one thing the novel column exists to prevent. In
+            # known50, where roughly three quarters of the sample is a novel Streptomyces,
+            # the deconvolution puts S. rimosus at 173x against a truth of 170x and the
+            # push-down inflated it to 260x.
             self._report_taxonomic_level_assignment_stats(condensed_otus)
             return condensed_otus
         elif joint and viral_mode:
