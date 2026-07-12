@@ -1,0 +1,326 @@
+from pathlib import Path
+
+
+DATASETS = {
+    "known50": {
+        "forward": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/known50/sample5.1.fq.gz",
+        "reverse": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/known50/sample5.2.fq.gz",
+        "truth": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/known50/sample5.condensed",
+    },
+    "toy_sim": {
+        "forward": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/toy_sim/marine0.1.fq.gz",
+        "reverse": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/toy_sim/marine0.2.fq.gz",
+        "truth": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/toy_sim/marine0.condensed",
+    },
+}
+
+METHODS = ["singlem", "singlem_sylph", "weebill"]
+ROOT = Path(workflow.basedir).resolve()
+PROJECT_ROOT = ROOT.parents[1]
+RESULTS = ROOT / "results"
+SINGLEM_METAPACKAGE = Path(
+    "/home/woodcrob/m/db/singlem/S4.1.0.GTDB_r207.metapackage_20240502.smpkg.zb"
+)
+SINGLEM = Path(
+    "/mnt/weka/pkg/cmr/woodcrob/pixi/cache/envs/singlem-6165597245289649150/envs/default/bin/singlem"
+)
+SINGLEM_ENV_BIN = SINGLEM.parent
+WEEBILL = Path("/home/woodcrob/git/weebill/target/release/weebill")
+WEEBILL_DB = Path(
+    "/home/woodcrob/m/msingle/mess/230_weebill_r232/r207.100.syl2db"
+)
+SNAKEMAKE = Path("/home/woodcrob/e/snakemake-v9.9.0/bin/snakemake")
+BENCHMARKING_REPO = Path("/home/woodcrob/git/singlem-benchmarking")
+CONDENSED_TO_BIOBOX = BENCHMARKING_REPO / "bin/condensed_profile_to_biobox.py"
+BENCHMARKING_PIXI = BENCHMARKING_REPO / "pixi.toml"
+
+wildcard_constraints:
+    dataset="|".join(DATASETS),
+    method="|".join(METHODS),
+
+
+rule all:
+    input:
+        expand(str(RESULTS / "profiles/{method}/{dataset}.tsv"), method=METHODS, dataset=DATASETS),
+        str(RESULTS / "benchmark_summary.tsv"),
+        str(RESULTS / "accuracy_summary.tsv"),
+        str(RESULTS / "revisions.tsv"),
+    threads: 1
+    resources:
+        mem_mb=1000,
+        runtime="1h",
+
+
+rule singlem_archive:
+    input:
+        forward=lambda wc: DATASETS[wc.dataset]["forward"],
+        read2=lambda wc: DATASETS[wc.dataset]["reverse"],
+    output:
+        archive=str(RESULTS / "archives/{dataset}.json"),
+    threads: 1
+    resources:
+        mem_mb=8000,
+        runtime="1h",
+    benchmark:
+        str(RESULTS / "benchmarks/singlem_pipe/{dataset}.tsv")
+    log:
+        str(RESULTS / "logs/singlem_pipe/{dataset}.log")
+    shell:
+        r"""
+        PATH={SINGLEM_ENV_BIN}:$PATH PYTHONPATH={PROJECT_ROOT:q} {SINGLEM:q} pipe \
+            -1 {input.forward:q} -2 {input.read2:q} \
+            --threads {threads} \
+            --metapackage {SINGLEM_METAPACKAGE:q} \
+            --no-sylph \
+            --archive-otu-table {output.archive:q} \
+            > {log:q} 2>&1
+        """
+
+
+rule singlem:
+    input:
+        archive=str(RESULTS / "archives/{dataset}.json"),
+    output:
+        profile=str(RESULTS / "profiles/singlem/{dataset}.tsv"),
+    threads: 1
+    resources:
+        mem_mb=8000,
+        runtime="1h",
+    benchmark:
+        str(RESULTS / "benchmarks/singlem/{dataset}.tsv")
+    log:
+        str(RESULTS / "logs/singlem/{dataset}.log")
+    shell:
+        r"""
+        PATH={SINGLEM_ENV_BIN}:$PATH PYTHONPATH={PROJECT_ROOT:q} {SINGLEM:q} condense \
+            --input-archive-otu-table {input.archive:q} \
+            --metapackage {SINGLEM_METAPACKAGE:q} \
+            --taxonomic-profile {output.profile:q} \
+            > {log:q} 2>&1
+        """
+
+
+rule annotate_weebill:
+    input:
+        profile=str(RESULTS / "profiles/weebill/{dataset}.tsv"),
+    output:
+        profile=str(RESULTS / "profiles/weebill_annotated/{dataset}.tsv"),
+    threads: 1
+    resources:
+        mem_mb=2000,
+        runtime="1h",
+    log:
+        str(RESULTS / "logs/weebill_annotated/{dataset}.log")
+    shell:
+        r"""
+        PYTHONPATH={PROJECT_ROOT:q} \
+            /mnt/weka/pkg/cmr/woodcrob/pixi/cache/envs/singlem-6165597245289649150/envs/default/bin/python \
+            {ROOT}/scripts/annotate_weebill.py \
+            --profile {input.profile:q} \
+            --metapackage {SINGLEM_METAPACKAGE:q} \
+            --output {output.profile:q} \
+            > {log:q} 2>&1
+        """
+
+
+rule singlem_sylph:
+    input:
+        archive=str(RESULTS / "archives/{dataset}.json"),
+        sylph_profile=str(RESULTS / "profiles/weebill_annotated/{dataset}.tsv"),
+    output:
+        profile=str(RESULTS / "profiles/singlem_sylph/{dataset}.tsv"),
+    threads: 1
+    resources:
+        mem_mb=8000,
+        runtime="1h",
+    benchmark:
+        str(RESULTS / "benchmarks/singlem_sylph/{dataset}.tsv")
+    log:
+        str(RESULTS / "logs/singlem_sylph/{dataset}.log")
+    shell:
+        r"""
+        PATH={SINGLEM_ENV_BIN}:$PATH PYTHONPATH={PROJECT_ROOT:q} {SINGLEM:q} condense \
+            --input-archive-otu-table {input.archive:q} \
+            --metapackage {SINGLEM_METAPACKAGE:q} \
+            --sylph-profile {input.sylph_profile:q} \
+            --joint \
+            --taxonomic-profile {output.profile:q} \
+            > {log:q} 2>&1
+        """
+
+
+rule weebill:
+    input:
+        forward=lambda wc: DATASETS[wc.dataset]["forward"],
+        read2=lambda wc: DATASETS[wc.dataset]["reverse"],
+        database=WEEBILL_DB,
+    output:
+        profile=str(RESULTS / "profiles/weebill/{dataset}.tsv"),
+    threads: 1
+    resources:
+        mem_mb=16000,
+        runtime="1h",
+    benchmark:
+        str(RESULTS / "benchmarks/weebill/{dataset}.tsv")
+    log:
+        str(RESULTS / "logs/weebill/{dataset}.log")
+    shell:
+        r"""
+        {WEEBILL:q} profile --two-stage \
+            -t {threads} -c 100 \
+            -1 {input.forward:q} -2 {input.read2:q} \
+            -o {output.profile:q} \
+            {input.database:q} \
+            > {log:q} 2>&1
+        awk 'END {{ exit NR < 2 }}' {output.profile:q}
+        """
+
+
+rule benchmark_summary:
+    input:
+        expand(str(RESULTS / "benchmarks/{method}/{dataset}.tsv"), method=METHODS, dataset=DATASETS),
+    output:
+        str(RESULTS / "benchmark_summary.tsv"),
+    threads: 1
+    resources:
+        mem_mb=1000,
+        runtime="1h",
+    script:
+        "scripts/summarise_benchmarks.py"
+
+
+rule weebill_to_condensed:
+    input:
+        profile=str(RESULTS / "profiles/weebill/{dataset}.tsv"),
+    output:
+        condensed=str(RESULTS / "accuracy/condensed/weebill/{dataset}.tsv"),
+    threads: 1
+    resources:
+        mem_mb=2000,
+        runtime="1h",
+    shell:
+        r"""
+        PYTHONPATH={PROJECT_ROOT:q} \
+            /mnt/weka/pkg/cmr/woodcrob/pixi/cache/envs/singlem-6165597245289649150/envs/default/bin/python \
+            {ROOT}/scripts/weebill_to_condensed.py \
+            --profile {input.profile:q} \
+            --metapackage {SINGLEM_METAPACKAGE:q} \
+            --sample {wildcards.dataset:q} \
+            --output {output.condensed:q}
+        """
+
+
+rule truth_to_biobox:
+    input:
+        condensed=lambda wc: DATASETS[wc.dataset]["truth"],
+    output:
+        biobox=str(RESULTS / "accuracy/biobox/truth/{dataset}.biobox"),
+    threads: 1
+    resources:
+        mem_mb=2000,
+        runtime="1h",
+    shell:
+        r"""
+        PATH={SINGLEM_ENV_BIN}:$PATH PYTHONPATH={PROJECT_ROOT:q} \
+            {SINGLEM_ENV_BIN}/python {CONDENSED_TO_BIOBOX:q} \
+            --input-condensed-table {input.condensed:q} \
+            --output-biobox {output.biobox:q}
+        """
+
+
+def accuracy_condensed(wildcards):
+    if wildcards.method == "weebill":
+        return str(RESULTS / f"accuracy/condensed/weebill/{wildcards.dataset}.tsv")
+    return str(RESULTS / f"profiles/{wildcards.method}/{wildcards.dataset}.tsv")
+
+
+rule prediction_to_biobox:
+    input:
+        condensed=accuracy_condensed,
+        truth=str(RESULTS / "accuracy/biobox/truth/{dataset}.biobox"),
+    output:
+        biobox=str(RESULTS / "accuracy/biobox/{method}/{dataset}.biobox"),
+    threads: 1
+    resources:
+        mem_mb=2000,
+        runtime="1h",
+    shell:
+        r"""
+        PATH={SINGLEM_ENV_BIN}:$PATH PYTHONPATH={PROJECT_ROOT:q} \
+            {SINGLEM_ENV_BIN}/python {CONDENSED_TO_BIOBOX:q} \
+            --input-condensed-table {input.condensed:q} \
+            --output-biobox {output.biobox:q} \
+            --template-biobox {input.truth:q}
+        """
+
+
+rule opal_environment:
+    output:
+        touch(str(RESULTS / "accuracy/opal_environment.ready")),
+    threads: 1
+    resources:
+        mem_mb=4000,
+        runtime="1h",
+    shell:
+        r"""
+        pixi install --manifest-path {BENCHMARKING_PIXI:q} -e opal
+        """
+
+
+rule opal:
+    input:
+        prediction=str(RESULTS / "accuracy/biobox/{method}/{dataset}.biobox"),
+        truth=str(RESULTS / "accuracy/biobox/truth/{dataset}.biobox"),
+        environment=str(RESULTS / "accuracy/opal_environment.ready"),
+    output:
+        report=str(RESULTS / "accuracy/opal/{method}/{dataset}.results.tsv"),
+    params:
+        output_dir=lambda wc: str(RESULTS / f"accuracy/opal/{wc.method}/{wc.dataset}.output"),
+    threads: 1
+    resources:
+        mem_mb=4000,
+        runtime="1h",
+    shell:
+        r"""
+        rm -rf {params.output_dir:q}
+        pixi run --manifest-path {BENCHMARKING_PIXI:q} -e opal \
+            opal.py -g {input.truth:q} -o {params.output_dir:q} {input.prediction:q} || true
+        test -s {params.output_dir:q}/results.tsv
+        mv {params.output_dir:q}/results.tsv {output.report:q}
+        rm -rf {params.output_dir:q}
+        """
+
+
+rule accuracy_summary:
+    input:
+        expand(str(RESULTS / "accuracy/opal/{method}/{dataset}.results.tsv"), method=METHODS, dataset=DATASETS),
+    output:
+        str(RESULTS / "accuracy_summary.tsv"),
+    threads: 1
+    resources:
+        mem_mb=1000,
+        runtime="1h",
+    script:
+        "scripts/summarise_accuracy.py"
+
+
+rule revisions:
+    output:
+        str(RESULTS / "revisions.tsv"),
+    threads: 1
+    resources:
+        mem_mb=1000,
+        runtime="1h",
+    shell:
+        r"""
+        mkdir -p $(dirname {output:q})
+        {{
+            printf 'component\trevision\n'
+            printf 'singlem\t'
+            git -C {PROJECT_ROOT:q} rev-parse HEAD
+            printf 'weebill\t'
+            git -C /home/woodcrob/git/weebill rev-parse HEAD
+            printf 'snakemake\t'
+            {SNAKEMAKE:q} --version
+        }} > {output:q}
+        """

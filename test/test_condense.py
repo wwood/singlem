@@ -381,10 +381,16 @@ class Tests(unittest.TestCase):
         from singlem.condense_joint import JointDeconvolver
         # A window equal-best between species S1 and the genus-level (novel) clade.
         # S1 is absent from sylph, so its coverage is routed to the novel-at-genus leaf.
+        # The marker floor is disabled because this sample is a single window that is
+        # shared between S1 and G, so it is unique evidence for neither and the floor
+        # (which applies to novel columns as well as species) would zero both. The floor
+        # is tested separately below; what is under test here is where the coverage is
+        # routed, not how much evidence there has to be.
         otus = self._joint_otus([(5.0, [self.JOINT_SP1, self.JOINT_GENUS], QUERY_BASED_ASSIGNMENT_METHOD)])
         sylph_hits = {}  # S1 not reported by sylph
         deconv = JointDeconvolver()
-        profile = deconv.solve('sample1', otus, sylph_hits, alpha=1.0, l1_penalty=0.5, absence_weight=10.0)
+        profile = deconv.solve('sample1', otus, sylph_hits, alpha=1.0, l1_penalty=0.5, absence_weight=10.0,
+                               min_markers=0)
         cov = deconv.coverage_by_key
         self.assertLess(cov[_canonical_species_key(self.JOINT_SP1)], 0.5)
         self.assertGreater(cov[_canonical_species_key(self.JOINT_GENUS)], 3.0)
