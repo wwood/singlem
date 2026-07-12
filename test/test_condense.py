@@ -369,13 +369,17 @@ class Tests(unittest.TestCase):
 
     def test_joint_injects_sylph_only_species(self):
         from singlem.condense_joint import JointDeconvolver
-        # No SingleM evidence at all; sylph reports S1 at eff_cov 4. With l1=1,
-        # the soft threshold gives a = 4 - l1/2 = 3.5.
+        # No SingleM evidence at all; sylph reports S1 at eff_cov 4. The soft threshold
+        # gives a = eff_cov - l1_penalty / (2 * sylph_weight): the more the model defers
+        # to sylph, the less the l1 penalty shrinks a species sylph alone supports.
         otus = self._joint_otus([])
         sylph_hits = {_canonical_species_key(self.JOINT_SP1): SylphHit(self.JOINT_SP1, 4.0)}
-        deconv = JointDeconvolver()
-        deconv.solve('sample1', otus, sylph_hits, alpha=1.0, l1_penalty=1.0)
-        self.assertAlmostEqual(3.5, deconv.coverage_by_key[_canonical_species_key(self.JOINT_SP1)], places=2)
+        for sylph_weight, expected in [(1.0, 3.5), (50.0, 3.99)]:
+            deconv = JointDeconvolver()
+            deconv.solve('sample1', otus, sylph_hits, alpha=1.0, l1_penalty=1.0,
+                         sylph_weight=sylph_weight)
+            self.assertAlmostEqual(
+                expected, deconv.coverage_by_key[_canonical_species_key(self.JOINT_SP1)], places=2)
 
     def test_joint_absent_species_routed_to_novel(self):
         from singlem.condense_joint import JointDeconvolver

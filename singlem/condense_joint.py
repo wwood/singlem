@@ -35,7 +35,7 @@ class JointDeconvolver:
     fit by variable projection; SingleM rows are robustified by IRLS.'''
 
     def solve(self, sample, sample_otus, sylph_hits, domain_marker_counts=None, alpha=None,
-              l1_penalty=1.0, absence_weight=100.0, sylph_weight=1.0, min_markers=3,
+              l1_penalty=1.0, absence_weight=100.0, sylph_weight=50.0, min_markers=3,
               max_outer_iterations=25, tolerance=1e-4, prune_below=0.05,
               min_singlem_coverage=0.35, robust_coverage_floor=1.0, robust_min_weight=1e-3,
               alpha_min_coverage=0.1, coherence_weight=1000.0):
@@ -97,9 +97,37 @@ class JointDeconvolver:
         sylph_w = np.full(len(sylph_col), float(sylph_weight))
         absence_col = np.array(absence_col, dtype=int)
 
+        centres = self._column_marker_centres(columns, unique_marker_coverage, num_columns, min_markers)
+
+        # Alpha, the scale between sylph's coverage units and SingleM's, is anchored to
+        # the species' unambiguous marker coverages -- evidence that does not depend on
+        # the fit. Estimating it from the fitted coverages instead is degenerate as soon
+        # as the model defers to sylph: the fit then sits at a = e/alpha, which satisfies
+        # the sylph rows for *any* alpha, so alpha is pinned only by whatever weight the
+        # SingleM rows still carry, and it drifts. Alpha drifting is not a cosmetic
+        # problem: the sylph-supported species are placed on sylph's scale while the
+        # novel columns, which sylph cannot see, stay on SingleM's, and a profile whose
+        # taxa are on two different scales has the wrong composition even when every
+        # individual coverage looks plausible.
         if alpha is None:
             current_alpha = 1.0
             fit_alpha = len(sylph_col) > 0
+            # Any unambiguous marker will do to anchor the scale, so this does not wait
+            # for the min_markers the coherence ceiling insists on: a noisy anchor from
+            # one marker is worth more than an alpha free to drift.
+            ratios = []
+            for i, c in enumerate(sylph_col):
+                markers = unique_marker_coverage.get(int(c))
+                if not markers:
+                    continue
+                singlem_coverage = float(np.median(list(markers.values())))
+                if singlem_coverage > 0:
+                    ratios.append(sylph_eff[i] / singlem_coverage)
+            if len(ratios) > 0:
+                current_alpha = float(np.median(ratios))
+                fit_alpha = False
+                logging.info("Anchored alpha={:.4f} to the unambiguous marker coverage of {} "
+                             "sylph species".format(current_alpha, len(ratios)))
         else:
             current_alpha = float(alpha)
             fit_alpha = False
@@ -133,7 +161,6 @@ class JointDeconvolver:
 
         a = np.zeros(num_columns)
         singlem_weights = np.ones(num_singlem)
-        centres = self._column_marker_centres(columns, unique_marker_coverage, num_columns, min_markers)
 
         def optimise(current_a, current_alpha, singlem_weights):
             """Optimise once for the currently permitted candidate columns."""
@@ -340,8 +367,13 @@ class JointDeconvolver:
                 coverages = unique_marker_coverage.setdefault(sole, {})
                 coverages[otu.marker] = coverages.get(otu.marker, 0.0) + otu.coverage
 
-        # Ensure every sylph-reported species has a column, even sylph-only ones.
-        for hit in sylph_hits.values():
+        # Ensure every sylph-reported species has a column, even sylph-only ones. Sorted,
+        # because column order must not depend on dict iteration order: the least-squares
+        # problem has degenerate directions (a shared row cannot say which of its columns
+        # owns the coverage), so a permutation of the columns moves where the optimiser
+        # lands within them, and runs would not reproduce.
+        for key in sorted(sylph_hits):
+            hit = sylph_hits[key]
             if _is_species_string(hit.taxonomy):
                 species_column(hit.taxonomy)
 
@@ -426,7 +458,7 @@ class JointDeconvolver:
                 cols |= set(c for c in candidates if marker not in unique_markers.get(c, ()))
             # Merge on the deepest clade the window reached: that is the one whose
             # novel coverage this marker is measuring.
-            deepest = max(novel_cols, key=lambda c: len(columns[c].key.split(';')))
+            deepest = max(novel_cols, key=lambda c: (len(columns[c].key.split(';')), c))
             entry = clade_rows.setdefault((marker, deepest), [0.0, set()])
             entry[0] += coverage
             entry[1].update(cols)
