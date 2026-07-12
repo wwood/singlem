@@ -386,7 +386,7 @@ class JointDeconvolver:
 
         clade_rows = {}  # (marker, novel column) -> [summed coverage, candidate columns]
         for marker, species_cols, clade_keys, tie_column, coverage in otu_targets:
-            cols = set(species_cols)
+            hidden = None
             novel_cols = set()
             if tie_column is not None:
                 novel_cols.add(tie_column)
@@ -398,14 +398,32 @@ class JointDeconvolver:
                     novel_cols.add(hidden)
             for clade_key in clade_keys:
                 novel_cols.add(novel_key_to_index[clade_key])
-                cols.update(clade_to_species.get(clade_key, []))
-            cols |= novel_cols
-            if len(cols) == 0:
-                continue
+
             if len(novel_cols) == 0:
-                key = (marker, frozenset(cols))
+                if len(species_cols) == 0:
+                    continue
+                key = (marker, frozenset(species_cols))
                 aggregated[key] = aggregated.get(key, 0.0) + coverage
                 continue
+
+            cols = set(novel_cols)
+            if hidden is not None:
+                # This window is the species' own, and the coverage it observed is the
+                # species' plus whatever novel organism shares its window here.
+                cols |= species_cols
+            else:
+                # An ambiguous window: a tie across species, or a hit resolving only to
+                # the clade. Its candidates are the clade's species -- except any whose
+                # own window was directly observed on this marker. One organism has one
+                # window per marker, so a species already seen in its own right on this
+                # marker is not also in this marker's ambiguous coverage; its reads are
+                # spent. Leaving it a candidate lets the model pay for the ambiguous
+                # coverage twice over with the same species, which starves the novel
+                # column of precisely the reads that make it novel.
+                candidates = set(species_cols)
+                for clade_key in clade_keys:
+                    candidates.update(clade_to_species.get(clade_key, []))
+                cols |= set(c for c in candidates if marker not in unique_markers.get(c, ()))
             # Merge on the deepest clade the window reached: that is the one whose
             # novel coverage this marker is measuring.
             deepest = max(novel_cols, key=lambda c: len(columns[c].key.split(';')))
