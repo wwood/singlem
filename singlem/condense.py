@@ -193,7 +193,7 @@ class Condenser:
         num_otus_changed = 0
         sequence_ids = set()
 
-        target_domain = [metapackage.singlem_packages[i].target_domains() for i in range(len(metapackage.singlem_packages))]
+        target_domain = set([domain for i in range(len(metapackage.singlem_packages)) for domain in metapackage.singlem_packages[i].target_domains()])
         # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
@@ -216,14 +216,7 @@ class Condenser:
                         taxon_name = sequence_id_to_taxon[seq_id]
                         if not taxon_name[-2].startswith('g__'):
                             if not taxon_name[0] in target_domain:
-                                # # add one check to ensure the target taxon to be d__Eukaryota for all metapackages.
-                                # if all("Eukaryota" in domain for domain in target_domain):
-                                #     # then the bacterial/archaeal sequences are off-target this time. 
-                                #     logging.debug("Ignoring off-target prokaryotic taxon {}".format(taxon_name))
-                                #     continue
-                                # else:
-                                #     raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
-                                continue
+                                raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
                             else:
                                 # This can happen when taxonomy is overall
                                 # Archaea so not previously filtered out, but
