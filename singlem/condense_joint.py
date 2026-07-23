@@ -35,10 +35,11 @@ class JointDeconvolver:
     fit by variable projection; SingleM rows are robustified by IRLS.'''
 
     def solve(self, sample, sample_otus, sylph_hits, domain_marker_counts=None, alpha=None,
-              l1_penalty=1.0, absence_weight=100.0, sylph_weight=50.0, min_markers=3,
+              l1_penalty=1.0, absence_weight=100.0, sylph_weight=150.0, min_markers=3,
               max_outer_iterations=25, tolerance=1e-4, prune_below=0.05,
               min_singlem_coverage=0.35, robust_coverage_floor=1.0, robust_min_weight=1e-3,
-              alpha_min_coverage=0.1, coherence_weight=1000.0, sylph_ceiling=1.5):
+              alpha_min_coverage=0.1, coherence_weight=1000.0, sylph_ceiling=1.5,
+              adaptive_sylph_weight=False, sylph_weight_max_multiplier=100.0):
         try:
             from scipy.optimize import minimize
             from scipy.sparse import csr_matrix
@@ -94,7 +95,8 @@ class JointDeconvolver:
                 absence_col.append(idx)
         sylph_col = np.array(sylph_col, dtype=int)
         sylph_eff = np.array(sylph_eff, dtype=float)
-        sylph_w = np.full(len(sylph_col), float(sylph_weight))
+        # sylph_w (per-species deference weight) is set below, after alpha is anchored,
+        # so the adaptive path can compare each species' marker coverage to sylph's.
         absence_col = np.array(absence_col, dtype=int)
 
         centres = self._column_marker_centres(columns, unique_marker_coverage, num_columns, min_markers)
@@ -148,6 +150,37 @@ class JointDeconvolver:
         # a clade's ambiguous coverage, not to pin it to sylph's third decimal place.
         for i, c in enumerate(sylph_col):
             centres[c] = min(centres[c], sylph_ceiling * sylph_eff[i] / current_alpha)
+
+        # Adaptive per-species deference. The fixed sylph_weight is a compromise: raise
+        # it and the fit tracks sylph's precise genome-wide coverage, which is right when
+        # sylph names the organism that was actually sequenced (a known species); lower
+        # it and SingleM's markers can overrule sylph, which is right when sylph has
+        # matched a diverged strain to the wrong database representative. Neither is
+        # right everywhere, but the sample says which case each species is in: a species
+        # whose own unambiguous markers read the coverage sylph implies (sylph_eff/alpha)
+        # is corroborated, and one whose markers disagree is where sylph and SingleM
+        # genuinely conflict. Alpha is the community-median of exactly this ratio, so
+        # agreement is measured against it for free. The multiplier only ever raises the
+        # weight above the base -- a disagreeing species keeps the base weight that the
+        # novel-strain benchmarks are tuned for, while a corroborated one is trusted up
+        # to sylph_weight_max_multiplier times as much. Species with no unambiguous
+        # markers (including sylph-only injections) have no independent evidence and keep
+        # the base weight.
+        sylph_w = np.full(len(sylph_col), float(sylph_weight))
+        if adaptive_sylph_weight and len(sylph_col) > 0 and current_alpha > 0:
+            for i, c in enumerate(sylph_col):
+                markers = unique_marker_coverage.get(int(c))
+                if not markers:
+                    continue
+                observed = float(np.median(list(markers.values())))
+                predicted = sylph_eff[i] / current_alpha
+                lo, hi = min(observed, predicted), max(observed, predicted)
+                if hi < robust_coverage_floor:
+                    continue  # both near zero; no informative ratio
+                agreement = lo / hi if hi > 0 else 0.0  # in [0, 1]; 1 == exact match
+                sylph_w[i] = float(sylph_weight) * (1.0 + (sylph_weight_max_multiplier - 1.0) * agreement)
+            logging.info("Adaptive sylph weight over {} species: multiplier median {:.1f}, max {:.1f}".format(
+                len(sylph_w), float(np.median(sylph_w / sylph_weight)), float(np.max(sylph_w / sylph_weight))))
 
         logging.info("Joint deconvolution of sample {}: {} columns ({} sylph species, {} SingleM-only "
             "candidates), {} SingleM rows".format(sample, num_columns, len(sylph_col), len(absence_col), num_singlem))

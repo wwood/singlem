@@ -12,6 +12,16 @@ DATASETS = {
         "reverse": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/toy_sim/marine0.2.fq.gz",
         "truth": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/toy_sim/marine0.condensed",
     },
+    "known100": {
+        "forward": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking/5_100_species_known/generated_reads/known0.1.fq.gz",
+        "reverse": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking/5_100_species_known/generated_reads/known0.2.fq.gz",
+        "truth": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking/5_100_species_known/truths/known0.condensed",
+    },
+    "known100_shadow": {
+        "forward": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking/6_100_species_known_shadow_strains/generated_reads/known0.1.fq.gz",
+        "reverse": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking/6_100_species_known_shadow_strains/generated_reads/known0.2.fq.gz",
+        "truth": "/home/woodcrob/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking/6_100_species_known_shadow_strains/truths/known0.condensed",
+    },
 }
 
 METHODS = ["singlem", "singlem_sylph", "weebill"]
@@ -27,7 +37,7 @@ SINGLEM = Path(
 SINGLEM_ENV_BIN = SINGLEM.parent
 WEEBILL = Path("/home/woodcrob/git/weebill/target/release/weebill")
 WEEBILL_DB = Path(
-    "/home/woodcrob/m/msingle/mess/230_weebill_r232/r207.100.syl2db"
+    "/scratch/microbiome/woodcrob/non_sensitive/weebill_dbs/r207.100.syl2db"
 )
 SNAKEMAKE = Path("/home/woodcrob/e/snakemake-v9.9.0/bin/snakemake")
 BENCHMARKING_REPO = Path("/home/woodcrob/git/singlem-benchmarking")

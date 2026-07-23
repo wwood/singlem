@@ -1,8 +1,13 @@
 # SingleM, SingleM+sylph, and weebill benchmark
 
-This workflow benchmarks three end-to-end profiling modes on the `known50` and
-`toy_sim` paired-read datasets in
+This workflow benchmarks three end-to-end profiling modes on the `known50`,
+`toy_sim`, and `known100` paired-read datasets in
 `~/m/msingle/mess/231_singlem2_messing_more`:
+
+The `known100` dataset is the `5_100_species_known` benchmark from
+`~/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking`: 100 GTDB r207
+species simulated from their representative genomes (so every species is present
+in the reference databases).
 
 - standard SingleM (`singlem pipe --no-sylph`), using the GTDB r207 SingleM
   metapackage;

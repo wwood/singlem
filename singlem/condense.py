@@ -79,6 +79,7 @@ class Condenser:
         joint_l1_penalty = kwargs.pop('joint_l1_penalty', 1.0)
         joint_absence_weight = kwargs.pop('joint_absence_weight', 100.0)
         joint_min_markers = kwargs.pop('joint_min_markers', 3)
+        joint_adaptive_sylph_weight = kwargs.pop('joint_adaptive_sylph_weight', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
@@ -128,7 +129,8 @@ class Condenser:
             sylph_hits = self._sylph_hits_for_sample(sample, sylph_sample_to_hits) if sylph_profile is not None else None
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
                 True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
-                sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers)
+                sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers,
+                joint_adaptive_sylph_weight)
 
     def _validate_sylph_against_metapackage(self, sylph_sample_to_hits, metapackage):
         '''Shared-DB sanity check: warn if many sylph species are not found among
@@ -163,7 +165,8 @@ class Condenser:
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
             output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None,
-            joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3):
+            joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3,
+            joint_adaptive_sylph_weight=False):
 
 
         # Remove off-target OTUs genes
@@ -206,6 +209,7 @@ class Condenser:
                 domain_marker_counts=domain_marker_counts,
                 alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
                 min_markers=joint_min_markers,
+                adaptive_sylph_weight=joint_adaptive_sylph_weight,
                 min_singlem_coverage=min_taxon_coverage)
             # No push-down of genus coverage into species here. The trimmed-mean condense
             # needs it because it has no way to say "something in this genus that is not
