@@ -15,3 +15,6 @@ extras/new_package_creation/singlem_new_metapackage_working_directory/
 # pixi environments
 .pixi
 *.egg-info
+decoyed_*
+singlem_bacteria.csv
+singlem_run_plastidmpkg.log
