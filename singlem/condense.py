@@ -199,7 +199,11 @@ class Condenser:
 
         num_otus_changed = 0
         sequence_ids = set()
-        target_domain = set([domain for i in range(len(metapackage.singlem_packages)) for domain in metapackage.singlem_packages[i].target_domains()])
+        target_domains = set(
+            _bare(d)
+            for spkg in metapackage.singlem_packages
+            for d in spkg.target_domains()
+        )
         
         def _bare_domain(s):
             return s[3:] if len(s) > 3 and s[1:3] == '__' else s
@@ -225,13 +229,17 @@ class Condenser:
                 for seq_id_list in otu.equal_best_hit_taxonomies():
                     for seq_id in seq_id_list:
                         taxon_name = sequence_id_to_taxon[seq_id]
-                        names = taxon_name[1:] if taxon_name and taxon_name[0] == 'Root' else taxon_name
+                        names = taxon_name[1:] if taxon_name[0] == 'Root' else taxon_name
                         if len(names) < 2 or not names[-2].startswith('g__'):
-                            if not names or _bare_domain(names[0]) not in target_domain:
-                                raise Exception(
-                                    "Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
-                            logging.debug("Ignoring non-genus-resolved hit {}".format(taxon_name))
-                            continue
+                            if names and _bare(names[0]) not in target_domains:
+                                # Off-target domain (e.g. euk hit under a
+                                # bacteria/archaea-only metapackage): reference
+                                # taxonomy for these is often ragged, and the
+                                # hit is discarded regardless.
+                                logging.debug("Ignoring off-target equal-best hit {}".format(taxon_name))
+                                continue
+                            raise Exception(
+                                "Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
                         # Record only to genus level
                         if taxon_name[0] != 'Root':
                             taxon_name = ['Root']+taxon_name
