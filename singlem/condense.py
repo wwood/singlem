@@ -78,7 +78,7 @@ class Condenser:
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
 
         markers = {} # set of markers used to the domains they target
-        target_domains = {}
+        target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
         
         for spkg in metapackage.singlem_packages:
             # ensure v3 packages
@@ -88,9 +88,16 @@ class Condenser:
             markers[marker_name] = spkg.target_domains()
             # count number of markers for each domain
             for domain in spkg.target_domains():
-                if domain not in target_domains:
-                    target_domains[domain] = []
-                target_domains[domain].append(marker_name)
+                if domain == "Archaea":
+                    target_domains["Archaea"] += [marker_name]
+                elif domain == "Bacteria":
+                    target_domains["Bacteria"] += [marker_name]
+                elif domain == "Eukaryota":
+                    target_domains["Eukaryota"] += [marker_name]
+                elif domain == "Viruses":
+                    target_domains["Viruses"] += [marker_name]
+                else:
+                    raise Exception("Domain: {} not supported.".format(domain))
                 
         for domain in target_domains:
             if target_domains[domain] in [1, 2]:
@@ -192,8 +199,11 @@ class Condenser:
 
         num_otus_changed = 0
         sequence_ids = set()
-
         target_domain = set([domain for i in range(len(metapackage.singlem_packages)) for domain in metapackage.singlem_packages[i].target_domains()])
+        
+        def _bare_domain(s):
+            return s[3:] if len(s) > 3 and s[1:3] == '__' else s
+        
         # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
@@ -201,6 +211,7 @@ class Condenser:
                     for seq_id in seq_id_list:
                         sequence_ids.add(seq_id)
 
+        
         # Step 2: Get taxon strings
         sequence_id_to_taxon = metapackage.get_taxonomy_of_reads(sequence_ids)
 
@@ -214,15 +225,13 @@ class Condenser:
                 for seq_id_list in otu.equal_best_hit_taxonomies():
                     for seq_id in seq_id_list:
                         taxon_name = sequence_id_to_taxon[seq_id]
-                        if not taxon_name[-2].startswith('g__'):
-                            if not taxon_name[0] in target_domain:
-                                raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
-                            else:
-                                # This can happen when taxonomy is overall
-                                # Archaea so not previously filtered out, but
-                                # equal-best to Euk
-                                logging.debug("Ignoring equal-best hit Eukaryotic taxon {}".format(taxon_name))
-                                continue
+                        names = taxon_name[1:] if taxon_name and taxon_name[0] == 'Root' else taxon_name
+                        if len(names) < 2 or not names[-2].startswith('g__'):
+                            if not names or _bare_domain(names[0]) not in target_domain:
+                                raise Exception(
+                                    "Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
+                            logging.debug("Ignoring non-genus-resolved hit {}".format(taxon_name))
+                            continue
                         # Record only to genus level
                         if taxon_name[0] != 'Root':
                             taxon_name = ['Root']+taxon_name
