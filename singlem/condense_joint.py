@@ -5,8 +5,10 @@ import numpy as np
 from .condense import (
     WordNode,
     CondensedCommunityProfile,
+    DEFAULT_TRIM_PERCENT,
     _canonical_species_key,
     _gtdb_string_to_wordnode_array,
+    _tmean,
 )
 
 
@@ -39,15 +41,16 @@ class JointDeconvolver:
               max_outer_iterations=25, tolerance=1e-4, prune_below=0.05,
               min_singlem_coverage=0.35, robust_coverage_floor=1.0, robust_min_weight=1e-3,
               alpha_min_coverage=0.1, coherence_weight=1000.0, sylph_ceiling=1.5,
-              adaptive_sylph_weight=False, sylph_weight_max_multiplier=100.0):
+              adaptive_sylph_weight=False, sylph_weight_max_multiplier=100.0,
+              trim_percent=DEFAULT_TRIM_PERCENT / 100.0):
         try:
             from scipy.optimize import minimize
             from scipy.sparse import csr_matrix
         except ImportError:
             raise Exception("condense --joint requires scipy, which could not be imported")
 
-        columns, singlem_rows, observed_marker_count, unique_marker_count, unique_marker_coverage = \
-            self._build_columns_and_singlem_rows(sample_otus, sylph_hits, min_markers)
+        columns, singlem_rows, observed_marker_count, unique_marker_count, unique_marker_coverage, \
+            rollup_per_marker = self._build_columns_and_singlem_rows(sample_otus, sylph_hits, min_markers)
         if len(columns) == 0:
             logging.warning("Sample {}: no SingleM or sylph taxa to deconvolve".format(sample))
             return CondensedCommunityProfile(sample, WordNode(None, 'Root'))
@@ -100,6 +103,19 @@ class JointDeconvolver:
         absence_col = np.array(absence_col, dtype=int)
 
         centres = self._column_marker_centres(columns, unique_marker_coverage, num_columns, min_markers)
+        # A rolled-up novel placement is held to the zero-padded trimmed mean of its
+        # per-marker coverage over its domain's full marker complement -- the same summary
+        # the standard condense computes for a taxon. A placement seen on nearly its whole
+        # complement (coherent novelty) keeps its coverage; one seen on a handful of
+        # markers (a misassignment sink) is padded with zeros toward its noise floor and
+        # the spikes are trimmed, so it cannot inflate into fabricated novelty.
+        for placement, per_marker_coverages in rollup_per_marker.items():
+            domain = columns[placement].key.split(';')[0].replace('d__', '')
+            total = max(domain_marker_counts.get(domain, len(per_marker_coverages)),
+                        len(per_marker_coverages))
+            padded = per_marker_coverages + [0.0] * (total - len(per_marker_coverages))
+            ceiling = _tmean(padded, trim_percent) if trim_percent > 0 else sum(padded) / total
+            centres[placement] = min(centres[placement], ceiling)
 
         # Alpha, the scale between sylph's coverage units and SingleM's, is anchored to
         # the species' unambiguous marker coverages -- evidence that does not depend on
@@ -567,9 +583,169 @@ class JointDeconvolver:
         singlem_rows.extend(
             (sorted(cols), coverage, marker) for (marker, _), (coverage, cols) in clade_rows.items())
 
+        # A phylogenetically novel organism scatters its markers across many
+        # genus-level novel columns of one marker each, none clearing the floor;
+        # settle them onto the deepest ancestor clade whose subtree does.
+        singlem_rows, rollup_per_marker = self._rollup_novel_columns(
+            columns, singlem_rows, novel_key_to_index,
+            observed_markers, unique_markers, unique_marker_coverage, min_markers)
+
         observed_marker_count = [len(observed_markers.get(i, ())) for i in range(len(columns))]
         unique_marker_count = [len(unique_markers.get(i, ())) for i in range(len(columns))]
-        return columns, singlem_rows, observed_marker_count, unique_marker_count, unique_marker_coverage
+        return (columns, singlem_rows, observed_marker_count, unique_marker_count,
+                unique_marker_coverage, rollup_per_marker)
+
+    def _rollup_novel_columns(self, columns, singlem_rows, novel_key_to_index,
+                              observed_markers, unique_markers, unique_marker_coverage,
+                              min_markers):
+        '''Settle scattered novel columns onto the deepest ancestor clade whose subtree
+        gathers at least min_markers distinct unique markers, and remap the SingleM rows
+        onto those placements. Returns (singlem_rows, rollup_per_marker); mutates columns
+        and the marker dicts in place. rollup_per_marker maps each placement that
+        aggregated more than one source column to its list of per-marker total coverages,
+        from which solve() builds a coherence ceiling (see below).
+
+        A phylogenetically novel organism with no database representative produces no
+        novel column of its own. Each of its single-copy markers matches a different
+        database relative and resolves only to that relative's genus, so its signal
+        scatters into many genus-level novel columns of one marker each. None clears the
+        identifiability floor (default three unique markers), so every one is fixed to
+        zero and the organism vanishes from the profile -- even though, taken together,
+        its markers are overwhelming evidence of novelty at some higher rank (its phylum,
+        or the domain). Standard condense sees this correctly, booking the reads to
+        d__Bacteria; the deconvolution must not do worse.
+
+        A marker resolving to a novel genus is equally evidence of novelty in every clade
+        above it, up to the domain. We therefore let each novel signal settle at the
+        deepest ancestor clade whose whole subtree musters min_markers distinct unique
+        markers, merging the scattered genus columns into that ancestor so it clears the
+        floor and is priced by the padding of its full marker complement. A genus that
+        already clears the floor on its own -- an abundant novel Streptomyces, say --
+        settles at itself and keeps its markers; it does not roll up. With min_markers of
+        zero every node settles at its own key, so this is a no-op.
+
+        Coherence of a rolled-up placement. A rolled-up ancestor is also where an abundant
+        organism's misassignments collect: reads that mis-hit a foreign marker and tie
+        broadly across the ancestor's subtree. Those are a couple of enormous rows amid
+        noise -- in known50, two archaeal markers carry 793x and 379x against a background
+        of ~3x (Streptomyces/Dickeya reads landing on archaeal-specific markers and tying
+        across the archaeal tree) -- and once the genus columns they tied across are
+        emptied into the ancestor, the ancestor is their sole bidder and, ungoverned,
+        fits their mean: a 32x archaeal novelty where the truth is zero. So each rolled-up
+        placement is given a coherence ceiling (in solve()) equal to the zero-padded,
+        trimmed mean of its per-marker coverage over its domain's full marker complement
+        -- exactly the summary the standard condense computes for a taxon. The distinction
+        that saves it is the one the standard algorithm already relies on: a genuinely
+        novel lineage is seen on nearly its whole marker complement (the novel bacterial
+        half here is on ~34 of the bacterial markers, so its padded trimmed mean is ~10x),
+        whereas a misassignment sink is seen on a handful (the archaeal sinks on 3-6 of
+        ~30, so padding with zeros and trimming the two spikes leaves a mean near zero).
+        A column settled on its own is exempt, as every novel column was before: it is one
+        thing SingleM resolved directly, not an aggregate, so the mixture argument in
+        _column_marker_centres still applies.'''
+        if min_markers <= 0:
+            return singlem_rows, {}
+        novel_cols = [i for i, c in enumerate(columns) if c.kind == 'novel']
+        if len(novel_cols) == 0:
+            return singlem_rows, {}
+
+        # The forest of novel columns and every ancestor prefix of one. A node's parent
+        # is the prefix one rank shorter; the domain (depth-1 prefix) is a root, so the
+        # forest never merges across domains.
+        own_col = {columns[i].key: i for i in novel_cols}
+        nodes = set()
+        for i in novel_cols:
+            ranks = columns[i].key.split(';')
+            for depth in range(1, len(ranks) + 1):
+                nodes.add(';'.join(ranks[:depth]))
+        children = {n: [] for n in nodes}
+        for n in nodes:
+            ranks = n.split(';')
+            if len(ranks) > 1:
+                children[';'.join(ranks[:-1])].append(n)
+
+        # Bottom-up: each node unions the still-rising markers of its unsettled children
+        # with its own and settles -- becoming the placement for its whole pending
+        # subtree -- as soon as the union reaches min_markers. Deepest-first ordering
+        # makes each column settle at the deepest ancestor that qualifies; a settled node
+        # is consumed and does not propagate its markers further up.
+        pending = {}   # node -> (unique set, observed set, [column indices]) still rising
+        settled = {}   # node -> (unique set, observed set, [column indices]) placed here
+        for node in sorted(nodes, key=lambda n: len(n.split(';')), reverse=True):
+            unique, observed, cols = set(), set(), []
+            for child in children[node]:
+                if child in pending:
+                    child_unique, child_observed, child_cols = pending[child]
+                    unique |= child_unique
+                    observed |= child_observed
+                    cols += child_cols
+            col = own_col.get(node)
+            if col is not None:
+                unique |= unique_markers.get(col, set())
+                observed |= observed_markers.get(col, set())
+                cols.append(col)
+            if len(unique) >= min_markers:
+                settled[node] = (unique, observed, cols)
+            else:
+                pending[node] = (unique, observed, cols)
+
+        # Materialise each settled node as a novel column (creating an ancestor where
+        # none existed) carrying the whole subtree's evidence: its unique markers clear
+        # the floor and its observed markers set the padding of its marker complement.
+        remap = {}
+        multi_source = set()
+        for node, (unique, observed, cols) in settled.items():
+            placement = own_col.get(node)
+            if placement is None:
+                placement = len(columns)
+                columns.append(_Column('novel', node, node))
+                novel_key_to_index[node] = placement
+            unique_markers[placement] = set(unique)
+            observed_markers[placement] = set(observed)
+            coverage = {}
+            for c in cols:
+                for marker, value in unique_marker_coverage.get(c, {}).items():
+                    coverage[marker] = coverage.get(marker, 0.0) + value
+            unique_marker_coverage[placement] = coverage
+            if len(cols) > 1:
+                multi_source.add(placement)
+            for c in cols:
+                remap[c] = placement
+
+        # A column rolled into an ancestor is emptied so the floor fixes it to zero; a
+        # column settled at itself keeps its markers unchanged.
+        for c in novel_cols:
+            placement = remap.get(c)
+            if placement is not None and placement != c:
+                unique_markers.pop(c, None)
+                observed_markers.pop(c, None)
+                unique_marker_coverage.pop(c, None)
+
+        # Remap the novel columns each SingleM row carries onto their placements, then
+        # re-merge rows that become identical, summing coverage so each marker's
+        # clade-level coverage stays additive.
+        merged = {}
+        for cols, coverage, marker in singlem_rows:
+            new_cols = frozenset(remap.get(c, c) for c in cols)
+            key = (marker, new_cols)
+            merged[key] = merged.get(key, 0.0) + coverage
+        rows = [(sorted(cols), coverage, marker) for (marker, cols), coverage in merged.items()]
+
+        # Per-marker total coverage of each rolled-up placement (summing every row that
+        # loads it, grouped by marker). solve() turns these into a coherence ceiling with
+        # the same zero-padded trimmed mean the standard condense uses to summarise a
+        # taxon, so a placement seen on few of its domain's markers -- a misassignment
+        # sink -- is held near zero, while one seen on nearly its whole complement keeps
+        # its coverage.
+        rollup_per_marker = {}
+        for placement in multi_source:
+            per_marker = {}
+            for cols, coverage, marker in rows:
+                if placement in cols:
+                    per_marker[marker] = per_marker.get(marker, 0.0) + coverage
+            if per_marker:
+                rollup_per_marker[placement] = list(per_marker.values())
+        return rows, rollup_per_marker
 
     def _column_marker_centres(self, columns, unique_marker_coverage, num_columns, min_markers):
         '''For each species column, the median coverage of the markers that resolve to

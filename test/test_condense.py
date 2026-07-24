@@ -424,6 +424,57 @@ class Tests(unittest.TestCase):
                  min_singlem_coverage=0.0)
         self.assertGreater(d1.coverage_by_key.get(s2, 0.0), 0.0)
 
+    # Genus-level novel columns in three different phyla; their only shared rank is the
+    # domain, so a rollup settles them there.
+    ROLLUP_G1 = 'd__Bacteria;p__P1;c__C1;o__O1;f__F1;g__G1'
+    ROLLUP_G2 = 'd__Bacteria;p__P2;c__C2;o__O2;f__F2;g__G2'
+    ROLLUP_G3 = 'd__Bacteria;p__P3;c__C3;o__O3;f__F3;g__G3'
+
+    def test_joint_scattered_novel_markers_roll_up_to_common_ancestor(self):
+        from singlem.condense_joint import JointDeconvolver
+        # A phylogenetically novel organism with no database representative matches a
+        # different database relative on every marker, so its signal scatters into several
+        # genus-level novel columns of one marker each. None clears the min_markers floor
+        # alone, so without rollup all are zeroed and the organism vanishes. Rolled up,
+        # their shared evidence of novelty settles on their common ancestor -- here, since
+        # the three genera lie in different phyla, the domain -- and is reported there. The
+        # organism is seen on all three of its domain's markers, so its zero-padded trimmed
+        # mean is its full ~10x.
+        otus = self._joint_otus([
+            (10.0, [self.ROLLUP_G1], QUERY_BASED_ASSIGNMENT_METHOD),
+            (10.0, [self.ROLLUP_G2], QUERY_BASED_ASSIGNMENT_METHOD),
+            (10.0, [self.ROLLUP_G3], QUERY_BASED_ASSIGNMENT_METHOD),
+        ])
+        deconv = JointDeconvolver()
+        profile = deconv.solve('sample1', otus, {}, domain_marker_counts={'Bacteria': 3},
+                               alpha=1.0, min_markers=3)
+        cov = deconv.coverage_by_key
+        for g in (self.ROLLUP_G1, self.ROLLUP_G2, self.ROLLUP_G3):
+            self.assertEqual(0.0, cov.get(_canonical_species_key(g), 0.0))
+        self.assertGreater(cov.get('d__Bacteria', 0.0), 8.0)
+        # The novelty sits on the domain node of the tree, not any genus leaf.
+        self.assertGreater(self._coverage_of(profile, 'd__Bacteria'), 8.0)
+
+    def test_joint_rollup_misassignment_sink_is_held_near_zero(self):
+        from singlem.condense_joint import JointDeconvolver
+        # A clade with nothing truly novel in it still collects scattered genus columns --
+        # an abundant organism's reads mis-hitting foreign markers and tying across the
+        # clade -- and once rolled up the clade is their sole bidder. But a misassignment
+        # sink is seen on only a handful of its domain's markers, even when those carry
+        # enormous coverage (here one 1000x spike). Ungoverned the ancestor would fit the
+        # mean of its detected markers and fabricate novelty; held instead to the same
+        # zero-padded trimmed mean the standard condense uses -- three markers out of a
+        # thirty-marker domain, the spike trimmed -- it stays near zero.
+        otus = self._joint_otus([
+            (1000.0, [self.ROLLUP_G1], QUERY_BASED_ASSIGNMENT_METHOD),  # misassignment spike
+            (2.0, [self.ROLLUP_G2], QUERY_BASED_ASSIGNMENT_METHOD),
+            (2.0, [self.ROLLUP_G3], QUERY_BASED_ASSIGNMENT_METHOD),
+        ])
+        deconv = JointDeconvolver()
+        deconv.solve('sample1', otus, {}, domain_marker_counts={'Bacteria': 30},
+                     alpha=1.0, min_markers=3)
+        self.assertLess(deconv.coverage_by_key.get('d__Bacteria', 0.0), 1.0)
+
     def test_joint_species_level_tie_is_evidence_for_the_novel_clade(self):
         from singlem.condense_joint import JointDeconvolver
         # A novel organism in a genus whose species are all in the database need never

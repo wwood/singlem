@@ -210,7 +210,7 @@ class Condenser:
                 alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
                 min_markers=joint_min_markers,
                 adaptive_sylph_weight=joint_adaptive_sylph_weight,
-                min_singlem_coverage=min_taxon_coverage)
+                min_singlem_coverage=min_taxon_coverage, trim_percent=trim_percent)
             # No push-down of genus coverage into species here. The trimmed-mean condense
             # needs it because it has no way to say "something in this genus that is not
             # one of these species", so coverage stranded at the genus node is assumed to
