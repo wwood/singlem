@@ -1,10 +1,12 @@
 import os
+import sys
 import logging
 import extern
 from Bio import SeqIO
 from io import StringIO
 import multiprocessing
 import tempfile
+from tqdm import tqdm
 
 from graftm.hmmsearcher import HmmSearcher
 
@@ -339,7 +341,8 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
             spkg.window_size(),
             include_inserts,
             spkg.is_protein_package(), # Always true
-            best_position=spkg.singlem_position()))
+            best_position=spkg.singlem_position(),
+            full_nucleotide_sequence_lengths=prefilter_result.query_sequence_lengths))
 
 
     logging.debug("[PID: {}] Found {} window sequences for spkg {}".format(pid, len(window_seqs),spkg.base_directory()))
@@ -373,18 +376,42 @@ class PipeSequenceExtractor:
                         sample_name, singlem_package):
                     to_iterate.append((sample_name, singlem_package, sequence_files_for_alignment, separate_search_result, include_inserts, known_taxonomy))
 
+        # Calculate totals for progress bar
+        num_samples = len(separate_search_result.sample_names())
+        num_packages = len(singlem_package_database.singlem_packages)
+        total_work_units = len(to_iterate)
+
         # Multiprocess across all instances if num_threads > 1
+        logging.info("Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads))
+        do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
+        logging_counter = 0
         if num_threads > 1:
             pool = multiprocessing.Pool(num_threads)
             extraction_processes = [pool.apply_async(_run_individual_extraction, args=myargs) for myargs in to_iterate]
-            for readset_possibly_paired_process in extraction_processes:
-                extracted_reads.add(readset_possibly_paired_process.get())
+            with tqdm(
+                total=total_work_units,
+                unit="sample×pkg",
+                disable=do_logging) as pbar:
+                for readset_possibly_paired_process in extraction_processes:
+                    extracted_reads.add(readset_possibly_paired_process.get())
+                    pbar.update(1)
+                    if do_logging:
+                        logging_counter += 1
+                        logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
             pool.close()
             pool.join()
         else:
-            for myargs in to_iterate:
-                extracted_reads.add(_run_individual_extraction(*myargs))
-
+            with tqdm(
+                total=total_work_units,
+                unit="sample×pkg",
+                disable=do_logging) as pbar:
+                for myargs in to_iterate:
+                    extracted_reads.add(_run_individual_extraction(*myargs))
+                    pbar.update(1)
+                    if do_logging:
+                        logging_counter += 1
+                        logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
+        logging.info("After read extraction, {} sequence(s) remain".format(extracted_reads.sequence_count()))
         return extracted_reads
 
 
@@ -409,6 +436,11 @@ class PipeSequenceExtractor:
         else:
             pool = None
 
+        # Calculate totals for progress bar
+        num_samples = len(diamond_forward_search_results)
+        num_packages = len(singlem_package_database.singlem_packages)
+        total_work_units = num_samples * num_packages
+
         logging.debug("Aligning and extracting forward reads ..")
         logging.debug("Extracting reads from {} forward search results".format(len(diamond_forward_search_results)))
         forward_extraction_process_lists_per_sample = []
@@ -430,24 +462,46 @@ class PipeSequenceExtractor:
         # Could pickle the extracted reads an instead return a list of the files 
         # to read from, or write to a fasta.
         # This could improve memory even more, but might slow it down.
-        if analysing_pairs:
-            for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
-                for (fwd, rev) in zip(fwds, revs):
-                    if pool is None:
-                        extracted_reads.add((fwd, rev))
-                    else:
-                        extracted_reads.add((fwd.get(), rev.get()))
-        else:
-            for fwds in forward_extraction_process_lists_per_sample:
-                for fwd in fwds:
-                    if pool is None:
-                        extracted_reads.add(fwd)
-                    else:
-                        extracted_reads.add(fwd.get())
+        
+        # Create unified progress bar description
+        logging.info("Extracting reads from {} sample(s) across {} package(s) using {} thread(s)".format(num_samples, num_packages, num_threads))
+        
+        do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
+        with tqdm(
+            total=total_work_units,
+            desc='Extracting reads',
+            unit="sample×pkg",
+            disable=do_logging) as pbar:
+            logging_counter = 0
+            if analysing_pairs:
+                for (fwds, revs) in zip(forward_extraction_process_lists_per_sample,reverse_extraction_process_lists_per_sample):
+                    for (fwd, rev) in zip(fwds, revs):
+                        if pool is None:
+                            extracted_reads.add((fwd, rev))
+                        else:
+                            extracted_reads.add((fwd.get(), rev.get()))
+                        pbar.update(1)
+                        if do_logging:
+                            logging_counter += 1
+                            logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
+            else:
+                for fwds in forward_extraction_process_lists_per_sample:
+                    for fwd in fwds:
+                        if pool is None:
+                            extracted_reads.add(fwd)
+                        else:
+                            extracted_reads.add(fwd.get())
+                        pbar.update(1)
+                        if do_logging:
+                            logging_counter += 1
+                            logging.info("Finished extracting reads for chunk {} of {}".format(logging_counter, total_work_units))
+        
         if pool is not None:
             pool.close()
             pool.join()
         logging.debug("Finished aligning and extracting reads")
+
+        logging.info("After read extraction, {} sequence(s) remain".format(extracted_reads.sequence_count()))
 
         return extracted_reads
 
@@ -533,6 +587,18 @@ class ExtractedReads:
                         return False
         return True
 
+    def sequence_count(self):
+        '''Return the total number of extracted nucleotide reads summed across
+        all readsets.'''
+        total = 0
+        for readsets in self._sample_to_extracted_read_objects.values():
+            for readset in readsets:
+                if self.analysing_pairs:
+                    total += len(readset[0].sequences) + len(readset[1].sequences)
+                else:
+                    total += len(readset.sequences)
+        return total
+
     def each_package_wise(self):
         '''yield once per pkg: [singlem_package, ExtractedReadSet objects with all
         samples / sequences that have extracted sequences from it]
@@ -599,8 +665,12 @@ class ExtractedReadSet:
         # Add each
         for seq in sorted_unknowns:
             start, _, _ = orfm_utils.un_orfm_start_frame_number(seq.orf_name)
+            # Strip the •• internal delimiter (added by diamond_spkg_searcher)
+            # before computing the chromosome name, so un_orfm_name can strip
+            # the orfm suffix correctly.
+            name_for_chrom = seq.name.split('••')[0]
             grange = pr.PyRanges(
-                chromosomes=[orfm_utils.un_orfm_name(seq.name)],
+                chromosomes=[orfm_utils.un_orfm_name(name_for_chrom)],
                 starts=[start],
                 ends=[start + len(seq.unaligned_sequence) - 1], # minus one since edges are inclusive
             )

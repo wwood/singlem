@@ -3,7 +3,8 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - pip
+  - extern
   - python
-  - singlem >= 0.15.0
-  
+  - hmmer
+  - parallel
+  - tqdm

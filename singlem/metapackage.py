@@ -5,7 +5,7 @@ import shutil
 import extern
 import tempfile
 import json
-import pandas as pd
+import polars as pl
 
 import zenodo_backpack
 from zenodo_backpack import ZenodoBackpackMalformedException
@@ -16,8 +16,8 @@ from .metapackage_read_name_store import MetapackageReadNameStore
 
 # These constants should be updated in tandem
 # When updating, also update the name in the set_env_vars.sh script in admin/
-DATA_DEFAULT_VERSION = '5.4.0'
-CURRENT_GTDB_DATABASE_VERSION = 'R226'
+DATA_DEFAULT_VERSION = '6.5.0'
+CURRENT_GTDB_DATABASE_VERSION = 'R232'
 
 GTDB_DATABASE_NAME = 'Genome Taxonomy Database (GTDB)'
 DATA_ENVIRONMENT_VARIABLE = 'SINGLEM_METAPACKAGE_PATH'
@@ -110,7 +110,7 @@ class Metapackage:
     def acquire_default_backpack():
         logging.debug("Acquiring SingleM packages from environment variable")
         if DATA_ENVIRONMENT_VARIABLE not in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(DATA_ENVIRONMENT_VARIABLE, DATA_DOI))
         try:
             backpack = zenodo_backpack.acquire(env_var_name=DATA_ENVIRONMENT_VARIABLE, version=DATA_DEFAULT_VERSION)
         except KeyError:
@@ -120,10 +120,11 @@ class Metapackage:
             path = Path(original_directory)
             backpack = zenodo_backpack.acquire(path=path.parent, version=DATA_DEFAULT_VERSION)
         except ZenodoBackpackMalformedException as e:
-            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable.".format(
+            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable. The metapackage can also be downloaded manually from https://doi.org/{}".format(
                 DATA_ENVIRONMENT_VARIABLE,
                 DATA_DEFAULT_VERSION,
                 DATA_ENVIRONMENT_VARIABLE,
+                DATA_DOI,
                 )) from e
         return backpack
 
@@ -131,7 +132,7 @@ class Metapackage:
     def acquire_lyrebird_backpack():
         logging.debug("Acquiring Lyrebird packages from environment variable")
         if LYREBIRD_DATA_ENVIRONMENT_VARIABLE not in os.environ:
-            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+            raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE, LYREBIRD_DATA_DOI))
         try:
             backpack = zenodo_backpack.acquire(env_var_name=LYREBIRD_DATA_ENVIRONMENT_VARIABLE, version=LYREBIRD_DATA_DEFAULT_VERSION)
         except KeyError:
@@ -141,10 +142,11 @@ class Metapackage:
             path = Path(original_directory)
             backpack = zenodo_backpack.acquire(path=path.parent, version=LYREBIRD_DATA_DEFAULT_VERSION)
         except ZenodoBackpackMalformedException as e:
-            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable.".format(
+            raise Exception("The metapackage defined by the {} environment variable is either malformed or does not match the version encoded in the version of SingleM installed ({}). If you are wanting to run a custom metapackage (or one newer than the installed software) then use the --metapackage flag, rather than specifying the metapackage through the {} environment variable. The metapackage can also be downloaded manually from https://doi.org/{}".format(
                 LYREBIRD_DATA_ENVIRONMENT_VARIABLE,
                 LYREBIRD_DATA_DEFAULT_VERSION,
                 LYREBIRD_DATA_ENVIRONMENT_VARIABLE,
+                LYREBIRD_DATA_DOI,
                 )) from e
         return backpack
 
@@ -275,13 +277,13 @@ class Metapackage:
             data_version = LYREBIRD_DATA_DEFAULT_VERSION
             logging.info("Acquiring Lyrebird packages from environment variable")
             if not LYREBIRD_DATA_ENVIRONMENT_VARIABLE in os.environ:
-                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'singlem data'".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE))
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default Lyrebird metapackage, use 'lyrebird data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(LYREBIRD_DATA_ENVIRONMENT_VARIABLE, LYREBIRD_DATA_DOI))
             backpack = Metapackage.acquire_lyrebird_backpack()
         else:
             data_version = DATA_DEFAULT_VERSION
             logging.info("Acquiring SingleM packages from environment variable")
             if not DATA_ENVIRONMENT_VARIABLE in os.environ:
-                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'".format(DATA_ENVIRONMENT_VARIABLE))
+                raise Exception("The {} environment variable, which points to the default data directory, is not set. To download the default SingleM metapackage, use 'singlem data'. The metapackage can also be downloaded manually from https://doi.org/{}".format(DATA_ENVIRONMENT_VARIABLE, DATA_DOI))
             backpack = Metapackage.acquire_default_backpack()
         
         logging.info("Verifying data with ZenodoBackpack ..")
@@ -449,10 +451,18 @@ class Metapackage:
         fasta_paths = [pkg.graftm_package().unaligned_sequence_database_path() for pkg in self.singlem_packages]
         temp_dmnd = tempfile.NamedTemporaryFile(mode="w", prefix='singlem-diamond-prefilter',
                                                 suffix='.dmnd', delete=False).name
-        cmd = 'cat %s | '\
-            'diamond makedb --in - --db %s' % (' '.join(fasta_paths), temp_dmnd)
 
-        extern.run(cmd)
+        # Recent DIAMOND versions do not accept '--in -' to read the input
+        # FASTA from stdin, so concatenate the per-package FASTA files into a
+        # temporary file and pass that to 'diamond makedb' instead.
+        with tempfile.NamedTemporaryFile(mode="wb", prefix='singlem-diamond-prefilter-input',
+                                         suffix='.fasta') as temp_fasta:
+            for fasta_path in fasta_paths:
+                with open(fasta_path, 'rb') as f:
+                    shutil.copyfileobj(f, temp_fasta)
+            temp_fasta.flush()
+            extern.run('diamond makedb --in %s --db %s' % (temp_fasta.name, temp_dmnd))
+
         extern.run("diamond makeidx -d {}".format(temp_dmnd))
 
         return temp_dmnd
@@ -575,7 +585,7 @@ class Metapackage:
             return None
         if tsv is None:
             return None
-        return pd.read_csv(tsv, sep='\t')
+        return pl.read_csv(tsv, separator='\t')
     
     def taxonomy_database_name(self):
         try:

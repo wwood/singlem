@@ -63,7 +63,7 @@ class SequenceDatabase:
 
     def get_taxonomy_via_cache(self, taxonomy_id):
         if self._taxonomy_cache is None:
-            logging.info('Loading taxonomy cache')
+            logging.debug('Loading taxonomy cache')
             with self.engine.connect() as conn:
                 self._taxonomy_cache = Taxonomy.generate_python_index(conn)
         return self._taxonomy_cache[taxonomy_id]

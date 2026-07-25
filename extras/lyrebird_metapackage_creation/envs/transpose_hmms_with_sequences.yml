@@ -1,0 +1,11 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.6
+  - biopython
+  - gffutils
+  - bcbiogff
+  - extern
+  - pandas

@@ -1,0 +1,8 @@
+name: prodigal-gv
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - prodigal-gv >= 2.11
+  - parallel >= 20210822

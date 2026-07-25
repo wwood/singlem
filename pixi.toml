@@ -9,20 +9,38 @@ platforms = ["linux-64"]
 # the base directory (perhaps symlnked).
 scripts = ["admin/set_env_vars.sh"]
 
-[feature.main.dependencies]
+# Here we list non-python dependencies that are typically needed (mainly singlem
+# pipe). It is useful to separate non-python dependencies from python ones so
+# that users of the "Installation from PyPI" method have an organised set of
+# dependencencies to install.
+[feature.typical-non-python.dependencies]
+# <= because of https://github.com/wwood/singlem/issues/305
+diamond = ">=2.2.3"  # some issues e.g. RAM before this, though not extensively tested.
+hmmer = "*"
+orfm = ">=2.1.1" #2.1.0 was fail.
+mfqe = "*"
+krona = "*"
+smafa = "*"
+
+[feature.typical-python.dependencies]
 python = ">=3.7"
+sqlalchemy = "*"
+bird_tool_utils_python = ">=0.6.0"
+pyranges = "*"
+polars = "*"
+tqdm = "*"
+pyarrow = "*"
+biopython = "*"
+extern = "*"
+zenodo_backpack = ">=0.4.0"
+graftm = "*"
+
+# These dependencies are used alongside the "typical" ones listed above.
+[feature.main.dependencies]
 coreutils = "*" # So sort --parallel works
 bash = "*"
-diamond = ">=2.1.15"  # 2.1.11 segfaults (on some non-test data)
-biopython = "*"
-hmmer = "*"
-orfm = "*"
-mfqe = "*"
-extern = "*"
-graftm = "*"
-krona = "*"
 pplacer = "*"
-sra-tools = "*"
+sra-tools = "==3.2.1"  # 3.4.1 build's sracat fails: missing libncbi-ngs.so
 ncbi-ngs-sdk = "*"
 sqlite = "*"
 squarify = "*"
@@ -34,21 +52,15 @@ fasttree = "*"
 fastalite = "*"
 jinja2 = "*"
 pip = "*"
-sqlalchemy = "*"
-pandas = "*"
-bird_tool_utils_python = ">=0.6.0"
-smafa = "*"
-pyranges = "*"
-polars = "*"
 prodigal = "*"
-tqdm = "*"
-pyarrow = "*"
 galah = ">=0.4.0"
 sqlparse = "*"  # Required indirectly (e.g. taxtastic)
-zenodo_backpack = ">=0.4.0"
 # Optional (commented out)
 # python-annoy = "*"
 # nmslib = "*"
+
+[feature.typical-non-python.pypi-dependencies]
+singlem = {path = ".", editable = true}
 
 [feature.dev.pypi-dependencies]
 singlem = {path = ".", editable = true}
@@ -64,14 +76,12 @@ toml = "*"
 python-build = "*"
 setuptools-scm = "*"
 gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
-
-[feature.singlem0190.dependencies]
-singlem = "=0.19.0"
+kingfisher = "*"
 
 [environments]
-default = ["main"]
-dev = ["dev", "main"]
-singlem0190 = ["singlem0190"]
+default = ["main", "typical-non-python", "typical-python"]
+dev = ["dev", "main", "typical-non-python", "typical-python"]
+typical = ["typical-non-python", "typical-python"]
 
 [tasks]
 test-base = "pytest test"

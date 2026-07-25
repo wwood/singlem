@@ -45,6 +45,9 @@ And more specialised / expert modes:
 ## Help
 If you have any questions or comments, raise a [GitHib issue](https://github.com/wwood/singlem/issues) or just send us an [email](https://research.qut.edu.au/cmr/team/ben-woodcroft/).
 
+## How to use SingleM with AI assistants (Claude/ChatGPT/Gemini etc.)
+There is a [SKILL.md](https://raw.githubusercontent.com/wwood/singlem/main/docs/SKILL.md) file that is designed to be used for teaching AI assistants about SingleM's usage. 
+
 ## License
 SingleM is developed by the [Woodcroft lab](https://research.qut.edu.au/cmr/team/ben-woodcroft/) at the [Centre for Microbiome Research](https://research.qut.edu.au/cmr), School of Biomedical Sciences, QUT, with contributions from many helpful people including [Samuel Aroney](https://github.com/AroneyS), [Rossen Zhao](https://github.com/rzhao-2), and [Raphael Eisenhofer](https://github.com/EisenRa). It is licensed under [GPL3 or later](https://gnu.org/licenses/gpl.html).
 

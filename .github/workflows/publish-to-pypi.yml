@@ -10,6 +10,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - uses: actions/setup-python@v2
+      # admin/requirements.txt is tracked only as a stub; the real pinned
+      # contents are generated here from pixi.toml/pixi.lock so setuptools
+      # picks them up when building the wheel.
+      - uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          cache: true
+      - run: pixi run admin/build_dep_defs_from_pixi.py
       - uses: casperdcl/deploy-pypi@v2
         with:
           password: ${{ secrets.PYPI_API_TOKEN }}

@@ -5,7 +5,11 @@ can be used to specify the location of the reference data.
 
 ## Downloading non-default reference data (metpackages)
 
-SingleM currently supports GTDB versions GTDB 07-RS207 onwards, up to the default metapackage version (GTDB R226 as of writing). The newest version of the code is compatible with each of these versions, which correspond to the S4.x and S5.x versions which can be downloaded from [Zenodo](http://dx.doi.org/10.5281/zenodo.5739611) - there each version is a different version of the Zenodo record. To use these reference data, extract the download using `tar -xzf` and then either set the environment variable `SINGLEM_METAPACKAGE_PATH` to the path of the extracted directory, or directly use `--metapackage` as a command line argument to `singlem`.
+SingleM currently supports GTDB versions GTDB 07-RS207 onwards, up to the default metapackage version (GTDB R226 as of writing). The newest version of the code is compatible with each of these versions, which correspond to the S4.x and S5.x versions which can be downloaded from [Zenodo](http://dx.doi.org/10.5281/zenodo.5739611) - there each version is a different version of the Zenodo record. 
+
+There also exists a SingleM metapackage for GlobDB, which can be downloaded from the [GlobDB website](https://globdb.org/). As of writing, This metapackage includes many more genomes than that of GTDB.
+
+To use these non-standard reference data, extract the download using `tar -xzf`. The most straightforward way of using the data is probably to use `--metapackage` as a command line argument to `singlem` (rather than specifying the `SINGLEM_METAPACKAGE_PATH` environment variable). The folder to specify as the argument to `--metapackage` is the folder which contains the extracted metapackage folder. The specified folder should either be a SingleM metapackage (canonically ending in `.smpkg`) or a Zenodo Backpack of a SingleM package (canonically ending `.smpkg.zb`).
 
 
 ## Example usage

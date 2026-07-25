@@ -345,7 +345,8 @@ def generate_new_singlem_package(myargs):
     return new_spkg_path
 
 
-def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms):
+def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matched_protein_sequences,
+                                working_directory, hmmsearch_evalue, concatenated_hmms, hmm_name_to_package):
     total_num_transcripts = 0
     failure_genomes = 0
     num_transcriptomes = 0
@@ -411,6 +412,26 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_dir
                         new_name = genome_basename + '‡' + name # Use ‡ to separate genome and original ID, must be kept in check with elsewhere in the code
                         print('>' + new_name + '\n' + seq + '\n', file=f)
                         num_printed += 1
+
+    if output_matched_protein_sequences:
+        transcript_to_package = {}
+        for row in df3.rows(named=True):
+            hmm_name = row['hmm']
+            if hmm_name not in hmm_name_to_package:
+                raise Exception("Unexpected HMM name {} not found in package mapping".format(hmm_name))
+            transcript_to_package[row['transcript']] = hmm_name_to_package[hmm_name]
+
+        num_printed_proteins = 0
+        with open(tranp.protein_fasta) as g:
+            with lock:
+                with open(output_matched_protein_sequences, 'a') as f:
+                    for name, seq, _ in SeqReader().readfq(g):
+                        if name in matched_transcript_ids:
+                            genome_basename = remove_extension(os.path.basename(genome))
+                            new_name = genome_basename + '‡' + name + '‡' + transcript_to_package[name] # Use ‡ to separate genome and original ID, must be kept in check with elsewhere in the code
+                            print('>' + new_name + '\n' + seq, file=f)
+                            num_printed_proteins += 1
+        logging.debug("Printed {} proteins for {}".format(num_printed_proteins, genome))
     logging.debug("Printed {} transcripts for {}".format(num_printed, genome))
     if num_printed != len(matched_transcript_ids):
         logging.error("Expected to print {} transcripts for {}, but only printed {}".format(
@@ -420,15 +441,32 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, working_dir
     return (total_num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts)
 
 
+def _run_hmmsearch_on_one_genome_star(args):
+    return run_hmmsearch_on_one_genome(*args)
+
+
 def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, new_genome_transcripts_and_proteins,
-                             hmmsearch_evalue):
+                             hmmsearch_evalue, output_matched_protein_sequences):
     # Run hmmsearch using a concatenated set of HMMs from each graftm package in the metapackage
     # Create concatenated HMMs in working_directory/concatenated_alignment_hmms.hmm
     concatenated_hmms = os.path.join(working_directory, 'concatenated_alignment_hmms.hmm')
     num_hmms = 0
+    hmm_name_to_package = {}
     with open(concatenated_hmms, 'w') as f:
         for spkg in old_metapackage.singlem_packages:
-            with open(spkg.graftm_package().alignment_hmm_path()) as g:
+            hmm_path = spkg.graftm_package().alignment_hmm_path()
+            hmm_name = None
+            with open(hmm_path) as g:
+                for line in g:
+                    if line.startswith('NAME'):
+                        hmm_name = line.split()[1]
+                        break
+            if hmm_name is None:
+                raise Exception("Unable to find HMM NAME in {}".format(hmm_path))
+            if hmm_name in hmm_name_to_package:
+                raise Exception("Duplicate HMM NAME {} found for {}".format(hmm_name, hmm_path))
+            hmm_name_to_package[hmm_name] = spkg.graftm_package_basename()
+            with open(hmm_path) as g:
                 f.write(g.read())
                 num_hmms += 1
 
@@ -441,6 +479,9 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
     # Create a new file which is a concatenation of the transcripts we want to include
     # Use a lock to prevent race conditions since each worker writes this this
     matched_transcripts_fna = os.path.join(working_directory, 'matched_transcripts.fna')
+    if output_matched_protein_sequences:
+        with open(output_matched_protein_sequences, 'w'):
+            pass
 
     total_num_transcripts = 0
     total_failure_genomes = 0
@@ -454,12 +495,18 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
         # context, otherwise we get deadlock. See
         # https://pola-rs.github.io/polars/user-guide/misc/multiprocessing/#example
         with get_context('spawn').Pool(num_threads) as pool:
-            map_result = pool.starmap(
-                run_hmmsearch_on_one_genome,
-                [(lock, data, matched_transcripts_fna, working_directory, hmmsearch_evalue, concatenated_hmms) for data in new_genome_transcripts_and_proteins.items()],
+            map_result = pool.imap_unordered(
+                _run_hmmsearch_on_one_genome_star,
+                [(lock, data, matched_transcripts_fna, output_matched_protein_sequences, working_directory, hmmsearch_evalue, concatenated_hmms, hmm_name_to_package)
+                 for data in new_genome_transcripts_and_proteins.items()],
                 chunksize=1)
 
-            for (num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in map_result:
+            for (num_transcripts, failure_genomes, num_transcriptomes, num_found_transcripts) in tqdm(
+                map_result,
+                total=len(new_genome_transcripts_and_proteins),
+                desc="Running hmmsearch",
+                unit="genome",
+            ):
                 total_num_transcripts += num_transcripts
                 total_failure_genomes += failure_genomes
                 total_num_transcriptomes += num_transcriptomes
@@ -481,7 +528,7 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
 def generate_new_metapackage(num_threads, working_directory, old_metapackage, new_genome_fasta_files,
                              new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue,
                              checkm2_quality_file, no_taxon_genome_lengths, new_taxonomy_database_name,
-                             new_taxonomy_database_version):
+                             new_taxonomy_database_version, output_matched_protein_sequences):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
@@ -509,7 +556,8 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
 
     logging.info("Gathering OTUs from new genomes ..")
     matched_transcripts_fna = gather_hmmsearch_results(num_threads, working_directory, old_metapackage,
-                                                       new_genome_transcripts_and_proteins, hmmsearch_evalue)
+                                                       new_genome_transcripts_and_proteins, hmmsearch_evalue,
+                                                       output_matched_protein_sequences)
     if matched_transcripts_fna is None:
         # No transcripts were found, so no new OTUs to add
         return None
@@ -842,6 +890,7 @@ class Supplementor:
         skip_taxonomy_check = kwargs.pop('skip_taxonomy_check')
         no_taxon_genome_lengths = kwargs.pop('no_taxon_genome_lengths')
         gene_definitions = kwargs.pop('gene_definitions')
+        output_matched_protein_sequences = kwargs.pop('output_matched_protein_sequences')
         ignore_taxonomy_database_incompatibility = kwargs.pop('ignore_taxonomy_database_incompatibility')
         new_taxonomy_database_name = kwargs.pop('new_taxonomy_database_name')
         new_taxonomy_database_version = kwargs.pop('new_taxonomy_database_version')
@@ -969,7 +1018,8 @@ class Supplementor:
                                                        new_genome_fasta_files, taxonomy_file,
                                                        genome_transcripts_and_proteins, hmmsearch_evalue,
                                                        checkm2_quality_file, no_taxon_genome_lengths,
-                                                       new_taxonomy_database_name, new_taxonomy_database_version)
+                                                       new_taxonomy_database_name, new_taxonomy_database_version,
+                                                       output_matched_protein_sequences)
 
             if new_metapackage is not None:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))
