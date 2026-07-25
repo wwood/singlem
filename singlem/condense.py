@@ -95,6 +95,18 @@ class Condenser:
             logging.info("Read sylph coverage for {} sample(s) from {}".format(
                 len(sylph_sample_to_hits), sylph_profile))
             self._validate_sylph_against_metapackage(sylph_sample_to_hits, metapackage)
+            # A True_cov profile comes from sylph -u, which corrects each genome's
+            # coverage for the unknown sequence fraction and so already reports it on
+            # SingleM's scale: alpha is 1 by construction and there is nothing to
+            # estimate. Saying so is worth more than the estimate, because the anchor
+            # is biased low at low coverage -- on a 0.2x community it lands near 0.13
+            # and inflates every sylph-supported species by the reciprocal. An
+            # explicit --alpha still wins.
+            if alpha is None and SylphProfile.is_unknown_corrected(sylph_profile):
+                alpha = 1.0
+                logging.info(
+                    "Sylph profile reports unknown-corrected coverage (sylph -u), so "
+                    "alpha is 1 by construction; pass --alpha to override")
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
@@ -1012,7 +1024,11 @@ class SylphProfile:
     column and a sylph effective coverage column (and an optional sample
     column).'''
     TAXONOMY_COLUMNS = ['taxonomy', 'Taxonomy', 'clade_name']
-    COVERAGE_COLUMNS = ['Eff_cov', 'eff_cov']
+    # True_cov is what sylph -u (--estimate-unknown) reports in place of Eff_cov:
+    # a coverage corrected for the unknown sequence fraction, and so on the same
+    # scale as SingleM's own coverage rather than a fixed fraction of it. Listed
+    # first so that a profile carrying both prefers it.
+    COVERAGE_COLUMNS = ['True_cov', 'true_cov', 'Eff_cov', 'eff_cov']
     SAMPLE_COLUMNS = ['Sample_file', 'sample']
 
     @staticmethod
@@ -1022,6 +1038,19 @@ class SylphProfile:
                 return candidate
         raise Exception("Sylph profile {} must contain a {} column (one of {}); found columns {}".format(
             path, description, candidates, fields))
+
+    # The subset of COVERAGE_COLUMNS that sylph only emits under -u
+    # (--estimate-unknown), and which therefore need no alpha calibration.
+    UNKNOWN_CORRECTED_COLUMNS = ['True_cov', 'true_cov']
+
+    @staticmethod
+    def is_unknown_corrected(path):
+        '''True if the profile's coverage column is one sylph reports only under -u.'''
+        with open(path) as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            fields = reader.fieldnames or []
+        cov_col = next((c for c in SylphProfile.COVERAGE_COLUMNS if c in fields), None)
+        return cov_col in SylphProfile.UNKNOWN_CORRECTED_COLUMNS
 
     @staticmethod
     def read_tsv(path):

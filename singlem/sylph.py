@@ -14,9 +14,17 @@ _GENOME_ACCESSION_REGEX = re.compile(r'(GC[AF]_\d+\.\d+)')
 class SylphProfiler:
     '''Runs sylph (sketch + profile) and annotates its genome-level output with
     GTDB taxonomy from the metapackage, producing a TSV that condense's
-    --sylph-profile path consumes (columns Sample_file, taxonomy, Eff_cov).
+    --sylph-profile path consumes (columns Sample_file, taxonomy, and the
+    coverage column carried through under its original name).
 
     Requires the sylph binary on the PATH.'''
+
+    # sylph reports Eff_cov normally and renames it True_cov under -u
+    # (--estimate-unknown), which corrects for the unknown sequence fraction and
+    # so estimates the genome's actual coverage rather than one deflated by it.
+    # The name is the only signal of which was run, so it is preserved through
+    # annotation; condense reads either.
+    COVERAGE_COLUMNS = ['True_cov', 'Eff_cov']
 
     def sketch_reads(self, forward_reads, reverse_reads, c, threads, output_directory):
         '''Sketch reads into output_directory; return the sorted list of .sylsp
@@ -53,11 +61,13 @@ class SylphProfiler:
         needed = set()
         with open(raw_profile_tsv) as f:
             reader = csv.DictReader(f, delimiter='\t')
-            if reader.fieldnames is None or 'Genome_file' not in reader.fieldnames or 'Eff_cov' not in reader.fieldnames:
-                raise Exception("Unexpected sylph profile format: {}".format(reader.fieldnames))
+            fields = reader.fieldnames
+            coverage_column = next((c for c in self.COVERAGE_COLUMNS if fields and c in fields), None)
+            if fields is None or 'Genome_file' not in fields or coverage_column is None:
+                raise Exception("Unexpected sylph profile format: {}".format(fields))
             for row in reader:
                 accession = self._extract_accession(row['Genome_file'])
-                rows.append((row.get('Sample_file', ''), accession, row['Eff_cov'], row['Genome_file']))
+                rows.append((row.get('Sample_file', ''), accession, row[coverage_column], row['Genome_file']))
                 if accession is not None:
                     needed.add(accession)
 
@@ -66,7 +76,7 @@ class SylphProfiler:
         num_written = 0
         num_skipped = 0
         with open(output_tsv, 'w') as out:
-            out.write('Sample_file\ttaxonomy\tEff_cov\n')
+            out.write('Sample_file\ttaxonomy\t{}\n'.format(coverage_column))
             for sample, accession, eff_cov, genome_file in rows:
                 taxonomy = accession_to_taxonomy.get(accession)
                 if taxonomy is None:

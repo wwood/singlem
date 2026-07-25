@@ -335,6 +335,26 @@ class Tests(unittest.TestCase):
         self.assertIn(ecoli_key, hits)
         self.assertEqual(9.0, hits[ecoli_key].eff_cov)
 
+    def test_sylph_profile_read_tsv_true_cov(self):
+        # sylph -u (--estimate-unknown) reports True_cov in place of Eff_cov: a
+        # coverage corrected for the unknown sequence fraction, and so already on
+        # SingleM's scale. The column name is the only record of which was run, so
+        # it is preserved through annotation and both are accepted here.
+        sample_to_hits = SylphProfile.read_tsv(
+            os.path.join(path_to_data, 'small_sylph_profile_true_cov.tsv'))
+        hits = sample_to_hits['sample1']
+        self.assertEqual(2, len(hits))
+        self.assertEqual(9.0, hits[_canonical_species_key(self.S_ECOLI)].eff_cov)
+
+    def test_sylph_profile_is_unknown_corrected(self):
+        # The column name is the only record of whether sylph was run with -u, and
+        # condense keys alpha off it: True_cov is already on SingleM's coverage
+        # scale, Eff_cov is a fixed fraction of it and must be calibrated.
+        self.assertTrue(SylphProfile.is_unknown_corrected(
+            os.path.join(path_to_data, 'small_sylph_profile_true_cov.tsv')))
+        self.assertFalse(SylphProfile.is_unknown_corrected(
+            os.path.join(path_to_data, 'small_sylph_profile.tsv')))
+
     # ---- Joint NNLS deconvolution (--joint) ----
 
     JOINT_SP1 = 'd__Bacteria;p__P;c__C;o__O;f__F;g__G;s__S1'

@@ -280,9 +280,9 @@ def add_condense_arguments(parser):
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
     optional_condense_arguments.add_argument('--sylph-profile', metavar='filename',
-        help="pre-annotated sylph profile TSV (GTDB taxonomy + Eff_cov columns). Species sylph detected but SingleM missed are injected into the profile.")
+        help="pre-annotated sylph profile TSV (GTDB taxonomy + Eff_cov or True_cov columns). Species sylph detected but SingleM missed are injected into the profile. Running sylph with -u (--estimate-unknown), which reports True_cov, is recommended: its coverages are then already in SingleM's units and no alpha calibration is needed.")
     optional_condense_arguments.add_argument('--alpha', type=float,
-        help="scale factor converting sylph effective coverage to SingleM coverage units when injecting sylph-only species. [default: fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
+        help="scale factor converting sylph effective coverage to SingleM coverage units when injecting sylph-only species. [default: 1 for a True_cov (sylph -u) profile, which needs no calibration; otherwise fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
     optional_condense_arguments.add_argument('--joint', action='store_true',
         help="jointly profile SingleM and sylph with an NNLS deconvolution instead of the default EM-based condense. Requires --sylph-profile.")
     optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
