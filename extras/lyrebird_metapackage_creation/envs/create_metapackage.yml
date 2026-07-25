@@ -1,0 +1,14 @@
+name: create_metapackage
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python>=3.7
+  - snakemake>=6.0.5
+  - snakemake-executor-plugin-cluster-generic
+  - numpy
+  - pandas
+  - biopython
+  - parallel
+  - mamba>=1.1.0

@@ -15,6 +15,11 @@ Reannotate an OTU table with an updated taxonomy
 
   Renew this table
 
+**\--input-zipped-gzip-archive-otu-table** *INPUT_ZIPPED_GZIP_ARCHIVE_OTU_TABLE*
+
+  Archive OTU table stored as a gzip file inside a zip file. Provide
+    as ZIP_PATH:MEMBER_PATH
+
 **\--ignore-missing-singlem-packages**
 
   Ignore OTUs which have been assigned to packages not in the
@@ -74,19 +79,16 @@ Reannotate an OTU table with an updated taxonomy
 
   Set of SingleM packages to use [default: use the default set]
 
-**\--sra-files** sra_file [sra_file \...]
-
-  \"sra\" format files (usually from NCBI SRA) to be searched
-
 **\--read-chunk-size** num_reads
 
-  Size chunk to process at a time (in number of reads). Requires
-    \--sra-files.
+  Number of reads per chunk. Requires unwrapped sequence input. Both
+    FASTA and FASTQ inputs are supported; the chunk size is the number
+    of reads in each chunk. Requires \--read-chunk-number.
 
 **\--read-chunk-number** chunk_number
 
   Process only this specific chunk number (1-based index). Requires
-    \--sra-files.
+    \--read-chunk-size.
 
 **\--output-jplace** filename
 

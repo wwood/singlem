@@ -53,6 +53,15 @@ if __name__ == '__main__':
         f.write(installation)
     logging.info("Done updating [RELEASE_TAG] in Installation.md to {}".format(version))
 
+    version = args.version
+    logging.info("Updating [RELEASE_TAG] in SKILL.md to {}".format(version))
+    with open('docs/SKILL.md.in') as f:
+        skill = f.read()
+    skill = skill.replace('[RELEASE_TAG]', version)
+    with open('docs/SKILL.md', 'w') as f:
+        f.write(skill)
+    logging.info("Done updating [RELEASE_TAG] in SKILL.md to {}".format(version))
+
     subdir_and_commands = [
         ['tools', ['data','pipe','appraise','summarise','renew','supplement','prokaryotic_fraction',
                    ['lyrebird','data'], ['lyrebird','pipe']]],

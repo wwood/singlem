@@ -1,9 +1,9 @@
-import pandas as pd
 import polars as pl
 import logging
 import json
 import os
 import sys
+import tempfile
 from dataclasses import dataclass
 from heapq import heappush, heappushpop
 
@@ -11,7 +11,7 @@ import extern
 
 from .condense import CondensedCommunityProfile
 from .metapackage import Metapackage
-from .utils import FastaNameToSampleName
+from .utils import FastaNameToSampleName, finish_processes, prepare_zstd_fifos
 
 @dataclass
 class GenomeSizeStruct:
@@ -41,7 +41,7 @@ class ReadFractionEstimator:
 
         # Grab the genome length data
         if taxonomic_genome_lengths_file:
-            taxonomic_genome_lengths_df = pd.read_csv(taxonomic_genome_lengths_file, sep='\t')
+            taxonomic_genome_lengths_df = pl.read_csv(taxonomic_genome_lengths_file, separator='\t')
         else:
             if metapackage:
                 mpkg = Metapackage.acquire(metapackage)
@@ -57,7 +57,7 @@ class ReadFractionEstimator:
         if 'genome_size' not in taxonomic_genome_lengths_df.columns:
             raise Exception("Taxonomic genome lengths file must have a 'genome_size' column.")
         taxonomic_genome_lengths = {}
-        for _, row in taxonomic_genome_lengths_df.iterrows():
+        for row in taxonomic_genome_lengths_df.iter_rows(named=True):
             taxonomic_genome_lengths[row['rank']] = GenomeSizeStruct(row['genome_size'])
         logging.info("Read taxonomic genome lengths for %i rank(s)." % len(taxonomic_genome_lengths))
 
@@ -65,13 +65,13 @@ class ReadFractionEstimator:
         if metagenome_sizes:
             if forward_read_files or reverse_read_files:
                 raise Exception("Cannot specify both a metagenome sizes file and read files.")
-            metagenome_sizes_df = pd.read_csv(metagenome_sizes, sep='\t')
+            metagenome_sizes_df = pl.read_csv(metagenome_sizes, separator='\t')
             if 'sample' not in metagenome_sizes_df.columns:
                 raise Exception("Metagenome sizes file must have a 'sample' column.")
             if 'num_bases' not in metagenome_sizes_df.columns:
                 raise Exception("Metagenome sizes file must have a 'num_bases' column.")
             metagenome_sizes = {}
-            for _, row in metagenome_sizes_df.iterrows():
+            for row in metagenome_sizes_df.iter_rows(named=True):
                 metagenome_sizes[row['sample']] = float(row['num_bases'])
             logging.info("Read metagenome sizes for %i sample(s)" % len(metagenome_sizes))
         else:
@@ -242,7 +242,12 @@ class SmafaCountedMetagenomeSizes:
             read_files = self.stems_to_read_files[stem]
         except KeyError:
             read_files = self.stems_to_read_files[stem + '_1']
-        j = extern.run('smafa count -i %s' % ' '.join(read_files))
+        with tempfile.TemporaryDirectory(prefix='singlem-prokaryotic-fraction-') as temp_dir:
+            prepared_files, zstd_processes = prepare_zstd_fifos(read_files, temp_dir)
+            try:
+                j = extern.run('smafa count -i %s' % ' '.join(prepared_files))
+            finally:
+                finish_processes(zstd_processes, "zstdcat")
         logging.debug("Found JSON response from smafa count: %s" % j)
         j2 = json.loads(j)
         

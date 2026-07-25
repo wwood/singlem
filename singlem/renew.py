@@ -1,5 +1,7 @@
+import gzip
 import logging
 import tempfile
+import zipfile
 
 from .pipe import SearchPipe
 from .metapackage import Metapackage
@@ -13,6 +15,7 @@ class Renew:
     def renew(**kwargs):
         '''Renew an OTU table, annotating old OTU tables with new taxonomy info'''
         input_archive_otu_table = kwargs.pop('input_archive_otu_table')
+        input_zipped_gzip_archive_otu_table = kwargs.pop('input_zipped_gzip_archive_otu_table')
         output_archive_otu_table = kwargs.pop('output_archive_otu_table')
         output_otu_table = kwargs.pop('otu_table')
         output_extras = kwargs.pop('output_extras')
@@ -29,6 +32,7 @@ class Renew:
         output_taxonomic_profile = kwargs.pop('output_taxonomic_profile')
         output_taxonomic_profile_krona = kwargs.pop('output_taxonomic_profile_krona')
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits')
+        viral_mode = kwargs.pop('viral_mode', False)
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
 
@@ -36,6 +40,7 @@ class Renew:
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
         kwargs.pop('singlem_packages', None)
         kwargs.pop('metapackage_path', None)
+        kwargs.pop('parse_lyrebird_metapackage', None)
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -67,8 +72,7 @@ class Renew:
         # TODO: Probably this can converted to a streaming input, following
         # https://stackoverflow.com/questions/54560154/streaming-json-parser
         logging.info("Reading in archive OTU table ..")
-        with open(input_archive_otu_table) as f:
-            input_otus = ArchiveOtuTable.read(f)
+        input_otus = Renew._read_archive_otu_table(input_archive_otu_table, input_zipped_gzip_archive_otu_table)
         if input_otus.version < 2:
             raise Exception("Currently only version 2+ archive otu tables are supported")
         logging.info("Read in {} OTUs".format(len(input_otus.data)))
@@ -173,6 +177,8 @@ class Renew:
                 known_taxes=None,
                 output_jplace=output_jplace,
                 assignment_singlem_db=assignment_singlem_db,
+                diamond_forward_qseqs = None,
+                diamond_reverse_qseqs = None,
             )
 
         # Write outputs
@@ -194,6 +200,30 @@ class Renew:
                 input_streaming_otu_table = otu_table_collection,
                 output_otu_table = output_taxonomic_profile,
                 krona = output_taxonomic_profile_krona,
-                metapackage = metapackage)
+                metapackage = metapackage,
+                viral_mode = viral_mode)
 
         logging.info("Renew is finished")
+
+    @staticmethod
+    def _read_archive_otu_table(input_archive_otu_table, input_zipped_gzip_archive_otu_table):
+        if input_archive_otu_table and input_zipped_gzip_archive_otu_table:
+            raise Exception("Only one of --input-archive-otu-table or --input-zipped-gzip-archive-otu-table may be provided")
+
+        if input_zipped_gzip_archive_otu_table:
+            if ':' not in input_zipped_gzip_archive_otu_table:
+                raise Exception("--input-zipped-gzip-archive-otu-table must be provided as ZIP_PATH:MEMBER_PATH")
+            zip_path, zipped_member = input_zipped_gzip_archive_otu_table.split(':', 1)
+            with zipfile.ZipFile(zip_path) as zf:
+                with zf.open(zipped_member, 'r') as zipped_file:
+                    with gzip.open(zipped_file, 'rt') as archive_otu_table_file:
+                        return ArchiveOtuTable.read(archive_otu_table_file)
+
+        if input_archive_otu_table is None:
+            raise Exception("An input archive OTU table must be provided")
+
+        if input_archive_otu_table.endswith('.gz'):
+            with gzip.open(input_archive_otu_table, 'rt') as archive_otu_table_file:
+                return ArchiveOtuTable.read(archive_otu_table_file)
+        with open(input_archive_otu_table) as archive_otu_table_file:
+            return ArchiveOtuTable.read(archive_otu_table_file)

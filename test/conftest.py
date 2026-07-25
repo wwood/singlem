@@ -1,6 +1,9 @@
 import pytest
 import functools
 
+def pytest_runtest_logstart(nodeid, location):
+    print(f"\nStarting: {nodeid}", flush=True)
+
 def pytest_addoption(parser):
     parser.addoption("--run-expensive", action="store_true", help="run expensive tests")
 

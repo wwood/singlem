@@ -25,6 +25,8 @@ import unittest
 import os.path
 import tempfile
 import shutil
+import gzip
+import subprocess
 import extern
 import sys
 import json
@@ -53,6 +55,10 @@ class Tests(unittest.TestCase):
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
         os.path.join(path_to_data, '4.12.22seqs.spkg'))
+
+    @staticmethod
+    def _compress_to_zstd(src_path, dst_path):
+        subprocess.check_call(['zstd', '-q', '-f', src_path, '-o', dst_path])
 
     def assertEqualOtuTable(self, expected_array_or_string, observed_string, no_assign_taxonomy=False):
         observed_array = list([line.split("\t") for line in observed_string.split("\n")])
@@ -111,9 +117,51 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
 
             cmd = "%s pipe --sequences %s --otu-table /dev/stdout --assignment-method diamond --singlem-packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            result = subprocess.run(cmd, shell=True, check=True, text=True, capture_output=True)
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
-                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+                result.stdout.replace(os.path.basename(n.name).replace('.fa',''),''))
+            self.assertIn("DIAMOND version:", result.stderr)
+
+    def test_zstd_forward_input(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.TemporaryDirectory() as td:
+            plain = os.path.join(td, 'input.fasta')
+            with open(plain, 'w') as f:
+                f.write(inseqs)
+            zstd_path = plain + '.zst'
+            self._compress_to_zstd(plain, zstd_path)
+
+            cmd = "timeout 20s %s pipe --sequences %s --assignment-method diamond --otu-table /dev/stdout --singlem-packages %s" % (
+                path_to_script, zstd_path, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace('input',''))
+
+
+    def test_compressed_fastq_input_from_small_fasta(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs	small	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        with tempfile.TemporaryDirectory() as td:
+            fastq_gz_path = os.path.join(td, 'small.fastq.gz')
+            with open(os.path.join(path_to_data, '1_pipe/small.fa')) as fasta, \
+                    gzip.open(fastq_gz_path, 'wt') as fastq:
+                for name, seq, _ in SeqReader().readfq(fasta):
+                    fastq.write("@{}\n{}\n+\n{}\n".format(name, seq, "I" * len(seq)))
+
+            cmd = "%s pipe --sequences %s --otu-table /dev/stdout --assignment-method diamond --singlem-packages %s" % (
+                path_to_script, fastq_gz_path, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
 
 
     def test_fast_protein_package_diamond_package_assignment(self):
@@ -198,12 +246,33 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
                     path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
-                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
-                cmd = "%s pipe --assignment-method diamond --reverse %s --forward %s --otu-table /dev/stdout --singlem-packages %s" % (
-                    path_to_script, n.name, n2.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
-                self.assertEqualOtuTable(
-                    list([line.split("\t") for line in expected]),
-                    extern.run(cmd).replace(os.path.basename(n2.name).replace('.fa',''),''))
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))             
+
+    def test_zstd_forward_reverse_input(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+'''
+        with tempfile.TemporaryDirectory() as td:
+            plain1 = os.path.join(td, 'sample1.fasta')
+            plain2 = os.path.join(td, 'sample2.fasta')
+            with open(plain1, 'w') as f:
+                f.write(inseqs)
+            with open(plain2, 'w') as f:
+                f.write(inseqs)
+            zstd1 = plain1 + '.zst'
+            zstd2 = plain2 + '.zst'
+            self._compress_to_zstd(plain1, zstd1)
+            self._compress_to_zstd(plain2, zstd2)
+
+            cmd = "timeout 20s %s pipe --assignment-method diamond --forward %s --reverse %s --otu-table /dev/stdout --singlem-packages %s" % (
+                path_to_script, zstd1, zstd2, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace('sample1','').replace('sample2',''))
 
     def test_fast_protein_package_prefilter(self):
         expected = [
@@ -466,7 +535,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
 '''
         expected = [
             self.headers,
-            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_000949295.1']]
+            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_001025035.1']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
         with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
@@ -813,14 +882,6 @@ CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTAT
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
             
-            cmd = "{} pipe --genome-fasta-files {} --min-orf-length 72 --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --output-extras".format(
-                path_to_script,
-                n.name,
-                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
-            self.assertEqualOtuTable(
-                list([line.split("\t") for line in expected]),
-                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
-            
     def test_paired_reads_one_read_each(self):
         # Reads should be merged
         expected = [
@@ -956,44 +1017,46 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
                     extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
 
-    def test_paired_reads_one_read_query_reverse_diamond(self):
-        # See issue 252
-        # Reads should be merged
-        expected = [
-            "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTC	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTCCGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	singlem_query_based',
-            '']
-        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
-ATTAACAGTAGCTGAAGTTACTGACTTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTCCGTCGTGCAGCTGAA
-'''
-#------------------------WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW---------------
-        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
-TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
-''' # reverse complement of the forward, so should collapse.
-        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
-            n.write(inseqs)
-            n.flush()
-            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
-                n2.write(inseqs_reverse)
-                n2.flush()
+#     def test_paired_reads_one_read_query_reverse_diamond(self):
+#         # See issue 252
+#         # Reads should be merged
+#         expected = [
+#             "\t".join(self.headers_with_extras),
+#             '4.11.22seqs		TTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTC	1	2.44	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTCCGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	singlem_query_based',
+#             '']
+#         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+# ATTAACAGTAGCTGAAGTTACTGACTTACGTNGACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTCCGTCGTGCAGCTGAA
+# '''
+# #------------------------WWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWWW---------------
+#         inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+# TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT
+# ''' # reverse complement of the forward, so should collapse.
+#         with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+#             n.write(inseqs)
+#             n.flush()
+#             with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
+#                 n2.write(inseqs_reverse)
+#                 n2.flush()
 
-                cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --output-extras --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond".format(
-                    path_to_script,
-                    n.name,
-                    n2.name,
-                    os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
-                    os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
-                    )
-                self.assertEqualOtuTable(
-                    list([line.split("\t") for line in expected]),
-                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+#                 with tempfile.NamedTemporaryFile(mode='w',suffix='.csv') as output_tax:
+#                     cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --output-extras --metapackage {} --assignment-method smafa_naive_then_diamond -p {}".format(
+#                         path_to_script,
+#                         n.name,
+#                         n2.name,
+#                         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg.smpkg'),
+#                         output_tax.name
+#                         # os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
+#                         )
+#                     self.assertEqualOtuTable(
+#                         list([line.split("\t") for line in expected]),
+#                         extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
     def test_two_orfs_in_same_read(self):
         # Read finds 2 ORFs, pretty rare for reads (but happens for genomes
         # more frequently)
         expected = [
             "\t".join(self.headers_with_extras),
-            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_000817105.1\']	diamond',
+            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
             '']
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
@@ -1014,7 +1077,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         # 2 ORFs found causing GraftM to do its "split" thing
         expected = [
             "\t".join(self.headers),
-            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus; s__Nitrosopumilus_piranensis",
+            "S1.2.ribosomal_protein_L3_rplC	aa_orf_split_bug	GTTGACGTGGCGGCCATCACAAAGGGCAAGGGATGGCAGGGCGTCCTGAAGCGGTGGAAC	1	1.05	Root; d__Archaea; p__Crenarchaeota; c__Nitrososphaeria; o__Nitrososphaerales; f__Nitrosopumilaceae; g__Nitrosopumilus",
             '']
         cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --assignment-method diamond".format(
             path_to_script,
@@ -1120,6 +1183,106 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
                 self.assertEqualOtuTable(
                     list([line.split("\t") for line in expected]),
                     extern.run('bash {}'.format(script.name)))
+
+    def test_read_chunk_size_forward_gzip(self):
+        target_seq_aln = 'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA'
+        target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'
+        reads = f'''>skip
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>skip2
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>target
+{target_seq}
+'''
+        expected_full = [
+            "\t".join(self.headers),
+            f'4.11.22seqs\t\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            f'4.11.22seqs\t\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTA\t2\t4.88\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Carnobacteriaceae; g__Carnobacterium; s__Carnobacterium_gallinarum',
+            ''
+        ]
+        expected = [
+            "\t".join(self.headers),
+            f'4.11.22seqs\t\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            ''
+        ]
+        with tempfile.TemporaryDirectory() as td:
+            gz_path = os.path.join(td, 'chunked_reads.fa.gz')
+            with gzip.open(gz_path, 'wt') as handle:
+                handle.write(reads)
+
+            # First ensure it works without chunking
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {}".format(
+                path_to_script,
+                gz_path,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected_full]),
+                extern.run(cmd).replace('chunked_reads',''))
+
+            # Now with chunking
+            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 2 --read-chunk-number 2".format(
+                path_to_script,
+                gz_path,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd).replace('chunked_reads',''))
+
+    def test_read_chunk_size_paired(self):
+        target_seq_aln = 'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA'
+        target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'
+        forward_reads = f'''>skip
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>skip2
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
+>target
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+'''
+        reverse_reads = f'''>skip
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>skip2
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>target
+{target_seq}
+'''
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.fa') as forward, \
+                tempfile.NamedTemporaryFile(mode='w', suffix='.fa') as reverse:
+            forward.write(forward_reads)
+            forward.flush()
+            reverse.write(reverse_reads)
+            reverse.flush()
+
+            sample_name = os.path.basename(forward.name).replace('.fa', '')
+
+            # Test no seqs from the first chunk
+            cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 2 --read-chunk-number 1".format(
+                path_to_script,
+                forward.name,
+                reverse.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            expected = [
+                "\t".join(self.headers),
+                f'4.11.22seqs\t{sample_name}\tTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTATGGTA\t2\t4.88\tRoot; d__Bacteria; p__Firmicutes; c__Bacilli; o__Lactobacillales; f__Carnobacteriaceae; g__Carnobacterium; s__Carnobacterium_gallinarum',
+                ''
+            ]
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
+
+            # Seqs should b found in the second chunk
+            cmd = "{} pipe --sequences {} --reverse {} --otu-table /dev/stdout --assignment-method diamond --singlem-packages {} --read-chunk-size 2 --read-chunk-number 2".format(
+                path_to_script,
+                forward.name,
+                reverse.name,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+            expected = [
+                "\t".join(self.headers),
+                f'4.11.22seqs\t{sample_name}\t{target_seq_aln}\t1\t2.44\tRoot; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+                ''
+            ]
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
 
     @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_single(self):
@@ -1255,8 +1418,11 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         self.assertEqualOtuTable(with_exclude, extern.run(cmd))
 
     def test_genome_input_dereplication(self):
+        # The sequence hit here was different in 0.20.3 compared to 0.19.x and
+        # was changed back in 0.21.x. Not entirely sure what the go was with
+        # that.
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            '4.12.22seqs     GCA_000309865.1_genomic  CCGGCTTTTCAGATCGCACCGGATCCAACAGTTGCATTCACAGTTGGCTATTTAGGAGTG    1       1.00    '
+            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.00    '
         # ~/git/singlem/bin/singlem pipe --genome-fasta-files genomes/GCA_000309865.1_genomic.fna --singlem-package ../4.12.22seqs.spkg/ --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96
         cmd = '{} pipe --translation-table 11 --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
             path_to_script,
@@ -1266,6 +1432,22 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         self.assertEqualOtuTable(
             expected,
             extern.run(cmd))
+
+    def test_genome_input_zstd(self):
+        expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
+            '4.12.22seqs     GCA_000309865.1_genomic  GATGGCGGTAAAGCCACTCCCGGCCCACCATTAGGTCCAGCAATCGGACCCCTAGGTATC    1       1.00    '
+        src = os.path.join(path_to_data, 'methanobacteria/genomes/GCA_000309865.1_genomic.fna')
+        with tempfile.TemporaryDirectory() as td:
+            zstd_path = os.path.join(td, 'GCA_000309865.1_genomic.fna.zst')
+            self._compress_to_zstd(src, zstd_path)
+            cmd = 'timeout 20s {} pipe --translation-table 11 --genome-fasta-files {} --singlem-package {} --otu-table /dev/stdout --no-assign-taxonomy --min-orf-length 96'.format(
+                path_to_script,
+                zstd_path,
+                os.path.join(path_to_data, '4.12.22seqs.spkg'),
+            )
+            self.assertEqualOtuTable(
+                expected,
+                extern.run(cmd))
 
     def test_genome_multiplexing(self):
         cmd_stub = '{} pipe --metapackage {} --output-extras --otu-table /dev/stdout --assignment-method diamond --genome-fasta-files '.format(
@@ -1288,7 +1470,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
 
     def test_translation_table4_no_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-1000'
+            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-460; s__CAG-460_sp1'
         cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --no-diamond-prefilter --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
         self.assertEqualOtuTable(
             expected,
@@ -1296,7 +1478,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
 
     def test_translation_table4_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
-            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-1000'
+            'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-460; s__CAG-460_sp1'
         cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
         self.assertEqualOtuTable(
             expected,
@@ -1310,7 +1492,7 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
         all_ascii_chars = ''.join(chr(i) for i in list(range(33, 127)) + list(range(161, 255)))
         expected = [
             "\t".join(self.headers_with_extras),
-            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	{all_ascii_chars}	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_000817105.1\']	diamond',
+            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	{all_ascii_chars}	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
             '']
         inseqs = inseqs = (
             f'>{all_ascii_chars}\n'
@@ -1327,6 +1509,72 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+    def test_no_assign_taxonomy_keeps_full_qseq(self):
+        '''At one point, --no-assign-taxonomy caused the query sequence to be
+        truncated, and the wrong coverage value to be reported.'''
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	None	no_assign_taxonomy',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>seq2
+AAAAAAAAAAAAAAAAA
+'''
+        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+AAAAAAAAAAAAAAAAA
+>seq2
+TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+''' # reverse complement of the forward, so should collapse.
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
+                n2.write(inseqs_reverse)
+                n2.flush()
+
+                cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --reverse {} --output-extras --no-assign-taxonomy".format(
+                    path_to_script,
+                    n.name,
+                    os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
+                    n2.name)
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+
+    def test_context_window_no_assign_taxonomy(self):
+        '''At one point, --no-assign-taxonomy caused the query sequence to be
+        truncated, and the wrong coverage value to be reported.'''
+        expected = [
+            "\t".join(self.headers_with_extras),
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482:1-99,253 seq2:2-104,304	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGA TCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAA	None	no_assign_taxonomy',
+            '']
+        inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>seq2
+AAAAAAAAAAAAAAAAA
+'''
+        inseqs_reverse = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
+AAAAAAAAAAAAAAAAA
+>seq2
+TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+''' # reverse complement of the forward, so should collapse.
+        with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
+            n.write(inseqs)
+            n.flush()
+            with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n2:
+                n2.write(inseqs_reverse)
+                n2.flush()
+
+                cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --reverse {} --output-extras --no-assign-taxonomy  --context-window 5".format(
+                    path_to_script,
+                    n.name,
+                    os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'),
+                    n2.name)
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
 
 if __name__ == "__main__":

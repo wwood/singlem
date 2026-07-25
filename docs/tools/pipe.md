@@ -83,6 +83,10 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
   File extension of genomes in the directory specified with
     -d/\--genome-fasta-directory. [default: fna]
 
+**\--sra-files** sra_file [sra_file \...]
+
+  \"sra\" format files (usually from NCBI SRA) to be searched
+
 **-p**, **\--taxonomic-profile** FILE
 
   output a \'condensed\' taxonomic profile for each sample based on
@@ -135,19 +139,16 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 
   Set of SingleM packages to use [default: use the default set]
 
-**\--sra-files** sra_file [sra_file \...]
-
-  \"sra\" format files (usually from NCBI SRA) to be searched
-
 **\--read-chunk-size** num_reads
 
-  Size chunk to process at a time (in number of reads). Requires
-    \--sra-files.
+  Number of reads per chunk. Requires unwrapped sequence input. Both
+    FASTA and FASTQ inputs are supported; the chunk size is the number
+    of reads in each chunk. Requires \--read-chunk-number.
 
 **\--read-chunk-number** chunk_number
 
   Process only this specific chunk number (1-based index). Requires
-    \--sra-files.
+    \--read-chunk-size.
 
 **\--output-jplace** filename
 
@@ -297,6 +298,13 @@ For a more detailed explanation of the SingleM pipeline, see the [SingleM paper]
 
   Sleep for this many seconds after running os.mkfifo [default:
     None]
+
+**\--context-window** bp
+
+  When using the DIAMOND prefilter, retain this many bases of context
+    on each side of the aligned region when recording full_qseqs in the
+    OTU table instead of the entire read. [default: keep the full
+    read]. The read_name is also modified to record this information.
 
 # OTHER GENERAL OPTIONS
 

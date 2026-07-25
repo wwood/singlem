@@ -74,7 +74,9 @@ def main():
     renew_description = 'Reannotate an OTU table with an updated taxonomy'
     renew_parser = bird_argparser.new_subparser('renew', renew_description, parser_group='Tools')
     renew_input_args = renew_parser.add_argument_group('input')
-    renew_input_args.add_argument('--input-archive-otu-table', help="Renew this table", required=True)
+    renew_input_tables = renew_input_args.add_mutually_exclusive_group(required=True)
+    renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
+    renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
@@ -108,7 +110,10 @@ def main():
         singlem.pipe.SearchPipe().run(
             sequences = args.forward,
             reverse_read_files = args.reverse,
+            genomes = args.genome_fasta_files,
             input_sra_files = args.sra_files,
+            read_chunk_size = args.read_chunk_size,
+            read_chunk_number = args.read_chunk_number,
             otu_table = args.otu_table,
             archive_otu_table = args.archive_otu_table,
             sleep_after_mkfifo = args.sleep_after_mkfifo,
@@ -150,8 +155,9 @@ def main():
     elif args.subparser_name=='renew':
         from singlem.renew import Renew
         validate_pipe_args(args, subparser='renew')
-        Renew().renew(
+        Renew.renew(
             input_archive_otu_table=args.input_archive_otu_table,
+            input_zipped_gzip_archive_otu_table=args.input_zipped_gzip_archive_otu_table,
             ignore_missing_singlem_packages=args.ignore_missing_singlem_packages,
             otu_table = args.otu_table,
             output_archive_otu_table = args.archive_otu_table,
@@ -172,6 +178,8 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
+            viral_mode = True,
+            parse_lyrebird_metapackage = True,
             )
 
     elif args.subparser_name == 'condense':
