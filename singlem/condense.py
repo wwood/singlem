@@ -199,15 +199,15 @@ class Condenser:
 
         num_otus_changed = 0
         sequence_ids = set()
-        target_domains = set(
-            _bare(d)
-            for spkg in metapackage.singlem_packages
-            for d in spkg.target_domains()
-        )
         
-        def _bare_domain(s):
+        def _bare(s):
             return s[3:] if len(s) > 3 and s[1:3] == '__' else s
         
+        marker_to_domains = {
+            spkg.graftm_package_basename(): set(_bare(d) for d in spkg.target_domains())
+            for spkg in metapackage.singlem_packages
+        }
+
         # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
@@ -225,6 +225,7 @@ class Condenser:
                 # Each sequence in the OTU is assigned a separate set of
                 # taxon_ids. Maybe we could do something more smart, but for the
                 # moment, just assume they are all equally best hits.
+                target_domains = marker_to_domains[otu.marker]
                 possible_names = set()
                 for seq_id_list in otu.equal_best_hit_taxonomies():
                     for seq_id in seq_id_list:
@@ -236,7 +237,9 @@ class Condenser:
                                 # bacteria/archaea-only metapackage): reference
                                 # taxonomy for these is often ragged, and the
                                 # hit is discarded regardless.
-                                logging.debug("Ignoring off-target equal-best hit {}".format(taxon_name))
+                                logging.debug(
+                                    "Ignoring off-target equal-best hit {}".format(taxon_name)
+                                )
                                 continue
                             raise Exception(
                                 "Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
