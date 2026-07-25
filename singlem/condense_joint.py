@@ -240,11 +240,23 @@ class JointDeconvolver:
                     weighted_residual = singlem_weights * residual
                     f += float(np.dot(weighted_residual, residual))
                     g += -2.0 * Mt.dot(weighted_residual)
-                if len(sylph_col) > 0:
+                if len(sylph_col) > 0 and current_alpha > 0:
+                    # The residual is taken in SingleM's units, (e/alpha - a), not
+                    # sylph's, (e - alpha*a). The two differ by a factor of alpha^2 in the
+                    # objective, which is to say sylph_weight -- how far the model is
+                    # willing to be moved off its markers by sylph -- would otherwise be
+                    # scaled by the very calibration constant it is meant to be
+                    # independent of. That coupling is what makes a mis-estimated alpha
+                    # so much worse than a wrong scale: it also quietly changes how much
+                    # sylph is trusted, and in the direction that hurts, since alpha is
+                    # underestimated precisely at the low coverages where SingleM's
+                    # markers are least informative and sylph should be deferred to most.
+                    # In these units sylph's leverage against the marker block is
+                    # sylph_weight versus the domain's marker count, whatever alpha is.
                     a_sylph = x[sylph_col]
-                    residual_sylph = sylph_eff - current_alpha * a_sylph
+                    residual_sylph = sylph_eff / current_alpha - a_sylph
                     f += float(np.dot(sylph_w, residual_sylph * residual_sylph))
-                    np.add.at(g, sylph_col, -2.0 * sylph_w * current_alpha * residual_sylph)
+                    np.add.at(g, sylph_col, -2.0 * sylph_w * residual_sylph)
                 if len(absence_col) > 0:
                     a_absent = x[absence_col]
                     f += absence_weight * float(np.dot(a_absent, a_absent))

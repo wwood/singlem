@@ -592,6 +592,28 @@ class Tests(unittest.TestCase):
         deconv.solve('sample1', otus, sylph_hits, alpha=None, l1_penalty=0.0)
         self.assertAlmostEqual(0.5, deconv.fitted_alpha, places=2)
 
+    def test_joint_sylph_leverage_does_not_depend_on_alpha(self):
+        from singlem.condense_joint import JointDeconvolver
+        # S1's markers all read 10x but sylph puts it at 2x in SingleM's units. How far
+        # the fit is pulled off the markers toward sylph is set by sylph_weight, and must
+        # not also depend on alpha -- the residual is taken as (e/alpha - a), so a
+        # four-fold change in alpha with e scaled to match leaves the problem unchanged.
+        # Taking it as (e - alpha*a) instead would scale the sylph term by alpha^2 and
+        # quarter sylph's influence here, which is the wrong direction: alpha is smallest
+        # in the low-coverage samples where the markers deserve the least trust.
+        otus = self._joint_otus(
+            [(10.0, [self.JOINT_SP1], QUERY_BASED_ASSIGNMENT_METHOD) for _ in range(10)])
+        s1 = _canonical_species_key(self.JOINT_SP1)
+        fitted = []
+        for alpha in (1.0, 0.25):
+            deconv = JointDeconvolver()
+            deconv.solve('sample1', otus, {s1: SylphHit(self.JOINT_SP1, 2.0 * alpha)},
+                         alpha=alpha, domain_marker_counts={'Bacteria': 10})
+            fitted.append(deconv.coverage_by_key[s1])
+        self.assertAlmostEqual(fitted[0], fitted[1], places=3)
+        # And sylph, weighted 150 against 10 markers, is what the fit mostly follows.
+        self.assertLess(fitted[0], 4.0)
+
     # End-to-end Regime 3 test. Reads the mock-metagenome outputs produced by
     # test/data/condense/regime3/Snakefile (run that workflow first) into
     # condense and confirms both the high-coverage genome (recovered by SingleM)
