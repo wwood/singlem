@@ -136,8 +136,20 @@ class DiamondSpkgSearcher:
                     daemon=True
                 )
                 animation_thread.start()
-            # using Popen to stream the output
-            with Popen(cmd, stdout=PIPE, stderr=PIPE, text=True) as proc:
+            # using Popen to stream the output. stderr must NOT be a pipe.
+            # DIAMOND logs its progress to stderr when results go to stdout;
+            # proc.stderr is only drained after the stdout loop below, so once
+            # the 64 KB pipe buffer fills DIAMOND blocks in write(), stops
+            # emitting stdout, and the loop deadlocks forever. Bites every >=30
+            # Gbp metagenome. 
+            #
+            # We can use fasta_path plus '.diamond_stderr' as a temporary file
+            # to capture DIAMOND's stderr output, because it is already within a
+            # tempdir.
+            diamond_stderr_path = fasta_path + '.diamond_stderr'
+            diamond_stderr_f = open(diamond_stderr_path, 'w+')
+            with diamond_stderr_f, Popen(
+                    cmd, stdout=PIPE, stderr=diamond_stderr_f, text=True) as proc:
                 seen_full_qseqs = set()
                 with open(fasta_path, 'a') as fasta_file, open(full_qseq_fasta_path, 'a') as full_qseq_f:
                     for line in proc.stdout:
@@ -212,7 +224,9 @@ class DiamondSpkgSearcher:
                 sys.stderr.flush()
 
                 # check for DIAMOND errors
-                stderr_output = proc.stderr.read()
+                diamond_stderr_f.flush()
+                diamond_stderr_f.seek(0)
+                stderr_output = diamond_stderr_f.read()
                 if stderr_output:
                     logging.error(f"DIAMOND stderr: {stderr_output}")
                 
