@@ -42,6 +42,8 @@ class JointDeconvolver:
               min_singlem_coverage=0.35, robust_coverage_floor=1.0, robust_min_weight=1e-3,
               alpha_min_coverage=0.1, coherence_weight=1000.0, sylph_ceiling=1.5,
               adaptive_sylph_weight=False, sylph_weight_max_multiplier=100.0,
+              pin_sylph_species=False, domain_coverage_estimates=None,
+              novel_budget_weight=1000.0,
               trim_percent=DEFAULT_TRIM_PERCENT / 100.0):
         try:
             from scipy.optimize import minimize
@@ -226,7 +228,72 @@ class JointDeconvolver:
             logging.info("Fixed {} sylph-unsupported columns to zero (< {} unique markers)".format(
                 num_fixed, min_markers))
 
+        # Pinning: species-level assignments come from sylph alone. Each sylph-supported
+        # species is fixed at e/alpha and every DB species sylph did not report is fixed
+        # at zero, leaving only the novel (clade) columns free. The SingleM rows are
+        # deliberately kept: with the species terms held by equality bounds, each row
+        # becomes an observation of its novel columns against whatever coverage the
+        # pinned species cannot explain, so higher ranks stay on SingleM's evidence.
+        #
+        # The padding ridge and the coherence ceiling are lifted off the pinned columns.
+        # Both exist to argue a species down toward what its own markers support, and
+        # under a pin there is nothing left to argue with -- the padding ridge in
+        # particular is what under-calls a species at 0.2x, where most of its markers go
+        # unsequenced and it is charged for every one of them.
+        pinned_columns = set()
+        if pin_sylph_species and len(sylph_col) > 0:
+            if current_alpha <= 0:
+                raise Exception("Cannot pin sylph species with alpha={}".format(current_alpha))
+            fit_alpha = False  # degenerate: the fit sits at e/alpha for any alpha
+            pinned_values = sylph_eff / current_alpha
+            for i, c in enumerate(sylph_col):
+                value = float(pinned_values[i])
+                bounds[c] = (value, value)
+                padding_weight[c] = 0.0
+                centres[c] = np.inf
+                pinned_columns.add(int(c))
+            for c in absence_col:
+                bounds[int(c)] = (0.0, 0.0)
+            logging.info("Pinned {} sylph species to their own coverage ({:.2f}x total) and "
+                "fixed {} unreported DB species to zero".format(
+                    len(sylph_col), float(np.sum(pinned_values)), len(absence_col)))
+
+        # Novel budget. Each domain's community coverage is estimated from the markers
+        # alone (see Condenser._domain_coverage_estimates); what sylph's species in that
+        # domain do not account for is the most its novel columns can honestly claim.
+        # Applied as a one-sided ceiling on the domain's novel total, never as an
+        # allocation to be spent: on cami2 sylph detects only 647x where the markers see
+        # 1173x, and handing that 526x shortfall to novel columns would book a detection
+        # failure as novelty. As a ceiling it simply does not bind there, while on
+        # communities that are wholly known -- where sylph's species already meet or
+        # exceed the marker total -- the budget is zero and the novel columns, which
+        # currently fabricate 60-70x of lineages that are not present, are shut off.
+        novel_budget_groups = []
+        if domain_coverage_estimates:
+            novel_by_domain = {}
+            for j, column in enumerate(columns):
+                if column.kind != 'novel':
+                    continue
+                domain = column.key.split(';')[0].replace('d__', '')
+                novel_by_domain.setdefault(domain, []).append(j)
+            sylph_by_domain = {}
+            for i, c in enumerate(sylph_col):
+                domain = columns[int(c)].key.split(';')[0].replace('d__', '')
+                sylph_by_domain[domain] = sylph_by_domain.get(domain, 0.0) + \
+                    float(sylph_eff[i]) / current_alpha
+            for domain, cols in sorted(novel_by_domain.items()):
+                estimate = domain_coverage_estimates.get(domain)
+                if estimate is None:
+                    continue
+                budget = max(0.0, float(estimate) - sylph_by_domain.get(domain, 0.0))
+                novel_budget_groups.append((np.array(cols, dtype=int), budget))
+                logging.info("Novel budget for {}: {:.2f}x (markers {:.2f}x - sylph species "
+                    "{:.2f}x) over {} novel columns".format(
+                        domain, budget, float(estimate), sylph_by_domain.get(domain, 0.0), len(cols)))
+
         a = np.zeros(num_columns)
+        for c in pinned_columns:
+            a[c] = bounds[c][0]
         singlem_weights = np.ones(num_singlem)
 
         def optimise(current_a, current_alpha, singlem_weights):
@@ -277,6 +344,14 @@ class JointDeconvolver:
                 excess = np.maximum(x - centres, 0.0)
                 f += coherence_weight * float(np.dot(excess, excess))
                 g += 2.0 * coherence_weight * excess
+                # Novel budget: one-sided, on the domain's novel total rather than on any
+                # single column, because the budget is a statement about how much novelty
+                # the domain can contain and not about which clade holds it.
+                for cols, budget in novel_budget_groups:
+                    over = float(np.sum(x[cols])) - budget
+                    if over > 0.0:
+                        f += novel_budget_weight * over * over
+                        g[cols] += 2.0 * novel_budget_weight * over
                 f += l1_penalty * float(np.sum(x))
                 g += l1_penalty
                 return f, g
@@ -340,8 +415,12 @@ class JointDeconvolver:
             sample, current_alpha, float(np.sum(a))))
 
         # Use the lower numerical/output floor only for sylph-supported species.
-        # SingleM-only calls at any rank must satisfy the normal taxon threshold.
+        # SingleM-only calls at any rank must satisfy the normal taxon threshold. A
+        # pinned species is exempt from both: the profile is meant to reproduce sylph's
+        # species assignments, and dropping the faintest of them would not.
         for j in range(num_columns):
+            if j in pinned_columns:
+                continue
             threshold = prune_below if j in sylph_columns else min_singlem_coverage
             if threshold is not None and a[j] < threshold:
                 a[j] = 0.0

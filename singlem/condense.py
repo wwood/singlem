@@ -80,6 +80,8 @@ class Condenser:
         joint_absence_weight = kwargs.pop('joint_absence_weight', 100.0)
         joint_min_markers = kwargs.pop('joint_min_markers', 3)
         joint_adaptive_sylph_weight = kwargs.pop('joint_adaptive_sylph_weight', False)
+        joint_pin_sylph_species = kwargs.pop('joint_pin_sylph_species', False)
+        joint_novel_budget = kwargs.pop('joint_novel_budget', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
@@ -142,7 +144,51 @@ class Condenser:
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
                 True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
                 sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers,
-                joint_adaptive_sylph_weight)
+                joint_adaptive_sylph_weight, joint_pin_sylph_species, joint_novel_budget)
+
+    def _domain_coverage_estimates(self, sample_otus, target_domains, trim_percent):
+        '''Per domain, the total genome-equivalent coverage of everything in that domain,
+        estimated the way the standard condense estimates any taxon's: the trimmed mean
+        of its per-marker coverage over its full marker complement, markers with no hit
+        counted as zero.
+
+        Every organism carries one copy of each of its domain's single-copy markers, so
+        the total coverage observed on one marker is the domain's whole community
+        coverage as measured by that marker, and the trimmed mean across the complement
+        is the community coverage. It is evidence about the total that does not depend on
+        the deconvolution, which is what makes it usable as a budget: whatever sylph's
+        species do not account for is the most the novel columns can honestly claim.
+
+        Per domain rather than pooled, because most markers are domain-specific. Pooling
+        takes a trimmed mean over a mixture of bacterial markers (seeing only the
+        bacteria) and archaeal ones (seeing only the archaea), which estimates neither
+        total but something between them -- on the phylogenetic-novelty benchmark, 13.3x
+        against a community of 20x, where per domain gives 9.3x + 9.7x.'''
+        per_domain_marker = {}  # domain -> marker -> summed coverage
+        for otu in sample_otus:
+            domain = None
+            for rank in otu.taxonomy.split(';'):
+                rank = rank.strip()
+                if rank.startswith('d__'):
+                    domain = rank[3:]
+                    break
+            if domain is None:
+                continue
+            per_domain_marker.setdefault(domain, {})
+            per_domain_marker[domain][otu.marker] = \
+                per_domain_marker[domain].get(otu.marker, 0.0) + otu.coverage
+
+        estimates = {}
+        for domain, domain_markers in target_domains.items():
+            if len(domain_markers) == 0:
+                continue
+            observed = per_domain_marker.get(domain, {})
+            coverages = [observed.get(marker, 0.0) for marker in domain_markers]
+            estimates[domain] = _tmean(coverages, trim_percent) if trim_percent > 0 \
+                else sum(coverages) / len(coverages)
+        logging.info("Per-domain community coverage from markers: {}".format(
+            ', '.join('{}={:.2f}'.format(d, c) for d, c in sorted(estimates.items()) if c > 0)))
+        return estimates
 
     def _validate_sylph_against_metapackage(self, sylph_sample_to_hits, metapackage):
         '''Shared-DB sanity check: warn if many sylph species are not found among
@@ -178,7 +224,8 @@ class Condenser:
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
             output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None,
             joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3,
-            joint_adaptive_sylph_weight=False):
+            joint_adaptive_sylph_weight=False, joint_pin_sylph_species=False,
+            joint_novel_budget=False):
 
 
         # Remove off-target OTUs genes
@@ -216,12 +263,18 @@ class Condenser:
             logging.info("Converting DIAMOND IDs to taxons")
             self._convert_diamond_best_hit_ids_to_taxonomies(metapackage, sample_otus)
             domain_marker_counts = {domain: len(genes) for domain, genes in target_domains.items()}
+            domain_coverage_estimates = None
+            if joint_novel_budget:
+                domain_coverage_estimates = self._domain_coverage_estimates(
+                    sample_otus, target_domains, trim_percent)
             condensed_otus = JointDeconvolver().solve(
                 sample, sample_otus, sylph_hits if sylph_hits is not None else {},
                 domain_marker_counts=domain_marker_counts,
                 alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
                 min_markers=joint_min_markers,
                 adaptive_sylph_weight=joint_adaptive_sylph_weight,
+                pin_sylph_species=joint_pin_sylph_species,
+                domain_coverage_estimates=domain_coverage_estimates,
                 min_singlem_coverage=min_taxon_coverage, trim_percent=trim_percent)
             # No push-down of genus coverage into species here. The trimmed-mean condense
             # needs it because it has no way to say "something in this genus that is not

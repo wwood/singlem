@@ -291,6 +291,10 @@ def add_condense_arguments(parser):
         help="[--joint] weight suppressing species in the DB that sylph did not report [default: 100.0]")
     optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
         help="[--joint] minimum number of uniquely-assigned markers required for a taxon that sylph did not detect; taxa below this are set to zero coverage [default: 3]")
+    optional_condense_arguments.add_argument('--joint-pin-sylph-species', action='store_true',
+        help="[--joint] take species-level assignments from sylph alone: each sylph-detected species is fixed at its own coverage and every other database species is fixed to zero, leaving SingleM's markers to determine only the novel (higher-rank) coverage. Requires a well-calibrated alpha, so use a sylph -u profile or pass --alpha [default: off]")
+    optional_condense_arguments.add_argument('--joint-novel-budget', action='store_true',
+        help="[--joint] cap each domain's total novel coverage at what its markers imply is present but sylph did not account for, estimated as the trimmed mean of per-marker coverage over the domain's full marker complement. Suppresses novel lineages fabricated in communities that are already fully explained by sylph's species [default: off]")
     optional_condense_arguments.add_argument('--joint-adaptive-sylph-weight', action='store_true',
         help="[--joint] scale each species' deference to sylph by how well its own SingleM markers corroborate sylph's coverage: species whose markers agree with sylph are trusted more (better on known species), while those that disagree keep the base weight (protecting novel strains) [default: off]")
 
@@ -1421,7 +1425,9 @@ def main():
             joint_l1_penalty = args.joint_l1_penalty,
             joint_absence_weight = args.joint_absence_weight,
             joint_min_markers = args.joint_min_markers,
-            joint_adaptive_sylph_weight = args.joint_adaptive_sylph_weight)
+            joint_adaptive_sylph_weight = args.joint_adaptive_sylph_weight,
+            joint_pin_sylph_species = args.joint_pin_sylph_species,
+            joint_novel_budget = args.joint_novel_budget)
 
     elif args.subparser_name == 'trim_package_hmms':
         from singlem.trim_package_hmms import PackageHmmTrimmer
