@@ -199,6 +199,15 @@ class Condenser:
 
         num_otus_changed = 0
         sequence_ids = set()
+        
+        def _bare(s):
+            return s[3:] if len(s) > 3 and s[1:3] == '__' else s
+        
+        marker_to_domains = {
+            spkg.graftm_package_basename(): set(_bare(d) for d in spkg.target_domains())
+            for spkg in metapackage.singlem_packages
+        }
+
         # Step 1: Gather dictionary of sequence IDs to taxon strings
         for otu in sample_otus:
             if otu.taxonomy_assignment_method() == DIAMOND_ASSIGNMENT_METHOD:
@@ -208,6 +217,7 @@ class Condenser:
                             logging.debug(f"OTU with sequence {otu.sequence} has seq_id: {seq_id}")
                         sequence_ids.add(seq_id)
 
+        
         # Step 2: Get taxon strings
         sequence_id_to_taxon = metapackage.get_taxonomy_of_reads(sequence_ids)
 
@@ -217,19 +227,24 @@ class Condenser:
                 # Each sequence in the OTU is assigned a separate set of
                 # taxon_ids. Maybe we could do something more smart, but for the
                 # moment, just assume they are all equally best hits.
+                target_domains = marker_to_domains[otu.marker]
                 possible_names = set()
                 for seq_id_list in otu.equal_best_hit_taxonomies():
                     for seq_id in seq_id_list:
                         taxon_name = sequence_id_to_taxon[seq_id]
-                        if not taxon_name[-2].startswith('g__'):
-                            if not taxon_name[0] == 'd__Eukaryota':
-                                raise Exception("Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
-                            else:
-                                # This can happen when taxonomy is overall
-                                # Archaea so not previously filtered out, but
-                                # equal-best to Euk
-                                logging.debug("Ignoring equal-best hit Eukaryotic taxon {}".format(taxon_name))
+                        names = taxon_name[1:] if taxon_name[0] == 'Root' else taxon_name
+                        if len(names) < 2 or not names[-2].startswith('g__'):
+                            if names and _bare(names[0]) not in target_domains:
+                                # Off-target domain (e.g. euk hit under a
+                                # bacteria/archaea-only metapackage): reference
+                                # taxonomy for these is often ragged, and the
+                                # hit is discarded regardless.
+                                logging.debug(
+                                    "Ignoring off-target equal-best hit {}".format(taxon_name)
+                                )
                                 continue
+                            raise Exception(
+                                "Expected genus level taxon, but found {}, from ID {}".format(taxon_name, seq_id))
                         # Record only to genus level
                         if taxon_name[0] != 'Root':
                             taxon_name = ['Root']+taxon_name
