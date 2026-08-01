@@ -27,6 +27,7 @@ from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
 from .genome_fasta_mux import GenomeFastaMux
+from .frameshift_repair import resolve_ambiguous_windows, DEFAULT_MAX_DIVERGENCE
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -34,6 +35,7 @@ from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
 
 DEFAULT_THREADS = 1
+DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE = DEFAULT_MAX_DIVERGENCE
 
 class SearchPipe:
     DEFAULT_MIN_ORF_LENGTH = 72
@@ -182,6 +184,9 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
         context_window = kwargs.pop('context_window', None)
+        repair_frameshifts = kwargs.pop('repair_frameshifts', False)
+        max_frameshift_repair_divergence = kwargs.pop(
+            'max_frameshift_repair_divergence', DEFAULT_MAX_DIVERGENCE)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -444,7 +449,7 @@ class SearchPipe:
                     (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                         self._num_threads, self._working_directory).run_diamond(
                         hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                        hmms.prefilter_db_path(), min_orf_length, context_window)
+                        hmms.prefilter_db_path(), min_orf_length, context_window, repair_frameshifts)
                 except extern.ExternCalledProcessError as e:
                     logging.error("Process (DIAMOND?) failed")
                     terminate_processes(zstd_processes, "zstdcat")
@@ -534,6 +539,31 @@ class SearchPipe:
                 logging.info("Removing duplicate sequences from rough transcriptome ..")
                 for readset in extracted_reads:
                     readset.remove_duplicate_sequences()
+
+            #### Resolve windows whose frameshift repair left an ambiguous base.
+            # Repairing a deletion restores the reading frame but not the identity
+            # of the deleted base, so the window has an 'N' in it. Fill that in
+            # from the most abundant near-identical window of the same marker,
+            # which is the same organism seen in reads without an indel there.
+            # Done per package (pooled across samples) so that low-coverage
+            # samples can still draw on a donor.
+            if repair_frameshifts:
+                logging.info("Resolving ambiguous bases in frameshift-repaired windows ..")
+                num_resolved = 0
+                for _, readsets in extracted_reads.each_package_wise():
+                    window_sequences = []
+                    for readset in readsets:
+                        if analysing_pairs:
+                            window_sequences.extend(readset[0].unknown_sequences)
+                            window_sequences.extend(readset[1].unknown_sequences)
+                        else:
+                            window_sequences.extend(readset.unknown_sequences)
+                    num_resolved += resolve_ambiguous_windows(
+                        window_sequences,
+                        max_divergence=max_frameshift_repair_divergence)
+                logging.info(
+                    "Resolved the ambiguous base(s) of {} window sequence(s)".format(
+                        num_resolved))
 
             #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
             if diamond_taxonomy_assignment_performance_parameters == None:

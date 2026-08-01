@@ -9,13 +9,14 @@ import extern
 from subprocess import Popen, PIPE
 
 from .utils import FastaNameToSampleName
+from .frameshift_repair import walk_btop, repair_frameshifts as repair_frameshifts_in_sequence
 
 class DiamondSpkgSearcher:
     def __init__(self, num_threads, working_directory):
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window, repair_frameshifts=False):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
 
@@ -46,10 +47,10 @@ class DiamondSpkgSearcher:
             for file in forward_read_files
         ]
 
-        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length, context_window)
+        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts)
         revs = None
         if reverse_read_files != None:
-            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window)
+            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts)
 
         return (fwds, revs)
 
@@ -66,17 +67,20 @@ class DiamondSpkgSearcher:
             sys.stderr.flush()
             time.sleep(0.1)
 
-    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window):
-        '''Find all reads that match the DIAMOND database in the 
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts=False):
+        '''Find all reads that match the DIAMOND database in the
         singlem_package database.
         Parameters
         ----------
-        diamond_database: dmnd 
+        diamond_database: dmnd
             DIAMOND database from the SingleM packages to search reads with
-        read_files: list of str 
+        read_files: list of str
             paths to the sequences to be searched
         reverse: boolean
             check if using reverse reads
+        repair_frameshifts: boolean
+            use the frameshifts DIAMOND reports in its BTOP string to restore the
+            reading frame of each hit region (see frameshift_repair).
         Returns
         -------
         Array of DiamondSearchResult objects, one for each read file
@@ -106,9 +110,14 @@ class DiamondSpkgSearcher:
             # Note these parameters should align with those used in the taxonomy
             # search step later on in pipe, otherwise some reads that pass the
             # prefilter will not be assigned any taxonomy.
-            cmd = [ 
+            # BTOP is only requested when frameshift repair is on, since it makes
+            # DIAMOND's output larger for no benefit otherwise.
+            outfmt = ["6", "qseqid", "full_qseq", "sseqid", "qstart", "qend"]
+            if repair_frameshifts:
+                outfmt.append("btop")
+            cmd = [
                 "diamond", "blastx",
-                "--outfmt", "6", "qseqid", "full_qseq", "sseqid", "qstart", "qend",
+                "--outfmt", *outfmt,
                 "--max-target-seqs", "1",
                 "--evalue", "0.01",
                 "--frameshift", "15",
@@ -126,6 +135,8 @@ class DiamondSpkgSearcher:
 
             best_hits = {}
             query_sequence_lengths = {}
+            num_frameshifts_repaired = 0
+            num_reads_with_frameshifts = 0
             do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
             if not do_logging:
                 # Start animation thread
@@ -154,14 +165,27 @@ class DiamondSpkgSearcher:
                 with open(fasta_path, 'a') as fasta_file, open(full_qseq_fasta_path, 'a') as full_qseq_f:
                     for line in proc.stdout:
                         try:
-                            qseqid, full_qseq, sseqid, qstart, qend = line.strip().split('\t')
+                            fields = line.strip().split('\t')
+                            if repair_frameshifts:
+                                qseqid, full_qseq, sseqid, qstart, qend, btop = fields
+                            else:
+                                qseqid, full_qseq, sseqid, qstart, qend = fields
+                                btop = None
                         except ValueError:
                             raise Exception(
                                 f"Unexpected line format for DIAMOND output line '{line.strip()}'. "
                                 "DIAMOND can emit malformed rows when input read files are corrupted; "
                                 "please validate the integrity and format of the input FASTQ/FASTA files."
                             )
-                        
+
+                        # Find the frameshifts before qstart/qend are swapped and
+                        # padded below, since walk_btop needs them as DIAMOND
+                        # reported them (qstart > qend means the reverse strand).
+                        if btop is None:
+                            frameshifts = []
+                        else:
+                            frameshifts = walk_btop(int(qstart), int(qend), btop) or []
+
                         # qstart can be > qend if the sequences is reverse complemented.
                         qstart_int = int(qstart)
                         qend_int =  int(qend)
@@ -203,6 +227,23 @@ class DiamondSpkgSearcher:
                         # Only write the part of the query sequence that aligned
                         # to the prefilter database to the fasta file.
                         truncated_qseq = full_qseq[int(qstart_int)-1:int(qend_int)]
+
+                        # Restore the reading frame of the region that is about to
+                        # be translated and aligned to the HMM. Only frameshifts
+                        # inside the region matter, and they are re-based onto it.
+                        if len(frameshifts) > 0:
+                            region_start = int(qstart_int) - 1
+                            region_end = int(qend_int)
+                            frameshifts_here = [
+                                (position - region_start, kind)
+                                for (position, kind) in frameshifts
+                                if region_start <= position < region_end]
+                            if len(frameshifts_here) > 0:
+                                truncated_qseq = repair_frameshifts_in_sequence(
+                                    truncated_qseq, frameshifts_here)
+                                num_frameshifts_repaired += len(frameshifts_here)
+                                num_reads_with_frameshifts += 1
+
                         fasta_file.write(f'>{unique_qseqid}\n{truncated_qseq}\n')
 
                         # Write the full read sequence to the fasta file as well
@@ -235,6 +276,11 @@ class DiamondSpkgSearcher:
                 if return_code != 0:
                     # We use extern ExternCalledProcessError here because it is what the rest of the code is designed to catch, but we have to construct it ourselves here because we're using Popen directly.
                     raise extern.ExternCalledProcessError(proc, cmd)
+
+            if repair_frameshifts:
+                logging.info(
+                    f"Repaired {num_frameshifts_repaired} frameshift(s) in "
+                    f"{num_reads_with_frameshifts} hit(s) for {os.path.basename(file)}")
 
             diamond_results.append(DiamondSearchResult(fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths))
             logging.info(f"Found {len(best_hits)} hits for {os.path.basename(file)}")

@@ -39,6 +39,13 @@ Ordered roughly by where a reader should start.
 - **`metagenome_otu_finder.py`** — `MetagenomeOtuFinder.find_windowed_sequences()` /
   `find_best_window()` implement the central idea: choosing and extracting the fixed-width
   window columns from an alignment (protein or nucleotide).
+- **`frameshift_repair.py`** — Pure helpers used by `pipe --repair-frameshifts`. `walk_btop()`
+  turns DIAMOND's BTOP string from the prefilter into the positions of single-base indels in
+  the read; `repair_frameshifts()` edits the read to restore its reading frame (inserting an
+  `N` for a deleted base, dropping an inserted one); `resolve_ambiguous_windows()` then fills
+  each `N` from the most abundant near-identical window of the same marker. Matters because an
+  indel, unlike a substitution, breaks the translated alignment entirely — the dominant cause
+  of lost windows on Nanopore reads.
 - **`prefilter_pad.py`** — `PrefilterPadder` plus the pure helpers `window_alignment_positions()`
   and `pad_aligned_sequence()`. Emits a prefilter FASTA where every on-target sequence is
   padded to a fixed length (30aa + 20aa window + 30aa, `X`-padded) with the window in a
