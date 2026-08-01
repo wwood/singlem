@@ -1,6 +1,6 @@
 ## Unreleased
 
-* `pipe`: Add `--repair-frameshifts`, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches.
+* `pipe`: Frameshift repair, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window, is now on by default. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches. Disable with `--no-repair-frameshifts`.
 
 ## v0.21.3
 

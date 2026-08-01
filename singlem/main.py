@@ -211,8 +211,8 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
                                     default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
         argument_group.add_argument('--sleep-after-mkfifo', type=int,
                                     help='Sleep for this many seconds after running os.mkfifo [default: None]')
-        argument_group.add_argument('--repair-frameshifts', action='store_true',
-                                    help='Use the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so that reads carrying single base insertions or deletions still yield a window. Recommended for long reads from error-prone technologies e.g. Nanopore. [default: not set]',
+        argument_group.add_argument('--no-repair-frameshifts', action='store_true',
+                                    help='Do not use the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM. By default, frameshifts are repaired so that reads carrying single base insertions or deletions still yield a window; this is particularly helpful for long reads from error-prone technologies e.g. Nanopore. [default: not set, i.e. repair frameshifts]',
                                     default=False)
         argument_group.add_argument('--max-frameshift-repair-divergence', type=int, metavar='INT',
                                     help='When a repaired deletion leaves a base whose identity is unknown, take that base from the most abundant window within this many mismatches. [default: %i]' % pipe.DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
@@ -233,14 +233,16 @@ def validate_pipe_args(args, subparser='pipe'):
     if subparser == 'pipe':
         if args.context_window is not None and args.context_window < 0:
             raise Exception("--context-window must be a non-negative integer")
-        if args.repair_frameshifts and args.no_diamond_prefilter:
+        if not args.no_repair_frameshifts and args.no_diamond_prefilter:
             raise Exception(
-                "--repair-frameshifts requires the DIAMOND prefilter, because the "
-                "frameshifts it repairs are the ones DIAMOND reports there")
-        if args.repair_frameshifts and args.hmmsearch_package_assignment:
+                "Frameshift repair requires the DIAMOND prefilter, because the "
+                "frameshifts it repairs are the ones DIAMOND reports there. Use "
+                "--no-repair-frameshifts to disable frameshift repair.")
+        if not args.no_repair_frameshifts and args.hmmsearch_package_assignment:
             raise Exception(
-                "--repair-frameshifts is currently only compatible with DIAMOND "
-                "package assignment")
+                "Frameshift repair is currently only compatible with DIAMOND "
+                "package assignment. Use --no-repair-frameshifts to disable "
+                "frameshift repair.")
         if args.max_frameshift_repair_divergence < 0:
             raise Exception("--max-frameshift-repair-divergence must be non-negative")
         if args.include_inserts and not args.otu_table and not args.archive_otu_table:
@@ -845,7 +847,7 @@ def main():
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
             context_window = args.context_window,
-            repair_frameshifts = args.repair_frameshifts,
+            repair_frameshifts = not args.no_repair_frameshifts,
             max_frameshift_repair_divergence = args.max_frameshift_repair_divergence,
         )
 

@@ -184,7 +184,7 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
         context_window = kwargs.pop('context_window', None)
-        repair_frameshifts = kwargs.pop('repair_frameshifts', False)
+        repair_frameshifts = kwargs.pop('repair_frameshifts', True)
         max_frameshift_repair_divergence = kwargs.pop(
             'max_frameshift_repair_divergence', DEFAULT_MAX_DIVERGENCE)
 
