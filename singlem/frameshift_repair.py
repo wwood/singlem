@@ -40,7 +40,7 @@ AMBIGUOUS_CHAR = 'N'
 
 # Maximum number of mismatching (non-ambiguous) positions between an ambiguous
 # window and a donor window for the donor to be usable.
-DEFAULT_MAX_DIVERGENCE = 2
+DEFAULT_MAX_DIVERGENCE = 4
 
 _BTOP_TOKEN = re.compile(r'(\d+)|([/\\])(.)|(.)(.)')
 

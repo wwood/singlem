@@ -203,10 +203,10 @@ class ResolveAmbiguousWindowsTests(unittest.TestCase):
         self.assertEqual('ACGTACGT', ambiguous.aligned_sequence)
 
     def test_donor_beyond_max_divergence_not_used(self):
-        # The only candidate donor differs at 3 unambiguous positions, more than
-        # the default maximum of 2, so the window is left alone.
+        # The only candidate donor differs at 5 unambiguous positions, more than
+        # the default maximum of 4, so the window is left alone.
         ambiguous = FakeWindowSequence('ACGNACGT')
-        sequences = [ambiguous, FakeWindowSequence('TTTTACGT')]
+        sequences = [ambiguous, FakeWindowSequence('TTTTTTGT')]
         self.assertEqual(0, resolve_ambiguous_windows(sequences))
         self.assertEqual('ACGNACGT', ambiguous.aligned_sequence)
 
