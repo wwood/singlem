@@ -1,0 +1,14 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "performance_benchmarking"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+snakemake = ">=9.19.0,<10"
+polars = ">=1.39.3,<2"
+jupyter = ">=1.1.1,<2"
+plotnine = ">=0.15.3,<0.16"
