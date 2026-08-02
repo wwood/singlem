@@ -137,6 +137,7 @@ class DiamondSpkgSearcher:
             query_sequence_lengths = {}
             num_frameshifts_repaired = 0
             num_reads_with_frameshifts = 0
+            repaired_deletion_qseqids = set()
             do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
             if not do_logging:
                 # Start animation thread
@@ -243,6 +244,12 @@ class DiamondSpkgSearcher:
                                     truncated_qseq, frameshifts_here)
                                 num_frameshifts_repaired += len(frameshifts_here)
                                 num_reads_with_frameshifts += 1
+                                # Only deletions insert an ambiguous base; track
+                                # those hits so resolve_ambiguous_windows() can
+                                # later tell a repair-inserted 'N' apart from an
+                                # 'N' that was already in the raw read.
+                                if any(kind == 'deletion' for (_, kind) in frameshifts_here):
+                                    repaired_deletion_qseqids.add(unique_qseqid)
 
                         fasta_file.write(f'>{unique_qseqid}\n{truncated_qseq}\n')
 
@@ -282,17 +289,25 @@ class DiamondSpkgSearcher:
                     f"Repaired {num_frameshifts_repaired} frameshift(s) in "
                     f"{num_reads_with_frameshifts} hit(s) for {os.path.basename(file)}")
 
-            diamond_results.append(DiamondSearchResult(fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths))
+            diamond_results.append(DiamondSearchResult(
+                fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths,
+                repaired_deletion_qseqids))
             logging.info(f"Found {len(best_hits)} hits for {os.path.basename(file)}")
 
         return diamond_results
 
 class DiamondSearchResult:
-    def __init__(self, query_sequence_file, full_query_sequences_file, best_hits, query_sequence_lengths):
+    def __init__(self, query_sequence_file, full_query_sequences_file, best_hits, query_sequence_lengths,
+                 repaired_deletion_qseqids=None):
         self.query_sequences_file = query_sequence_file
         self.full_query_sequences_file = full_query_sequences_file
         self.best_hits = best_hits
         self.query_sequence_lengths = query_sequence_lengths
+        # unique_qseqid values (see _prefilter) of hits where frameshift repair
+        # inserted an ambiguous base for a deletion, i.e. whose 'N' is safe to
+        # resolve in resolve_ambiguous_windows(), as opposed to an 'N' that was
+        # already present in the raw read.
+        self.repaired_deletion_qseqids = repaired_deletion_qseqids if repaired_deletion_qseqids is not None else set()
 
     def sample_name(self):
         return FastaNameToSampleName().fasta_to_name(self.query_sequences_file)

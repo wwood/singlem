@@ -363,7 +363,12 @@ class SearchPipe:
                 singlem_assignment_method = PPLACER_ASSIGNMENT_METHOD
             if not diamond_prefilter:
                 diamond_package_assignment = False
-    
+
+            # Populated below when the DIAMOND prefilter runs with frameshift
+            # repair on; used later to restrict resolve_ambiguous_windows() to
+            # windows whose 'N' actually came from a repaired deletion.
+            repaired_deletion_qseqids = set()
+
             #### Extract diamond_prefilter_performance_parameters from metapackage (v5 metapackages only)
             if diamond_prefilter:
                 # Set the min ORF length in DIAMOND, as this saves CPU time and
@@ -467,10 +472,24 @@ class SearchPipe:
                 if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                     found_a_hit = True
                 forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
+                repaired_deletion_qseqids = set()
+                for r in diamond_forward_search_results:
+                    repaired_deletion_qseqids.update(r.repaired_deletion_qseqids)
                 if analysing_pairs:
                     reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
                     if any([len(r.best_hits)>0 for r in diamond_reverse_search_results]):
                         found_a_hit = True
+                    for r in diamond_reverse_search_results:
+                        repaired_deletion_qseqids.update(r.repaired_deletion_qseqids)
+                if input_sra_files:
+                    # unknown_sequences are renamed by KingfisherSra to strip the
+                    # SRA .0/.1/.2 direction suffix and the ••gene suffix (see
+                    # KingfisherSra._split_extracted_reads); normalise these
+                    # qseqids the same way so they still match by .name below.
+                    sra_regex = KingfisherSra()._split_regex()
+                    repaired_deletion_qseqids = {
+                        (m.group(1) if (m := sra_regex.match(qseqid)) else qseqid)
+                        for qseqid in repaired_deletion_qseqids}
                 logging.info("Finished DIAMOND prefilter phase")
                 if not found_a_hit:
                     logging.info("No reads identified in any samples, stopping")
@@ -560,7 +579,8 @@ class SearchPipe:
                             window_sequences.extend(readset.unknown_sequences)
                     num_resolved += resolve_ambiguous_windows(
                         window_sequences,
-                        max_divergence=max_frameshift_repair_divergence)
+                        max_divergence=max_frameshift_repair_divergence,
+                        repaired_names=repaired_deletion_qseqids)
                 logging.info(
                     "Resolved the ambiguous base(s) of {} window sequence(s)".format(
                         num_resolved))

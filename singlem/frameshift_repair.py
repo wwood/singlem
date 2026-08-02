@@ -102,7 +102,10 @@ def walk_btop(qstart, qend, btop):
             position += step * 3 * operation[1]
         elif operation[0] == 'frameshift':
             if operation[1] == '/':
-                frameshifts.append((position - 1, 'deletion'))
+                # On the reverse strand (step == -1), the missing base sits
+                # immediately after `position` in the query's own (forward)
+                # coordinates, not before it as on the forward strand.
+                frameshifts.append((position if step == -1 else position - 1, 'deletion'))
                 position -= step
             else:
                 frameshifts.append((position - 1, 'insertion'))
@@ -264,7 +267,8 @@ class _DonorIndex:
 
 def resolve_ambiguous_windows(window_sequences,
                               max_divergence=DEFAULT_MAX_DIVERGENCE,
-                              ambiguous_char=AMBIGUOUS_CHAR):
+                              ambiguous_char=AMBIGUOUS_CHAR,
+                              repaired_names=None):
     '''Fill in ambiguous bases in window sequences from other windows in the same
     set.
 
@@ -286,12 +290,20 @@ def resolve_ambiguous_windows(window_sequences,
         modified in place (their aligned_sequence attribute is updated).
     max_divergence: int
         maximum number of mismatches at unambiguous positions.
+    repaired_names: set of str, or None
+        if given, only windows whose .name is in this set are eligible to be
+        resolved, since an ambiguous_char elsewhere is not from frameshift
+        repair (e.g. an 'N' already present in the raw read) and inventing a
+        base for it would misrepresent the read. If None, every ambiguous
+        window is eligible, as when no such provenance is available.
 
     Returns
     -------
     the number of window sequences that were resolved.
     '''
-    ambiguous = [s for s in window_sequences if ambiguous_char in s.aligned_sequence]
+    ambiguous = [s for s in window_sequences
+                 if ambiguous_char in s.aligned_sequence
+                 and (repaired_names is None or s.name in repaired_names)]
     if len(ambiguous) == 0:
         return 0
 

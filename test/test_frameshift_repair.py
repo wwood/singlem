@@ -81,7 +81,13 @@ class WalkBtopTests(unittest.TestCase):
     def test_reverse_strand(self):
         # qstart > qend means the reverse strand, and the walk goes downwards.
         self.assertEqual([], walk_btop(30, 1, '10'))
-        self.assertEqual([(23, 'deletion')], walk_btop(30, 14, '2/-4'))
+        # On the reverse strand the missing base sits immediately after
+        # `position` in forward coordinates, one nucleotide further along than
+        # on the forward strand (contrast test_deletion_frameshift_forward).
+        self.assertEqual([(24, 'deletion')], walk_btop(30, 14, '2/-4'))
+
+    def test_reverse_strand_insertion(self):
+        self.assertEqual([(23, 'insertion')], walk_btop(30, 12, '2\\-4'))
 
     def test_gap_in_query_consumes_no_nucleotides(self):
         # A query gap ('-K') consumes no query nucleotides, so 2+2 matches plus
@@ -150,8 +156,9 @@ class FakeWindowSequence:
     '''Stands in for UnalignedAlignedNucleotideSequence, which needs more setup
     than these tests require.'''
 
-    def __init__(self, aligned_sequence):
+    def __init__(self, aligned_sequence, name=None):
         self.aligned_sequence = aligned_sequence
+        self.name = name
 
 
 class ResolveAmbiguousWindowsTests(unittest.TestCase):
@@ -164,6 +171,25 @@ class ResolveAmbiguousWindowsTests(unittest.TestCase):
         ambiguous = FakeWindowSequence('ACGNACGT')
         sequences = [ambiguous, FakeWindowSequence('ACGTACGT')]
         self.assertEqual(1, resolve_ambiguous_windows(sequences))
+        self.assertEqual('ACGTACGT', ambiguous.aligned_sequence)
+
+    def test_repaired_names_restricts_resolution(self):
+        # An 'N' that came from the raw read rather than frameshift repair must
+        # not be filled in, even if a perfect donor is available.
+        raw_n = FakeWindowSequence('ACGNACGT', name='raw_read')
+        repaired = FakeWindowSequence('ACGNACGT', name='repaired_read')
+        sequences = [raw_n, repaired, FakeWindowSequence('ACGTACGT', name='donor')]
+        self.assertEqual(
+            1, resolve_ambiguous_windows(sequences, repaired_names={'repaired_read'}))
+        self.assertEqual('ACGNACGT', raw_n.aligned_sequence)
+        self.assertEqual('ACGTACGT', repaired.aligned_sequence)
+
+    def test_repaired_names_none_resolves_everything(self):
+        # Without provenance information, every ambiguous window is eligible,
+        # matching the previous behaviour.
+        ambiguous = FakeWindowSequence('ACGNACGT', name='unknown')
+        sequences = [ambiguous, FakeWindowSequence('ACGTACGT', name='donor')]
+        self.assertEqual(1, resolve_ambiguous_windows(sequences, repaired_names=None))
         self.assertEqual('ACGTACGT', ambiguous.aligned_sequence)
 
     def test_most_abundant_donor_wins(self):
