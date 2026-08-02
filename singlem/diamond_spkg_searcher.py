@@ -16,7 +16,7 @@ class DiamondSpkgSearcher:
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window, repair_frameshifts=False):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window, repair_frameshifts):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
 
