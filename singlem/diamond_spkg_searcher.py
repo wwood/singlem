@@ -67,7 +67,7 @@ class DiamondSpkgSearcher:
             sys.stderr.flush()
             time.sleep(0.1)
 
-    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts=False):
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts):
         '''Find all reads that match the DIAMOND database in the
         singlem_package database.
         Parameters

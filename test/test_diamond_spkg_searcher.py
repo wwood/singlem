@@ -48,6 +48,7 @@ class DiamondSpkgSearcherTests(unittest.TestCase):
                         sample_names=['sample.fna'],
                         min_orf_length=72,
                         context_window=None,
+                        repair_frameshifts=False,
                     )
 
     def _prefilter_on_one_hit(self, tempdir, line, repair_frameshifts):
