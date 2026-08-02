@@ -27,7 +27,7 @@ from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
 from .genome_fasta_mux import GenomeFastaMux
-from .frameshift_repair import resolve_ambiguous_windows, DEFAULT_MAX_DIVERGENCE
+from .frameshift_repair import resolve_ambiguous_windows, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -35,7 +35,6 @@ from graftm.sequence_search_results import HMMSearchResult, SequenceSearchResult
 
 
 DEFAULT_THREADS = 1
-DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE = DEFAULT_MAX_DIVERGENCE
 
 class SearchPipe:
     DEFAULT_MIN_ORF_LENGTH = 72
@@ -186,7 +185,7 @@ class SearchPipe:
         context_window = kwargs.pop('context_window', None)
         repair_frameshifts = kwargs.pop('repair_frameshifts', True)
         max_frameshift_repair_divergence = kwargs.pop(
-            'max_frameshift_repair_divergence', DEFAULT_MAX_DIVERGENCE)
+            'max_frameshift_repair_divergence', DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)

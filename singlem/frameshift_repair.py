@@ -40,7 +40,7 @@ AMBIGUOUS_CHAR = 'N'
 
 # Maximum number of mismatching (non-ambiguous) positions between an ambiguous
 # window and a donor window for the donor to be usable.
-DEFAULT_MAX_DIVERGENCE = 4
+DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE = 4
 
 _BTOP_TOKEN = re.compile(r'(\d+)|([/\\])(.)|(.)(.)')
 
@@ -266,7 +266,7 @@ class _DonorIndex:
 
 
 def resolve_ambiguous_windows(window_sequences,
-                              max_divergence=DEFAULT_MAX_DIVERGENCE,
+                              max_divergence=DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
                               ambiguous_char=AMBIGUOUS_CHAR,
                               repaired_names=None):
     '''Fill in ambiguous bases in window sequences from other windows in the same
