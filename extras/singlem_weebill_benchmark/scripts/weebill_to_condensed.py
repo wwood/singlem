@@ -4,7 +4,7 @@ import csv
 from collections import defaultdict
 
 from singlem.metapackage import Metapackage
-from singlem.sylph import SylphProfiler
+from singlem.weebill import WeebillProfiler
 
 
 parser = argparse.ArgumentParser()
@@ -14,7 +14,7 @@ parser.add_argument("--sample", required=True)
 parser.add_argument("--output", required=True)
 args = parser.parse_args()
 
-profiler = SylphProfiler()
+profiler = WeebillProfiler()
 with open(args.profile) as handle:
     rows = list(csv.DictReader(handle, delimiter="\t"))
 accessions = {profiler._extract_accession(row["Genome_file"]) for row in rows}

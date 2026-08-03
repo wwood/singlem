@@ -27,7 +27,8 @@ The `weebill` binary must be on the `PATH`. Genome file names must contain their
 to the metapackage's taxonomy.
 
 Omit `gtdb_genome_reps` from the config to build a metapackage with no weebill
-database; `singlem pipe` then behaves as it did before, markers only.
+database; `singlem pipe` then profiles from the marker genes alone, as does
+`singlem pipe --no-weebill` against a metapackage that does bundle one.
 
 ## Uniprot processing
 

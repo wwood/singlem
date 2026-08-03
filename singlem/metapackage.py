@@ -47,12 +47,12 @@ class Metapackage:
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
     AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
-    # A list of {'db': <basename>, 'c': <int>} entries, one per bundled sylph or
-    # weebill database, so each database is tightly coupled to the -c it was built
-    # with. Which of the two binaries reads them follows from the extension.
-    SYLPH_DBS_KEY = 'sylph_dbs'
-    SYLPH_DB_SUBKEY = 'db'
-    SYLPH_C_SUBKEY = 'c'
+    # A list of {'db': <basename>, 'c': <int>} entries, one per bundled weebill
+    # two-stage database, so each database is tightly coupled to the -c it was built
+    # with -- reads must be sketched at the same -c to be profiled against it.
+    WEEBILL_DBS_KEY = 'weebill_dbs'
+    WEEBILL_DB_SUBKEY = 'db'
+    WEEBILL_C_SUBKEY = 'c'
 
     _CURRENT_FORMAT_VERSION = 7
 
@@ -110,7 +110,7 @@ class Metapackage:
                         DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
                         MAKEIDX_SENSITIVITY_PARAMS,
                         AVG_NUM_GENES_PER_SPECIES,
-                        SYLPH_DBS_KEY,
+                        WEEBILL_DBS_KEY,
                         ],
                       }
 
@@ -243,9 +243,9 @@ class Metapackage:
             else:
                 mpkg._avg_num_genes_per_species = None
         if v >= 7:
-            mpkg._sylph_databases = [
-                (os.path.join(metapackage_path, entry[Metapackage.SYLPH_DB_SUBKEY]), entry[Metapackage.SYLPH_C_SUBKEY])
-                for entry in (contents_hash.get(Metapackage.SYLPH_DBS_KEY) or [])]
+            mpkg._weebill_databases = [
+                (os.path.join(metapackage_path, entry[Metapackage.WEEBILL_DB_SUBKEY]), entry[Metapackage.WEEBILL_C_SUBKEY])
+                for entry in (contents_hash.get(Metapackage.WEEBILL_DBS_KEY) or [])]
         return mpkg
 
     @staticmethod
@@ -330,27 +330,30 @@ class Metapackage:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
         calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
-        sylph_db = kwargs.pop('sylph_db', None)  # list of database paths, or None
-        sylph_c = kwargs.pop('sylph_c', None)    # list of -c values, or None
+        weebill_db = kwargs.pop('weebill_db', None)  # list of database paths, or None
+        weebill_c = kwargs.pop('weebill_c', None)    # list of -c values, or None
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
-        sylph_db_paths = list(sylph_db) if sylph_db else []
-        sylph_c_values = list(sylph_c) if sylph_c else []
-        if len(sylph_db_paths) != len(sylph_c_values):
-            raise Exception("Each sylph database (--sylph-db) requires a matching -c (--sylph-c), since -c is "
+        weebill_db_paths = list(weebill_db) if weebill_db else []
+        weebill_c_values = list(weebill_c) if weebill_c else []
+        if len(weebill_db_paths) != len(weebill_c_values):
+            raise Exception("Each weebill database (--weebill-db) requires a matching -c (--weebill-c), since -c is "
                 "needed to sketch reads and must match the -c used to build the database. Got {} database(s) "
-                "and {} -c value(s).".format(len(sylph_db_paths), len(sylph_c_values)))
-        if len(set(sylph_c_values)) > 1:
-            raise Exception("Bundling sylph databases with differing -c values is not yet supported (got -c "
-                "values {}). All --sylph-db must share a single --sylph-c.".format(sorted(set(sylph_c_values))))
-        # weebill's two-stage databases are read by weebill and sylph's by sylph, so
-        # a metapackage bundling both could not be profiled by either.
-        from .weebill import is_two_stage_database
-        if sylph_db_paths and len(set(is_two_stage_database(p) for p in sylph_db_paths)) > 1:
-            raise Exception("Cannot bundle weebill two-stage (.syl2db) and sylph (.syldb) databases in the "
-                "same metapackage, as no one binary reads both. Got {}.".format(sylph_db_paths))
+                "and {} -c value(s).".format(len(weebill_db_paths), len(weebill_c_values)))
+        if len(set(weebill_c_values)) > 1:
+            raise Exception("Bundling weebill databases with differing -c values is not yet supported (got -c "
+                "values {}). All --weebill-db must share a single --weebill-c.".format(sorted(set(weebill_c_values))))
+        # 'weebill profile --two-stage' reads only two-stage databases, and that is
+        # the only way a bundled database is ever profiled, so anything else -- a
+        # plain .syldb, say -- would be copied in and then found unusable at pipe time.
+        from .weebill import TWO_STAGE_DB_EXTENSION
+        not_two_stage = [p for p in weebill_db_paths if not p.endswith(TWO_STAGE_DB_EXTENSION)]
+        if not_two_stage:
+            raise Exception("Only weebill two-stage ({}) databases can be bundled into a metapackage, since "
+                "that is what 'weebill profile --two-stage' reads. Convert with 'weebill db-convert'. "
+                "Got {}.".format(TWO_STAGE_DB_EXTENSION, not_two_stage))
 
         if calculate_average_num_genes_per_species not in (True, False):
             raise Exception("calculate_average_num_genes_per_species must be a boolean")
@@ -418,24 +421,24 @@ class Metapackage:
             logging.info("Skipping taxon genome lengths csv")
             taxon_genome_lengths_csv_name = None
 
-        # Copy sylph/weebill database(s) into output directory, each paired with its -c
-        sylph_db_entries = []
-        seen_sylph_db_names = set()
-        for db_path, c in zip(sylph_db_paths, sylph_c_values):
+        # Copy weebill database(s) into output directory, each paired with its -c
+        weebill_db_entries = []
+        seen_weebill_db_names = set()
+        for db_path, c in zip(weebill_db_paths, weebill_c_values):
             db_abspath = os.path.abspath(db_path)
             db_name = os.path.basename(db_abspath)
-            if db_name in seen_sylph_db_names:
-                raise Exception("Cannot bundle two sylph/weebill databases with the same basename: {}".format(db_name))
-            seen_sylph_db_names.add(db_name)
+            if db_name in seen_weebill_db_names:
+                raise Exception("Cannot bundle two weebill databases with the same basename: {}".format(db_name))
+            seen_weebill_db_names.add(db_name)
             dest = os.path.join(output_path, db_name)
-            logging.info("Copying sylph/weebill database {} (c={}) to {} ..".format(db_path, c, dest))
+            logging.info("Copying weebill database {} (c={}) to {} ..".format(db_path, c, dest))
             shutil.copy(db_abspath, dest)
-            sylph_db_entries.append({
-                Metapackage.SYLPH_DB_SUBKEY: db_name,
-                Metapackage.SYLPH_C_SUBKEY: c,
+            weebill_db_entries.append({
+                Metapackage.WEEBILL_DB_SUBKEY: db_name,
+                Metapackage.WEEBILL_C_SUBKEY: c,
             })
-        if not sylph_db_entries:
-            logging.info("Skipping sylph/weebill database")
+        if not weebill_db_entries:
+            logging.info("Skipping weebill database")
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -494,7 +497,7 @@ class Metapackage:
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
                         Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params,
                         Metapackage.AVG_NUM_GENES_PER_SPECIES: avg_num_genes_per_species,
-                        Metapackage.SYLPH_DBS_KEY: sylph_db_entries,
+                        Metapackage.WEEBILL_DBS_KEY: weebill_db_entries,
                         }
 
         # save contents file
@@ -641,15 +644,13 @@ class Metapackage:
             return None
         return pl.read_csv(tsv, separator='\t')
     
-    def sylph_databases(self):
-        '''Return a list of (db_path, c) tuples bundled in the metapackage, each
-        database paired with the -c it was built with. These are either sylph
-        databases (.syldb) or weebill two-stage ones (.syl2db); see
-        weebill.read_profiler_for_metapackage. Empty if the metapackage has no such
-        databases (version < 7, created without --sylph-db/--weebill-db, or from
-        spkgs directly).'''
+    def weebill_databases(self):
+        '''Return a list of (db_path, c) tuples of the weebill two-stage databases
+        bundled in the metapackage, each paired with the -c it was built with. Empty
+        if the metapackage bundles none (version < 7, created without --weebill-db,
+        or from spkgs directly).'''
         try:
-            return list(self._sylph_databases)
+            return list(self._weebill_databases)
         except AttributeError:
             return []
 

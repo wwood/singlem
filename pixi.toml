@@ -20,7 +20,9 @@ orfm = ">=2.1.1" #2.1.0 was fail.
 mfqe = "*"
 krona = "*"
 smafa = "*"
-sylph = "*"  # For sylph-integrated taxonomic profiling (condense --joint / --sylph-profile)
+# weebill, needed for the joint SingleM + weebill taxonomic profile that pipe
+# produces when the metapackage bundles a weebill database, is not packaged for
+# conda -- put its binary on the PATH yourself, or run pipe with --no-weebill.
 
 [feature.typical-python.dependencies]
 python = ">=3.7"

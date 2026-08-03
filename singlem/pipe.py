@@ -57,16 +57,16 @@ class SearchPipe:
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
-        no_sylph = kwargs.pop('no_sylph', False)
-        output_sylph_sketch = kwargs.pop('output_sylph_sketch', None)
-        sylph_injection = kwargs.pop('sylph_injection', False)
+        no_weebill = kwargs.pop('no_weebill', False)
+        output_weebill_sketch = kwargs.pop('output_weebill_sketch', None)
+        weebill_injection = kwargs.pop('weebill_injection', False)
 
         # The original read inputs, captured before run_to_otu_table consumes them,
-        # so sylph can sketch them if the metapackage bundles a sylph database.
-        sylph_forward_reads = kwargs.get('sequences')
-        sylph_reverse_reads = kwargs.get('reverse_read_files')
-        sylph_unsupported_input = kwargs.get('genomes') or kwargs.get('input_sra_files')
-        sylph_threads = kwargs.get('threads')
+        # so weebill can sketch them if the metapackage bundles a weebill database.
+        weebill_forward_reads = kwargs.get('sequences')
+        weebill_reverse_reads = kwargs.get('reverse_read_files')
+        weebill_unsupported_input = kwargs.get('genomes') or kwargs.get('input_sra_files')
+        weebill_threads = kwargs.get('threads')
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
         if outputting_taxonomic_profile:
@@ -83,15 +83,14 @@ class SearchPipe:
         if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
             raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
-        if outputting_taxonomic_profile and not no_sylph and sylph_forward_reads and not sylph_unsupported_input:
-            # Check the profiler is installed before the marker search rather than
-            # after it, which is an hour or more of work to throw away.
-            from .weebill import read_profiler_for_metapackage
-            profiler = read_profiler_for_metapackage(metapackage)
-            if profiler is not None and shutil.which(profiler.BINARY) is None:
-                raise Exception("The metapackage bundles a {0} database, but the {0} binary was not found "
-                    "on the PATH. Install it, or pass --no-{0} to profile from the markers alone.".format(
-                        profiler.BINARY))
+        running_weebill = (outputting_taxonomic_profile and not no_weebill and
+                           len(metapackage.weebill_databases()) > 0)
+        if running_weebill and weebill_forward_reads and not weebill_unsupported_input:
+            # Check weebill is installed before the marker search rather than after
+            # it, which is an hour or more of work to throw away.
+            if shutil.which('weebill') is None:
+                raise Exception("The metapackage bundles a weebill database, but the weebill binary was not "
+                    "found on the PATH. Install it, or pass --no-weebill to profile from the markers alone.")
 
         otu_table_object = self.run_to_otu_table(**kwargs)
 
@@ -107,30 +106,25 @@ class SearchPipe:
             if output_taxonomic_profile or output_taxonomic_profile_krona:
                 tempfile.tempdir = original_tmpdir
                 from .condense import Condenser, DEFAULT_JOINT_CONDENSE_ARGUMENTS
-                from .weebill import read_profiler_for_metapackage
+                from .weebill import WeebillProfiler
                 otu_table_collection = StreamingOtuTableCollection()
                 otu_table_collection.add_archive_otu_table_object(otu_table_object)
 
-                with tempfile.TemporaryDirectory(prefix='singlem-sylph') as sylph_working_directory:
-                    sylph_profile = None
+                with tempfile.TemporaryDirectory(prefix='singlem-weebill') as weebill_working_directory:
+                    weebill_profile = None
                     use_joint = False
-                    # If the metapackage bundles a weebill (or sylph) database, profile
-                    # the reads with it and integrate that into the taxonomic profile.
-                    profiler = None if no_sylph else read_profiler_for_metapackage(metapackage)
-                    if profiler is not None:
-                        if not sylph_forward_reads or sylph_unsupported_input:
-                            logging.warning("Metapackage bundles a {} database, but its integration "
-                                "is currently only supported for read inputs; skipping it.".format(
-                                    profiler.BINARY))
+                    # If the metapackage bundles a weebill database, profile the reads
+                    # with it and integrate that into the taxonomic profile.
+                    if running_weebill:
+                        if not weebill_forward_reads or weebill_unsupported_input:
+                            logging.warning("Metapackage bundles a weebill database, but weebill integration "
+                                "is currently only supported for read inputs; skipping it.")
                         else:
-                            sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')
-                            # -u puts the coverages on SingleM's scale, which is what
-                            # DEFAULT_JOINT_CONDENSE_ARGUMENTS' alpha of 1 assumes.
-                            profiler.run_from_reads(
-                                sylph_forward_reads, sylph_reverse_reads, metapackage, sylph_threads,
-                                sylph_profile, sylph_working_directory, sketch_output=output_sylph_sketch,
-                                estimate_unknown=True)
-                            use_joint = not sylph_injection
+                            weebill_profile = os.path.join(weebill_working_directory, 'weebill_annotated.tsv')
+                            WeebillProfiler().run_from_reads(
+                                weebill_forward_reads, weebill_reverse_reads, metapackage, weebill_threads,
+                                weebill_profile, weebill_working_directory, sketch_output=output_weebill_sketch)
+                            use_joint = not weebill_injection
 
                     Condenser().condense(
                         input_streaming_otu_table = otu_table_collection,
@@ -139,7 +133,7 @@ class SearchPipe:
                         metapackage = metapackage,
                         min_taxon_coverage = min_taxon_coverage,
                         viral_mode = viral_profile_output,
-                        sylph_profile = sylph_profile,
+                        weebill_profile = weebill_profile,
                         **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if use_joint else {})
                     )
 

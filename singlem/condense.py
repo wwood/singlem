@@ -14,7 +14,7 @@ DEFAULT_TRIM_PERCENT = 10
 DEFAULT_MIN_TAXON_COVERAGE = 0.35
 DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
 
-# How pipe and renew condense once weebill (or sylph) has profiled the reads. The
+# How pipe and renew condense once weebill has profiled the reads. The
 # three settings are one method, not three independent knobs: weebill is run with
 # -u so its coverages are already on SingleM's scale (alpha 1), which is what makes
 # it safe to pin every species it reports at its own coverage, and the novel budget
@@ -23,7 +23,7 @@ DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
 # budget, is the configuration that fabricates novel lineages.
 DEFAULT_JOINT_CONDENSE_ARGUMENTS = {
     'joint': True,
-    'joint_pin_sylph_species': True,
+    'joint_pin_weebill_species': True,
     'joint_novel_budget': True,
     'alpha': 1.0,
 }
@@ -87,41 +87,41 @@ class Condenser:
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', DEFAULT_MIN_TAXON_COVERAGE)
         # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
-        sylph_profile = kwargs.pop('sylph_profile', None)
+        weebill_profile = kwargs.pop('weebill_profile', None)
         alpha = kwargs.pop('alpha', None)
         joint = kwargs.pop('joint', False)
         joint_l1_penalty = kwargs.pop('joint_l1_penalty', 1.0)
         joint_absence_weight = kwargs.pop('joint_absence_weight', 100.0)
         joint_min_markers = kwargs.pop('joint_min_markers', 3)
-        joint_adaptive_sylph_weight = kwargs.pop('joint_adaptive_sylph_weight', False)
-        joint_pin_sylph_species = kwargs.pop('joint_pin_sylph_species', False)
+        joint_adaptive_weebill_weight = kwargs.pop('joint_adaptive_weebill_weight', False)
+        joint_pin_weebill_species = kwargs.pop('joint_pin_weebill_species', False)
         joint_novel_budget = kwargs.pop('joint_novel_budget', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
 
-        if joint and sylph_profile is None:
-            raise Exception("condense --joint requires a sylph profile (--sylph-profile)")
+        if joint and weebill_profile is None:
+            raise Exception("condense --joint requires a weebill profile (--weebill-profile)")
 
-        # Parse the sylph profile once. Used for Regime 3 injection, or for the
+        # Parse the weebill profile once. Used for Regime 3 injection, or for the
         # joint NNLS deconvolution when --joint is set.
-        sylph_sample_to_hits = {}
-        if sylph_profile is not None:
-            sylph_sample_to_hits = SylphProfile.read_tsv(sylph_profile)
-            logging.info("Read sylph coverage for {} sample(s) from {}".format(
-                len(sylph_sample_to_hits), sylph_profile))
-            self._validate_sylph_against_metapackage(sylph_sample_to_hits, metapackage)
-            # A True_cov profile comes from sylph -u, which corrects each genome's
+        weebill_sample_to_hits = {}
+        if weebill_profile is not None:
+            weebill_sample_to_hits = WeebillProfile.read_tsv(weebill_profile)
+            logging.info("Read weebill coverage for {} sample(s) from {}".format(
+                len(weebill_sample_to_hits), weebill_profile))
+            self._validate_weebill_against_metapackage(weebill_sample_to_hits, metapackage)
+            # A True_cov profile comes from weebill -u, which corrects each genome's
             # coverage for the unknown sequence fraction and so already reports it on
             # SingleM's scale: alpha is 1 by construction and there is nothing to
             # estimate. Saying so is worth more than the estimate, because the anchor
             # is biased low at low coverage -- on a 0.2x community it lands near 0.13
-            # and inflates every sylph-supported species by the reciprocal. An
+            # and inflates every weebill-supported species by the reciprocal. An
             # explicit --alpha still wins.
-            if alpha is None and SylphProfile.is_unknown_corrected(sylph_profile):
+            if alpha is None and WeebillProfile.is_unknown_corrected(weebill_profile):
                 alpha = 1.0
                 logging.info(
-                    "Sylph profile reports unknown-corrected coverage (sylph -u), so "
+                    "Weebill profile reports unknown-corrected coverage (weebill -u), so "
                     "alpha is 1 by construction; pass --alpha to override")
 
         markers = {} # set of markers used to the domains they target
@@ -154,11 +154,11 @@ class Condenser:
 
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
-            sylph_hits = self._sylph_hits_for_sample(sample, sylph_sample_to_hits) if sylph_profile is not None else None
+            weebill_hits = self._weebill_hits_for_sample(sample, weebill_sample_to_hits) if weebill_profile is not None else None
             yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
                 True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
-                sylph_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers,
-                joint_adaptive_sylph_weight, joint_pin_sylph_species, joint_novel_budget)
+                weebill_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers,
+                joint_adaptive_weebill_weight, joint_pin_weebill_species, joint_novel_budget)
 
     def _domain_coverage_estimates(self, sample_otus, target_domains, trim_percent):
         '''Per domain, the total genome-equivalent coverage of everything in that domain,
@@ -170,7 +170,7 @@ class Condenser:
         the total coverage observed on one marker is the domain's whole community
         coverage as measured by that marker, and the trimmed mean across the complement
         is the community coverage. It is evidence about the total that does not depend on
-        the deconvolution, which is what makes it usable as a budget: whatever sylph's
+        the deconvolution, which is what makes it usable as a budget: whatever weebill's
         species do not account for is the most the novel columns can honestly claim.
 
         Per domain rather than pooled, because most markers are domain-specific. Pooling
@@ -204,41 +204,41 @@ class Condenser:
             ', '.join('{}={:.2f}'.format(d, c) for d, c in sorted(estimates.items()) if c > 0)))
         return estimates
 
-    def _validate_sylph_against_metapackage(self, sylph_sample_to_hits, metapackage):
-        '''Shared-DB sanity check: warn if many sylph species are not found among
+    def _validate_weebill_against_metapackage(self, weebill_sample_to_hits, metapackage):
+        '''Shared-DB sanity check: warn if many weebill species are not found among
         the metapackage's known species (indicating a GTDB-release mismatch).'''
-        sylph_keys = set()
-        for hits in sylph_sample_to_hits.values():
-            sylph_keys.update(hits.keys())
-        if len(sylph_keys) == 0:
+        weebill_keys = set()
+        for hits in weebill_sample_to_hits.values():
+            weebill_keys.update(hits.keys())
+        if len(weebill_keys) == 0:
             return
         try:
             db_keys = set(_canonical_species_key(t) for t in metapackage.get_all_taxonomy_strings())
         except Exception as e:
-            logging.debug("Could not load metapackage taxonomy strings for sylph validation: {}".format(e))
+            logging.debug("Could not load metapackage taxonomy strings for weebill validation: {}".format(e))
             return
-        missing = [k for k in sylph_keys if k not in db_keys]
-        if len(missing) > len(sylph_keys) * 0.5:
-            logging.warning("{} of {} sylph species are not in the metapackage's taxonomy. Are sylph and "
+        missing = [k for k in weebill_keys if k not in db_keys]
+        if len(missing) > len(weebill_keys) * 0.5:
+            logging.warning("{} of {} weebill species are not in the metapackage's taxonomy. Are weebill and "
                 "SingleM built from the same GTDB release? (e.g. {})".format(
-                    len(missing), len(sylph_keys), missing[0]))
+                    len(missing), len(weebill_keys), missing[0]))
 
-    def _sylph_hits_for_sample(self, sample, sylph_sample_to_hits):
-        '''Return the per-taxon sylph hits for a SingleM sample, matching on the
-        sylph Sample_file column. If the sylph TSV carried no sample column (a
+    def _weebill_hits_for_sample(self, sample, weebill_sample_to_hits):
+        '''Return the per-taxon weebill hits for a SingleM sample, matching on the
+        weebill Sample_file column. If the weebill TSV carried no sample column (a
         single None key), or a single sample, use those hits for every sample.'''
-        if sample in sylph_sample_to_hits:
-            return sylph_sample_to_hits[sample]
-        if len(sylph_sample_to_hits) == 1:
-            return list(sylph_sample_to_hits.values())[0]
-        logging.warning("No sylph coverage found for sample {}, skipping sylph injection for it".format(sample))
+        if sample in weebill_sample_to_hits:
+            return weebill_sample_to_hits[sample]
+        if len(weebill_sample_to_hits) == 1:
+            return list(weebill_sample_to_hits.values())[0]
+        logging.warning("No weebill coverage found for sample {}, skipping weebill injection for it".format(sample))
         return {}
 
     def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
-            output_after_em_otu_table, viral_mode, sylph_hits=None, alpha=None,
+            output_after_em_otu_table, viral_mode, weebill_hits=None, alpha=None,
             joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3,
-            joint_adaptive_sylph_weight=False, joint_pin_sylph_species=False,
+            joint_adaptive_weebill_weight=False, joint_pin_weebill_species=False,
             joint_novel_budget=False):
 
 
@@ -271,7 +271,7 @@ class Condenser:
             taxon_marker_counts = metapackage.get_taxon_marker_counts(query_best_hits)
 
         # Joint mode replaces the EM + trimmed-mean condense (steps 2-4) with a
-        # single NNLS deconvolution against the sylph profile.
+        # single NNLS deconvolution against the weebill profile.
         if joint and not viral_mode:
             from .condense_joint import JointDeconvolver
             logging.info("Converting DIAMOND IDs to taxons")
@@ -282,12 +282,12 @@ class Condenser:
                 domain_coverage_estimates = self._domain_coverage_estimates(
                     sample_otus, target_domains, trim_percent)
             condensed_otus = JointDeconvolver().solve(
-                sample, sample_otus, sylph_hits if sylph_hits is not None else {},
+                sample, sample_otus, weebill_hits if weebill_hits is not None else {},
                 domain_marker_counts=domain_marker_counts,
                 alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
                 min_markers=joint_min_markers,
-                adaptive_sylph_weight=joint_adaptive_sylph_weight,
-                pin_sylph_species=joint_pin_sylph_species,
+                adaptive_weebill_weight=joint_adaptive_weebill_weight,
+                pin_weebill_species=joint_pin_weebill_species,
                 domain_coverage_estimates=domain_coverage_estimates,
                 min_singlem_coverage=min_taxon_coverage, trim_percent=trim_percent)
             # No push-down of genus coverage into species here. The trimmed-mean condense
@@ -332,12 +332,12 @@ class Condenser:
         self._push_down_genus_to_species(condensed_otus, 0.1)
         logging.info("Total profile coverage after push down: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
-        # Regime 3: inject species that sylph detected but SingleM missed. Done
+        # Regime 3: inject species that weebill detected but SingleM missed. Done
         # after the EM and the condense tree is built, so injected leaves bypass
         # the EM proximity pruning entirely.
-        if sylph_hits:
-            self._inject_sylph_only_species(condensed_otus, sylph_hits, alpha)
-            logging.info("Total profile coverage after sylph injection: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
+        if weebill_hits:
+            self._inject_weebill_only_species(condensed_otus, weebill_hits, alpha)
+            logging.info("Total profile coverage after weebill injection: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
         self._report_taxonomic_level_assignment_stats(condensed_otus)
 
@@ -361,34 +361,34 @@ class Condenser:
                 level_coverage[level]/total_coverage*100 if total_coverage > 0 else 0,
                 level_count[level]))
 
-    def _fit_alpha(self, singlem_species_coverage, sylph_hits, min_coverage=10.0, min_anchors=3):
-        '''Fit the scale factor alpha that converts sylph effective coverage onto
+    def _fit_alpha(self, singlem_species_coverage, weebill_hits, min_coverage=10.0, min_anchors=3):
+        '''Fit the scale factor alpha that converts weebill effective coverage onto
         SingleM's genome-equivalent coverage scale, by regressing SingleM
-        coverage against sylph eff_cov (through the origin) over the species both
+        coverage against weebill eff_cov (through the origin) over the species both
         tools detect at moderate abundance. If fewer than min_anchors species are
         detected by both tools at >= min_coverage SingleM coverage, default to 1.'''
         eff_covs = []
         singlem_covs = []
         for key, singlem_cov in singlem_species_coverage.items():
-            if singlem_cov >= min_coverage and key in sylph_hits:
-                eff_covs.append(sylph_hits[key].eff_cov)
+            if singlem_cov >= min_coverage and key in weebill_hits:
+                eff_covs.append(weebill_hits[key].eff_cov)
                 singlem_covs.append(singlem_cov)
 
         if len(eff_covs) < min_anchors:
-            logging.info("Found only {} anchor species (>= {}x SingleM coverage and sylph-detected), "
+            logging.info("Found only {} anchor species (>= {}x SingleM coverage and weebill-detected), "
                 "fewer than {}; defaulting alpha to 1".format(len(eff_covs), min_coverage, min_anchors))
             return 1.0
 
         denominator = sum(e * e for e in eff_covs)
         if denominator == 0:
-            logging.info("Sylph effective coverage is zero across anchor species; defaulting alpha to 1")
+            logging.info("Weebill effective coverage is zero across anchor species; defaulting alpha to 1")
             return 1.0
         alpha = sum(e * s for e, s in zip(eff_covs, singlem_covs)) / denominator
         logging.info("Fit alpha={:.4f} by regression over {} anchor species".format(alpha, len(eff_covs)))
         return alpha
 
-    def _inject_sylph_only_species(self, condensed_otus, sylph_hits, alpha):
-        '''Regime 3: inject species that sylph detected but SingleM placed at zero
+    def _inject_weebill_only_species(self, condensed_otus, weebill_hits, alpha):
+        '''Regime 3: inject species that weebill detected but SingleM placed at zero
         as new species leaves at coverage alpha*eff_cov. Injected coverage is
         drawn down from the nearest ancestor internal node's (novel/unresolved)
         coverage so SingleM stays the authority on each clade's budget; only the
@@ -403,14 +403,14 @@ class Condenser:
                 singlem_species_coverage[key] = node.coverage
 
         if alpha is None:
-            alpha = self._fit_alpha(singlem_species_coverage, sylph_hits)
+            alpha = self._fit_alpha(singlem_species_coverage, weebill_hits)
         else:
             logging.info("Using user-supplied alpha={}".format(alpha))
 
         num_injected = 0
         total_injected = 0.0
         total_residual = 0.0
-        for key, hit in sylph_hits.items():
+        for key, hit in weebill_hits.items():
             if key in singlem_species_coverage:
                 continue  # Detected by both tools; left to the EM (Regimes 1/2)
             coverage = alpha * hit.eff_cov
@@ -418,7 +418,7 @@ class Condenser:
                 continue
             taxon_array = _gtdb_string_to_wordnode_array(hit.taxonomy)
             if len(taxon_array) < 2 or not taxon_array[-1].startswith('s__'):
-                logging.debug("Skipping sylph taxon without a species rank: {}".format(hit.taxonomy))
+                logging.debug("Skipping weebill taxon without a species rank: {}".format(hit.taxonomy))
                 continue
 
             # Materialise the lineage and add the species leaf coverage.
@@ -441,7 +441,7 @@ class Condenser:
             total_injected += coverage
             total_residual += remaining
 
-        logging.info("Injected {} sylph-only species (alpha={:.4f}): {:.2f} coverage at species level, "
+        logging.info("Injected {} weebill-only species (alpha={:.4f}): {:.2f} coverage at species level, "
             "{:.2f} net new coverage after reconciliation".format(num_injected, alpha, total_injected, total_residual))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
@@ -1069,7 +1069,7 @@ class Condenser:
         return species_to_eq_class
 
 def _canonical_species_key(taxon_string):
-    '''Normalise a taxonomy string to a canonical key for matching sylph GTDB
+    '''Normalise a taxonomy string to a canonical key for matching weebill GTDB
     strings against condense tree nodes: drop a leading "Root" and any empty
     ranks, strip whitespace, and rejoin with ";".'''
     parts = [p.strip() for p in taxon_string.split(';')]
@@ -1081,17 +1081,17 @@ def _gtdb_string_to_wordnode_array(taxon_string):
     parts = [p.strip() for p in taxon_string.split(';')]
     return ['Root'] + [p for p in parts if p != '' and p != 'Root']
 
-class SylphHit:
+class WeebillHit:
     def __init__(self, taxonomy, eff_cov):
         self.taxonomy = taxonomy # Original GTDB taxonomy string from the TSV
         self.eff_cov = eff_cov
 
-class SylphProfile:
-    '''Parser for a pre-annotated sylph profile TSV carrying a GTDB taxonomy
-    column and a sylph effective coverage column (and an optional sample
+class WeebillProfile:
+    '''Parser for a pre-annotated weebill profile TSV carrying a GTDB taxonomy
+    column and a weebill effective coverage column (and an optional sample
     column).'''
     TAXONOMY_COLUMNS = ['taxonomy', 'Taxonomy', 'clade_name']
-    # True_cov is what sylph -u (--estimate-unknown) reports in place of Eff_cov:
+    # True_cov is what weebill -u (--estimate-unknown) reports in place of Eff_cov:
     # a coverage corrected for the unknown sequence fraction, and so on the same
     # scale as SingleM's own coverage rather than a fixed fraction of it. Listed
     # first so that a profile carrying both prefers it.
@@ -1103,35 +1103,35 @@ class SylphProfile:
         for candidate in candidates:
             if candidate in fields:
                 return candidate
-        raise Exception("Sylph profile {} must contain a {} column (one of {}); found columns {}".format(
+        raise Exception("Weebill profile {} must contain a {} column (one of {}); found columns {}".format(
             path, description, candidates, fields))
 
-    # The subset of COVERAGE_COLUMNS that sylph only emits under -u
+    # The subset of COVERAGE_COLUMNS that weebill only emits under -u
     # (--estimate-unknown), and which therefore need no alpha calibration.
     UNKNOWN_CORRECTED_COLUMNS = ['True_cov', 'true_cov']
 
     @staticmethod
     def is_unknown_corrected(path):
-        '''True if the profile's coverage column is one sylph reports only under -u.'''
+        '''True if the profile's coverage column is one weebill reports only under -u.'''
         with open(path) as f:
             reader = csv.DictReader(f, delimiter='\t')
             fields = reader.fieldnames or []
-        cov_col = next((c for c in SylphProfile.COVERAGE_COLUMNS if c in fields), None)
-        return cov_col in SylphProfile.UNKNOWN_CORRECTED_COLUMNS
+        cov_col = next((c for c in WeebillProfile.COVERAGE_COLUMNS if c in fields), None)
+        return cov_col in WeebillProfile.UNKNOWN_CORRECTED_COLUMNS
 
     @staticmethod
     def read_tsv(path):
-        '''Parse the sylph TSV into {sample: {canonical_key: SylphHit}}. When the
+        '''Parse the weebill TSV into {sample: {canonical_key: WeebillHit}}. When the
         TSV has no recognised sample column, a single None key holds all hits.'''
         sample_to_hits = {}
         with open(path) as f:
             reader = csv.DictReader(f, delimiter='\t')
             fields = reader.fieldnames
             if fields is None:
-                raise Exception("Sylph profile {} appears to be empty".format(path))
-            tax_col = SylphProfile._pick_column(fields, SylphProfile.TAXONOMY_COLUMNS, 'taxonomy', path)
-            cov_col = SylphProfile._pick_column(fields, SylphProfile.COVERAGE_COLUMNS, 'effective coverage', path)
-            sample_col = next((c for c in SylphProfile.SAMPLE_COLUMNS if c in fields), None)
+                raise Exception("Weebill profile {} appears to be empty".format(path))
+            tax_col = WeebillProfile._pick_column(fields, WeebillProfile.TAXONOMY_COLUMNS, 'taxonomy', path)
+            cov_col = WeebillProfile._pick_column(fields, WeebillProfile.COVERAGE_COLUMNS, 'effective coverage', path)
+            sample_col = next((c for c in WeebillProfile.SAMPLE_COLUMNS if c in fields), None)
 
             for row in reader:
                 taxonomy = row[tax_col]
@@ -1147,7 +1147,7 @@ class SylphProfile:
                 if sample not in sample_to_hits:
                     sample_to_hits[sample] = {}
                 key = _canonical_species_key(taxonomy)
-                sample_to_hits[sample][key] = SylphHit(taxonomy.strip(), eff_cov)
+                sample_to_hits[sample][key] = WeebillHit(taxonomy.strip(), eff_cov)
         return sample_to_hits
 
 def _tmean(data, proportiontocut):

@@ -33,7 +33,6 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.metapackage import Metapackage
-from singlem.weebill import read_profiler_for_metapackage
 from singlem.otu_table_collection import OtuTableCollection
 from singlem.taxonomy import TaxonomyUtils
 
@@ -47,7 +46,7 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "sylph_dbs": []}',
+                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "weebill_dbs": []}',
                 con.read())
 
     def test_metapackage_create_with_sdb(self):
@@ -57,65 +56,52 @@ class Tests(unittest.TestCase):
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "sylph_dbs": []}',
+                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "weebill_dbs": []}',
                 con.read())
 
-    def test_metapackage_create_with_sylph_db(self):
+    def test_metapackage_create_with_weebill_db(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --sylph-db test/data/dummy.syldb test/data/dummy2.syldb --sylph-c 200 200 --metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db test/data/dummy2.syl2db --weebill-c 100 100 --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
-                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "sylph_dbs": [{"db": "dummy.syldb", "c": 200}, {"db": "dummy2.syldb", "c": 200}]}',
+                self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": null, "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "weebill_dbs": [{"db": "dummy.syl2db", "c": 100}, {"db": "dummy2.syl2db", "c": 100}]}',
                     con.read())
             mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))
             self.assertEqual(7, mp.version)
-            dbs = mp.sylph_databases()
+            dbs = mp.weebill_databases()
             self.assertEqual(2, len(dbs))
-            self.assertTrue(dbs[0][0].endswith('a.smpkg/dummy.syldb'))
-            self.assertEqual(200, dbs[0][1])
-            self.assertTrue(dbs[1][0].endswith('a.smpkg/dummy2.syldb'))
-            self.assertEqual(200, dbs[1][1])
-            self.assertTrue(os.path.exists(dbs[0][0]))
-            self.assertTrue(os.path.exists(dbs[1][0]))
-            # A metapackage without a sylph DB exposes an empty list.
-            self.assertEqual([], Metapackage(package_paths=['test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/']).sylph_databases())
-
-    def test_metapackage_create_with_weebill_two_stage_db(self):
-        with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db --weebill-c 100 --metapackage {}/a.smpkg".format(
-                path_to_script, f
-            )
-            extern.run(cmd)
-            mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))
-            dbs = mp.sylph_databases()
-            self.assertEqual(1, len(dbs))
             self.assertTrue(dbs[0][0].endswith('a.smpkg/dummy.syl2db'))
             self.assertEqual(100, dbs[0][1])
+            self.assertTrue(dbs[1][0].endswith('a.smpkg/dummy2.syl2db'))
+            self.assertEqual(100, dbs[1][1])
             self.assertTrue(os.path.exists(dbs[0][0]))
-            # A two-stage database is profiled by weebill rather than sylph.
-            self.assertEqual('weebill', read_profiler_for_metapackage(mp).BINARY)
+            self.assertTrue(os.path.exists(dbs[1][0]))
+            # A metapackage without a weebill DB exposes an empty list.
+            self.assertEqual([], Metapackage(package_paths=['test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/']).weebill_databases())
 
-    def test_metapackage_mixed_weebill_and_sylph_dbs_croaks(self):
+    def test_metapackage_non_two_stage_weebill_db_croaks(self):
+        # Only 'weebill profile --two-stage' ever reads a bundled database, so a
+        # plain .syldb would be copied in and then found unusable at pipe time.
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db test/data/dummy.syldb --weebill-c 100 100 --metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/a.sdb --weebill-c 100 --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             with self.assertRaises(Exception):
                 extern.run(cmd)
 
-    def test_metapackage_sylph_dbs_differing_c_croaks(self):
+    def test_metapackage_weebill_dbs_differing_c_croaks(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --sylph-db test/data/dummy.syldb test/data/dummy2.syldb --sylph-c 200 100 --metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db test/data/dummy2.syl2db --weebill-c 200 100 --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             with self.assertRaises(Exception):
                 extern.run(cmd)
 
-    def test_metapackage_sylph_db_without_c_croaks(self):
+    def test_metapackage_weebill_db_without_c_croaks(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --sylph-db test/data/dummy.syldb --metapackage {}/a.smpkg".format(
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db --metapackage {}/a.smpkg".format(
                 path_to_script, f
             )
             with self.assertRaises(Exception):

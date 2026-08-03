@@ -24,7 +24,7 @@ DATASETS = {
     },
 }
 
-METHODS = ["singlem", "singlem_sylph", "weebill"]
+METHODS = ["singlem", "singlem_weebill", "weebill"]
 ROOT = Path(workflow.basedir).resolve()
 PROJECT_ROOT = ROOT.parents[1]
 RESULTS = ROOT / "results"
@@ -81,7 +81,7 @@ rule singlem_archive:
             -1 {input.forward:q} -2 {input.read2:q} \
             --threads {threads} \
             --metapackage {SINGLEM_METAPACKAGE:q} \
-            --no-sylph \
+            --no-weebill \
             --archive-otu-table {output.archive:q} \
             > {log:q} 2>&1
         """
@@ -133,26 +133,26 @@ rule annotate_weebill:
         """
 
 
-rule singlem_sylph:
+rule singlem_weebill:
     input:
         archive=str(RESULTS / "archives/{dataset}.json"),
-        sylph_profile=str(RESULTS / "profiles/weebill_annotated/{dataset}.tsv"),
+        weebill_profile=str(RESULTS / "profiles/weebill_annotated/{dataset}.tsv"),
     output:
-        profile=str(RESULTS / "profiles/singlem_sylph/{dataset}.tsv"),
+        profile=str(RESULTS / "profiles/singlem_weebill/{dataset}.tsv"),
     threads: 1
     resources:
         mem_mb=8000,
         runtime="1h",
     benchmark:
-        str(RESULTS / "benchmarks/singlem_sylph/{dataset}.tsv")
+        str(RESULTS / "benchmarks/singlem_weebill/{dataset}.tsv")
     log:
-        str(RESULTS / "logs/singlem_sylph/{dataset}.log")
+        str(RESULTS / "logs/singlem_weebill/{dataset}.log")
     shell:
         r"""
         PATH={SINGLEM_ENV_BIN}:$PATH PYTHONPATH={PROJECT_ROOT:q} {SINGLEM:q} condense \
             --input-archive-otu-table {input.archive:q} \
             --metapackage {SINGLEM_METAPACKAGE:q} \
-            --sylph-profile {input.sylph_profile:q} \
+            --weebill-profile {input.weebill_profile:q} \
             --joint \
             --taxonomic-profile {output.profile:q} \
             > {log:q} 2>&1

@@ -97,13 +97,13 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                 help='"sra" format files (usually from NCBI SRA) to be searched')
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-    argument_group.add_argument('--sylph-injection', '--weebill-injection', action='store_true',
-        help="When the metapackage bundles a weebill or sylph database, integrate it via additive injection rather than the default joint deconvolution.")
+    argument_group.add_argument('--weebill-injection', action='store_true',
+        help="When the metapackage bundles a weebill database, integrate it via additive injection rather than the default joint deconvolution.")
     if extra_args:
-        argument_group.add_argument('--no-sylph', '--no-weebill', action='store_true',
-            help="Do not run weebill/sylph even if the metapackage bundles a database for it.")
-        argument_group.add_argument('--output-sylph-sketch', '--output-weebill-sketch', metavar='FILE',
-            help="Save the weebill/sylph read sketch here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
+        argument_group.add_argument('--no-weebill', action='store_true',
+            help="Do not run weebill even if the metapackage bundles a weebill database, so the taxonomic profile comes from the marker genes alone.")
+        argument_group.add_argument('--output-weebill-sketch', metavar='DIRECTORY',
+            help="Save the weebill read sketch here, so it can later be passed to 'renew --input-weebill-sketch' without the raw reads.")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -279,24 +279,24 @@ def add_condense_arguments(parser):
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
-    optional_condense_arguments.add_argument('--sylph-profile', metavar='filename',
-        help="pre-annotated sylph profile TSV (GTDB taxonomy + Eff_cov or True_cov columns). Species sylph detected but SingleM missed are injected into the profile. Running sylph with -u (--estimate-unknown), which reports True_cov, is recommended: its coverages are then already in SingleM's units and no alpha calibration is needed.")
+    optional_condense_arguments.add_argument('--weebill-profile', metavar='filename',
+        help="pre-annotated weebill profile TSV (GTDB taxonomy + Eff_cov or True_cov columns). Species weebill detected but SingleM missed are injected into the profile. Running weebill with -u (--estimate-unknown), which reports True_cov, is recommended: its coverages are then already in SingleM's units and no alpha calibration is needed.")
     optional_condense_arguments.add_argument('--alpha', type=float,
-        help="scale factor converting sylph effective coverage to SingleM coverage units when injecting sylph-only species. [default: 1 for a True_cov (sylph -u) profile, which needs no calibration; otherwise fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
+        help="scale factor converting weebill effective coverage to SingleM coverage units when injecting weebill-only species. [default: 1 for a True_cov (weebill -u) profile, which needs no calibration; otherwise fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
     optional_condense_arguments.add_argument('--joint', action='store_true',
-        help="jointly profile SingleM and sylph with an NNLS deconvolution instead of the default EM-based condense. Requires --sylph-profile.")
+        help="jointly profile SingleM and weebill with an NNLS deconvolution instead of the default EM-based condense. Requires --weebill-profile.")
     optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
         help="[--joint] L1 sparsity penalty (controls pruning of low-coverage taxa) [default: 1.0]")
     optional_condense_arguments.add_argument('--joint-absence-weight', type=float, default=100.0,
-        help="[--joint] weight suppressing species in the DB that sylph did not report [default: 100.0]")
+        help="[--joint] weight suppressing species in the DB that weebill did not report [default: 100.0]")
     optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
-        help="[--joint] minimum number of uniquely-assigned markers required for a taxon that sylph did not detect; taxa below this are set to zero coverage [default: 3]")
-    optional_condense_arguments.add_argument('--joint-pin-sylph-species', action='store_true',
-        help="[--joint] take species-level assignments from sylph alone: each sylph-detected species is fixed at its own coverage and every other database species is fixed to zero, leaving SingleM's markers to determine only the novel (higher-rank) coverage. Requires a well-calibrated alpha, so use a sylph -u profile or pass --alpha [default: off]")
+        help="[--joint] minimum number of uniquely-assigned markers required for a taxon that weebill did not detect; taxa below this are set to zero coverage [default: 3]")
+    optional_condense_arguments.add_argument('--joint-pin-weebill-species', action='store_true',
+        help="[--joint] take species-level assignments from weebill alone: each weebill-detected species is fixed at its own coverage and every other database species is fixed to zero, leaving SingleM's markers to determine only the novel (higher-rank) coverage. Requires a well-calibrated alpha, so use a weebill -u profile or pass --alpha [default: off]")
     optional_condense_arguments.add_argument('--joint-novel-budget', action='store_true',
-        help="[--joint] cap each domain's total novel coverage at what its markers imply is present but sylph did not account for, estimated as the trimmed mean of per-marker coverage over the domain's full marker complement. Suppresses novel lineages fabricated in communities that are already fully explained by sylph's species [default: off]")
-    optional_condense_arguments.add_argument('--joint-adaptive-sylph-weight', action='store_true',
-        help="[--joint] scale each species' deference to sylph by how well its own SingleM markers corroborate sylph's coverage: species whose markers agree with sylph are trusted more (better on known species), while those that disagree keep the base weight (protecting novel strains) [default: off]")
+        help="[--joint] cap each domain's total novel coverage at what its markers imply is present but weebill did not account for, estimated as the trimmed mean of per-marker coverage over the domain's full marker complement. Suppresses novel lineages fabricated in communities that are already fully explained by weebill's species [default: off]")
+    optional_condense_arguments.add_argument('--joint-adaptive-weebill-weight', action='store_true',
+        help="[--joint] scale each species' deference to weebill by how well its own SingleM markers corroborate weebill's coverage: species whose markers agree with weebill are trusted more (better on known species), while those that disagree keep the base weight (protecting novel strains) [default: off]")
 
 def generate_streaming_otu_table_from_args(args,
     input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
@@ -640,7 +640,7 @@ def main():
     renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
     renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
-    renew_input_args.add_argument('--input-sylph-sketch', '--input-weebill-sketch', metavar='FILE', help="A read sketch saved by 'pipe --output-weebill-sketch'. When the metapackage bundles a weebill or sylph database, this is profiled and integrated into the taxonomic profile, so renew does not need the raw reads.")
+    renew_input_args.add_argument('--input-weebill-sketch', metavar='PATH', help="A read sketch saved by 'pipe --output-weebill-sketch'. When the metapackage bundles a weebill database, this is profiled and integrated into the taxonomic profile, so renew does not need the raw reads.")
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
@@ -691,8 +691,8 @@ def main():
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
     metapackage_parser.add_argument('--taxon-genome-lengths', help="TSV file of genome lengths for each taxon")
     metapackage_parser.add_argument('--no-taxon-genome-lengths', action='store_true', help="Skip taxon genome lengths")
-    metapackage_parser.add_argument('--sylph-db', '--weebill-db', nargs='+', metavar='SYLDB', help="One or more weebill two-stage databases (.syl2db) or sylph databases (.syldb) to bundle into the metapackage, for joint SingleM + weebill profiling. The two kinds cannot be mixed. [default: none]")
-    metapackage_parser.add_argument('--sylph-c', '--weebill-c', nargs='+', type=int, metavar='C', help="The -c subsampling value each --weebill-db was built with, in the same order. One value per database; required when --weebill-db is given.")
+    metapackage_parser.add_argument('--weebill-db', nargs='+', metavar='SYL2DB', help="One or more weebill two-stage databases (.syl2db, from 'weebill db-convert') to bundle into the metapackage, for joint SingleM + weebill profiling [default: none]")
+    metapackage_parser.add_argument('--weebill-c', nargs='+', type=int, metavar='C', help="The -c subsampling value each --weebill-db was built with, in the same order. One value per database; required when --weebill-db is given.")
     current_default = CUSTOM_TAXONOMY_DATABASE_NAME
     metapackage_parser.add_argument('--taxonomy-database-name', help='Name of the taxonomy database to use [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--taxonomy-database-version', help='Version of the taxonomy database to use [default: unspecified]')
@@ -848,9 +848,9 @@ def main():
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
             context_window = args.context_window,
-            no_sylph = args.no_sylph,
-            output_sylph_sketch = args.output_sylph_sketch,
-            sylph_injection = args.sylph_injection,
+            no_weebill = args.no_weebill,
+            output_weebill_sketch = args.output_weebill_sketch,
+            weebill_injection = args.weebill_injection,
         )
 
     elif args.subparser_name=='renew':
@@ -879,8 +879,8 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
-            input_sylph_sketch = args.input_sylph_sketch,
-            sylph_injection = args.sylph_injection,
+            input_weebill_sketch = args.input_weebill_sketch,
+            weebill_injection = args.weebill_injection,
             )
 
     elif args.subparser_name == 'summarise':
@@ -1399,8 +1399,8 @@ def main():
                 diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
                 makeidx_sensitivity_params = args.makeidx_sensitivity_params,
                 calculate_average_num_genes_per_species = args.calculate_average_num_genes_per_species,
-                sylph_db = args.sylph_db,
-                sylph_c = args.sylph_c,
+                weebill_db = args.weebill_db,
+                weebill_c = args.weebill_c,
             )
 
     elif args.subparser_name == 'condense':
@@ -1419,14 +1419,14 @@ def main():
             krona = args.taxonomic_profile_krona,
             min_taxon_coverage = args.min_taxon_coverage,
             output_after_em_otu_table = args.output_after_em_otu_table,
-            sylph_profile = args.sylph_profile,
+            weebill_profile = args.weebill_profile,
             alpha = args.alpha,
             joint = args.joint,
             joint_l1_penalty = args.joint_l1_penalty,
             joint_absence_weight = args.joint_absence_weight,
             joint_min_markers = args.joint_min_markers,
-            joint_adaptive_sylph_weight = args.joint_adaptive_sylph_weight,
-            joint_pin_sylph_species = args.joint_pin_sylph_species,
+            joint_adaptive_weebill_weight = args.joint_adaptive_weebill_weight,
+            joint_pin_weebill_species = args.joint_pin_weebill_species,
             joint_novel_budget = args.joint_novel_budget)
 
     elif args.subparser_name == 'trim_package_hmms':

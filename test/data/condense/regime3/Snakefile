@@ -1,15 +1,15 @@
-# Snakemake workflow that builds a mock metagenome and runs sylph + singlem to
-# produce the inputs needed to test SingleM condense's Regime 3 (sylph-only
+# Snakemake workflow that builds a mock metagenome and runs weebill + singlem to
+# produce the inputs needed to test SingleM condense's Regime 3 (weebill-only
 # species injection).
 #
 # A mock metagenome is simulated with wgsim from two Methanobacteria genomes in
 # the repository's test data: one at high coverage (detected by both tools) and
 # one at low coverage (below singlem's marker-gene sensitivity, so it should
-# only be recovered via sylph and injected by condense).
+# only be recovered via weebill and injected by condense).
 #
 # Run with:   pixi run run            (or: pixi run snakemake --cores 8)
 # Outputs:    output/archive.json           (singlem archive OTU table)
-#             output/sylph_annotated.tsv    (sylph profile + GTDB taxonomy)
+#             output/weebill_annotated.tsv    (weebill profile + GTDB taxonomy)
 
 import os
 import re
@@ -21,21 +21,21 @@ REPO = os.path.abspath(os.path.join(SNAKEDIR, "..", "..", "..", ".."))
 GENOME_DIR = os.path.join(REPO, "test", "data", "methanobacteria", "genomes")
 
 # The two genomes that make up the mock metagenome. Both are GTDB r232 species
-# representatives, so both are present in the sylph and singlem databases.
+# representatives, so both are present in the weebill and singlem databases.
 HIGH_ACC = "GCF_000744455.1"   # 10x  -> s__Methanobacterium_B sp000744455 (detected by both)
-LOW_ACC = "GCF_000191585.1"    # 0.5x -> s__Methanobacterium_B lacus (Regime 3: sylph-only)
+LOW_ACC = "GCF_000191585.1"    # 0.5x -> s__Methanobacterium_B lacus (Regime 3: weebill-only)
 GENOME_COVERAGE = {HIGH_ACC: 10.0, LOW_ACC: 0.5}
 
 READ_LENGTH = 150
 SEED = 12345
 # wgsim's default base error rate is 0.02 (2%), which destroys ~47% of 31-mers
-# and roughly halves sylph's effective coverage relative to the true depth. Use
-# a lower, more Illumina-like rate so sylph eff_cov tracks the true coverage.
+# and roughly halves weebill's effective coverage relative to the true depth. Use
+# a lower, more Illumina-like rate so weebill eff_cov tracks the true coverage.
 # (The standard-error-rate outputs are preserved under backup_standard_error/.)
 WGSIM_ERROR_RATE = 0.001
 
-SYLPH_DB = "/work/microbiome/db/sylph/gtdb-r232-c200-dbv1.syldb"
-SYLPH_C = 200  # Must match the -c the database was built with.
+WEEBILL_DB = "/work/microbiome/db/weebill/gtdb-r232-c200-dbv1.syl2db"
+WEEBILL_C = 200  # Must match the -c the database was built with.
 SINGLEM_METAPACKAGE = "/work/microbiome/db/singlem/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb"
 GTDB_TAXONOMIES = [
     "/work/microbiome/db/gtdb/gtdb_release232/ar53_taxonomy_r232.tsv",
@@ -76,7 +76,7 @@ wildcard_constraints:
 rule all:
     input:
         "output/archive.json",
-        "output/sylph_annotated.tsv",
+        "output/weebill_annotated.tsv",
 
 
 rule wgsim:
@@ -113,39 +113,39 @@ rule combine_reads:
         "cat {input.r1} > {output.r1} 2> {log} && cat {input.r2} > {output.r2} 2>> {log}"
 
 
-rule sylph_profile:
+rule weebill_profile:
     input:
         r1="reads/mock.r1.fq",
         r2="reads/mock.r2.fq",
     output:
-        "output/sylph_profile.tsv",
+        "output/weebill_profile.tsv",
     params:
-        db=SYLPH_DB,
-        c=SYLPH_C,
+        db=WEEBILL_DB,
+        c=WEEBILL_C,
     threads: 8
     log:
-        "logs/sylph_profile.log",
+        "logs/weebill_profile.log",
     benchmark:
-        "benchmark/sylph_profile.tsv"
+        "benchmark/weebill_profile.tsv"
     shell:
-        "sylph profile {params.db} -1 {input.r1} -2 {input.r2} "
+        "weebill profile --two-stage {params.db} -1 {input.r1} -2 {input.r2} "
         "-c {params.c} -t {threads} -o {output} > {log} 2>&1"
 
 
-rule annotate_sylph:
+rule annotate_weebill:
     input:
-        sylph="output/sylph_profile.tsv",
-        script=os.path.join(SNAKEDIR, "annotate_sylph.py"),
+        weebill="output/weebill_profile.tsv",
+        script=os.path.join(SNAKEDIR, "annotate_weebill.py"),
     output:
-        "output/sylph_annotated.tsv",
+        "output/weebill_annotated.tsv",
     params:
         taxonomies=GTDB_TAXONOMIES,
     log:
-        "logs/annotate_sylph.log",
+        "logs/annotate_weebill.log",
     benchmark:
-        "benchmark/annotate_sylph.tsv"
+        "benchmark/annotate_weebill.tsv"
     shell:
-        "python {input.script} --sylph-tsv {input.sylph} "
+        "python {input.script} --weebill-tsv {input.weebill} "
         "--taxonomy {params.taxonomies} --output {output} > {log} 2>&1"
 
 
@@ -169,5 +169,5 @@ rule singlem_pipe:
     shell:
         "{params.pixi} run --manifest-path {params.repo}/pixi.toml -e default "
         "singlem pipe --forward {input.r1} --reverse {input.r2} "
-        "--metapackage {params.metapackage} --threads {threads} "
+        "--metapackage {params.metapackage} --threads {threads} --no-weebill "
         "--archive-otu-table {output} > {log} 2>&1"

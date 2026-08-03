@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Annotate a native sylph profile TSV with GTDB taxonomy.
+"""Annotate a native weebill profile TSV with GTDB taxonomy.
 
-`sylph profile` reports a `Genome_file` column (the genome in the sylph
+`weebill profile` reports a `Genome_file` column (the genome in the weebill
 database) and an `Eff_cov` column, but not a taxonomy string. SingleM's
-`condense --sylph-profile` expects a pre-annotated TSV carrying a GTDB taxonomy
+`condense --weebill-profile` expects a pre-annotated TSV carrying a GTDB taxonomy
 column. This script bridges the two: it extracts the genome accession
 (GCA_/GCF_...) from `Genome_file`, looks it up in one or more GTDB taxonomy TSVs
 (`accession<TAB>taxonomy`, with the usual GB_/RS_ accession prefixes), and writes
@@ -20,7 +20,7 @@ ACCESSION_RE = re.compile(r'(GC[AF]_\d+\.\d+)')
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--sylph-tsv', required=True, help='native sylph profile output TSV')
+    parser.add_argument('--weebill-tsv', required=True, help='native weebill profile output TSV')
     parser.add_argument('--taxonomy', nargs='+', required=True,
         help='one or more GTDB taxonomy TSVs (accession<TAB>taxonomy)')
     parser.add_argument('--output', required=True, help='annotated TSV to write')
@@ -35,14 +35,14 @@ def extract_accession(genome_file):
 def main():
     args = parse_args()
 
-    # First pass: read the sylph rows and collect the accessions we need so the
+    # First pass: read the weebill rows and collect the accessions we need so the
     # (large) taxonomy files can be streamed once, keeping only relevant lines.
     rows = []
     needed = set()
-    with open(args.sylph_tsv) as f:
+    with open(args.weebill_tsv) as f:
         reader = csv.DictReader(f, delimiter='\t')
         if reader.fieldnames is None or 'Genome_file' not in reader.fieldnames or 'Eff_cov' not in reader.fieldnames:
-            sys.exit("sylph TSV must contain Genome_file and Eff_cov columns; found {}".format(reader.fieldnames))
+            sys.exit("weebill TSV must contain Genome_file and Eff_cov columns; found {}".format(reader.fieldnames))
         for row in reader:
             accession = extract_accession(row['Genome_file'])
             rows.append((row.get('Sample_file', ''), accession, row['Eff_cov'], row['Genome_file']))
@@ -74,7 +74,7 @@ def main():
                 continue
             out.write('\t'.join([sample, taxonomy, eff_cov]) + '\n')
             num_written += 1
-    sys.stderr.write("Wrote {} annotated sylph rows, skipped {}\n".format(num_written, num_skipped))
+    sys.stderr.write("Wrote {} annotated weebill rows, skipped {}\n".format(num_written, num_skipped))
 
 
 if __name__ == '__main__':
