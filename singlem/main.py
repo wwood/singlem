@@ -95,15 +95,15 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                 nargs='+',
                 metavar='sra_file',
                 help='"sra" format files (usually from NCBI SRA) to be searched')
-    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
+    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-    argument_group.add_argument('--sylph-injection', action='store_true',
-        help="When the metapackage bundles a sylph database, integrate sylph via additive injection rather than the default joint deconvolution.")
+    argument_group.add_argument('--sylph-injection', '--weebill-injection', action='store_true',
+        help="When the metapackage bundles a weebill or sylph database, integrate it via additive injection rather than the default joint deconvolution.")
     if extra_args:
-        argument_group.add_argument('--no-sylph', action='store_true',
-            help="Do not run sylph even if the metapackage bundles a sylph database.")
-        argument_group.add_argument('--output-sylph-sketch', metavar='FILE',
-            help="Save the sylph read sketch (.sylsp) here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
+        argument_group.add_argument('--no-sylph', '--no-weebill', action='store_true',
+            help="Do not run weebill/sylph even if the metapackage bundles a database for it.")
+        argument_group.add_argument('--output-sylph-sketch', '--output-weebill-sketch', metavar='FILE',
+            help="Save the weebill/sylph read sketch here, so it can later be passed to 'renew --input-sylph-sketch' without the raw reads.")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -640,7 +640,7 @@ def main():
     renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
     renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
-    renew_input_args.add_argument('--input-sylph-sketch', metavar='FILE', help="A sylph sketch (.sylsp) saved by 'pipe --output-sylph-sketch'. When the metapackage bundles a sylph database, this is profiled and integrated into the taxonomic profile, so renew does not need the raw reads.")
+    renew_input_args.add_argument('--input-sylph-sketch', '--input-weebill-sketch', metavar='FILE', help="A read sketch saved by 'pipe --output-weebill-sketch'. When the metapackage bundles a weebill or sylph database, this is profiled and integrated into the taxonomic profile, so renew does not need the raw reads.")
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
@@ -691,8 +691,8 @@ def main():
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
     metapackage_parser.add_argument('--taxon-genome-lengths', help="TSV file of genome lengths for each taxon")
     metapackage_parser.add_argument('--no-taxon-genome-lengths', action='store_true', help="Skip taxon genome lengths")
-    metapackage_parser.add_argument('--sylph-db', nargs='+', metavar='SYLDB', help="One or more sylph databases (.syldb) to bundle into the metapackage, for joint SingleM + sylph profiling [default: none]")
-    metapackage_parser.add_argument('--sylph-c', nargs='+', type=int, metavar='C', help="The sylph -c subsampling value each --sylph-db was built with, in the same order. One value per database; required when --sylph-db is given.")
+    metapackage_parser.add_argument('--sylph-db', '--weebill-db', nargs='+', metavar='SYLDB', help="One or more weebill two-stage databases (.syl2db) or sylph databases (.syldb) to bundle into the metapackage, for joint SingleM + weebill profiling. The two kinds cannot be mixed. [default: none]")
+    metapackage_parser.add_argument('--sylph-c', '--weebill-c', nargs='+', type=int, metavar='C', help="The -c subsampling value each --weebill-db was built with, in the same order. One value per database; required when --weebill-db is given.")
     current_default = CUSTOM_TAXONOMY_DATABASE_NAME
     metapackage_parser.add_argument('--taxonomy-database-name', help='Name of the taxonomy database to use [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--taxonomy-database-version', help='Version of the taxonomy database to use [default: unspecified]')

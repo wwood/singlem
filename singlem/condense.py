@@ -14,6 +14,20 @@ DEFAULT_TRIM_PERCENT = 10
 DEFAULT_MIN_TAXON_COVERAGE = 0.35
 DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
 
+# How pipe and renew condense once weebill (or sylph) has profiled the reads. The
+# three settings are one method, not three independent knobs: weebill is run with
+# -u so its coverages are already on SingleM's scale (alpha 1), which is what makes
+# it safe to pin every species it reports at its own coverage, and the novel budget
+# then caps what the markers may add above those species at what the markers say is
+# there but unaccounted for. Pinning without a calibrated alpha, or without the
+# budget, is the configuration that fabricates novel lineages.
+DEFAULT_JOINT_CONDENSE_ARGUMENTS = {
+    'joint': True,
+    'joint_pin_sylph_species': True,
+    'joint_novel_budget': True,
+    'alpha': 1.0,
+}
+
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
 # https://stackoverflow.com/questions/15063936/csv-error-field-larger-than-field-limit-131072

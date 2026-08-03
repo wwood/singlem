@@ -83,6 +83,16 @@ class SearchPipe:
         if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
             raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
+        if outputting_taxonomic_profile and not no_sylph and sylph_forward_reads and not sylph_unsupported_input:
+            # Check the profiler is installed before the marker search rather than
+            # after it, which is an hour or more of work to throw away.
+            from .weebill import read_profiler_for_metapackage
+            profiler = read_profiler_for_metapackage(metapackage)
+            if profiler is not None and shutil.which(profiler.BINARY) is None:
+                raise Exception("The metapackage bundles a {0} database, but the {0} binary was not found "
+                    "on the PATH. Install it, or pass --no-{0} to profile from the markers alone.".format(
+                        profiler.BINARY))
+
         otu_table_object = self.run_to_otu_table(**kwargs)
 
         if otu_table_object is not None:
@@ -96,25 +106,30 @@ class SearchPipe:
 
             if output_taxonomic_profile or output_taxonomic_profile_krona:
                 tempfile.tempdir = original_tmpdir
-                from .condense import Condenser
+                from .condense import Condenser, DEFAULT_JOINT_CONDENSE_ARGUMENTS
+                from .weebill import read_profiler_for_metapackage
                 otu_table_collection = StreamingOtuTableCollection()
                 otu_table_collection.add_archive_otu_table_object(otu_table_object)
 
                 with tempfile.TemporaryDirectory(prefix='singlem-sylph') as sylph_working_directory:
                     sylph_profile = None
                     use_joint = False
-                    # If the metapackage bundles a sylph database, run sylph on the
-                    # reads and integrate it into the taxonomic profile.
-                    if not no_sylph and len(metapackage.sylph_databases()) > 0:
+                    # If the metapackage bundles a weebill (or sylph) database, profile
+                    # the reads with it and integrate that into the taxonomic profile.
+                    profiler = None if no_sylph else read_profiler_for_metapackage(metapackage)
+                    if profiler is not None:
                         if not sylph_forward_reads or sylph_unsupported_input:
-                            logging.warning("Metapackage bundles a sylph database, but sylph integration "
-                                "is currently only supported for read inputs; skipping sylph.")
+                            logging.warning("Metapackage bundles a {} database, but its integration "
+                                "is currently only supported for read inputs; skipping it.".format(
+                                    profiler.BINARY))
                         else:
-                            from .sylph import SylphProfiler
                             sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')
-                            SylphProfiler().run_from_reads(
+                            # -u puts the coverages on SingleM's scale, which is what
+                            # DEFAULT_JOINT_CONDENSE_ARGUMENTS' alpha of 1 assumes.
+                            profiler.run_from_reads(
                                 sylph_forward_reads, sylph_reverse_reads, metapackage, sylph_threads,
-                                sylph_profile, sylph_working_directory, sketch_output=output_sylph_sketch)
+                                sylph_profile, sylph_working_directory, sketch_output=output_sylph_sketch,
+                                estimate_unknown=True)
                             use_joint = not sylph_injection
 
                     Condenser().condense(
@@ -125,7 +140,7 @@ class SearchPipe:
                         min_taxon_coverage = min_taxon_coverage,
                         viral_mode = viral_profile_output,
                         sylph_profile = sylph_profile,
-                        joint = use_joint,
+                        **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if use_joint else {})
                     )
 
 

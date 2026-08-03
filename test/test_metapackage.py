@@ -33,6 +33,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.metapackage import Metapackage
+from singlem.weebill import read_profiler_for_metapackage
 from singlem.otu_table_collection import OtuTableCollection
 from singlem.taxonomy import TaxonomyUtils
 
@@ -80,6 +81,29 @@ class Tests(unittest.TestCase):
             self.assertTrue(os.path.exists(dbs[1][0]))
             # A metapackage without a sylph DB exposes an empty list.
             self.assertEqual([], Metapackage(package_paths=['test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/']).sylph_databases())
+
+    def test_metapackage_create_with_weebill_two_stage_db(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db --weebill-c 100 --metapackage {}/a.smpkg".format(
+                path_to_script, f
+            )
+            extern.run(cmd)
+            mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))
+            dbs = mp.sylph_databases()
+            self.assertEqual(1, len(dbs))
+            self.assertTrue(dbs[0][0].endswith('a.smpkg/dummy.syl2db'))
+            self.assertEqual(100, dbs[0][1])
+            self.assertTrue(os.path.exists(dbs[0][0]))
+            # A two-stage database is profiled by weebill rather than sylph.
+            self.assertEqual('weebill', read_profiler_for_metapackage(mp).BINARY)
+
+    def test_metapackage_mixed_weebill_and_sylph_dbs_croaks(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --no-taxon-genome-lengths --weebill-db test/data/dummy.syl2db test/data/dummy.syldb --weebill-c 100 100 --metapackage {}/a.smpkg".format(
+                path_to_script, f
+            )
+            with self.assertRaises(Exception):
+                extern.run(cmd)
 
     def test_metapackage_sylph_dbs_differing_c_croaks(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:

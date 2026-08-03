@@ -19,6 +19,11 @@ class SylphProfiler:
 
     Requires the sylph binary on the PATH.'''
 
+    # The binary and sample sketch extension, overridden by WeebillProfiler,
+    # which is a sylph fork with its own name and compressed sketch format.
+    BINARY = 'sylph'
+    SKETCH_EXTENSION = '.sylsp'
+
     # sylph reports Eff_cov normally and renames it True_cov under -u
     # (--estimate-unknown), which corrects for the unknown sequence fraction and
     # so estimates the genome's actual coverage rather than one deflated by it.
@@ -27,31 +32,39 @@ class SylphProfiler:
     COVERAGE_COLUMNS = ['True_cov', 'Eff_cov']
 
     def sketch_reads(self, forward_reads, reverse_reads, c, threads, output_directory):
-        '''Sketch reads into output_directory; return the sorted list of .sylsp
+        '''Sketch reads into output_directory; return the sorted list of sketch
         paths produced (one per sample). reverse_reads may be None for single-end.'''
         if not forward_reads:
-            raise Exception("No reads provided to sylph sketch")
-        cmd = "sylph sketch -c {} -t {} -d {}".format(c, threads, output_directory)
-        if reverse_reads:
-            cmd += " -1 {} -2 {}".format(' '.join(forward_reads), ' '.join(reverse_reads))
-        else:
-            cmd += " -r {}".format(' '.join(forward_reads))
-        logging.info("Sketching reads with sylph ..")
+            raise Exception("No reads provided to {} sketch".format(self.BINARY))
+        cmd = "{} sketch -c {} -t {} -d {}".format(self.BINARY, c, threads, output_directory)
+        cmd += self._read_arguments(forward_reads, reverse_reads)
+        logging.info("Sketching reads with {} ..".format(self.BINARY))
         extern.run(cmd)
-        sylsps = sorted(glob.glob(os.path.join(output_directory, '*.sylsp')))
-        if len(sylsps) == 0:
-            raise Exception("sylph sketch produced no .sylsp file")
-        return sylsps
+        return self._sketches_in_directory(output_directory)
 
-    def profile(self, sylsp_paths, sylph_dbs, threads, output_tsv):
+    def _read_arguments(self, forward_reads, reverse_reads):
+        '''The -1/-2 (or -r) fragment naming the read files, shared by sketch and
+        by profiling straight from reads.'''
+        if reverse_reads:
+            return " -1 {} -2 {}".format(' '.join(forward_reads), ' '.join(reverse_reads))
+        return " -r {}".format(' '.join(forward_reads))
+
+    def _sketches_in_directory(self, directory):
+        sketches = sorted(glob.glob(os.path.join(directory, '*' + self.SKETCH_EXTENSION)))
+        if len(sketches) == 0:
+            raise Exception("{} sketch produced no {} file".format(self.BINARY, self.SKETCH_EXTENSION))
+        return sketches
+
+    def profile(self, sketch_paths, sylph_dbs, threads, output_tsv, estimate_unknown=False):
         '''Profile sample sketches against one or more sylph databases (all of
         which must share the -c baked into the sketches), writing the raw sylph
         TSV to output_tsv. Passing the databases together lets sylph reassign
         shared k-mers across them.'''
-        logging.info("Profiling {} sample sketch(es) against {} sylph database(s) ..".format(
-            len(sylsp_paths), len(sylph_dbs)))
-        extern.run("sylph profile {} {} -t {} -o {}".format(
-            ' '.join(sylph_dbs), ' '.join(sylsp_paths), threads, output_tsv))
+        logging.info("Profiling {} sample sketch(es) against {} {} database(s) ..".format(
+            len(sketch_paths), len(sylph_dbs), self.BINARY))
+        extern.run("{} profile{} {} {} -t {} -o {}".format(
+            self.BINARY, ' -u' if estimate_unknown else '',
+            ' '.join(sylph_dbs), ' '.join(sketch_paths), threads, output_tsv))
         return output_tsv
 
     def annotate(self, raw_profile_tsv, metapackage, output_tsv):
@@ -91,13 +104,14 @@ class SylphProfiler:
         return output_tsv
 
     def run_from_reads(self, forward_reads, reverse_reads, metapackage, threads,
-                       output_annotated_tsv, working_directory, sketch_output=None):
+                       output_annotated_tsv, working_directory, sketch_output=None,
+                       estimate_unknown=False):
         '''Sketch reads (once per distinct -c across the metapackage's sylph
         databases), optionally save the sketches, profile each database against
         the sketch made at its -c, merge, and annotate. Returns output_annotated_tsv.'''
         databases = metapackage.sylph_databases()
         if len(databases) == 0:
-            raise Exception("Metapackage bundles no sylph databases")
+            raise Exception("Metapackage bundles no {} databases".format(self.BINARY))
 
         # Sketch reads once per distinct -c value.
         databases_by_c = self._group_databases_by_c(databases)
@@ -114,25 +128,32 @@ class SylphProfiler:
         raw_tsvs = []
         for i, c in enumerate(sorted(databases_by_c)):
             raw_tsv = os.path.join(working_directory, 'sylph_profile_{}.tsv'.format(i))
-            self.profile(sketches_by_c[c], databases_by_c[c], threads, raw_tsv)
+            self.profile(sketches_by_c[c], databases_by_c[c], threads, raw_tsv,
+                         estimate_unknown=estimate_unknown)
             raw_tsvs.append(raw_tsv)
         merged = self._merge_raw_profiles(raw_tsvs, os.path.join(working_directory, 'sylph_profile_merged.tsv'))
+        if estimate_unknown:
+            self._check_unknown_corrected(merged)
         return self.annotate(merged, metapackage, output_annotated_tsv)
 
-    def run_from_sketch(self, sketch_path, metapackage, threads, output_annotated_tsv, working_directory):
+    def run_from_sketch(self, sketch_path, metapackage, threads, output_annotated_tsv,
+                        working_directory, estimate_unknown=False):
         '''Profile previously-saved sketch(es) against each of the metapackage's
         sylph databases (matching sketch to database by -c), merge, and annotate.'''
         databases = metapackage.sylph_databases()
         if len(databases) == 0:
-            raise Exception("Metapackage bundles no sylph databases")
+            raise Exception("Metapackage bundles no {} databases".format(self.BINARY))
         databases_by_c = self._group_databases_by_c(databases)
         raw_tsvs = []
         for i, c in enumerate(sorted(databases_by_c)):
-            sylsps = self._sketches_for_c(sketch_path, c)
+            sketches = self._sketches_for_c(sketch_path, c)
             raw_tsv = os.path.join(working_directory, 'sylph_profile_{}.tsv'.format(i))
-            self.profile(sylsps, databases_by_c[c], threads, raw_tsv)
+            self.profile(sketches, databases_by_c[c], threads, raw_tsv,
+                         estimate_unknown=estimate_unknown)
             raw_tsvs.append(raw_tsv)
         merged = self._merge_raw_profiles(raw_tsvs, os.path.join(working_directory, 'sylph_profile_merged.tsv'))
+        if estimate_unknown:
+            self._check_unknown_corrected(merged)
         return self.annotate(merged, metapackage, output_annotated_tsv)
 
     def _group_databases_by_c(self, databases):
@@ -148,27 +169,28 @@ class SylphProfiler:
         matched back to each database's -c when reused by renew.'''
         os.makedirs(sketch_output, exist_ok=True)
         total = 0
-        for c, sylsps in sketches_by_c.items():
+        for c, sketches in sketches_by_c.items():
             subdir = os.path.join(sketch_output, 'c{}'.format(c))
             os.makedirs(subdir, exist_ok=True)
-            for s in sylsps:
+            for s in sketches:
                 shutil.copy(s, os.path.join(subdir, os.path.basename(s)))
                 total += 1
-        logging.info("Saved {} sylph sketch(es) to {}/".format(total, sketch_output))
+        logging.info("Saved {} {} sketch(es) to {}/".format(total, self.BINARY, sketch_output))
 
     def _sketches_for_c(self, sketch_path, c):
         '''Locate the saved sketch(es) made at -c. Accepts a directory written by
-        _save_sketches_by_c (c<C>/ subdirs), a flat directory of .sylsp, or a
-        single .sylsp file.'''
+        _save_sketches_by_c (c<C>/ subdirs), a flat directory of sketches, or a
+        single sketch file.'''
         if os.path.isdir(sketch_path):
             subdir = os.path.join(sketch_path, 'c{}'.format(c))
             search_dir = subdir if os.path.isdir(subdir) else sketch_path
-            sylsps = sorted(glob.glob(os.path.join(search_dir, '*.sylsp')))
+            sketches = sorted(glob.glob(os.path.join(search_dir, '*' + self.SKETCH_EXTENSION)))
         else:
-            sylsps = [sketch_path]
-        if len(sylsps) == 0:
-            raise Exception("No sylph sketch (.sylsp) for c={} found at {}".format(c, sketch_path))
-        return sylsps
+            sketches = [sketch_path]
+        if len(sketches) == 0:
+            raise Exception("No {} sketch ({}) for c={} found at {}".format(
+                self.BINARY, self.SKETCH_EXTENSION, c, sketch_path))
+        return sketches
 
     def _merge_raw_profiles(self, raw_tsvs, output_tsv):
         '''Concatenate raw sylph profile TSVs (one header, then all data rows).'''
@@ -186,6 +208,18 @@ class SylphProfiler:
                         wrote_header = True
                     shutil.copyfileobj(f, out)
         return output_tsv
+
+    def _check_unknown_corrected(self, raw_profile_tsv):
+        '''Fail loudly if -u did not produce the unknown-corrected coverage it was
+        asked for. Callers set alpha to 1 on the strength of that correction, so a
+        silently uncorrected profile would be read on the wrong scale.'''
+        with open(raw_profile_tsv) as f:
+            fields = csv.DictReader(f, delimiter='\t').fieldnames or []
+        if 'True_cov' not in fields:
+            raise Exception(
+                "{} was run with -u (--estimate-unknown) but its profile reports no True_cov "
+                "column (found {}). Its coverages are then not on SingleM's scale and cannot "
+                "be used with alpha=1.".format(self.BINARY, fields))
 
     def _extract_accession(self, genome_file):
         match = _GENOME_ACCESSION_REGEX.search(genome_file)

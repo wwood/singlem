@@ -196,22 +196,24 @@ class Renew:
                 exclude_off_target_hits)
         
         if output_taxonomic_profile or output_taxonomic_profile_krona:
-            from .condense import Condenser
+            from .condense import Condenser, DEFAULT_JOINT_CONDENSE_ARGUMENTS
+            from .weebill import read_profiler_for_metapackage
             otu_table_collection = StreamingOtuTableCollection()
             otu_table_collection.add_archive_otu_table_object(otu_table_object)
 
             with tempfile.TemporaryDirectory(prefix='singlem-renew-sylph') as sylph_working_directory:
                 sylph_profile = None
                 use_joint = False
-                # Integrate sylph from a previously-saved sketch, so renew needs
-                # no access to the raw reads.
+                # Integrate weebill (or sylph) from a previously-saved sketch, so
+                # renew needs no access to the raw reads.
                 if input_sylph_sketch is not None:
-                    if len(metapackage.sylph_databases()) == 0:
-                        raise Exception("--input-sylph-sketch was given but the metapackage does not bundle a sylph database")
-                    from .sylph import SylphProfiler
+                    profiler = read_profiler_for_metapackage(metapackage)
+                    if profiler is None:
+                        raise Exception("--input-sylph-sketch was given but the metapackage does not bundle a weebill or sylph database")
                     sylph_profile = os.path.join(sylph_working_directory, 'sylph_annotated.tsv')
-                    SylphProfiler().run_from_sketch(
-                        input_sylph_sketch, metapackage, threads, sylph_profile, sylph_working_directory)
+                    profiler.run_from_sketch(
+                        input_sylph_sketch, metapackage, threads, sylph_profile, sylph_working_directory,
+                        estimate_unknown=True)
                     use_joint = not sylph_injection
 
                 Condenser().condense(
@@ -221,7 +223,7 @@ class Renew:
                     metapackage = metapackage,
                     viral_mode = viral_mode,
                     sylph_profile = sylph_profile,
-                    joint = use_joint)
+                    **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if use_joint else {}))
 
         logging.info("Renew is finished")
 

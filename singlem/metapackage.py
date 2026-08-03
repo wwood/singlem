@@ -47,8 +47,9 @@ class Metapackage:
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
     AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
-    # A list of {'db': <basename>, 'c': <int>} entries, one per bundled sylph
-    # database, so each database is tightly coupled to the -c it was built with.
+    # A list of {'db': <basename>, 'c': <int>} entries, one per bundled sylph or
+    # weebill database, so each database is tightly coupled to the -c it was built
+    # with. Which of the two binaries reads them follows from the extension.
     SYLPH_DBS_KEY = 'sylph_dbs'
     SYLPH_DB_SUBKEY = 'db'
     SYLPH_C_SUBKEY = 'c'
@@ -344,6 +345,12 @@ class Metapackage:
         if len(set(sylph_c_values)) > 1:
             raise Exception("Bundling sylph databases with differing -c values is not yet supported (got -c "
                 "values {}). All --sylph-db must share a single --sylph-c.".format(sorted(set(sylph_c_values))))
+        # weebill's two-stage databases are read by weebill and sylph's by sylph, so
+        # a metapackage bundling both could not be profiled by either.
+        from .weebill import is_two_stage_database
+        if sylph_db_paths and len(set(is_two_stage_database(p) for p in sylph_db_paths)) > 1:
+            raise Exception("Cannot bundle weebill two-stage (.syl2db) and sylph (.syldb) databases in the "
+                "same metapackage, as no one binary reads both. Got {}.".format(sylph_db_paths))
 
         if calculate_average_num_genes_per_species not in (True, False):
             raise Exception("calculate_average_num_genes_per_species must be a boolean")
@@ -411,24 +418,24 @@ class Metapackage:
             logging.info("Skipping taxon genome lengths csv")
             taxon_genome_lengths_csv_name = None
 
-        # Copy sylph database(s) into output directory, each paired with its -c
+        # Copy sylph/weebill database(s) into output directory, each paired with its -c
         sylph_db_entries = []
         seen_sylph_db_names = set()
         for db_path, c in zip(sylph_db_paths, sylph_c_values):
             db_abspath = os.path.abspath(db_path)
             db_name = os.path.basename(db_abspath)
             if db_name in seen_sylph_db_names:
-                raise Exception("Cannot bundle two sylph databases with the same basename: {}".format(db_name))
+                raise Exception("Cannot bundle two sylph/weebill databases with the same basename: {}".format(db_name))
             seen_sylph_db_names.add(db_name)
             dest = os.path.join(output_path, db_name)
-            logging.info("Copying sylph database {} (c={}) to {} ..".format(db_path, c, dest))
+            logging.info("Copying sylph/weebill database {} (c={}) to {} ..".format(db_path, c, dest))
             shutil.copy(db_abspath, dest)
             sylph_db_entries.append({
                 Metapackage.SYLPH_DB_SUBKEY: db_name,
                 Metapackage.SYLPH_C_SUBKEY: c,
             })
         if not sylph_db_entries:
-            logging.info("Skipping sylph database")
+            logging.info("Skipping sylph/weebill database")
 
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
@@ -635,10 +642,12 @@ class Metapackage:
         return pl.read_csv(tsv, separator='\t')
     
     def sylph_databases(self):
-        '''Return a list of (sylph_db_path, c) tuples bundled in the metapackage,
-        each database paired with the -c it was built with. Empty if the
-        metapackage has no sylph databases (version < 7, created without
-        --sylph-db, or from spkgs directly).'''
+        '''Return a list of (db_path, c) tuples bundled in the metapackage, each
+        database paired with the -c it was built with. These are either sylph
+        databases (.syldb) or weebill two-stage ones (.syl2db); see
+        weebill.read_profiler_for_metapackage. Empty if the metapackage has no such
+        databases (version < 7, created without --sylph-db/--weebill-db, or from
+        spkgs directly).'''
         try:
             return list(self._sylph_databases)
         except AttributeError:
