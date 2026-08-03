@@ -65,7 +65,7 @@ def seqs(args):
     print(best_position)
 
 # Make pipe argument functions here so the code can be re-used between pipe and renew
-def add_common_pipe_arguments(argument_group, extra_args=False):
+def add_common_pipe_arguments(argument_group, extra_args=False, weebill=True):
     if extra_args:
         sequence_input_group = argument_group.add_mutually_exclusive_group(required=True)
         # Keep parity of these arguments with the 'read_fraction' command
@@ -95,15 +95,17 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                 nargs='+',
                 metavar='sra_file',
                 help='"sra" format files (usually from NCBI SRA) to be searched')
-    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
+    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table.{} Taxonomic profiles output can be further converted to other formats using singlem summarise.".format(
+        " When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile." if weebill else ""))
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
-    argument_group.add_argument('--weebill-injection', action='store_true',
-        help="When the metapackage bundles a weebill database, integrate it via additive injection rather than the default joint deconvolution.")
-    if extra_args:
-        argument_group.add_argument('--no-weebill', action='store_true',
-            help="Do not run weebill even if the metapackage bundles a weebill database, so the taxonomic profile comes from the marker genes alone.")
-        argument_group.add_argument('--output-weebill-sketch', metavar='DIRECTORY',
-            help="Save the weebill read sketch here, so it can later be passed to 'renew --input-weebill-sketch' without the raw reads.")
+    if weebill:
+        argument_group.add_argument('--weebill-injection', action='store_true',
+            help="When the metapackage bundles a weebill database, integrate it via additive injection rather than the default joint deconvolution.")
+        if extra_args:
+            argument_group.add_argument('--no-weebill', action='store_true',
+                help="Do not run weebill even if the metapackage bundles a weebill database, so the taxonomic profile comes from the marker genes alone.")
+            argument_group.add_argument('--output-weebill-sketch', metavar='DIRECTORY',
+                help="Save the weebill read sketch here, so it can later be passed to 'renew --input-weebill-sketch' without the raw reads.")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -259,7 +261,7 @@ def validate_pipe_args(args, subparser='pipe'):
         if args.read_chunk_size and args.genome_fasta_files:
             raise Exception("Can't use --read-chunk-size with input genomes currently")
 
-def add_condense_arguments(parser):
+def add_condense_arguments(parser, weebill=True):
     input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
     input_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
     input_condense_arguments.add_argument('--input-archive-otu-table-list',
@@ -279,24 +281,25 @@ def add_condense_arguments(parser):
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
-    optional_condense_arguments.add_argument('--weebill-profile', metavar='filename',
-        help="pre-annotated weebill profile TSV (GTDB taxonomy + Eff_cov or True_cov columns). Species weebill detected but SingleM missed are injected into the profile. Running weebill with -u (--estimate-unknown), which reports True_cov, is recommended: its coverages are then already in SingleM's units and no alpha calibration is needed.")
-    optional_condense_arguments.add_argument('--alpha', type=float,
-        help="scale factor converting weebill effective coverage to SingleM coverage units when injecting weebill-only species. [default: 1 for a True_cov (weebill -u) profile, which needs no calibration; otherwise fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
-    optional_condense_arguments.add_argument('--joint', action='store_true',
-        help="jointly profile SingleM and weebill with an NNLS deconvolution instead of the default EM-based condense. Requires --weebill-profile.")
-    optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
-        help="[--joint] L1 sparsity penalty (controls pruning of low-coverage taxa) [default: 1.0]")
-    optional_condense_arguments.add_argument('--joint-absence-weight', type=float, default=100.0,
-        help="[--joint] weight suppressing species in the DB that weebill did not report [default: 100.0]")
-    optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
-        help="[--joint] minimum number of uniquely-assigned markers required for a taxon that weebill did not detect; taxa below this are set to zero coverage [default: 3]")
-    optional_condense_arguments.add_argument('--joint-pin-weebill-species', action='store_true',
-        help="[--joint] take species-level assignments from weebill alone: each weebill-detected species is fixed at its own coverage and every other database species is fixed to zero, leaving SingleM's markers to determine only the novel (higher-rank) coverage. Requires a well-calibrated alpha, so use a weebill -u profile or pass --alpha [default: off]")
-    optional_condense_arguments.add_argument('--joint-novel-budget', action='store_true',
-        help="[--joint] cap each domain's total novel coverage at what its markers imply is present but weebill did not account for, estimated as the trimmed mean of per-marker coverage over the domain's full marker complement. Suppresses novel lineages fabricated in communities that are already fully explained by weebill's species [default: off]")
-    optional_condense_arguments.add_argument('--joint-adaptive-weebill-weight', action='store_true',
-        help="[--joint] scale each species' deference to weebill by how well its own SingleM markers corroborate weebill's coverage: species whose markers agree with weebill are trusted more (better on known species), while those that disagree keep the base weight (protecting novel strains) [default: off]")
+    if weebill:
+        optional_condense_arguments.add_argument('--weebill-profile', metavar='filename',
+            help="pre-annotated weebill profile TSV (GTDB taxonomy + Eff_cov or True_cov columns). Species weebill detected but SingleM missed are injected into the profile. Running weebill with -u (--estimate-unknown), which reports True_cov, is recommended: its coverages are then already in SingleM's units and no alpha calibration is needed.")
+        optional_condense_arguments.add_argument('--alpha', type=float,
+            help="scale factor converting weebill effective coverage to SingleM coverage units when injecting weebill-only species. [default: 1 for a True_cov (weebill -u) profile, which needs no calibration; otherwise fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
+        optional_condense_arguments.add_argument('--joint', action='store_true',
+            help="jointly profile SingleM and weebill with an NNLS deconvolution instead of the default EM-based condense. Requires --weebill-profile.")
+        optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
+            help="[--joint] L1 sparsity penalty (controls pruning of low-coverage taxa) [default: 1.0]")
+        optional_condense_arguments.add_argument('--joint-absence-weight', type=float, default=100.0,
+            help="[--joint] weight suppressing species in the DB that weebill did not report [default: 100.0]")
+        optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
+            help="[--joint] minimum number of uniquely-assigned markers required for a taxon that weebill did not detect; taxa below this are set to zero coverage [default: 3]")
+        optional_condense_arguments.add_argument('--joint-pin-weebill-species', action='store_true',
+            help="[--joint] take species-level assignments from weebill alone: each weebill-detected species is fixed at its own coverage and every other database species is fixed to zero, leaving SingleM's markers to determine only the novel (higher-rank) coverage. Requires a well-calibrated alpha, so use a weebill -u profile or pass --alpha [default: off]")
+        optional_condense_arguments.add_argument('--joint-novel-budget', action='store_true',
+            help="[--joint] cap each domain's total novel coverage at what its markers imply is present but weebill did not account for, estimated as the trimmed mean of per-marker coverage over the domain's full marker complement. Suppresses novel lineages fabricated in communities that are already fully explained by weebill's species [default: off]")
+        optional_condense_arguments.add_argument('--joint-adaptive-weebill-weight', action='store_true',
+            help="[--joint] scale each species' deference to weebill by how well its own SingleM markers corroborate weebill's coverage: species whose markers agree with weebill are trusted more (better on known species), while those that disagree keep the base weight (protecting novel strains) [default: off]")
 
 def generate_streaming_otu_table_from_args(args,
     input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):

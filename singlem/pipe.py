@@ -83,7 +83,11 @@ class SearchPipe:
         if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
             raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
+        # Viral profiling (lyrebird) does not support weebill: its markers are not
+        # single-copy, so condense falls back to the standard algorithm and there is
+        # nothing for a weebill profile to be integrated into.
         running_weebill = (outputting_taxonomic_profile and not no_weebill and
+                           not viral_profile_output and
                            len(metapackage.weebill_databases()) > 0)
         if running_weebill and weebill_forward_reads and not weebill_unsupported_input:
             # Check weebill is installed before the marker search rather than after
