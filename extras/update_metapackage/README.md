@@ -1,5 +1,35 @@
 See top of Snakefile for some instructions on how to run this pipeline.
 
+## weebill two-stage database
+
+The metapackage bundles a weebill two-stage database (`.syl2db`), which `singlem
+pipe` runs on the reads and condenses jointly with the marker profile. It is built
+from the GTDB representative genome *assemblies*, which are a separate download to
+the protein/transcript reps the SingleM packages are built from:
+
+```bash
+wget https://data.gtdb.ecogenomic.org/releases/release232/232.0/genomic_files_reps/gtdb_genomes_reps_r232.tar.gz
+tar xf gtdb_genomes_reps_r232.tar.gz
+```
+
+Point `gtdb_genome_reps` in the config at the extracted directory, and set
+`weebill_c` to the subsampling rate to build at (default 100 — lower is more
+sensitive at low coverage, and larger and slower). The workflow then runs
+
+```bash
+weebill sketch -l <genome list> -c <weebill_c> -o gtdb    # -> gtdb.syldb
+weebill db-convert gtdb.syldb -o gtdb                     # -> gtdb.syl2db
+```
+
+and passes the result to `singlem metapackage --weebill-db ... --weebill-c ...`.
+The `weebill` binary must be on the `PATH`. Genome file names must contain their
+`GCA_`/`GCF_` accession (GTDB's do), since that is what maps weebill's genomes back
+to the metapackage's taxonomy.
+
+Omit `gtdb_genome_reps` from the config to build a metapackage with no weebill
+database; `singlem pipe` then profiles from the marker genes alone, as does
+`singlem pipe --no-weebill` against a metapackage that does bundle one.
+
 ## Uniprot processing
 
 Download latest Uniprot swissprot annotations

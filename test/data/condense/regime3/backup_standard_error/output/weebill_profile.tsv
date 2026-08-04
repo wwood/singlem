@@ -1,0 +1,3 @@
+Sample_file	Genome_file	Taxonomic_abundance	Sequence_abundance	Adjusted_ANI	Eff_cov	ANI_5-95_percentile	Eff_lambda	Lambda_5-95_percentile	Median_cov	Mean_cov_geq1	Containment_ind	Naive_ANI	kmers_reassigned	Contig_name
+reads/mock.r1.fq	gtdb_genomes_reps_r232/database/GCF/000/744/455/GCF_000744455.1_genomic.fna.gz	95.0080	94.8312	99.91	4.291	NA-NA	HIGH	NA-NA	4	4.291	10460/10752	99.91	0	NZ_JQLY01000001.1 Methanobacterium sp. SMA-27 DL91DRAFT_unitig_0_quiver.1_C, whole genome shotgun sequence
+reads/mock.r1.fq	gtdb_genomes_reps_r232/database/GCF/000/191/585/GCF_000191585.1_genomic.fna.gz	4.9920	5.1688	99.76	0.225	99.41-100.10	0.225	0.20-0.25	1	1.113	2075/11077	94.74	30	NC_015216.1 Methanobacterium lacus, complete sequence
