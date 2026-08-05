@@ -15,5 +15,5 @@ run = "snakemake --cores 8 --printshellcmds"
 snakemake = "*"
 snakemake-executor-plugin-cluster-generic = "*"
 wgsim = "*"
-# weebill is not packaged for conda; put its binary on the PATH yourself.
+weebill = ">=0.3.0"
 python = ">=3.10"

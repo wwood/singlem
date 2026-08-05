@@ -36,6 +36,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/smafa-0.8.0-hfa8f182_2.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/sorted_nearest-0.0.41-py312h0fa9677_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.2.1-h4304569_1.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.3.0-hec9b1f2_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/bird_tool_utils_python-0.6.0-pyh7e72e81_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/dendropy-5.0.8-pyhdfd78af_1.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/noarch/fastalite-0.4.1-pyh7cba7a3_0.tar.bz2
@@ -320,6 +321,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/sorted_nearest-0.0.41-py312h0fa9677_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/sra-tools-3.2.1-h4304569_1.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/sracat-0.2-h077b44d_3.tar.bz2
+      - conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.3.0-hec9b1f2_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/bird_tool_utils_python-0.6.0-pyh7e72e81_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/dendropy-5.0.8-pyhdfd78af_1.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/noarch/fastalite-0.4.1-pyh7cba7a3_0.tar.bz2
@@ -629,6 +631,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/pplacer-1.1.alpha22-hd563303_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/smafa-0.8.0-hfa8f182_2.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/sorted_nearest-0.0.41-py312h0fa9677_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.3.0-hec9b1f2_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/bird_tool_utils_python-0.6.0-pyh7e72e81_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/dendropy-5.0.8-pyhdfd78af_1.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/noarch/fastalite-0.4.1-pyh7cba7a3_0.tar.bz2
@@ -1145,6 +1148,23 @@ packages:
   purls: []
   size: 1549631
   timestamp: 1734160277866
+- conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.3.0-hec9b1f2_0.conda
+  sha256: 84afc1909647b76c152e59c6790bdbe25a0bd2d64a53bbc9d817fe874c301633
+  md5: 153bbec3b8ccc161405cc0305fb14a62
+  depends:
+  - __glibc >=2.17,<3.0.a0
+  - libgcc >=14
+  - libstdcxx >=14
+  constrains:
+  - __glibc >=2.17
+  license: MIT
+  license_family: MIT
+  purls: []
+  run_exports:
+    weak:
+    - weebill >=0.3.0,<0.4.0a0
+  size: 1148040
+  timestamp: 1785793992011
 - conda: https://conda.anaconda.org/bioconda/noarch/bird_tool_utils_python-0.6.0-pyh7e72e81_0.conda
   sha256: 3ef95588442ad126cef9a8a57552c764d89841b35b2a957e7865547a6684c2f7
   md5: e7ae9773e36507a6715eacd5207a6a9c

@@ -75,7 +75,10 @@ if not "max_threads" in config: config["max_threads"] = 8
 # Lower c is more sensitive at low coverage and correspondingly bigger/slower.
 weebill_c = config.get("weebill_c", 100)
 weebill_genome_extensions = config.get("weebill_genome_extensions", ["*.fna.gz", "*.fa.gz", "*.fna", "*.fa"])
-build_weebill_db = "gtdb_genome_reps" in config
+if "gtdb_genome_reps" not in config:
+    raise Exception(
+        "The config must set gtdb_genome_reps (the directory of GTDB representative "
+        "genome assemblies), since every metapackage now bundles a weebill database.")
 
 wildcard_constraints:
     genome = r"(archaea|bacteria)/\w+.\d+_protein.faa"
@@ -436,13 +439,13 @@ rule create_SingleM_metapackage:
         packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = singlem_packages),
         sdb = output_dir + "/taxonomy/transcripts.sdb",
         genome_sizes = output_dir + "/gtdb_mean_genome_sizes.tsv",
-        weebill_db = output_dir + "/weebill/gtdb.syl2db" if build_weebill_db else [],
+        weebill_db = output_dir + "/weebill/gtdb.syl2db",
     output:
         directory(output_dir + "/metapackage/" + config["new_metapackage"])
     params:
         singlem = singlem_bin,
         weebill_args = lambda wildcards, input: \
-            "--weebill-db {} --weebill-c {} ".format(input.weebill_db, weebill_c) if build_weebill_db else "",
+            "--weebill-db {} --weebill-c {} ".format(input.weebill_db, weebill_c),
     threads:
         config["max_threads"]
     resources:
@@ -468,11 +471,9 @@ rule create_SingleM_metapackage:
 # weebill profiles reads against whole GTDB representative genomes, which are a
 # different input to the per-genome proteins/transcripts the SingleM packages are
 # built from, so the genome directory is configured separately (gtdb_genome_reps).
-# Omitting that config key skips these rules and produces a metapackage without a
-# weebill database, as before.
 rule weebill_genome_list:
     input:
-        dir = config["gtdb_genome_reps"] if build_weebill_db else [],
+        dir = config["gtdb_genome_reps"],
     output:
         genome_list = output_dir + "/weebill/genome_list.txt",
     threads: 1
@@ -508,7 +509,7 @@ rule weebill_sketch_genomes:
     log:
         logs_dir + "/weebill/sketch_genomes.log"
     shell:
-        "weebill sketch -l {input.genome_list} -c {params.c} -t {threads} -o {params.out_name} &> {log}"
+        "pixi run -e update-metapackage weebill sketch -l {input.genome_list} -c {params.c} -t {threads} -o {params.out_name} &> {log}"
 
 rule weebill_db_convert:
     input:
@@ -527,7 +528,7 @@ rule weebill_db_convert:
     log:
         logs_dir + "/weebill/db_convert.log"
     shell:
-        "weebill db-convert {input.syldb} -t {threads} -o {params.out_name} &> {log}"
+        "pixi run -e update-metapackage weebill db-convert {input.syldb} -t {threads} -o {params.out_name} &> {log}"
 
 #######################################
 ### Mean genome size table creation ###

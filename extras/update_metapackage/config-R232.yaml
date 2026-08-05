@@ -7,10 +7,10 @@ new_metapackage: S6.5.0.GTDB_r232.metapackage_20260319.smpkg
 new_version_number: 6.5.0
 gtdb_protein_faa_reps: /work/microbiome/msingle/mess/214_R232_renew/protein_faa_reps
 # Whole representative genome assemblies (GTDB gtdb_genomes_reps_r232.tar.gz), used
-# to build the bundled weebill two-stage database. Remove this key to build a
-# metapackage without one. File names must carry the GCA_/GCF_ accession, as GTDB's
-# do, since that is how weebill's genomes are matched back to taxonomy.
-gtdb_genome_reps: /work/microbiome/msingle/mess/214_R232_renew/gtdb_genomes_reps_r232
+# to build the bundled weebill two-stage database. Required. File names must carry
+# the GCA_/GCF_ accession, as GTDB's do, since that is how weebill's genomes are
+# matched back to taxonomy.
+gtdb_genome_reps: /work/microbiome/db/gtdb/gtdb_release232/genomic_files_reps/gtdb_genomes_reps_r232
 # -c the weebill database is built at, and so also the -c reads are sketched at.
 weebill_c: 100
 gtdb_bac_tax: /work/microbiome/msingle/mess/214_R232_renew/bac120_taxonomy_r232.tsv

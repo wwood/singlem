@@ -23,6 +23,8 @@ polars = "*"
 biopython = ">=1.86,<2"
 parallel = ">=20251122,<20251123"
 tqdm = ">=4.67.1,<5"
+# Builds the weebill two-stage database bundled into every metapackage.
+weebill = ">=0.3.0"
 
 [feature.singlem.dependencies]
 singlem = "*"
