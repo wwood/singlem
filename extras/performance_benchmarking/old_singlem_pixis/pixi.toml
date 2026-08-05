@@ -1,0 +1,24 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "old_singlem_pixis"
+platforms = ["linux-64"]
+version = "0.1.0"
+
+[feature.singlem0-20-3.dependencies]
+singlem="==0.20.3"
+
+[feature.singlem0-19-0.dependencies]
+singlem="==0.19.0"
+
+[feature.kingfisher.dependencies]
+kingfisher="*"
+
+[feature.diamond.dependencies]
+diamond="*"
+
+[environments]
+singlem0-20-3 = ["singlem0-20-3"]
+singlem0-19-0 = ["singlem0-19-0"]
+kingfisher = ["kingfisher"]
+diamond = ["diamond"]

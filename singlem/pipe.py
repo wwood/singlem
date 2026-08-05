@@ -27,6 +27,7 @@ from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
 from .genome_fasta_mux import GenomeFastaMux
+from .frameshift_repair import resolve_ambiguous_windows, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -182,6 +183,9 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
         context_window = kwargs.pop('context_window', None)
+        repair_frameshifts = kwargs.pop('repair_frameshifts', True)
+        max_frameshift_repair_divergence = kwargs.pop(
+            'max_frameshift_repair_divergence', DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
 
         working_directory = kwargs.pop('working_directory', None)
         working_directory_dev_shm = kwargs.pop('working_directory_dev_shm', None)
@@ -358,7 +362,12 @@ class SearchPipe:
                 singlem_assignment_method = PPLACER_ASSIGNMENT_METHOD
             if not diamond_prefilter:
                 diamond_package_assignment = False
-    
+
+            # Populated below when the DIAMOND prefilter runs with frameshift
+            # repair on; used later to restrict resolve_ambiguous_windows() to
+            # windows whose 'N' actually came from a repaired deletion.
+            repaired_deletion_qseqids = set()
+
             #### Extract diamond_prefilter_performance_parameters from metapackage (v5 metapackages only)
             if diamond_prefilter:
                 # Set the min ORF length in DIAMOND, as this saves CPU time and
@@ -444,7 +453,7 @@ class SearchPipe:
                     (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                         self._num_threads, self._working_directory).run_diamond(
                         hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                        hmms.prefilter_db_path(), min_orf_length, context_window)
+                        hmms.prefilter_db_path(), min_orf_length, context_window, repair_frameshifts)
                 except extern.ExternCalledProcessError as e:
                     logging.error("Process (DIAMOND?) failed")
                     terminate_processes(zstd_processes, "zstdcat")
@@ -462,10 +471,24 @@ class SearchPipe:
                 if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                     found_a_hit = True
                 forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
+                repaired_deletion_qseqids = set()
+                for r in diamond_forward_search_results:
+                    repaired_deletion_qseqids.update(r.repaired_deletion_qseqids)
                 if analysing_pairs:
                     reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
                     if any([len(r.best_hits)>0 for r in diamond_reverse_search_results]):
                         found_a_hit = True
+                    for r in diamond_reverse_search_results:
+                        repaired_deletion_qseqids.update(r.repaired_deletion_qseqids)
+                if input_sra_files:
+                    # unknown_sequences are renamed by KingfisherSra to strip the
+                    # SRA .0/.1/.2 direction suffix and the ••gene suffix (see
+                    # KingfisherSra._split_extracted_reads); normalise these
+                    # qseqids the same way so they still match by .name below.
+                    sra_regex = KingfisherSra()._split_regex()
+                    repaired_deletion_qseqids = {
+                        (m.group(1) if (m := sra_regex.match(qseqid)) else qseqid)
+                        for qseqid in repaired_deletion_qseqids}
                 logging.info("Finished DIAMOND prefilter phase")
                 if not found_a_hit:
                     logging.info("No reads identified in any samples, stopping")
@@ -534,6 +557,32 @@ class SearchPipe:
                 logging.info("Removing duplicate sequences from rough transcriptome ..")
                 for readset in extracted_reads:
                     readset.remove_duplicate_sequences()
+
+            #### Resolve windows whose frameshift repair left an ambiguous base.
+            # Repairing a deletion restores the reading frame but not the identity
+            # of the deleted base, so the window has an 'N' in it. Fill that in
+            # from the most abundant near-identical window of the same marker,
+            # which is the same organism seen in reads without an indel there.
+            # Done per package (pooled across samples) so that low-coverage
+            # samples can still draw on a donor.
+            if repair_frameshifts:
+                logging.info("Resolving ambiguous bases in frameshift-repaired windows ..")
+                num_resolved = 0
+                for _, readsets in extracted_reads.each_package_wise():
+                    window_sequences = []
+                    for readset in readsets:
+                        if analysing_pairs:
+                            window_sequences.extend(readset[0].unknown_sequences)
+                            window_sequences.extend(readset[1].unknown_sequences)
+                        else:
+                            window_sequences.extend(readset.unknown_sequences)
+                    num_resolved += resolve_ambiguous_windows(
+                        window_sequences,
+                        max_divergence=max_frameshift_repair_divergence,
+                        repaired_names=repaired_deletion_qseqids)
+                logging.info(
+                    "Resolved the ambiguous base(s) of {} window sequence(s)".format(
+                        num_resolved))
 
             #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
             if diamond_taxonomy_assignment_performance_parameters == None:
@@ -1381,6 +1430,19 @@ class SearchPipe:
                 io.write(s.unaligned_sequence)
                 io.write("\n")
 
+        def deduplicate_sequences_to_most_common(sequences):
+            from collections import defaultdict
+            seq_groups = defaultdict(list)
+            for s in sequences:
+                seq_groups[s.unaligned_sequence].append(s)
+            representatives = []
+            rep_to_originals = {}
+            for window_seq, group in seq_groups.items():
+                rep = group[0]
+                representatives.append(rep)
+                rep_to_originals[rep.name] = [s.name for s in group]
+            return representatives, rep_to_originals
+
         num_seqs_before_query = None
         if assignment_method in (
             ANNOY_ASSIGNMENT_METHOD,
@@ -1432,6 +1494,7 @@ class SearchPipe:
         all_tmp_files = []
         # Collect all package data for batch processing
         package_data = []  # List of (singlem_package, tmp_files)
+        all_rep_to_originals = {}
         for singlem_package, readsets in extracted_reads.each_package_wise():
             tmp_files = []
             for readset in readsets:
@@ -1480,21 +1543,25 @@ class SearchPipe:
                         reverse_tmp.write(">dummy\n{}\n".format(dummy_sequence))
                         forward_tmp.write(">dummy\n{}\n".format(dummy_sequence))
 
+                        fwd_reps, fwd_rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences[0])
+                        rev_reps, rev_rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences[1])
+                        all_rep_to_originals[(singlem_package, readset[0].sample_name, 0)] = fwd_rep_to_originals
+                        all_rep_to_originals[(singlem_package, readset[0].sample_name, 1)] = rev_rep_to_originals
+                        logging.debug("Deduplicated {}/{} fwd/rev sequences to {}/{} representatives for DIAMOND".format(
+                            len(still_unknown_sequences[0]), len(still_unknown_sequences[1]),
+                            len(fwd_reps), len(rev_reps)))
                         forward_seq_names = {}
-                        for (i, s) in enumerate(still_unknown_sequences[0]):
+                        for (i, s) in enumerate(fwd_reps):
                             forward_seq_names[s.name] = i
                             write_unaligned_fasta([s], forward_tmp)
                         reverse_name_to_seq = {}
-                        for s in still_unknown_sequences[1]:
+                        for s in rev_reps:
                             reverse_name_to_seq[s.name] = s
                         for name in forward_seq_names.keys():
                             if name in reverse_name_to_seq:
-                                # Write corresponding reverse and delete it
-                                # from dict.
                                 write_unaligned_fasta(
                                     [reverse_name_to_seq.pop(name)], reverse_tmp)
                         for name, seq in reverse_name_to_seq.items():
-                            # Reverse read matched only
                             write_unaligned_fasta([seq], reverse_tmp)
 
                         # Close immediately to avoid the "too many open files" error.
@@ -1525,7 +1592,18 @@ class SearchPipe:
                                 os.path.basename(singlem_package.base_directory())))
                         else:
                             still_unknown_sequences = readset.unknown_sequences
-                        write_unaligned_fasta(still_unknown_sequences, tmp)
+                        if assignment_method in (
+                            ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
+                            SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD):
+                            reps, rep_to_originals = deduplicate_sequences_to_most_common(still_unknown_sequences)
+                            all_rep_to_originals[(singlem_package, readset.sample_name, None)] = rep_to_originals
+                            logging.debug("Deduplicated {} sequences to {} representatives for DIAMOND".format(
+                                len(still_unknown_sequences), len(reps)))
+                            write_unaligned_fasta(reps, tmp)
+                        else:
+                            write_unaligned_fasta(still_unknown_sequences, tmp)
                         tmp_files.append([readset.sample_name, tmp])
                         # Close immediately to avoid the "too many open files" error.
                         tmp.close()
@@ -1709,6 +1787,17 @@ class SearchPipe:
             for chunk_files in all_sample_chunks.values():
                 for chunk_file in chunk_files:
                     os.remove(chunk_file)
+
+            # Phase 3b: Expand representative results back to all original sequences
+            for key, rep_map in all_rep_to_originals.items():
+                if key in chunk_results:
+                    expanded = {}
+                    for rep_name, orig_names in rep_map.items():
+                        if rep_name in chunk_results[key]:
+                            result = chunk_results[key][rep_name]
+                            for orig_name in orig_names:
+                                expanded[orig_name] = result
+                    chunk_results[key].update(expanded)
 
             # Reorganize results into the expected format per package
             for singlem_package, tmp_files in package_data:

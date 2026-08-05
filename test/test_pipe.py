@@ -97,7 +97,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --no-diamond-prefilter --assignment-method diamond --otu-table /dev/stdout --singlem-packages %s" % (
+            cmd = "%s pipe --sequences %s --no-diamond-prefilter --no-repair-frameshifts --assignment-method diamond --otu-table /dev/stdout --singlem-packages %s" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
@@ -143,6 +143,25 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             self.assertEqualOtuTable(
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace('input',''))
+
+
+    def test_compressed_fastq_input_from_small_fasta(self):
+        expected = [
+            "\t".join(self.headers),
+            '4.11.22seqs	small	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179',
+            '']
+        with tempfile.TemporaryDirectory() as td:
+            fastq_gz_path = os.path.join(td, 'small.fastq.gz')
+            with open(os.path.join(path_to_data, '1_pipe/small.fa')) as fasta, \
+                    gzip.open(fastq_gz_path, 'wt') as fastq:
+                for name, seq, _ in SeqReader().readfq(fasta):
+                    fastq.write("@{}\n{}\n+\n{}\n".format(name, seq, "I" * len(seq)))
+
+            cmd = "%s pipe --sequences %s --otu-table /dev/stdout --assignment-method diamond --singlem-packages %s" % (
+                path_to_script, fastq_gz_path, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
+            self.assertEqualOtuTable(
+                list([line.split("\t") for line in expected]),
+                extern.run(cmd))
 
 
     def test_fast_protein_package_diamond_package_assignment(self):
@@ -403,7 +422,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             ['S1.5.ribosomal_protein_L11_rplK','minimal','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','4','9.76','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg --no-diamond-prefilter" % (
+        cmd = "%s pipe --sequences %s/1_pipe/minimal.fa --assignment-method diamond --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg --no-diamond-prefilter --no-repair-frameshifts" % (
             path_to_script,
             path_to_data,
             path_to_data)
@@ -413,7 +432,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         expected = [self.headers,['S1.5.ribosomal_protein_L11_rplK','insert','CCTGCAGGTAAAGCGAATCCAGCACCACCAGTTGGTCCAGCATTAGGTCAAGCAGGTGTG','2','4.95','Root; d__Bacteria; p__Firmicutes']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --sequences %s/1_pipe/insert.fna --assignment-method diamond --no-diamond-prefilter --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
+        cmd = "%s pipe --sequences %s/1_pipe/insert.fna --assignment-method diamond --no-diamond-prefilter --no-repair-frameshifts --otu-table /dev/stdout --threads 4 --metapackage %s/S1.5.ribosomal_protein_L11_rplK.gpkg.spkg.smpkg" % (
             path_to_script,
             path_to_data,
             path_to_data)
@@ -452,7 +471,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
              '2','4.88','Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
 
-        cmd = "%s pipe --quiet --sequences %s/1_pipe/small.fa --no-diamond-prefilter --otu-table /dev/stdout --assignment-method diamond --threads 4 --singlem-packages %s" % (
+        cmd = "%s pipe --quiet --sequences %s/1_pipe/small.fa --no-diamond-prefilter --no-repair-frameshifts --otu-table /dev/stdout --assignment-method diamond --threads 4 --singlem-packages %s" % (
             path_to_script,
             path_to_data,
             self.two_packages)
@@ -471,7 +490,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             t.write('\n'.join(["\t".join(x) for x in expected[:2]]))
             t.flush()
 
-            cmd = "%s --quiet pipe --sequences %s/1_pipe/small.fa --no-diamond-prefilter --otu-table /dev/stdout --threads 4 --known_otu_tables %s --singlem-packages %s"\
+            cmd = "%s --quiet pipe --sequences %s/1_pipe/small.fa --no-diamond-prefilter --no-repair-frameshifts --otu-table /dev/stdout --threads 4 --known_otu_tables %s --singlem-packages %s"\
                  % (path_to_script,
                     path_to_data,
                     t.name,
@@ -516,7 +535,7 @@ ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACG
 '''
         expected = [
             self.headers,
-            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA	1	1.64	GCA_001025035.1']]
+            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCNAGAAGCCCGCCGAGACACGCATGGGGTCGGGC	1	1.64	GCA_000949295.1']]
         exp = sorted(["\t".join(x) for x in expected]+[''])
         with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
             t.write(seq)
@@ -1037,7 +1056,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # more frequently)
         expected = [
             "\t".join(self.headers_with_extras),
-            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
+            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
             '']
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
@@ -1452,7 +1471,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
     def test_translation_table4_no_diamond_prefilter(self):
         expected = 'gene    sample  sequence        num_hits        coverage        taxonomy\n' \
             'S1.2.ribosomal_protein_L3_rplC  tt4_s1.2        ATAAACTTAATAGGTACATCAAAAGGTAAAGGTTTTCAATGAGTTATGAAAAGATTTCAT    1       1.11    Root; d__Bacteria; p__Firmicutes; c__Bacilli; o__RF39; f__CAG-1000; g__CAG-460; s__CAG-460_sp1'
-        cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --no-diamond-prefilter --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
+        cmd = f'{path_to_script} pipe --forward {path_to_data}/tt4_s1.2.fna --otu-table /dev/stdout --no-diamond-prefilter --no-repair-frameshifts --translation-table 4 --threads 32 --singlem-package {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond'
         self.assertEqualOtuTable(
             expected,
             extern.run(cmd))
@@ -1473,7 +1492,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         all_ascii_chars = ''.join(chr(i) for i in list(range(33, 127)) + list(range(161, 255)))
         expected = [
             "\t".join(self.headers_with_extras),
-            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	{all_ascii_chars}	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
+            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	{all_ascii_chars}	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
             '']
         inseqs = inseqs = (
             f'>{all_ascii_chars}\n'

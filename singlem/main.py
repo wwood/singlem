@@ -30,6 +30,7 @@ from singlem import OTU_TABLE_OUTPUT_FORMAT, ARCHIVE_TABLE_OUTPUT_FORMAT
 from singlem.condense import DEFAULT_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_GENOME_MIN_TAXON_COVERAGE as CONDENSE_DEFAULT_GENOME_MIN_TAXON_COVERAGE
 from singlem.condense import DEFAULT_TRIM_PERCENT as CONDENSE_DEFAULT_TRIM_PERCENT
+from singlem.prefilter_pad import DEFAULT_FLANK_LENGTH
 
 DEFAULT_WINDOW_SIZE = 60
 SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
@@ -210,6 +211,12 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
                                     default=SearchPipe.DEFAULT_ASSIGNMENT_THREADS)
         argument_group.add_argument('--sleep-after-mkfifo', type=int,
                                     help='Sleep for this many seconds after running os.mkfifo [default: None]')
+        argument_group.add_argument('--no-repair-frameshifts', action='store_true',
+                                    help='Do not use the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM. By default, frameshifts are repaired so that reads carrying single base insertions or deletions still yield a window; this is particularly helpful for long reads from error-prone technologies e.g. Nanopore. [default: not set, i.e. repair frameshifts]',
+                                    default=False)
+        argument_group.add_argument('--max-frameshift-repair-divergence', type=int, metavar='INT',
+                                    help='When a repaired deletion leaves a base whose identity is unknown, take that base from the most abundant window within this many mismatches. [default: %i]' % pipe.DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
+                                    default=pipe.DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
         argument_group.add_argument('--context-window', type=int, metavar='bp',
                                     help='When using the DIAMOND prefilter, retain this many bases of context on each side of the aligned region when recording full_qseqs in the OTU table instead of the entire read. [default: keep the full read]. The read_name is also modified to record this information.',
                                     default=None)
@@ -226,6 +233,18 @@ def validate_pipe_args(args, subparser='pipe'):
     if subparser == 'pipe':
         if args.context_window is not None and args.context_window < 0:
             raise Exception("--context-window must be a non-negative integer")
+        if not args.no_repair_frameshifts and args.no_diamond_prefilter:
+            raise Exception(
+                "Frameshift repair requires the DIAMOND prefilter, because the "
+                "frameshifts it repairs are the ones DIAMOND reports there. Use "
+                "--no-repair-frameshifts to disable frameshift repair.")
+        if not args.no_repair_frameshifts and args.hmmsearch_package_assignment:
+            raise Exception(
+                "Frameshift repair is currently only compatible with DIAMOND "
+                "package assignment. Use --no-repair-frameshifts to disable "
+                "frameshift repair.")
+        if args.max_frameshift_repair_divergence < 0:
+            raise Exception("--max-frameshift-repair-divergence must be non-negative")
         if args.include_inserts and not args.otu_table and not args.archive_otu_table:
             raise Exception("Can't use --include-inserts without --otu-table or --archive-otu-table")
         if args.metapackage and args.diamond_prefilter_db:
@@ -699,6 +718,14 @@ def main():
     required_trim_package_hmmsarguments.add_argument('--input-singlem-package', required=True, help="Input package to trim HMMs from")
     required_trim_package_hmmsarguments.add_argument('--output-singlem-package', required=True, help="Package to be created")
 
+    prefilter_pad_description = 'Create a prefilter FASTA where each on-target sequence is padded to a fixed length with the window in a consistent position (expert mode)'
+    prefilter_pad_parser = bird_argparser.new_subparser('prefilter-pad', prefilter_pad_description)
+    required_prefilter_pad_arguments = prefilter_pad_parser.add_argument_group("required arguments")
+    required_prefilter_pad_arguments.add_argument('--metapackage', required=True, help="Metapackage to read on-target sequences and window positions from")
+    required_prefilter_pad_arguments.add_argument('--output-fasta', required=True, help="Padded prefilter FASTA to create")
+    current_default = DEFAULT_FLANK_LENGTH
+    prefilter_pad_parser.add_argument('--flank-length', type=int, metavar='num_residues', help='number of flanking residues to include on each side of the window [default: %i]' % current_default, default=current_default)
+
     supplement_description = 'Create a new metapackage from a vanilla one plus new genomes'
     supplement_parser = bird_argparser.new_subparser('supplement', supplement_description, parser_group='Tools')
     supplement_parser.add_argument('--new-genome-fasta-files',
@@ -820,6 +847,8 @@ def main():
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
             context_window = args.context_window,
+            repair_frameshifts = not args.no_repair_frameshifts,
+            max_frameshift_repair_divergence = args.max_frameshift_repair_divergence,
         )
 
     elif args.subparser_name=='renew':
@@ -1391,6 +1420,17 @@ def main():
         PackageHmmTrimmer().trim(
             args.input_singlem_package,
             args.output_singlem_package,
+        )
+
+    elif args.subparser_name == 'prefilter-pad':
+        from singlem.metapackage import Metapackage
+        from singlem.prefilter_pad import PrefilterPadder
+
+        metapackage = Metapackage.acquire(args.metapackage)
+        PrefilterPadder().pad_metapackage(
+            metapackage = metapackage,
+            output_fasta = args.output_fasta,
+            flank_length = args.flank_length,
         )
 
     elif args.subparser_name == 'seqs':

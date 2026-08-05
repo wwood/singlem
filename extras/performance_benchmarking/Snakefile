@@ -1,0 +1,276 @@
+runs = {
+    'illumina': ['DRR083195', 'SRR1926147', 'SRR9224014'],
+    'nanopore': ['ERR11563597']
+}
+# runs = {'illumina': ['DRR083195']} # debug
+run_to_type = {run: run_type for run_type, run_list in runs.items() for run in run_list}
+data_dir = 'snakedata'
+singlems = ['0.19.0', '0.20.3', 'dev']#,'singlem-hmmer-rs']
+singlems = [s.replace('.', '-') for s in singlems]
+metapackage = '/work/microbiome/db/singlem/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb'
+
+import glob as _glob
+genome_datasets = {
+    'methanobacteria_genomes': sorted(_glob.glob('../../test/data/methanobacteria/genomes/*.fna'))
+}
+
+# restrict singlem_version wildcard to not contain backslashes
+wildcard_constraints:
+    singlem_version="[^/]+",
+    run="[^/]+",
+    genome_dataset="[^/]+"
+plots_notebook_template = 'benchmark_plots.ipynb'
+plots_notebook = data_dir+'/plots/singlem-benchmarks.ipynb'
+
+singlem_targets = []
+for singlem_version in singlems:
+    for run in run_to_type.keys():
+        if singlem_version in ['0-19-0'] and run_to_type[run] == 'nanopore':
+            continue  # singlem 0.19.0 does not support nanopore data
+        singlem_targets.append(data_dir+f'/singlem-{singlem_version}/{run}.profile.tsv')
+        singlem_targets.append(data_dir+f'/singlem-renew/{singlem_version}/{run}.profile.tsv')
+
+benchmark_files = []
+otu_tables = []
+for singlem_version in singlems:
+    for run in run_to_type.keys():
+        if singlem_version in ['0-19-0'] and run_to_type[run] == 'nanopore':
+            continue  # singlem 0.19.0 does not support nanopore data
+        benchmark_files.extend([
+            # data_dir+f'/benchmarks/singlem/{singlem_version}/{run}.txt', # commented out for debug
+            data_dir+f'/benchmarks/singlem-no_taxonomy/{singlem_version}/{run}.txt',
+            data_dir+f'/benchmarks/singlem-renew/{singlem_version}/{run}.txt',
+        ])
+        otu_tables.extend([
+            # data_dir+f'/singlem-{singlem_version}/{run}.otu_table.tsv',
+            data_dir+f'/singlem-no_taxonomy/{singlem_version}/{run}.otu_table.tsv',
+            # data_dir+f'/singlem-renew/{singlem_version}/{run}.otu_table.tsv',
+        ])
+    for genome_dataset in genome_datasets.keys():
+        benchmark_files.append(
+            data_dir+f'/benchmarks/singlem-genome/{singlem_version}/{genome_dataset}.txt'
+        )
+        otu_tables.append(
+            data_dir+f'/singlem-genome/{singlem_version}/{genome_dataset}.otu_table.tsv'
+        )
+    
+rule all:
+    input:
+        benchmarks=benchmark_files,
+        otu_tables=otu_tables
+        # nbconvert seems to take ages, so eh, just run it manually for now
+
+rule kingfisher_download:
+    output:
+        touch(data_dir+'/done/kingfisher-{run}.done')
+    log:
+        data_dir+'/logs/kingfisher-{run}.log'
+    resources:
+        mem_mb=8000,
+        runtime='2h'
+    shell:
+        """
+        mkdir -p {data_dir}/reads
+        pixi run --manifest-path old_singlem_pixis/pixi.toml -e kingfisher kingfisher get -r {wildcards.run} --output-dir {data_dir}/reads -f fastq.gz -m ena-ftp prefetch &> {log}
+        """
+
+def singlem_env(wildcards):
+    if wildcards.singlem_version == 'dev':
+        return 'pixi run --manifest-path ../../pixi.toml'
+        # matches \d+\.\d+\.\d+ 
+    elif re.match(r'\d+\-\d+\-\d+', wildcards.singlem_version):
+        return f'pixi run --manifest-path old_singlem_pixis/pixi.toml -e singlem{wildcards.singlem_version}'
+    else:
+        return f'pixi run --manifest-path ~/git/{wildcards.singlem_version}/pixi.toml'
+        
+
+rule singlem:
+    input:
+        data_dir+'/done/kingfisher-{run}.done'
+    output:
+        profile=data_dir+'/singlem-{singlem_version}/{run}.profile.tsv',
+        otu_table=data_dir+'/singlem-{singlem_version}/{run}.otu_table.tsv'
+    params:
+        exe = lambda wildcards: singlem_env(wildcards),
+        read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+    threads:
+        4
+    resources:
+        mem_mb=16000,
+        runtime='24h'
+    benchmark:
+        data_dir+'/benchmarks/singlem/{singlem_version}/{run}.txt'
+    log:
+        data_dir+'/logs/singlem-{singlem_version}-{run}.log'
+    shell:
+        """
+        {params.exe} singlem pipe \
+            {params.read_arg} \
+            --threads {threads} \
+            --otu-table {output.otu_table} \
+            --output-extras \
+            -p {output.profile} \
+            --metapackage {metapackage} \
+            &> {log}
+        """
+
+rule singlem_no_assign_taxonomy:
+    input:
+        data_dir+'/done/kingfisher-{run}.done'
+    output:
+        otu_table=data_dir+'/singlem-no_taxonomy/{singlem_version}/{run}.json'
+    params:
+        exe = lambda wildcards: singlem_env(wildcards),
+        read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+    threads:
+        4
+    resources:
+        mem_mb=16000,
+        runtime='24h'
+    benchmark:
+        data_dir+'/benchmarks/singlem-no_taxonomy/{singlem_version}/{run}.txt'
+    log:
+        data_dir+'/logs/singlem-no_taxonomy-{singlem_version}-{run}.log'
+    shell:
+        """
+        {params.exe} singlem pipe \
+            {params.read_arg} \
+            --threads {threads} \
+            --archive-otu-table {output.otu_table} \
+            --no-assign-taxonomy \
+            --metapackage {metapackage} \
+            &> {log}
+        """
+
+# rule singlem_no_assign_taxonomy_context_window:
+#     input:
+#         data_dir+'/done/kingfisher-{run}.done'
+#     output:
+#         otu_table=data_dir+'/singlem-no_taxonomy_context/{singlem_version}/{run}.json'
+#     params:
+#         exe = lambda wildcards: singlem_env(wildcards),
+#         read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+#     threads:
+#         4
+#     resources:
+#         mem_mb=16000,
+#         runtime='24h'
+#     benchmark:
+#         data_dir+'/benchmarks/singlem-no_taxonomy/{singlem_version}/{run}.txt'
+#     log:
+#         data_dir+'/logs/singlem-no_taxonomy-{singlem_version}-{run}.log'
+#     shell:
+#         """
+#         {params.exe} singlem pipe \
+#             --context-window 500 \
+#             {params.read_arg} \
+#             --threads {threads} \
+#             --archive-otu-table {output.otu_table} \
+#             --no-assign-taxonomy \
+#             --metapackage {metapackage} \
+#             &> {log}
+#         """
+
+rule singlem_no_assign_taxonomy_otu_table:
+    input:
+        data_dir+'/singlem-no_taxonomy/{singlem_version}/{run}.json'
+    output:
+        otu_table=data_dir+'/singlem-no_taxonomy/{singlem_version}/{run}.otu_table.tsv'
+    params:
+        exe = lambda wildcards: singlem_env(wildcards),
+    threads:
+        1
+    resources:
+        mem_mb=4000,
+        runtime='1h'
+    log:
+        data_dir+'/logs/singlem-no_taxonomy-otu-table-{singlem_version}-{run}.log'
+    shell:
+        """
+        {params.exe} singlem summarise  \
+            --input-archive-otu-table {input} \
+            --output-otu-table {output.otu_table} \
+            --output-extras \
+            &> {log}
+        """
+
+rule singlem_renew:
+    input:
+        data_dir+'/singlem-no_taxonomy/{singlem_version}/{run}.json'
+    output:
+        profile=data_dir+'/singlem-renew/{singlem_version}/{run}.profile.tsv',
+        otu_table=data_dir+'/singlem-renew/{singlem_version}/{run}.otu_table.tsv'
+    params:
+        exe = lambda wildcards: singlem_env(wildcards),
+    threads:
+        4
+    resources:
+        mem_mb=32000, # With 16G, DIAMOND using 0.20.3 and ERR11563597 crashed due to "ZSTD_decompressStream: Unknown frame descriptor" which googles to 
+        runtime='24h'
+    benchmark:
+        data_dir+'/benchmarks/singlem-renew/{singlem_version}/{run}.txt'
+    log:
+        data_dir+'/logs/singlem-renew-{singlem_version}-{run}.log'
+    shell:
+        # diamond 2.1.15 causes an issue in the nanopore dataset, but 0.20.3 requires that exact version so can't just specify in pixi.toml
+        """
+        {params.exe} bash -c 'PATH=old_singlem_pixis/.pixi/envs/diamond/bin:$PATH singlem renew \
+            --input-archive-otu-table {input} \
+            --threads {threads} \
+            --otu-table {output.otu_table} \
+            --output-extras \
+            -p {output.profile} \
+            --metapackage {metapackage}' \
+            &> {log}
+        """
+
+rule singlem_genome:
+    input:
+        lambda wildcards: genome_datasets[wildcards.genome_dataset]
+    output:
+        otu_table=data_dir+'/singlem-genome/{singlem_version}/{genome_dataset}.otu_table.tsv'
+    params:
+        exe = lambda wildcards: singlem_env(wildcards),
+    threads:
+        4
+    resources:
+        mem_mb=16000,
+        runtime='24h'
+    benchmark:
+        data_dir+'/benchmarks/singlem-genome/{singlem_version}/{genome_dataset}.txt'
+    log:
+        data_dir+'/logs/singlem-genome-{singlem_version}-{genome_dataset}.log'
+    shell:
+        """
+        {params.exe} singlem pipe \
+            --genome-fasta-files {input} \
+            --threads {threads} \
+            --otu-table {output.otu_table} \
+            --output-extras \
+            --metapackage {metapackage} \
+            &> {log}
+        """
+
+rule plot_singlem_benchmarks:
+    input:
+        template=plots_notebook_template,
+        benchmarks=benchmark_files,
+        otu_tables=otu_tables,
+    output:
+        plots_notebook
+    resources:
+        mem_mb=4000,
+        runtime='30m'
+    log:
+        data_dir+'/logs/plot-singlem-benchmarks.log'
+    shell:
+        """
+        mkdir -p $(dirname {output})
+        BENCHMARK_FILES='{input.benchmarks}' \
+        OTU_TABLES='{otu_tables}' \
+        pixi run jupyter nbconvert --to notebook --execute {input.template} \
+            --output $(basename {output}) \
+            --output-dir $(dirname {output}) \
+            &> {log}
+        """
+
