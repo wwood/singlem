@@ -60,7 +60,6 @@ class SearchPipe:
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
         no_weebill = kwargs.pop('no_weebill', False)
         output_weebill_sketch = kwargs.pop('output_weebill_sketch', None)
-        weebill_injection = kwargs.pop('weebill_injection', False)
 
         # The original read inputs, captured before run_to_otu_table consumes them,
         # so weebill can sketch them if the metapackage bundles a weebill database.
@@ -87,8 +86,12 @@ class SearchPipe:
         # Viral profiling (lyrebird) does not support weebill: its markers are not
         # single-copy, so condense falls back to the standard algorithm and there is
         # nothing for a weebill profile to be integrated into.
-        weebill_available = (not no_weebill and not viral_profile_output and
-                             len(metapackage.weebill_databases()) > 0)
+        weebill_available = not no_weebill and not viral_profile_output
+        if outputting_taxonomic_profile and weebill_available and len(metapackage.weebill_databases()) == 0:
+            raise Exception("The metapackage does not bundle a weebill database, so a joint SingleM + weebill "
+                "taxonomic profile cannot be produced. Pass --no-weebill to profile from the markers alone, or "
+                "use a metapackage that bundles a weebill database.")
+        weebill_available = weebill_available and len(metapackage.weebill_databases()) > 0
         running_weebill = outputting_taxonomic_profile and weebill_available
         # --output-weebill-sketch is honoured even when no taxonomic profile is
         # requested, since its purpose is letting a later 'renew
@@ -133,7 +136,7 @@ class SearchPipe:
                             WeebillProfiler().run_from_reads(
                                 weebill_forward_reads, weebill_reverse_reads, metapackage, weebill_threads,
                                 weebill_profile, weebill_working_directory, sketch_output=output_weebill_sketch)
-                            use_joint = not weebill_injection
+                            use_joint = True
 
                     Condenser().condense(
                         input_streaming_otu_table = otu_table_collection,

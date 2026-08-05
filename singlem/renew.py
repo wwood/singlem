@@ -37,7 +37,6 @@ class Renew:
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
         input_weebill_sketch = kwargs.pop('input_weebill_sketch', None)
-        weebill_injection = kwargs.pop('weebill_injection', False)
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -212,7 +211,7 @@ class Renew:
                     weebill_profile = os.path.join(weebill_working_directory, 'weebill_annotated.tsv')
                     WeebillProfiler().run_from_sketch(
                         input_weebill_sketch, metapackage, threads, weebill_profile, weebill_working_directory)
-                    use_joint = not weebill_injection
+                    use_joint = True
 
                 Condenser().condense(
                     input_streaming_otu_table = otu_table_collection,

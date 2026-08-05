@@ -100,8 +100,6 @@ def add_common_pipe_arguments(argument_group, extra_args=False, weebill=True):
         " When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile." if weebill else ""))
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
     if weebill:
-        argument_group.add_argument('--weebill-injection', action='store_true',
-            help="When the metapackage bundles a weebill database, integrate it via additive injection rather than the default joint deconvolution.")
         if extra_args:
             argument_group.add_argument('--no-weebill', action='store_true',
                 help="Do not run weebill even if the metapackage bundles a weebill database, so the taxonomic profile comes from the marker genes alone.")
@@ -885,7 +883,6 @@ def main():
             max_frameshift_repair_divergence = args.max_frameshift_repair_divergence,
             no_weebill = args.no_weebill,
             output_weebill_sketch = args.output_weebill_sketch,
-            weebill_injection = args.weebill_injection,
         )
 
     elif args.subparser_name=='renew':
@@ -915,7 +912,6 @@ def main():
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
             input_weebill_sketch = args.input_weebill_sketch,
-            weebill_injection = args.weebill_injection,
             )
 
     elif args.subparser_name == 'summarise':
