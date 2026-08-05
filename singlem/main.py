@@ -106,7 +106,10 @@ def add_common_pipe_arguments(argument_group, extra_args=False, weebill=True):
             argument_group.add_argument('--no-weebill', action='store_true',
                 help="Do not run weebill even if the metapackage bundles a weebill database, so the taxonomic profile comes from the marker genes alone.")
             argument_group.add_argument('--output-weebill-sketch', metavar='DIRECTORY',
-                help="Save the weebill read sketch here, so it can later be passed to 'renew --input-weebill-sketch' without the raw reads.")
+                help="Save the weebill read sketch here, so it can later be passed to 'renew --input-weebill-sketch' without the raw reads. "
+                    "Written as compressed sketches (.sylspc) by default. For further compression, build a reference database with "
+                    "'sylph ref-build' and run 'weebill sketch --reference' yourself to produce smaller .sylspr sketches (not currently "
+                    "readable by 'renew --input-weebill-sketch').")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
