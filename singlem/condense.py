@@ -9,6 +9,7 @@ from queue import Queue
 from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
 from .metapackage import Metapackage
 from .taxonomy import *
+from .utils import FastaNameToSampleName
 
 DEFAULT_TRIM_PERCENT = 10
 DEFAULT_MIN_TAXON_COVERAGE = 0.35
@@ -1137,7 +1138,13 @@ class WeebillProfile:
     @staticmethod
     def read_tsv(path):
         '''Parse the weebill TSV into {sample: {canonical_key: WeebillHit}}. When the
-        TSV has no recognised sample column, a single None key holds all hits.'''
+        TSV has no recognised sample column, a single None key holds all hits.
+
+        The sample column carries weebill's Sample_file (e.g. a read file path such
+        as "reads/mock.r1.fq"), while SingleM sample IDs are derived from the same
+        file with FastaNameToSampleName (e.g. "mock.r1"). Normalizing here keeps
+        both sides on the same key, so _weebill_hits_for_sample's exact match finds
+        every sample rather than only ones that happen to already agree.'''
         sample_to_hits = {}
         with open(path) as f:
             reader = csv.DictReader(f, delimiter='\t')
@@ -1158,7 +1165,7 @@ class WeebillProfile:
                     continue
                 sample = None
                 if sample_col is not None and row[sample_col] is not None:
-                    sample = row[sample_col].strip()
+                    sample = FastaNameToSampleName.fasta_to_name(row[sample_col].strip())
                 if sample not in sample_to_hits:
                     sample_to_hits[sample] = {}
                 key = _canonical_species_key(taxonomy)
