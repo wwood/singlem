@@ -87,10 +87,14 @@ class SearchPipe:
         # Viral profiling (lyrebird) does not support weebill: its markers are not
         # single-copy, so condense falls back to the standard algorithm and there is
         # nothing for a weebill profile to be integrated into.
-        running_weebill = (outputting_taxonomic_profile and not no_weebill and
-                           not viral_profile_output and
-                           len(metapackage.weebill_databases()) > 0)
-        if running_weebill and weebill_forward_reads and not weebill_unsupported_input:
+        weebill_available = (not no_weebill and not viral_profile_output and
+                             len(metapackage.weebill_databases()) > 0)
+        running_weebill = outputting_taxonomic_profile and weebill_available
+        # --output-weebill-sketch is honoured even when no taxonomic profile is
+        # requested, since its purpose is letting a later 'renew
+        # --input-weebill-sketch' produce one without needing the raw reads again.
+        sketching_weebill = output_weebill_sketch is not None and weebill_available and not running_weebill
+        if (running_weebill or sketching_weebill) and weebill_forward_reads and not weebill_unsupported_input:
             # Check weebill is installed before the marker search rather than after
             # it, which is an hour or more of work to throw away.
             if shutil.which('weebill') is None:
@@ -108,7 +112,7 @@ class SearchPipe:
                 metapackage,
                 exclude_off_target_hits)
 
-            if output_taxonomic_profile or output_taxonomic_profile_krona:
+            if outputting_taxonomic_profile:
                 tempfile.tempdir = original_tmpdir
                 from .condense import Condenser, DEFAULT_JOINT_CONDENSE_ARGUMENTS
                 from .weebill import WeebillProfiler
@@ -141,6 +145,17 @@ class SearchPipe:
                         weebill_profile = weebill_profile,
                         **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if use_joint else {})
                     )
+            elif sketching_weebill:
+                from .weebill import WeebillProfiler
+                if not weebill_forward_reads or weebill_unsupported_input:
+                    logging.warning("--output-weebill-sketch was given, but weebill integration is currently "
+                        "only supported for read inputs; skipping it.")
+                else:
+                    with tempfile.TemporaryDirectory(prefix='singlem-weebill') as weebill_working_directory:
+                        WeebillProfiler().run_from_reads(
+                            weebill_forward_reads, weebill_reverse_reads, metapackage, weebill_threads,
+                            os.path.join(weebill_working_directory, 'weebill_annotated.tsv'),
+                            weebill_working_directory, sketch_output=output_weebill_sketch)
 
 
 
