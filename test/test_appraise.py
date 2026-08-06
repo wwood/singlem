@@ -63,7 +63,13 @@ class Tests(unittest.TestCase):
         (alignment_shas, package_shas) = expected_shas
         self.assertEqual(alignment_shas, observed.alignment_hmm_sha256s)
         self.assertEqual(package_shas, observed.singlem_package_sha256s)
-        self.assertEqual([json.loads(o) for o in expected_otu_jsons], observed.data)
+        # The expected OTUs are written as version 4 rows, so they are padded out
+        # to the width of the version under test, appraise having carried them
+        # over from a version 4 input unchanged.
+        width = len(observed.fields)
+        expected_otus = [json.loads(o) for o in expected_otu_jsons]
+        expected_otus = [o + [None] * (width - len(o)) for o in expected_otus]
+        self.assertEqual(expected_otus, observed.data)
 
     def _sort_appraisal_results(self, appraisal_results):
         sorted_appraisal_results = list(sorted(

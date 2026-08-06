@@ -565,7 +565,18 @@ class SearchPipe:
             # which is the same organism seen in reads without an indel there.
             # Done per package (pooled across samples) so that low-coverage
             # samples can still draw on a donor.
-            if repair_frameshifts:
+            if repair_frameshifts and read_chunk_number is not None:
+                # Which window a read ends up with would otherwise depend on what
+                # else is in the chunk, since the base is taken from the most
+                # abundant near-identical window, and chunks could then no longer
+                # be combined into the result the whole dataset would have given.
+                # The archive OTU table records which reads have such a base, so
+                # summarise can resolve them once the chunks are combined.
+                logging.info(
+                    "Not resolving ambiguous bases in frameshift-repaired windows, since "
+                    "this is one chunk of a larger dataset; resolve them once the chunks "
+                    "are combined, with singlem summarise --resolve-ambiguous-windows")
+            elif repair_frameshifts:
                 logging.info("Resolving ambiguous bases in frameshift-repaired windows ..")
                 num_resolved = 0
                 for _, readsets in extracted_reads.each_package_wise():
@@ -604,6 +615,7 @@ class SearchPipe:
                 assignment_singlem_db=assignment_singlem_db,
                 diamond_forward_qseqs = diamond_forward_qseqs if diamond_prefilter else None,
                 diamond_reverse_qseqs = diamond_reverse_qseqs if (diamond_prefilter and analysing_pairs) else None,
+                repaired_deletion_read_names = repaired_deletion_qseqids,
             )
     
             if genome_fasta_files:
@@ -628,6 +640,8 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
         diamond_forward_qseqs = kwargs.pop('diamond_forward_qseqs')
         diamond_reverse_qseqs = kwargs.pop('diamond_reverse_qseqs')
+        # renew has no frameshift repair information, so it does not pass this.
+        repaired_deletion_read_names = kwargs.pop('repaired_deletion_read_names', set())
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -666,6 +680,7 @@ class SearchPipe:
                 known_sequence_tax if known_sequence_taxonomy else None,
                 diamond_forward_qseqs,
                 diamond_reverse_qseqs,
+                repaired_deletion_read_names,
                 # outputs
                 otu_table_object,
                 package_to_taxonomy_bihash,
@@ -711,6 +726,7 @@ class SearchPipe:
             known_sequence_tax,
             diamond_forward_qseqs,
             diamond_reverse_qseqs,
+            repaired_deletion_read_names,
             # outputs
             otu_table_object,
             package_to_taxonomy_bihash):
@@ -733,9 +749,17 @@ class SearchPipe:
                 names = [name.split('••')[0] for name in info.names]
 
                 names_and_sequences = list(sorted(
-                    list(zip(names, info.unaligned_sequences)),
+                    list(zip(names, info.unaligned_sequences, info.repaired_deletions)),
                     key=lambda x: x[0]
                 ))
+
+                # Indices into the sorted read names, so that the reads whose
+                # ambiguous base came from frameshift repair can still be picked
+                # out once this run is over. None rather than an empty list when
+                # there are none, so the column collapses to a single constant in
+                # the archive (see ArchiveOtuTable).
+                repaired_deletions = [
+                    i for (i, ns) in enumerate(names_and_sequences) if ns[2]]
 
                 to_print = [
                     singlem_package.graftm_package_basename(),
@@ -749,7 +773,8 @@ class SearchPipe:
                     known_tax,
                     list([ns[1] for ns in names_and_sequences]),
                     info.equal_best_taxonomies,
-                    info.taxonomy_assignment_method]
+                    info.taxonomy_assignment_method,
+                    repaired_deletions if len(repaired_deletions) > 0 else None]
                 otu_table_object.data.append(to_print)
 
         def extract_placement_parser(
@@ -789,7 +814,8 @@ class SearchPipe:
                 None,
                 None,
                 None,
-                None)
+                None,
+                repaired_deletion_read_names)
             add_info(known_infos, otu_table_object, True)
 
             if not analysing_pairs and len(readset.unknown_sequences) == 0:
@@ -966,6 +992,7 @@ class SearchPipe:
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
                     assignment_methods,
                     read_name_to_fullseq if diamond_forward_qseqs else None,
+                    repaired_deletion_read_names,
                 ))
 
                 if output_jplace:
@@ -1030,7 +1057,8 @@ class SearchPipe:
                                      per_read_equal_best_taxonomies,
                                      placement_parser,
                                      taxonomy_assignment_methods,
-                                     read_name_to_fullseq):
+                                     read_name_to_fullseq,
+                                     repaired_deletion_read_names):
         '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
         assignment-related results, yield over 'Info' objects that contain e.g.
         the counts of the aggregated sequences and corresponding median
@@ -1049,6 +1077,10 @@ class SearchPipe:
             Used only if assignment_method is PPLACER_ASSIGNMENT_METHOD.
         taxonomy_assignment_methods: SingleAnswerAssignmentMethodStore or MultiAnswerAssignmentMethodStore
             What method(s) were used to assign taxonomy to individual OTUs.
+        repaired_deletion_read_names: set of str
+            names of the reads whose window has an ambiguous base that frameshift
+            repair inserted, recorded per OTU so that the base can still be
+            resolved after this run finishes (see Summariser).
         '''
         class CollectedInfo:
             def __init__(self):
@@ -1061,6 +1093,7 @@ class SearchPipe:
                 self.aligned_lengths = []
                 self.orf_names = []
                 self.known_sequence_taxonomies = []
+                self.repaired_deletions = []
 
         seq_to_collected_info = {}
         for s in sequences:
@@ -1109,9 +1142,10 @@ class SearchPipe:
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
             collected_info.orf_names.append(s.orf_name)
+            collected_info.repaired_deletions.append(s.name in repaired_deletion_read_names)
 
         class Info:
-            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths, taxonomy_assignment_method):
+            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths, taxonomy_assignment_method, repaired_deletions):
                 self.seq = seq
                 self.count = count
                 self.taxonomy = taxonomy
@@ -1121,6 +1155,7 @@ class SearchPipe:
                 self.coverage = coverage
                 self.aligned_lengths = aligned_lengths
                 self.taxonomy_assignment_method = taxonomy_assignment_method
+                self.repaired_deletions = repaired_deletions
 
         for seq, collected_info in seq_to_collected_info.items():
             # All seqs in OTU have the same assignment method, except in rare
@@ -1169,7 +1204,8 @@ class SearchPipe:
                        collected_info.unaligned_sequences,
                        collected_info.coverage,
                        collected_info.aligned_lengths,
-                       otu_taxonomy_assignment_method)
+                       otu_taxonomy_assignment_method,
+                       collected_info.repaired_deletions)
 
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []

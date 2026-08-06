@@ -578,6 +578,10 @@ def main():
     summarise_transformation_args.add_argument('--collapse-to-sample-name', help="Merge all OTUs into a single OTU table, using the given sample name. Requires archive OTU table input and output.")
     summarise_transformation_args.add_argument('--collapse-coupled', action='store_true', help="Merge forward and reverse read OTU tables into a unified table. Sample names of coupled reads must end in '1' and '2' respectively. Read names are ignored, so that if the forward and reverse from a pair contain the same OTU sequence, they will each count separately.")
     summarise_transformation_args.add_argument('--collapse-paired-with-unpaired-archive-otu-table', help="For archive OTU tables that have both paired and unpaired components, merge these into a single output archive OTU table")
+    summarise_transformation_args.add_argument('--resolve-ambiguous-windows', action='store_true', default=False, help="When combining archive OTU tables, fill in the ambiguous bases that frameshift repair left in windows, taking each from the most abundant window within --max-frameshift-repair-divergence mismatches of it across all the input tables. Use this when combining the chunks of a dataset processed with pipe --read-chunk-size, where pipe defers this step so that the chunks combine into what the whole dataset would have given. Requires archive OTU table input and output.")
+    summarise_transformation_args.add_argument('--max-frameshift-repair-divergence', type=int,
+                                               default=pipe.DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
+                                               help="Maximum number of mismatches between an ambiguous window and the window its missing base is taken from, when --resolve-ambiguous-windows is used [default: %i]" % pipe.DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
 
     summarise_output_args = summarise_parser.add_argument_group('OTU table output')
     summarise_output_args.add_argument('--output-otu-table', help="Output combined OTU table to this file")
@@ -935,6 +939,9 @@ def main():
             raise Exception("--output-taxonomic-profile-krona requires --input-taxonomic-profiles to be defined")
         if args.output_archive_otu_table and not args.collapse_to_sample_name:
             raise Exception("--output-archive-otu-table requires --collapse-to-sample-name to be defined. Some other transfomations have output archive tables, but they are specified separately.")
+        if args.resolve_ambiguous_windows and not args.collapse_to_sample_name and \
+            not args.collapse_paired_with_unpaired_archive_otu_table:
+            raise Exception("--resolve-ambiguous-windows requires --collapse-to-sample-name or --collapse-paired-with-unpaired-archive-otu-table to be defined, since it applies while archive OTU tables are being combined")
         if args.output_species_by_site_relative_abundance and not args.input_taxonomic_profiles:
             raise Exception("--output-species-by-site-relative-abundance requires --input-taxonomic-profiles to be defined")
         if args.output_species_by_site_relative_abundance_prefix and not args.input_taxonomic_profiles:
@@ -1083,14 +1090,18 @@ def main():
                     archive_otu_table_list = args.input_archive_otu_table_list,
                     gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list,
                     output_table_io = f,
-                    set_sample_name = args.collapse_to_sample_name)
+                    set_sample_name = args.collapse_to_sample_name,
+                    resolve_ambiguous_windows = args.resolve_ambiguous_windows,
+                    max_frameshift_repair_divergence = args.max_frameshift_repair_divergence)
         elif args.collapse_paired_with_unpaired_archive_otu_table:
             with open(args.collapse_paired_with_unpaired_archive_otu_table,'w') as output_io:
                 Summariser.write_collapsed_paired_with_unpaired_otu_table(
                     archive_otu_tables = args.input_archive_otu_tables,
                     archive_otu_table_list = args.input_archive_otu_table_list,
                     gzip_archive_otu_table_list = args.input_gzip_archive_otu_table_list,
-                    output_table_io = output_io)
+                    output_table_io = output_io,
+                    resolve_ambiguous_windows = args.resolve_ambiguous_windows,
+                    max_frameshift_repair_divergence = args.max_frameshift_repair_divergence)
         elif args.unaligned_sequences_dump_file:
             with open(args.unaligned_sequences_dump_file, 'w') as f:
                 Summariser.dump_raw_sequences_from_archive_otu_table(

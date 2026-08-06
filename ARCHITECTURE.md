@@ -46,7 +46,11 @@ Ordered roughly by where a reader should start.
   `N` for a deleted base, dropping an inserted one); `resolve_ambiguous_windows()` then fills
   each `N` from the most abundant near-identical window of the same marker. Matters because an
   indel, unlike a substitution, breaks the translated alignment entirely — the dominant cause
-  of lost windows on Nanopore reads.
+  of lost windows on Nanopore reads. Resolution is the one step whose answer depends on the rest
+  of the dataset, so a chunked run (`--read-chunk-size`) skips it and `summarise
+  --resolve-ambiguous-windows` does it over the combined chunks instead; both go through the
+  shared `resolve_windows()`, and the archive's `reads_with_repaired_deletions` field is what
+  carries the provenance that far.
 - **`prefilter_pad.py`** — `PrefilterPadder` plus the pure helpers `window_alignment_positions()`
   and `pad_aligned_sequence()`. Emits a prefilter FASTA where every on-target sequence is
   padded to a fixed length (30aa + 20aa window + 30aa, `X`-padded) with the window in a

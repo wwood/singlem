@@ -34,13 +34,14 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 def otu(gene='4.11.22seqs', sample='sample1', sequence='ACGT', num_hits=1, coverage=1.0,
         taxonomy='Root', read_names=None, nucleotides_aligned=None, taxonomy_by_known=False,
         read_unaligned_sequences=None, equal_best_hit_taxonomies=None,
-        taxonomy_assignment_method='diamond'):
+        taxonomy_assignment_method='diamond', reads_with_repaired_deletions=None):
     return [gene, sample, sequence, num_hits, coverage, taxonomy,
             read_names if read_names is not None else ['read1'],
             nucleotides_aligned if nucleotides_aligned is not None else [60],
             taxonomy_by_known,
             read_unaligned_sequences if read_unaligned_sequences is not None else ['AAAACCCC'],
-            equal_best_hit_taxonomies, taxonomy_assignment_method]
+            equal_best_hit_taxonomies, taxonomy_assignment_method,
+            reads_with_repaired_deletions]
 
 
 class Tests(unittest.TestCase):
@@ -142,7 +143,7 @@ class Tests(unittest.TestCase):
         # the current field list; the fields they lack are unknown, not empty.
         version1_row = ['4.11.22seqs', 'sample1', 'ACGT', 1, 1.0, 'Root', ['read1'], [60], False]
         observed = self.round_trip([version1_row])
-        self.assertEqual([version1_row + [None, None, None]], observed.data)
+        self.assertEqual([version1_row + [None, None, None, None]], observed.data)
 
     def test_row_longer_than_fields_is_rejected(self):
         with self.assertRaises(Exception):
@@ -178,19 +179,22 @@ class Tests(unittest.TestCase):
         with open(os.path.join(path_to_data, 'SRR8653040.json')) as f:
             version_4 = ArchiveOtuTable.read(f)
         version_5 = ArchiveOtuTable.read(StringIO(self.write(version_4.data)))
-        self.assertEqual(version_4.data, version_5.data)
+        # Version 5 adds reads_with_repaired_deletions, which a version 4 archive
+        # does not record, so its OTUs gain a None for it.
+        self.assertEqual([row + [None] for row in version_4.data], version_5.data)
 
     def test_version_4_tables_are_still_written_row_wise(self):
         table = ArchiveOtuTable()
         table.version = 4
+        table.fields = ArchiveOtuTable.FIELDS_VERSION4
         table.alignment_hmm_sha256s = ['hmm_sha']
         table.singlem_package_sha256s = ['spkg_sha']
-        table.data = [otu()]
+        table.data = [otu()[:len(ArchiveOtuTable.FIELDS_VERSION4)]]
         output = StringIO()
         table.write_to(output)
         j = json.loads(output.getvalue())
         self.assertEqual(4, j['version'])
-        self.assertEqual([otu()], j['otus'])
+        self.assertEqual([otu()[:len(ArchiveOtuTable.FIELDS_VERSION4)]], j['otus'])
         self.assertNotIn('constant_fields', j)
 
     def test_min_version(self):

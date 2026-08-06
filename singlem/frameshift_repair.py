@@ -265,6 +265,73 @@ class _DonorIndex:
         return self._by_descending_abundance(candidates)
 
 
+def resolve_windows(ambiguous_windows, abundances,
+                    max_divergence=DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
+                    ambiguous_char=AMBIGUOUS_CHAR):
+    '''Choose a replacement for each ambiguous window, given how abundant each
+    unambiguous window is.
+
+    Kept separate from resolve_ambiguous_windows() so that the same choice can be
+    made from an archive OTU table, where the abundance of a window is an OTU's
+    num_hits rather than a count of per-read objects (see Summariser).
+
+    Parameters
+    ----------
+    ambiguous_windows: iterable of str
+        the distinct windows to resolve.
+    abundances: Counter of str to int
+        how many reads have each unambiguous window.
+    max_divergence: int
+        maximum number of mismatches at unambiguous positions.
+
+    Returns
+    -------
+    dict of window to its replacement, or to None where no donor was close
+    enough.
+    '''
+    ambiguous_windows = list(ambiguous_windows)
+    if len(ambiguous_windows) == 0 or len(abundances) == 0:
+        return {window: None for window in ambiguous_windows}
+
+    index = _DonorIndex(
+        abundances, max_divergence, ambiguous_char,
+        max_ambiguous=max(w.count(ambiguous_char) for w in ambiguous_windows))
+
+    resolutions = {}
+    for window in ambiguous_windows:
+        if window in resolutions:
+            continue
+        best_donor = None
+        best_key = None
+        for donor in index.candidates(window):
+            abundance = abundances[donor]
+            # Candidates come most abundant first and abundance dominates the key
+            # below, so once a donor is less abundant than the best found no
+            # later one can beat it.
+            if best_key is not None and -abundance > best_key[0]:
+                break
+            divergence = _divergence(
+                window, donor, ambiguous_char, max_mismatches=max_divergence)
+            if divergence is None:
+                continue
+            # Most abundant wins; the sequence itself breaks ties so the result
+            # does not depend on dict ordering.
+            key = (-abundance, divergence, donor)
+            if best_key is None or key < best_key:
+                best_key = key
+                best_donor = donor
+        if best_donor is None:
+            resolutions[window] = None
+        else:
+            resolutions[window] = ''.join(
+                donor_base if window_base == ambiguous_char else window_base
+                for (window_base, donor_base) in zip(window, best_donor))
+            logging.debug(
+                "Resolved ambiguous window %s to %s using a donor of abundance %i",
+                window, resolutions[window], -best_key[0])
+    return resolutions
+
+
 def resolve_ambiguous_windows(window_sequences,
                               max_divergence=DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
                               ambiguous_char=AMBIGUOUS_CHAR,
@@ -316,45 +383,14 @@ def resolve_ambiguous_windows(window_sequences,
             len(ambiguous))
         return 0
 
-    index = _DonorIndex(
-        abundances, max_divergence, ambiguous_char,
-        max_ambiguous=max(s.aligned_sequence.count(ambiguous_char) for s in ambiguous))
+    # Resolved by distinct window, since many reads usually share one.
+    resolutions = resolve_windows(
+        set(s.aligned_sequence for s in ambiguous), abundances,
+        max_divergence=max_divergence, ambiguous_char=ambiguous_char)
 
-    # Cache by window sequence, since many reads usually share one.
-    resolutions = {}
     num_resolved = 0
     for sequence in ambiguous:
-        window = sequence.aligned_sequence
-        if window not in resolutions:
-            best_donor = None
-            best_key = None
-            for donor in index.candidates(window):
-                abundance = abundances[donor]
-                # Candidates come most abundant first and abundance dominates the
-                # key below, so once a donor is less abundant than the best found
-                # no later one can beat it.
-                if best_key is not None and -abundance > best_key[0]:
-                    break
-                divergence = _divergence(
-                    window, donor, ambiguous_char, max_mismatches=max_divergence)
-                if divergence is None:
-                    continue
-                # Most abundant wins; the sequence itself breaks ties so the
-                # result does not depend on dict ordering.
-                key = (-abundance, divergence, donor)
-                if best_key is None or key < best_key:
-                    best_key = key
-                    best_donor = donor
-            if best_donor is None:
-                resolutions[window] = None
-            else:
-                resolutions[window] = ''.join(
-                    donor_base if window_base == ambiguous_char else window_base
-                    for (window_base, donor_base) in zip(window, best_donor))
-                logging.debug(
-                    "Resolved ambiguous window %s to %s using a donor of abundance %i",
-                    window, resolutions[window], -best_key[0])
-        resolved = resolutions[window]
+        resolved = resolutions[sequence.aligned_sequence]
         if resolved is not None:
             sequence.aligned_sequence = resolved
             num_resolved += 1

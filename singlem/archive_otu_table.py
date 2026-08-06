@@ -7,8 +7,17 @@ On-disk encodings
 Versions 1-4 store `otus` as a list of rows, each row a list of values in
 `fields` order. Version 5 stores the same rows column-wise, hoists fields whose
 value is identical in every row into `constant_fields`, and dereplicates read
-sequences into a shared `reads` list that the rows refer to. Nothing is added or
-lost; the three changes only remove repetition.
+sequences into a shared `reads` list that the rows refer to. Those three changes
+only remove repetition; nothing is added or lost.
+
+Version 5 also adds one field, `reads_with_repaired_deletions`, which records
+which of an OTU's reads had an ambiguous base inserted into their window by
+frameshift repair. `pipe` needs that to tell such a base apart from one already
+present in a raw read, and until version 5 it only existed in memory, so the
+resolution of ambiguous windows had to happen inside the same `pipe` run. It is
+None whenever no read of the OTU has one, which is every OTU of a run without
+frameshift repair, so constant hoisting collapses the whole column to a single
+entry there.
 
 The gain is real but modest: on test/data/SRR8653040.json (95 OTUs, 1197 reads)
 gzip -9 goes from 36.6 KB to 35.6 KB and zstd -19 from 32.1 KB to 30.4 KB. Most
@@ -42,8 +51,7 @@ class ArchiveOtuTable:
     FIELDS_VERSION4 = str.split(
         'gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method'
     )
-    # Version 5 holds the same fields as version 4; only the encoding differs.
-    FIELDS_VERSION5 = list(FIELDS_VERSION4)
+    FIELDS_VERSION5 = FIELDS_VERSION4 + str.split('reads_with_repaired_deletions')
     FIELDS_OF_EACH_VERSION = [
         FIELDS_VERSION1,
         FIELDS_VERSION2,
@@ -81,6 +89,7 @@ class ArchiveOtuTable:
     TAXONOMY_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy')
     NUCLEOTIDES_ALIGNED_FIELD_INDEX = FIELDS_VERSION4.index('nucleotides_aligned')
     TAXONOMY_BY_KNOWN_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy_by_known?')
+    READS_WITH_REPAIRED_DELETIONS_FIELD_INDEX = FIELDS_VERSION5.index('reads_with_repaired_deletions')
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -292,6 +301,16 @@ class ArchiveOtuTableEntry(OtuTableEntry):
     
     def taxonomy_by_known(self):
         return self.data[ArchiveOtuTable.TAXONOMY_BY_KNOWN_FIELD_INDEX]
+
+    def reads_with_repaired_deletions(self):
+        '''Indices into read_names() of the reads whose window carries an
+        ambiguous base that frameshift repair inserted, as opposed to one that
+        was already in the raw read. None when there are none, and when the OTU
+        came from an archive written before version 5, which did not record
+        it.'''
+        if len(self.data) <= ArchiveOtuTable.READS_WITH_REPAIRED_DELETIONS_FIELD_INDEX:
+            return None
+        return self.data[ArchiveOtuTable.READS_WITH_REPAIRED_DELETIONS_FIELD_INDEX]
     
     def coverage(self):
         return self.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX]
