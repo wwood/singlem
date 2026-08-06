@@ -748,18 +748,12 @@ class SearchPipe:
                 # before printing otu table
                 names = [name.split('••')[0] for name in info.names]
 
-                names_and_sequences = list(sorted(
-                    list(zip(names, info.unaligned_sequences, info.repaired_deletions)),
-                    key=lambda x: x[0]
-                ))
-
-                # Indices into the sorted read names, so that the reads whose
-                # ambiguous base came from frameshift repair can still be picked
-                # out once this run is over. None rather than an empty list when
-                # there are none, so the column collapses to a single constant in
-                # the archive (see ArchiveOtuTable).
-                repaired_deletions = [
-                    i for (i, ns) in enumerate(names_and_sequences) if ns[2]]
+                (names, unaligned_sequences, aligned_lengths, repaired_deletions) = \
+                    self._read_columns_sorted_by_name(
+                        names,
+                        info.unaligned_sequences,
+                        info.aligned_lengths,
+                        info.repaired_deletions)
 
                 to_print = [
                     singlem_package.graftm_package_basename(),
@@ -768,12 +762,15 @@ class SearchPipe:
                     info.count,
                     info.coverage,
                     info.taxonomy,
-                    list([ns[0] for ns in names_and_sequences]),
-                    info.aligned_lengths,
+                    names,
+                    aligned_lengths,
                     known_tax,
-                    list([ns[1] for ns in names_and_sequences]),
+                    unaligned_sequences,
                     info.equal_best_taxonomies,
                     info.taxonomy_assignment_method,
+                    # None rather than an empty list when no read has one, so the
+                    # column collapses to a single constant in the archive (see
+                    # ArchiveOtuTable).
                     repaired_deletions if len(repaired_deletions) > 0 else None]
                 otu_table_object.data.append(to_print)
 
@@ -1924,6 +1921,31 @@ class SearchPipe:
             graftm_align_directory_base,
             singlem_package.graftm_package_basename(),
             "read1" if is_forward else "read2")
+
+    @staticmethod
+    def _read_columns_sorted_by_name(names, unaligned_sequences, aligned_lengths, repaired_deletions):
+        '''Put an OTU's per-read data in read name order.
+
+        These lists are parallel - index i describes the same read in each - and
+        they go into the OTU table that way, so they have to be reordered
+        together. Sorting only some of them pairs a read with another read's
+        aligned length, which is visible whenever the reads of one OTU do not all
+        have the same one: an insert column inside the window's span counts
+        towards nucleotides_aligned without appearing in the window itself, so two
+        reads can share a window and still differ there.
+
+        Returns the four lists in name order, except that the last becomes the
+        indices of the reads whose window has an ambiguous base inserted by
+        frameshift repair, which is how the OTU table records it.
+        '''
+        reads = sorted(
+            zip(names, unaligned_sequences, aligned_lengths, repaired_deletions),
+            key=lambda read: read[0])
+        return (
+            [read[0] for read in reads],
+            [read[1] for read in reads],
+            [read[2] for read in reads],
+            [i for (i, read) in enumerate(reads) if read[3]])
 
     def _remove_single_sequence_duplicates(self, readset):
         '''In extremely rare circumstances, a single read can have >1 OTU

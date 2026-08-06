@@ -755,6 +755,32 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             self.two_packages)
         self.assertEqualOtuTable(expected, extern.run(cmd))
 
+    def test_read_columns_sorted_by_name_keeps_reads_together(self):
+        # read_names, read_unaligned_sequences and nucleotides_aligned are
+        # parallel, so index i has to describe the same read in all three after
+        # sorting. The aligned lengths here differ between reads of the one OTU,
+        # which happens when an insert column inside the window's span is a gap in
+        # some reads and not others.
+        (names, unaligned_sequences, aligned_lengths, repaired_deletions) = \
+            SearchPipe._read_columns_sorted_by_name(
+                ['read_c', 'read_a', 'read_b'],
+                ['CCC', 'AAA', 'BBB'],
+                [63, 60, 57],
+                [False, True, False])
+        self.assertEqual(['read_a', 'read_b', 'read_c'], names)
+        self.assertEqual(['AAA', 'BBB', 'CCC'], unaligned_sequences)
+        self.assertEqual([60, 57, 63], aligned_lengths)
+        # read_a is the one with a frameshift-repaired base, and sorts first.
+        self.assertEqual([0], repaired_deletions)
+
+    def test_read_columns_sorted_by_name_keeps_duplicate_names_in_order(self):
+        (names, unaligned_sequences, aligned_lengths, _) = \
+            SearchPipe._read_columns_sorted_by_name(
+                ['read_a', 'read_a'], ['first', 'second'], [60, 57], [False, False])
+        self.assertEqual(['read_a', 'read_a'], names)
+        self.assertEqual(['first', 'second'], unaligned_sequences)
+        self.assertEqual([60, 57], aligned_lengths)
+
     def test_archive_otu_groopm_compatibility(self):
         """This tests for API stability, where the API is used by GroopM 2.0"""
         expected = [('contig_1', '4.11.22seqs', 'Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179')]
