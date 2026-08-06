@@ -164,8 +164,11 @@ class Summariser:
             logging.info("Writing an OTU table")
 
         if output_extras:
-            OtuTable.write_otus_to(table_collection, output_table_io,
-                                   fields_to_print=table_collection.example_field_names())
+            OtuTable.write_otus_to(
+                table_collection, output_table_io,
+                fields_to_print=[
+                    field for field in table_collection.example_field_names()
+                    if field not in ArchiveOtuTable.FIELDS_NOT_IN_EXTENDED_OTU_TABLE])
         else:
             OtuTable.write_otus_to(table_collection, output_table_io)
 

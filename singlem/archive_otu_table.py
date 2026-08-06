@@ -80,6 +80,12 @@ class ArchiveOtuTable:
     # the common case into a run of identical values, which does compress away.
     NEXT_NEW_READ = 0
 
+    # Fields that exist for SingleM's own bookkeeping, and so are left out of the
+    # extended (TSV) OTU table. reads_with_repaired_deletions indexes into an
+    # OTU's read names, which is of no use to someone reading a TSV, and adding a
+    # column there would change that format to no-one's benefit.
+    FIELDS_NOT_IN_EXTENDED_OTU_TABLE = frozenset(['reads_with_repaired_deletions'])
+
     READ_NAME_FIELD_INDEX = 6
     SAMPLE_ID_FIELD_INDEX = FIELDS_VERSION4.index('sample')
     UNALIGNED_SEQUENCE_FIELD_INDEX = FIELDS_VERSION4.index('read_unaligned_sequences')
