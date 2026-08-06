@@ -355,10 +355,14 @@ minimal2	0.2
     DONOR_WINDOW = 'A' * 20 + 'C' * 20 + 'G' * 20
     AMBIGUOUS_WINDOW = DONOR_WINDOW[:30] + 'N' + DONOR_WINDOW[31:]
 
-    def _chunk_archive(self, path, otus):
+    def _chunk_archive(self, path, otus, version=None):
         table = ArchiveOtuTable()
         table.alignment_hmm_sha256s = ['hmm_sha']
         table.singlem_package_sha256s = ['spkg_sha']
+        if version is not None:
+            table.version = version
+            table.fields = ArchiveOtuTable.FIELDS_OF_EACH_VERSION[version - 1]
+            otus = [otu[:len(table.fields)] for otu in otus]
         table.data = otus
         with open(path, 'w') as f:
             table.write_to(f)
@@ -448,6 +452,41 @@ minimal2	0.2
         otu = list(combined)[0]
         self.assertEqual(3, len(otu.read_names()))
         self.assertEqual([0, 1, 2], otu.reads_with_repaired_deletions())
+
+    def test_collapse_archives_of_different_versions(self):
+        # An archive made before reads_with_repaired_deletions existed can still
+        # be combined with one made after, since the fields only ever grow.
+        with in_tempdir():
+            self._chunk_archive('old.json', [self._otu('AAAA', ['r1'])], version=4)
+            self._chunk_archive('new.json', [self._otu('CCCC', ['r2'], repaired=[0])])
+            extern.run(
+                'singlem summarise --collapse-to-sample-name chunked_sample '
+                '--input-archive-otu-tables old.json new.json '
+                '--output-archive-otu-table combined.json')
+            with open('combined.json') as f:
+                combined = ArchiveOtuTable.read(f)
+        # The combination holds the newer version's fields, and the older
+        # archive's OTU has no value for the ones it did not have.
+        self.assertEqual(ArchiveOtuTable.version, combined.version)
+        by_sequence = {otu.sequence: otu for otu in combined}
+        self.assertEqual(['AAAA', 'CCCC'], sorted(by_sequence))
+        self.assertEqual(None, by_sequence['AAAA'].reads_with_repaired_deletions())
+        self.assertEqual([0], by_sequence['CCCC'].reads_with_repaired_deletions())
+
+    def test_collapse_archives_of_the_same_old_version(self):
+        # Combining two old archives still gives that old version out.
+        with in_tempdir():
+            self._chunk_archive('one.json', [self._otu('AAAA', ['r1'])], version=4)
+            self._chunk_archive('two.json', [self._otu('CCCC', ['r2'])], version=4)
+            extern.run(
+                'singlem summarise --collapse-to-sample-name chunked_sample '
+                '--input-archive-otu-tables one.json two.json '
+                '--output-archive-otu-table combined.json')
+            with open('combined.json') as f:
+                combined = ArchiveOtuTable.read(f)
+        self.assertEqual(4, combined.version)
+        self.assertEqual(ArchiveOtuTable.FIELDS_VERSION4, combined.fields)
+        self.assertEqual(['AAAA', 'CCCC'], sorted(otu.sequence for otu in combined))
 
     def test_resolve_ambiguous_windows_rejects_old_archives(self):
         with self.assertRaises(extern.ExternCalledProcessError):

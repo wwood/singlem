@@ -860,6 +860,8 @@ class SearchPipe:
                                 # Overwrite reverse hit with the forward hit
                                 equal_best_taxonomies[name] = equal_best_hits
                         else:
+                            if diamond_forward_qseqs:
+                                read_name_to_fullseq = forward_full_qseqs
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
                             for (name, equal_best_hits) in equal_best_hit_hash.items():

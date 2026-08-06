@@ -448,30 +448,54 @@ class Summariser:
                     schema[field] = pl.Utf8
             return schema
 
+        def wider_fields(fields1, fields2):
+            '''The wider of two archive field lists, when one is the other with
+            fields appended - which is how every archive version so far has grown,
+            so that tables of different versions can still be combined. None when
+            the two are not compatible.'''
+            (shorter, longer) = sorted([fields1, fields2], key=len)
+            return longer if longer[:len(shorter)] == shorter else None
+
+        def rows_of_width(otus, width):
+            '''OTUs from an archive of an earlier version have no value for the
+            fields that version lacked, so they get None for them.'''
+            return [row if len(row) == width else list(row) + [None] * (width - len(row))
+                    for row in otus]
+
         def read_archive_table(df, f, prev_ar):
             logging.debug("Reading archive table {} into RAM ..".format(a))
             ar = ArchiveOtuTable.read(f)
             if df is None:
                 # version = ar.version
-                # fields = ar.fields
                 # alignment_hmm_sha256s = ar.alignment_hmm_sha256s
                 # singlem_package_sha256s = ar.singlem_package_sha256s
+                fields = ar.fields
                 df = pl.DataFrame(
-                    ar.data, schema=archive_schema(ar.fields), orient="row"
+                    ar.data, schema=archive_schema(fields), orient="row"
                 )
             else:
-                if prev_ar.version != ar.version:
-                    raise Exception("Version mismatch between archives")
-                elif prev_ar.fields != ar.fields:
+                fields = wider_fields(prev_ar.fields, ar.fields)
+                if fields is None:
                     raise Exception("Fields mismatch between archives")
                 elif prev_ar.alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
                     raise Exception("Alignment HMM SHA256 mismatch between archives")
                 elif prev_ar.singlem_package_sha256s != ar.singlem_package_sha256s:
                     raise Exception("Singlem package SHA256 mismatch between archives")
+                # An archive of a newer version brings fields the ones read so far
+                # do not have, which they have no value for.
+                schema = archive_schema(fields)
+                for field in fields[len(df.columns):]:
+                    df = df.with_columns(
+                        pl.Series(field, [None] * len(df), dtype=schema[field]))
                 df2 = pl.DataFrame(
-                    ar.data, schema=archive_schema(prev_ar.fields), orient="row"
+                    rows_of_width(ar.data, len(fields)), schema=archive_schema(fields),
+                    orient="row"
                 )
                 df = pl.concat([df, df2], how="vertical")
+            # The output is written at whichever version has these fields, so that
+            # combining an old archive with a new one gives a new one.
+            ar.fields = fields
+            ar.version = ArchiveOtuTable.FIELDS_OF_EACH_VERSION.index(fields) + 1
             return df, ar
             
         for a in archive_otu_tables:

@@ -31,6 +31,7 @@ import extern
 import sys
 import json
 import re
+from io import StringIO
 
 path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -38,6 +39,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.pipe import SearchPipe
 from singlem.sequence_classes import SeqReader
+from singlem.archive_otu_table import ArchiveOtuTable
 
 TEST_ANNOY = False
 try:
@@ -1371,8 +1373,17 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs_and_inseqs2.manually_different_species.otu_table.csv.sdb'),
         )
-        self.assertEqual(json.loads('{"version": 4, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies", "taxonomy_assignment_method"], "otus": [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based"]]}'),
-            json.loads(extern.run(cmd)))
+        # Compared as OTUs rather than as JSON, since the same OTUs have more than
+        # one valid on-disk spelling from archive version 5 on.
+        observed = ArchiveOtuTable.read(StringIO(extern.run(cmd)))
+        self.assertEqual(ArchiveOtuTable.version, observed.version)
+        self.assertEqual(["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"],
+                         observed.alignment_hmm_sha256s)
+        self.assertEqual(["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"],
+                         observed.singlem_package_sha256s)
+        self.assertEqual(
+            [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], False, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based", None]],
+            observed.data)
 
     def test_smafa_naive_then_diamond_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',
