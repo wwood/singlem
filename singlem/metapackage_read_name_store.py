@@ -1,6 +1,8 @@
 import logging
 import tempfile
 import extern
+import os
+from urllib.parse import quote
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import registry, declarative_base
@@ -14,6 +16,14 @@ mapper_registry = registry()
 Base = declarative_base()
 
 class MetapackageReadNameStore:
+    @staticmethod
+    def _acquire_readonly_engine(sqlitedb_path):
+        quoted_sqlite_path = quote(os.path.abspath(sqlitedb_path), safe="/")
+        sqlite_uri = f"sqlite+pysqlite:///file:{quoted_sqlite_path}?mode=ro&immutable=1&uri=true"
+        return create_engine(sqlite_uri,
+            echo=logging.getLogger().isEnabledFor(logging.DEBUG),
+            future=True)
+
     @staticmethod
     def generate(singlem_package_paths, sqlitedb_path, taxonomy_marker_counts=None):
         engine = create_engine("sqlite+pysqlite:///{}".format(sqlitedb_path),
@@ -61,9 +71,7 @@ class MetapackageReadNameStore:
 
     @staticmethod
     def acquire(sqlitedb_path):
-        engine = create_engine("sqlite+pysqlite:///{}".format(sqlitedb_path),
-            echo=logging.getLogger().isEnabledFor(logging.DEBUG),
-            future=True)
+        engine = MetapackageReadNameStore._acquire_readonly_engine(sqlitedb_path)
 
         m = MetapackageReadNameStore()
         m.engine = engine
