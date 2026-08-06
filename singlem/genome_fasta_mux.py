@@ -24,7 +24,7 @@ class GenomeFastaMux:
         archive = otu_table_object.archive(None)
         new_otus = []
 
-        if ArchiveOtuTable.version != 4:
+        if ArchiveOtuTable.version != 5:
             raise ValueError("Unsupported OTU table version provided to genome demux - likely a programming bug: %d" % ArchiveOtuTable.version)
 
         for otu in archive:

@@ -45,6 +45,14 @@ The extended OTU table form generated with the `--output-extras` option to the [
 ## **Archive OTU table**
 Similar to an extended form OTU table, but in JSON form for machine readability and with formatting version recorded. The [renew](/tools/renew) subcommand which re-analyses a dataset requires this format of OTU table rather than the default tab-separated OTU table format. The canonical file extension for SingleM packages is `.json`.
 
+From version 5, archive OTU tables are laid out to reduce the repetition that dominates the file, so the same OTUs take less space on disk:
+
+* `otus` maps each field name to the list of that field's values across the OTUs, rather than being a list of one row per OTU.
+* Fields whose value is identical in every OTU are stored once in `constant_fields` and left out of `otus`. `num_otus` gives the number of OTUs, since the columns alone do not when every field is constant.
+* `reads` holds the unaligned read sequences, dereplicated: a read hitting two markers is stored once rather than once per marker. The `read_unaligned_sequences` field then holds, for each read of an OTU, either `0` for "the next read of `reads` not yet used" or `n` for a repeat of `reads[n - 1]`.
+
+Versions 1 to 4, which store `otus` as a list of rows with every field present in each, are still read. Code that reads archive OTU tables through `singlem.archive_otu_table.ArchiveOtuTable` sees a list of rows regardless of the version on disk; code that parses the JSON itself needs to handle the layout of the version it is given.
+
 ## **Coverage, unfilled coverage and filled coverage**
 First, to define *coverage*. Coverage of a single species is defined in the standard way as in e.g. [CoverM](https://github.com/wwood/CoverM). It is the average number of reads covering each position in that species' genome. SingleM (and Lyrebird) do not directly calculate this via mapping, but instead assume that the coverage of a species' single copy marker genes is representative of the coverage of the whole genome. In particular, it is estimated from the reads that encode sequences recruited to the highly conserved marker gene windows.
 

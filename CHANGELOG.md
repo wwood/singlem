@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Archive OTU tables are now written at version 5, which stores the OTUs column-wise, stores fields that are constant across every OTU once rather than per OTU, and dereplicates read sequences into a shared list. Versions 1-4 are still read, and `ArchiveOtuTable` presents the same list of rows whichever version it read, but code that parses the JSON itself rather than going through `ArchiveOtuTable` needs updating - see the Archive OTU table entry in the glossary for the layout.
+
 * `pipe`: Frameshift repair, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window, is now on by default. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches, and only for windows where repair actually inserted that base, not a pre-existing ambiguous base in the raw read. Disable with `--no-repair-frameshifts`. 
 
 ## v0.21.3

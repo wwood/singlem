@@ -769,11 +769,21 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             cmd = "%s pipe --sequences %s --archive-otu-table /dev/stdout --singlem-packages %s --assignment-method diamond" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
 
+            # Read the JSON directly rather than through ArchiveOtuTable, since
+            # that is what an external consumer does. From version 5 the OTUs are
+            # stored column-wise, with the fields that are the same in every OTU
+            # hoisted into constant_fields.
             j = json.loads(extern.run(cmd))
-            fields = j['fields']
-            data = j['otus']
+            self.assertEqual(5, j['version'])
+            def column(field):
+                if field in j['constant_fields']:
+                    return [j['constant_fields'][field]] * j['num_otus']
+                return j['otus'][field]
             self.assertEqual(expected,
-                             [(name, row[fields.index('gene')], row[fields.index('taxonomy')]) for row in data for name in row[fields.index('read_names')]]
+                             [(name, gene, taxonomy)
+                              for (gene, taxonomy, read_names) in zip(
+                                  column('gene'), column('taxonomy'), column('read_names'))
+                              for name in read_names]
                             )
 
     def test_protein_package_non60_length(self):

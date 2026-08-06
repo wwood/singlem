@@ -38,6 +38,7 @@ sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.
 from bird_tool_utils import in_tempdir
 
 from singlem.metapackage import Metapackage
+from singlem.archive_otu_table import ArchiveOtuTable
 
 path_to_script = 'singlem'
 path_to_lyrebird = 'lyrebird'
@@ -171,23 +172,30 @@ class Tests(unittest.TestCase):
     #         self.assertTrue(
     #             new_lengths.filter(pl.col('rank')=='d__Archaea')['genome_size'][0] < 1.8e6)
 
-    def _assert_archive_otu_tables_equal(self, expected, observed, ignore_package_sha256s=False):
-        '''Compare two archive OTU table dicts, allowing minor floating-point differences in coverage values.
+    def _assert_archive_otu_tables_equal(self, expected_path, observed_path, ignore_package_sha256s=False):
+        '''Compare two archive OTU tables, allowing minor floating-point differences in coverage values.
+
+        Both are read through ArchiveOtuTable so that the OTUs are compared, not
+        the encoding: the expected tables are stored at an older archive version
+        than the one pipe writes now.
 
         ignore_package_sha256s: when True, skip the singlem package sha256
         comparison, which differs when the expected table was generated with a
         different metapackage version. The alignment HMM sha256s are still
         compared.'''
-        self.assertEqual(expected['version'], observed['version'])
-        self.assertEqual(expected['fields'], observed['fields'])
-        self.assertEqual(expected['alignment_hmm_sha256s'], observed['alignment_hmm_sha256s'])
+        with open(expected_path) as f:
+            expected = ArchiveOtuTable.read(f)
+        with open(observed_path) as f:
+            observed = ArchiveOtuTable.read(f)
+        self.assertEqual(expected.fields, observed.fields)
+        self.assertEqual(expected.alignment_hmm_sha256s, observed.alignment_hmm_sha256s)
         if not ignore_package_sha256s:
-            self.assertEqual(expected['singlem_package_sha256s'], observed['singlem_package_sha256s'])
-        coverage_idx = expected['fields'].index('coverage')
+            self.assertEqual(expected.singlem_package_sha256s, observed.singlem_package_sha256s)
+        coverage_idx = expected.fields.index('coverage')
         def otu_key(otu):
             return (otu[0], otu[1], otu[2])
-        exp_otus = sorted(expected['otus'], key=otu_key)
-        obs_otus = sorted(observed['otus'], key=otu_key)
+        exp_otus = sorted(expected.data, key=otu_key)
+        obs_otus = sorted(observed.data, key=otu_key)
         self.assertEqual(len(exp_otus), len(obs_otus))
         for exp_otu, obs_otu in zip(exp_otus, obs_otus):
             for i, (e, o) in enumerate(zip(exp_otu, obs_otu)):
@@ -196,7 +204,7 @@ class Tests(unittest.TestCase):
                         f"Coverage mismatch for {exp_otu[0]}/{exp_otu[1]}: {e} vs {o}")
                 else:
                     self.assertEqual(e, o,
-                        f"Field {expected['fields'][i]} mismatch for {exp_otu[0]}/{exp_otu[1]}")
+                        f"Field {expected.fields[i]} mismatch for {exp_otu[0]}/{exp_otu[1]}")
 
     def test_sra_pipe_standard(self):
         with tempfile.NamedTemporaryFile(suffix='.json') as tf:
@@ -220,8 +228,8 @@ class Tests(unittest.TestCase):
             # chunk 2 is only reads 200,001-400,000, so it has its own expected
             # output rather than the whole-file SRR8653040.json.
             self._assert_archive_otu_tables_equal(
-                json.load(open(os.path.join(path_to_data, 'SRR8653040.chunk2.json'))),
-                json.load(open(tf.name)),
+                os.path.join(path_to_data, 'SRR8653040.chunk2.json'),
+                tf.name,
                 ignore_package_sha256s=True)
 
     def test_rare_eif2_issue(self):

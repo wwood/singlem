@@ -58,7 +58,10 @@ Ordered roughly by where a reader should start.
   The OTU data model. `OtuTableEntry` is one (marker, sample, window sequence, count,
   coverage, taxonomy) row; `OtuTable` is the plain TSV form; `ArchiveOtuTable` is the richer
   JSON form (retains per-read data, enabling `renew`); collection classes provide streaming
-  iteration over many tables (`StreamingOtuTableCollection`).
+  iteration over many tables (`StreamingOtuTableCollection`). Archive version 5 writes the
+  OTUs column-wise, hoists fields that are constant across every OTU into `constant_fields`,
+  and dereplicates read sequences into a shared `reads` list; versions 1-4 are still read.
+  In memory the table is a list of rows either way, so only `ArchiveOtuTable` itself cares.
 - **`condense.py`** — `Condenser` turns per-marker OTUs into a `CondensedCommunityProfile`
   (a coverage tree of `WordNode`s), applying trimmed means and genus/species
   expectation-maximisation to resolve coverage across taxonomic levels. `...KronaWriter`
