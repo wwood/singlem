@@ -1,7 +1,7 @@
 import itertools
 import tempfile
 import extern
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 import logging
 import Bio
 import polars as pl
@@ -13,6 +13,10 @@ from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD, NO_ASSIGNMENT_METHOD
 from .condense import CondensedCommunityProfile
+from .frameshift_repair import (
+    resolve_windows, AMBIGUOUS_CHAR, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
+
+REPAIRED_DELETIONS_FIELD = 'reads_with_repaired_deletions'
 
 class Summariser:
     @staticmethod
@@ -160,8 +164,11 @@ class Summariser:
             logging.info("Writing an OTU table")
 
         if output_extras:
-            OtuTable.write_otus_to(table_collection, output_table_io,
-                                   fields_to_print=table_collection.example_field_names())
+            OtuTable.write_otus_to(
+                table_collection, output_table_io,
+                fields_to_print=[
+                    field for field in table_collection.example_field_names()
+                    if field not in ArchiveOtuTable.FIELDS_NOT_IN_EXTENDED_OTU_TABLE])
         else:
             OtuTable.write_otus_to(table_collection, output_table_io)
 
@@ -330,6 +337,74 @@ class Summariser:
         ))
 
     @staticmethod
+    def _resolve_ambiguous_windows_in_dataframe(df, max_divergence):
+        '''Fill in the ambiguous bases that frameshift repair left in the windows
+        of a set of archive OTU tables that are about to be combined.
+
+        pipe normally does this at the end of a run, but a run that processed one
+        chunk of a dataset sees only that chunk's windows, and the donor that is
+        most abundant within a chunk is not necessarily the one that is most
+        abundant overall. A chunked run therefore leaves its ambiguous bases
+        alone, and they are resolved here, where every chunk is present, so that
+        combining the chunks gives what the whole dataset would have.
+
+        Returns (dataframe, number of OTUs resolved, number of OTUs left alone
+        because only some of their reads have a repair-inserted base).
+        '''
+        genes = df.get_column('gene').to_list()
+        sequences = df.get_column('sequence').to_list()
+        num_hits = df.get_column('num_hits').to_list()
+        read_names = df.get_column('read_names').to_list()
+        repaired = df.get_column(REPAIRED_DELETIONS_FIELD).to_list()
+
+        # Abundances are pooled across samples within a gene, as in pipe, so that
+        # a low coverage sample can still draw on a donor.
+        abundances_by_gene = {}
+        for (gene, sequence, hits) in zip(genes, sequences, num_hits):
+            if AMBIGUOUS_CHAR not in sequence:
+                abundances_by_gene.setdefault(gene, Counter())[sequence] += hits
+
+        ambiguous_by_gene = {}
+        resolvable = []
+        num_partial = 0
+        for (i, sequence) in enumerate(sequences):
+            if AMBIGUOUS_CHAR not in sequence or repaired[i] is None or len(repaired[i]) == 0:
+                continue
+            if len(repaired[i]) != len(read_names[i]):
+                # Only some of this OTU's reads have a repair-inserted base, so
+                # resolving it would mean splitting the OTU in two, and the
+                # per-read coverage needed to divide up its coverage exactly is
+                # not in the archive. Rare, since it takes two reads with the very
+                # same window, one whose ambiguous base came from a repair and one
+                # whose was in the raw read. Leaving the window ambiguous is the
+                # conservative outcome, as it is when no donor is close enough.
+                num_partial += 1
+                continue
+            resolvable.append(i)
+            ambiguous_by_gene.setdefault(genes[i], set()).add(sequence)
+
+        num_resolved = 0
+        for (gene, windows) in ambiguous_by_gene.items():
+            resolutions = resolve_windows(
+                windows, abundances_by_gene.get(gene, Counter()),
+                max_divergence=max_divergence)
+            for i in resolvable:
+                if genes[i] != gene:
+                    continue
+                resolved = resolutions[sequences[i]]
+                if resolved is not None:
+                    sequences[i] = resolved
+                    # No ambiguous base is left to resolve, so the OTU no longer
+                    # needs marking as having one.
+                    repaired[i] = None
+                    num_resolved += 1
+
+        df = df.with_columns(
+            pl.Series('sequence', sequences),
+            pl.Series(REPAIRED_DELETIONS_FIELD, repaired, dtype=pl.Object))
+        return (df, num_resolved, num_partial)
+
+    @staticmethod
     # args.collapse_paired_with_unpaired:
     # Summariser.write_collapsed_paired_with_unpaired_otu_table(
     #     archive_otu_tables = args.input_archive_otu_tables,
@@ -342,6 +417,9 @@ class Summariser:
         gzip_archive_otu_table_list = kwargs.pop('gzip_archive_otu_table_list')
         output_table_io = kwargs.pop('output_table_io')
         set_sample_name = kwargs.pop('set_sample_name', None)  # For merging OTU tables
+        resolve_ambiguous_windows = kwargs.pop('resolve_ambiguous_windows', False)
+        max_frameshift_repair_divergence = kwargs.pop(
+            'max_frameshift_repair_divergence', DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -357,6 +435,7 @@ class Summariser:
                     "nucleotides_aligned",
                     "read_unaligned_sequences",
                     "equal_best_hit_taxonomies",
+                    "reads_with_repaired_deletions",
                 }:
                     schema[field] = pl.Object
                 elif field == "num_hits":
@@ -369,30 +448,54 @@ class Summariser:
                     schema[field] = pl.Utf8
             return schema
 
+        def wider_fields(fields1, fields2):
+            '''The wider of two archive field lists, when one is the other with
+            fields appended - which is how every archive version so far has grown,
+            so that tables of different versions can still be combined. None when
+            the two are not compatible.'''
+            (shorter, longer) = sorted([fields1, fields2], key=len)
+            return longer if longer[:len(shorter)] == shorter else None
+
+        def rows_of_width(otus, width):
+            '''OTUs from an archive of an earlier version have no value for the
+            fields that version lacked, so they get None for them.'''
+            return [row if len(row) == width else list(row) + [None] * (width - len(row))
+                    for row in otus]
+
         def read_archive_table(df, f, prev_ar):
             logging.debug("Reading archive table {} into RAM ..".format(a))
             ar = ArchiveOtuTable.read(f)
             if df is None:
                 # version = ar.version
-                # fields = ar.fields
                 # alignment_hmm_sha256s = ar.alignment_hmm_sha256s
                 # singlem_package_sha256s = ar.singlem_package_sha256s
+                fields = ar.fields
                 df = pl.DataFrame(
-                    ar.data, schema=archive_schema(ar.fields), orient="row"
+                    ar.data, schema=archive_schema(fields), orient="row"
                 )
             else:
-                if prev_ar.version != ar.version:
-                    raise Exception("Version mismatch between archives")
-                elif prev_ar.fields != ar.fields:
+                fields = wider_fields(prev_ar.fields, ar.fields)
+                if fields is None:
                     raise Exception("Fields mismatch between archives")
                 elif prev_ar.alignment_hmm_sha256s != ar.alignment_hmm_sha256s:
                     raise Exception("Alignment HMM SHA256 mismatch between archives")
                 elif prev_ar.singlem_package_sha256s != ar.singlem_package_sha256s:
                     raise Exception("Singlem package SHA256 mismatch between archives")
+                # An archive of a newer version brings fields the ones read so far
+                # do not have, which they have no value for.
+                schema = archive_schema(fields)
+                for field in fields[len(df.columns):]:
+                    df = df.with_columns(
+                        pl.Series(field, [None] * len(df), dtype=schema[field]))
                 df2 = pl.DataFrame(
-                    ar.data, schema=archive_schema(prev_ar.fields), orient="row"
+                    rows_of_width(ar.data, len(fields)), schema=archive_schema(fields),
+                    orient="row"
                 )
                 df = pl.concat([df, df2], how="vertical")
+            # The output is written at whichever version has these fields, so that
+            # combining an old archive with a new one gives a new one.
+            ar.fields = fields
+            ar.version = ArchiveOtuTable.FIELDS_OF_EACH_VERSION.index(fields) + 1
             return df, ar
             
         for a in archive_otu_tables:
@@ -428,6 +531,27 @@ class Summariser:
         if len(taxonomy_by_known) != 1:
             raise Exception("Multiple taxonomy_by_known found: {}".format(', '.join(map(str, taxonomy_by_known))))
 
+        # Done before the OTUs are grouped below, so that a window which resolves
+        # to one that is already present is grouped with it, taking that OTU's
+        # taxonomy - which is the taxonomy the whole dataset would have given it,
+        # since pipe resolves windows before assigning taxonomy.
+        if resolve_ambiguous_windows:
+            if REPAIRED_DELETIONS_FIELD not in ar.fields:
+                raise Exception(
+                    "Cannot resolve ambiguous windows in an archive OTU table of version "
+                    "{}, which does not record which reads have a frameshift-repaired "
+                    "base. Regenerate it with a current version of pipe.".format(ar.version))
+            logging.info("Resolving ambiguous bases in frameshift-repaired windows ..")
+            (df, num_resolved, num_partial) = Summariser._resolve_ambiguous_windows_in_dataframe(
+                df, max_frameshift_repair_divergence)
+            logging.info(
+                "Resolved the ambiguous base(s) of {} OTU(s)".format(num_resolved))
+            if num_partial > 0:
+                logging.warning(
+                    "Left {} OTU(s) ambiguous because only some of their reads have a "
+                    "frameshift-repaired base, which cannot be resolved without splitting "
+                    "the OTU".format(num_partial))
+
         df = df.sort(["sequence", "gene"])
 
         collapsed_rows = []
@@ -452,24 +576,38 @@ class Summariser:
             else:
                 raise Exception("Unexpected tax assignment method: {}".format(tax_assignment_method))
 
-            collapsed_rows.append(
-                [
-                    grouped.get_column("gene")[0],
-                    sample,
-                    grouped.get_column("sequence")[0],
-                    sum(num_hits),
-                    sum(grouped.get_column("coverage").to_list()),
-                    grouped.get_column("taxonomy")[max_row],
-                    list(itertools.chain(*grouped.get_column("read_names").to_list())),
-                    list(itertools.chain(*grouped.get_column("nucleotides_aligned").to_list())),
-                    grouped.get_column("taxonomy_by_known?")[0],
-                    list(
-                        itertools.chain(*grouped.get_column("read_unaligned_sequences").to_list())
-                    ),
-                    equal_best_hit_taxonomies,
-                    tax_assignment_method,
-                ]
-            )
+            collapsed_row = [
+                grouped.get_column("gene")[0],
+                sample,
+                grouped.get_column("sequence")[0],
+                sum(num_hits),
+                sum(grouped.get_column("coverage").to_list()),
+                grouped.get_column("taxonomy")[max_row],
+                list(itertools.chain(*grouped.get_column("read_names").to_list())),
+                list(itertools.chain(*grouped.get_column("nucleotides_aligned").to_list())),
+                grouped.get_column("taxonomy_by_known?")[0],
+                list(
+                    itertools.chain(*grouped.get_column("read_unaligned_sequences").to_list())
+                ),
+                equal_best_hit_taxonomies,
+                tax_assignment_method,
+            ]
+
+            if REPAIRED_DELETIONS_FIELD in ar.fields:
+                # The indices point into each OTU's own read names, and those are
+                # concatenated above in group order, so each is shifted by the
+                # number of reads the earlier OTUs of the group contributed.
+                merged_repaired = []
+                offset = 0
+                for (names, indices) in zip(
+                        grouped.get_column("read_names").to_list(),
+                        grouped.get_column(REPAIRED_DELETIONS_FIELD).to_list()):
+                    if indices is not None:
+                        merged_repaired.extend(offset + i for i in indices)
+                    offset += len(names)
+                collapsed_row.append(merged_repaired if len(merged_repaired) > 0 else None)
+
+            collapsed_rows.append(collapsed_row)
 
         logging.info("Collapsed {} total OTUs into {} output OTUs".format(len(df), len(collapsed_rows)))
 

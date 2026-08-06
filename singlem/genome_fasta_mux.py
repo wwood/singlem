@@ -24,7 +24,7 @@ class GenomeFastaMux:
         archive = otu_table_object.archive(None)
         new_otus = []
 
-        if ArchiveOtuTable.version != 4:
+        if ArchiveOtuTable.version != 5:
             raise ValueError("Unsupported OTU table version provided to genome demux - likely a programming bug: %d" % ArchiveOtuTable.version)
 
         for otu in archive:
@@ -54,7 +54,10 @@ class GenomeFastaMux:
                     otu.taxonomy_by_known(),
                     [read_unaligned_sequence],
                     otu.equal_best_hit_taxonomies(),
-                    otu.taxonomy_assignment_method()
+                    otu.taxonomy_assignment_method(),
+                    # Genome input does not go through the DIAMOND prefilter, so
+                    # no window of it has a frameshift-repaired base.
+                    None
                 ])
             for genome_name, otus in genome_to_otus.items():
                 genome_otu = [
@@ -69,7 +72,8 @@ class GenomeFastaMux:
                     otus[0][8],
                     [read_unaligned_sequence for otu in otus for read_unaligned_sequence in otu[9]],
                     otus[0][10],
-                    otus[0][11]
+                    otus[0][11],
+                    otus[0][12]
                 ]
                 new_otus.append(genome_otu)
 

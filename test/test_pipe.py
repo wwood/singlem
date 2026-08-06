@@ -31,6 +31,7 @@ import extern
 import sys
 import json
 import re
+from io import StringIO
 
 path_to_script = 'singlem'
 path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
@@ -38,6 +39,7 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 from singlem.pipe import SearchPipe
 from singlem.sequence_classes import SeqReader
+from singlem.archive_otu_table import ArchiveOtuTable
 
 TEST_ANNOY = False
 try:
@@ -755,6 +757,32 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             self.two_packages)
         self.assertEqualOtuTable(expected, extern.run(cmd))
 
+    def test_read_columns_sorted_by_name_keeps_reads_together(self):
+        # read_names, read_unaligned_sequences and nucleotides_aligned are
+        # parallel, so index i has to describe the same read in all three after
+        # sorting. The aligned lengths here differ between reads of the one OTU,
+        # which happens when an insert column inside the window's span is a gap in
+        # some reads and not others.
+        (names, unaligned_sequences, aligned_lengths, repaired_deletions) = \
+            SearchPipe._read_columns_sorted_by_name(
+                ['read_c', 'read_a', 'read_b'],
+                ['CCC', 'AAA', 'BBB'],
+                [63, 60, 57],
+                [False, True, False])
+        self.assertEqual(['read_a', 'read_b', 'read_c'], names)
+        self.assertEqual(['AAA', 'BBB', 'CCC'], unaligned_sequences)
+        self.assertEqual([60, 57, 63], aligned_lengths)
+        # read_a is the one with a frameshift-repaired base, and sorts first.
+        self.assertEqual([0], repaired_deletions)
+
+    def test_read_columns_sorted_by_name_keeps_duplicate_names_in_order(self):
+        (names, unaligned_sequences, aligned_lengths, _) = \
+            SearchPipe._read_columns_sorted_by_name(
+                ['read_a', 'read_a'], ['first', 'second'], [60, 57], [False, False])
+        self.assertEqual(['read_a', 'read_a'], names)
+        self.assertEqual(['first', 'second'], unaligned_sequences)
+        self.assertEqual([60, 57], aligned_lengths)
+
     def test_archive_otu_groopm_compatibility(self):
         """This tests for API stability, where the API is used by GroopM 2.0"""
         expected = [('contig_1', '4.11.22seqs', 'Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179')]
@@ -769,11 +797,21 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             cmd = "%s pipe --sequences %s --archive-otu-table /dev/stdout --singlem-packages %s --assignment-method diamond" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
 
+            # Read the JSON directly rather than through ArchiveOtuTable, since
+            # that is what an external consumer does. From version 5 the OTUs are
+            # stored column-wise, with the fields that are the same in every OTU
+            # hoisted into constant_fields.
             j = json.loads(extern.run(cmd))
-            fields = j['fields']
-            data = j['otus']
+            self.assertEqual(5, j['version'])
+            def column(field):
+                if field in j['constant_fields']:
+                    return [j['constant_fields'][field]] * j['num_otus']
+                return j['otus'][field]
             self.assertEqual(expected,
-                             [(name, row[fields.index('gene')], row[fields.index('taxonomy')]) for row in data for name in row[fields.index('read_names')]]
+                             [(name, gene, taxonomy)
+                              for (gene, taxonomy, read_names) in zip(
+                                  column('gene'), column('taxonomy'), column('read_names'))
+                              for name in read_names]
                             )
 
     def test_protein_package_non60_length(self):
@@ -1335,8 +1373,17 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs_and_inseqs2.manually_different_species.otu_table.csv.sdb'),
         )
-        self.assertEqual(json.loads('{"version": 4, "alignment_hmm_sha256s": ["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"], "singlem_package_sha256s": ["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"], "fields": ["gene", "sample", "sequence", "num_hits", "coverage", "taxonomy", "read_names", "nucleotides_aligned", "taxonomy_by_known?", "read_unaligned_sequences", "equal_best_hit_taxonomies", "taxonomy_assignment_method"], "otus": [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], false, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based"]]}'),
-            json.loads(extern.run(cmd)))
+        # Compared as OTUs rather than as JSON, since the same OTUs have more than
+        # one valid on-disk spelling from archive version 5 on.
+        observed = ArchiveOtuTable.read(StringIO(extern.run(cmd)))
+        self.assertEqual(ArchiveOtuTable.version, observed.version)
+        self.assertEqual(["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"],
+                         observed.alignment_hmm_sha256s)
+        self.assertEqual(["e4de3077fe4f7869ae1d9c49fc650c664153325fd2bc5997044c983dedd36a48"],
+                         observed.singlem_package_sha256s)
+        self.assertEqual(
+            [["4.11.22seqs", "4.11.22seqs.gpkg.spkg_inseqs", "TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA", 1, 2.4390243902439024, "Root; part_of_sdb", ["HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482"], [60], False, ["ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA"], ["Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179", "Root; part_of_sdb; novel_domain"], "singlem_query_based", None]],
+            observed.data)
 
     def test_smafa_naive_then_diamond_single(self):
         expected = ['gene	sample	sequence	num_hits	coverage	taxonomy',

@@ -350,6 +350,152 @@ minimal2	0.2
                     expected = json.load(f)
                     self.assertEqual(observed, expected)
 
+    # A window with an ambiguous base that frameshift repair left behind, and the
+    # unambiguous window it should be resolved to.
+    DONOR_WINDOW = 'A' * 20 + 'C' * 20 + 'G' * 20
+    AMBIGUOUS_WINDOW = DONOR_WINDOW[:30] + 'N' + DONOR_WINDOW[31:]
+
+    def _chunk_archive(self, path, otus, version=None):
+        table = ArchiveOtuTable()
+        table.alignment_hmm_sha256s = ['hmm_sha']
+        table.singlem_package_sha256s = ['spkg_sha']
+        if version is not None:
+            table.version = version
+            table.fields = ArchiveOtuTable.FIELDS_OF_EACH_VERSION[version - 1]
+            otus = [otu[:len(table.fields)] for otu in otus]
+        table.data = otus
+        with open(path, 'w') as f:
+            table.write_to(f)
+
+    def _otu(self, sequence, read_names, repaired=None):
+        return ['gene1', 'chunked_sample', sequence, len(read_names), float(len(read_names)),
+                'Root; d__Bacteria', read_names, [60] * len(read_names), False,
+                ['AAAA'] * len(read_names), None, 'no_assign_taxonomy', repaired]
+
+    def _collapse(self, otus_per_chunk, extra_args=''):
+        with in_tempdir():
+            paths = []
+            for (i, otus) in enumerate(otus_per_chunk):
+                path = 'chunk{}.json'.format(i)
+                self._chunk_archive(path, otus)
+                paths.append(path)
+            extern.run(
+                'singlem summarise --collapse-to-sample-name chunked_sample '
+                '--input-archive-otu-tables {} --output-archive-otu-table combined.json {}'.format(
+                    ' '.join(paths), extra_args))
+            with open('combined.json') as f:
+                return ArchiveOtuTable.read(f)
+
+    def test_resolve_ambiguous_windows_across_chunks(self):
+        # The ambiguous window is in one chunk and the only donor for it is in
+        # another, so resolving it is only possible once they are combined. The
+        # result should be what the whole dataset would have given: one OTU.
+        combined = self._collapse(
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1'], repaired=[0])],
+             [self._otu(self.DONOR_WINDOW, ['r2', 'r3', 'r4'])]],
+            extra_args='--resolve-ambiguous-windows')
+        self.assertEqual(1, len(combined.data))
+        otu = list(combined)[0]
+        self.assertEqual(self.DONOR_WINDOW, otu.sequence)
+        self.assertEqual(4, otu.count)
+        self.assertEqual(['r1', 'r2', 'r3', 'r4'], sorted(otu.read_names()))
+        # Nothing ambiguous is left, so nothing is left marked as repaired.
+        self.assertEqual(None, otu.reads_with_repaired_deletions())
+
+    def test_chunks_combine_unresolved_without_the_flag(self):
+        combined = self._collapse(
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1'], repaired=[0])],
+             [self._otu(self.DONOR_WINDOW, ['r2', 'r3', 'r4'])]])
+        self.assertEqual(
+            sorted([self.AMBIGUOUS_WINDOW, self.DONOR_WINDOW]),
+            sorted(otu.sequence for otu in combined))
+
+    def test_ambiguous_window_not_from_repair_is_left_alone(self):
+        # An 'N' that was in the raw read is not ours to invent a base for, so it
+        # stays even though a donor is available.
+        combined = self._collapse(
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1'], repaired=None)],
+             [self._otu(self.DONOR_WINDOW, ['r2', 'r3', 'r4'])]],
+            extra_args='--resolve-ambiguous-windows')
+        self.assertEqual(
+            sorted([self.AMBIGUOUS_WINDOW, self.DONOR_WINDOW]),
+            sorted(otu.sequence for otu in combined))
+
+    def test_ambiguous_window_with_no_donor_is_left_alone(self):
+        combined = self._collapse(
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1'], repaired=[0])]],
+            extra_args='--resolve-ambiguous-windows')
+        self.assertEqual(1, len(combined.data))
+        otu = list(combined)[0]
+        self.assertEqual(self.AMBIGUOUS_WINDOW, otu.sequence)
+        # Still marked, so a later combination that does have a donor can resolve it.
+        self.assertEqual([0], otu.reads_with_repaired_deletions())
+
+    def test_partially_repaired_otu_is_left_alone(self):
+        # Two reads share the window but only one got its ambiguous base from a
+        # repair, so resolving would mean splitting the OTU.
+        combined = self._collapse(
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1', 'r2'], repaired=[0])],
+             [self._otu(self.DONOR_WINDOW, ['r3', 'r4', 'r5'])]],
+            extra_args='--resolve-ambiguous-windows')
+        self.assertEqual(
+            sorted([self.AMBIGUOUS_WINDOW, self.DONOR_WINDOW]),
+            sorted(otu.sequence for otu in combined))
+
+    def test_repaired_deletion_indices_are_reindexed_when_otus_merge(self):
+        # Two chunks each hold part of the same unresolvable OTU; the indices are
+        # into each chunk's own read names, so they shift when the reads join up.
+        combined = self._collapse(
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1', 'r2'], repaired=[0, 1])],
+             [self._otu(self.AMBIGUOUS_WINDOW, ['r3'], repaired=[0])]])
+        self.assertEqual(1, len(combined.data))
+        otu = list(combined)[0]
+        self.assertEqual(3, len(otu.read_names()))
+        self.assertEqual([0, 1, 2], otu.reads_with_repaired_deletions())
+
+    def test_collapse_archives_of_different_versions(self):
+        # An archive made before reads_with_repaired_deletions existed can still
+        # be combined with one made after, since the fields only ever grow.
+        with in_tempdir():
+            self._chunk_archive('old.json', [self._otu('AAAA', ['r1'])], version=4)
+            self._chunk_archive('new.json', [self._otu('CCCC', ['r2'], repaired=[0])])
+            extern.run(
+                'singlem summarise --collapse-to-sample-name chunked_sample '
+                '--input-archive-otu-tables old.json new.json '
+                '--output-archive-otu-table combined.json')
+            with open('combined.json') as f:
+                combined = ArchiveOtuTable.read(f)
+        # The combination holds the newer version's fields, and the older
+        # archive's OTU has no value for the ones it did not have.
+        self.assertEqual(ArchiveOtuTable.version, combined.version)
+        by_sequence = {otu.sequence: otu for otu in combined}
+        self.assertEqual(['AAAA', 'CCCC'], sorted(by_sequence))
+        self.assertEqual(None, by_sequence['AAAA'].reads_with_repaired_deletions())
+        self.assertEqual([0], by_sequence['CCCC'].reads_with_repaired_deletions())
+
+    def test_collapse_archives_of_the_same_old_version(self):
+        # Combining two old archives still gives that old version out.
+        with in_tempdir():
+            self._chunk_archive('one.json', [self._otu('AAAA', ['r1'])], version=4)
+            self._chunk_archive('two.json', [self._otu('CCCC', ['r2'])], version=4)
+            extern.run(
+                'singlem summarise --collapse-to-sample-name chunked_sample '
+                '--input-archive-otu-tables one.json two.json '
+                '--output-archive-otu-table combined.json')
+            with open('combined.json') as f:
+                combined = ArchiveOtuTable.read(f)
+        self.assertEqual(4, combined.version)
+        self.assertEqual(ArchiveOtuTable.FIELDS_VERSION4, combined.fields)
+        self.assertEqual(['AAAA', 'CCCC'], sorted(otu.sequence for otu in combined))
+
+    def test_resolve_ambiguous_windows_rejects_old_archives(self):
+        with self.assertRaises(extern.ExternCalledProcessError):
+            extern.run(
+                'singlem summarise --collapse-to-sample-name testsample '
+                '--input-archive-otu-tables {}/small.otu_table.no_assign_taxonomy.json '
+                '--output-archive-otu-table /dev/null --resolve-ambiguous-windows'.format(
+                    path_to_data))
+
     def test_species_by_site_relative(self):
         stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
             --output-species-by-site-relative-abundance /dev/stdout \
