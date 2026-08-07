@@ -1,5 +1,6 @@
 ## Unreleased
 
+* `summarise`: Add `--output-cami-iii-gtdb-profile`, which converts a taxonomic profile into the [CAMI III GTDB taxonomic profiling format](https://cami-challenge.org/file-formats/#taxonomic-profiling), for benchmarking against other profilers with e.g. OPAL. Requires `--input-taxonomic-profiles`.
 * `pipe`: Frameshift repair, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window, is now on by default. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches, and only for windows where repair actually inserted that base, not a pre-existing ambiguous base in the raw read. Disable with `--no-repair-frameshifts`. 
 
 ## v0.21.3
