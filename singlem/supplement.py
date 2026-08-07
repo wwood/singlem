@@ -652,9 +652,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
                          diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
                          makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params(),
-                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species,
-                         weebill_db=[db for db, c in old_metapackage.weebill_databases()],
-                         weebill_c=[c for db, c in old_metapackage.weebill_databases()])
+                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     if not no_taxon_genome_lengths:
@@ -925,7 +923,25 @@ class Supplementor:
             raise Exception("The input metapackage was not generated using the GTDB taxonomy database, but was recorded as '{}' version '{}'. We are halting here to alert you to the fact that supplementing a metapackage that is already supplemented makes you responsible for ensuring that there aren't any species which have multiple representatives e.g. one from the first supplement and one from the second. If you are confident there are no species like this, rerun supplement mode with --ignore-taxonomy-database-incompatibility.".format(
                 old_metapackage.taxonomy_database_name(),
                 old_metapackage.taxonomy_database_version()))
-        
+
+        if len(old_metapackage.weebill_databases()) > 0:
+            # weebill's two-stage database (.syl2db) cannot be rebuilt from what
+            # supplement has on hand: db-convert only reads the pre-two-stage
+            # .syldb that made it, which supplement does not have (only the old
+            # metapackage's .syl2db itself), and 'weebill sketch'/'db-convert'
+            # both refuse a .syl2db as genome input, so there is no way to fold the
+            # new genomes in. Carrying the stale database forward would silently
+            # make the joint SingleM + weebill profile blind to every species
+            # supplement adds, since condense's --joint pins species weebill did
+            # not report towards zero.
+            raise Exception(
+                "The input metapackage bundles a weebill database, but supplement mode cannot rebuild or extend it "
+                "with the new genomes (weebill has no way to add genomes to an existing .syl2db). Build a new weebill "
+                "database including the new genomes yourself with 'weebill sketch' + 'weebill db-convert', bundle it "
+                "into the output metapackage afterwards with 'singlem metapackage --weebill-db ... --weebill-c ...', "
+                "or drop the bundled database (e.g. by starting from a metapackage with none) and profile the "
+                "supplemented metapackage with marker-only condense.")
+
         if new_taxonomy_database_name is None:
             new_taxonomy_database_name = CUSTOM_TAXONOMY_DATABASE_NAME
 

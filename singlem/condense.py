@@ -226,12 +226,14 @@ class Condenser:
 
     def _weebill_hits_for_sample(self, sample, weebill_sample_to_hits):
         '''Return the per-taxon weebill hits for a SingleM sample, matching on the
-        weebill Sample_file column. If the weebill TSV carried no sample column (a
-        single None key), or a single sample, use those hits for every sample.'''
+        weebill Sample_file column. If the weebill TSV carried no sample column, its
+        single None key holds hits for every sample. A single named key is NOT
+        treated as a fallback for other samples, since that would silently reuse one
+        sample's weebill hits for every other sample in a multi-sample run.'''
         if sample in weebill_sample_to_hits:
             return weebill_sample_to_hits[sample]
-        if len(weebill_sample_to_hits) == 1:
-            return list(weebill_sample_to_hits.values())[0]
+        if list(weebill_sample_to_hits.keys()) == [None]:
+            return weebill_sample_to_hits[None]
         logging.warning("No weebill coverage found for sample {}, skipping weebill injection for it".format(sample))
         return {}
 

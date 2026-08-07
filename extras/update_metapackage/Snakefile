@@ -277,7 +277,9 @@ rule concatenate_seqs_and_taxonomies:
         mem_mb = 16*1024,
         runtime = 24*60,
     shell:
-        "mkdir -p {params.concat_dir} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep .faa$ |parallel -j1 --ungroup cat {{}} >{params.spkg_seq} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep _taxonomy.tsv$ |parallel -j1 --ungroup cat {{}} >{params.spkg_tax}"
+        "mkdir -p {params.concat_dir} && "
+        "find {params.hmmseq_dir} -name '*{wildcards.spkg}*.faa' -exec cat {{}} + >{params.spkg_seq} && "
+        "find {params.hmmseq_dir} -name '*{wildcards.spkg}*_taxonomy.tsv' -exec cat {{}} + >{params.spkg_tax}"
 
 # Rule not part of the main workflow here.
 rule all_concatenate_seqs_and_taxonomies:

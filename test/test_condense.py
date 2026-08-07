@@ -346,6 +346,25 @@ class Tests(unittest.TestCase):
         self.assertEqual(2, len(hits))
         self.assertEqual(9.0, hits[_canonical_species_key(self.S_ECOLI)].eff_cov)
 
+    def test_weebill_hits_for_sample_multi_sample_no_fallback(self):
+        # A weebill TSV with hits for exactly one named sample must not be reused
+        # for a *different* sample in a multi-sample run: that would silently pin
+        # one sample's species onto another's profile.
+        condenser = Condenser()
+        hits_for_sample1 = {_canonical_species_key(self.S_ECOLI): WeebillHit(self.S_ECOLI, 9.0)}
+        weebill_sample_to_hits = {'sample1': hits_for_sample1}
+        self.assertEqual(hits_for_sample1, condenser._weebill_hits_for_sample('sample1', weebill_sample_to_hits))
+        self.assertEqual({}, condenser._weebill_hits_for_sample('sample2', weebill_sample_to_hits))
+
+    def test_weebill_hits_for_sample_no_sample_column_used_for_every_sample(self):
+        # A weebill TSV with no recognised sample column parses to a single None
+        # key (WeebillProfile.read_tsv), which does apply to every SingleM sample.
+        condenser = Condenser()
+        hits = {_canonical_species_key(self.S_ECOLI): WeebillHit(self.S_ECOLI, 9.0)}
+        weebill_sample_to_hits = {None: hits}
+        self.assertEqual(hits, condenser._weebill_hits_for_sample('sample1', weebill_sample_to_hits))
+        self.assertEqual(hits, condenser._weebill_hits_for_sample('sample2', weebill_sample_to_hits))
+
     def test_weebill_profile_is_unknown_corrected(self):
         # The column name is the only record of whether weebill was run with -u, and
         # condense keys alpha off it: True_cov is already on SingleM's coverage
