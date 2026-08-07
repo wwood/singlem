@@ -1,6 +1,23 @@
 ## Unreleased
 
-* `pipe`: Frameshift repair, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window, is now on by default. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches, and only for windows where repair actually inserted that base, not a pre-existing ambiguous base in the raw read. Disable with `--no-repair-frameshifts`. 
+* `pipe`/`condense`: Add joint SingleM + weebill taxonomic profiling (`--joint`), which uses NNLS deconvolution against a weebill coverage profile instead of the default EM-based condense, with sylph-only species injection, species-level pinning (`--joint-pin-weebill-species`) and a novel-lineage budget (`--joint-novel-budget`) to avoid fabricating novel lineages in communities weebill already fully explains. `pipe`/`renew` run weebill automatically whenever the metapackage bundles a weebill database; disable with `--no-weebill`. Add `--output-weebill-sketch`/`renew --input-weebill-sketch` to save/reuse a weebill read sketch without keeping the raw reads. Metapackage format bumped to v7 to bundle a two-stage weebill database (`metapackage --weebill-db`/`--weebill-c`).
+* `pipe`: Remove `--weebill-injection`; the joint SingleM + weebill deconvolution is now the only way weebill is integrated. `pipe` now raises an error if a taxonomic profile is requested and the metapackage bundles no weebill database, unless `--no-weebill` is given.
+* `pipe`: Frameshift repair, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window, is now on by default. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches, and only for windows where repair actually inserted that base, not a pre-existing ambiguous base in the raw read. Disable with `--no-repair-frameshifts`.
+* `condense`: Fix a bug where, in a multi-sample run, a weebill profile with hits for exactly one named sample had those hits reused for every other sample instead of being skipped for them.
+* `condense`: Normalize weebill's `Sample_file` column against SingleM sample IDs before matching, fixing a bug where multi-sample weebill profiles silently fell back to marker-only profiles for every sample.
+* `condense`: Fix `condense.py` assuming a bacteria/archaea metapackage, so it now works with eukaryote and other non-standard (e.g. plastid marker) SingleM packages.
+* `condense`: Fix a `ZeroDivisionError` when calculating the trimmed mean for a taxon whose domain has no genes listed.
+* `supplement`: Raise an error rather than silently carrying forward a stale weebill database when supplementing a metapackage that bundles one, since weebill has no way to add genomes to an existing database and the new genomes would be invisible to the joint profile.
+* `pipe`: Deduplicate identical read windows before sending them to the DIAMOND blastx fallback, cutting DIAMOND calls in proportion to sample redundancy; fix a resulting bug where pplacer-assigned reads were caught up in the deduplication, and fix the logged DIAMOND fallback OTU count/percentage.
+* `pipe`: Warn (rather than raising an opaque error) about corrupted/malformed reads encountered while parsing DIAMOND output.
+* `pipe`: Fix a deadlock where DIAMOND failure left background chunking/decompression processes blocked writing to a FIFO nobody was reading.
+* `pipe`: Use `awk` rather than `tail`/`head` for read chunking, avoiding a hang when the last chunk is shorter than the requested chunk size.
+* `prefilter`: Write DIAMOND prefilter database creation input to a tempfile rather than a pipe, avoiding a DIAMOND makedb bug.
+* `prefilter`: Only log DIAMOND stderr when DIAMOND actually fails, rather than on every run.
+* Add `prefilter-pad` mode (expert), which creates a prefilter FASTA with each on-target sequence padded to a fixed length with the window in a consistent position.
+* deps: Require DIAMOND >=2.2.3 (fixes issues with earlier versions).
+* `update_metapackage`: Migrate the Snakefile fully to pixi environments, removing the old per-rule conda envs.
+* `update_metapackage`: Always build the weebill database from `gtdb_genome_reps`, and source weebill from bioconda rather than requiring it on the `PATH` by hand.
 
 ## v0.21.3
 
