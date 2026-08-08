@@ -18,6 +18,7 @@
 * deps: Require DIAMOND >=2.2.3 (fixes issues with earlier versions).
 * `update_metapackage`: Migrate the Snakefile fully to pixi environments, removing the old per-rule conda envs.
 * `update_metapackage`: Always build the weebill database from `gtdb_genome_reps`, and source weebill from bioconda rather than requiring it on the `PATH` by hand.
+* `summarise`: Add `--output-cami-iii-gtdb-profile`, which converts a taxonomic profile into the [CAMI III GTDB taxonomic profiling format](https://cami-challenge.org/file-formats/#taxonomic-profiling), for benchmarking against other profilers with e.g. OPAL. Requires `--input-taxonomic-profiles`.
 
 ## v0.21.3
 

@@ -479,6 +479,49 @@ land       2.17      2.17           30.26               phylum      Root; d__Bac
 """)
         self.assertEqual(expected, stdout)
 
+    def test_output_cami_iii_gtdb_profile(self):
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/condense/small_condense_output.csv \
+            --output-cami-iii-gtdb-profile /dev/stdout')
+        expected = \
+            "@SampleID:anonymous_reads\n" \
+            "@Version:0.9.2\n" \
+            "@Ranks:domain|phylum|class|order|family|genus|species\n" \
+            "@@TAXID\tRANK\tTAXPATH\tTAXPATHSN\tPERCENTAGE\n" \
+            "d__Archaea\tdomain\td__Archaea\td__Archaea\t10.09761\n" \
+            "d__Bacteria\tdomain\td__Bacteria\td__Bacteria\t89.90239\n" \
+            "p__Proteobacteria\tphylum\td__Bacteria|p__Proteobacteria\td__Bacteria|p__Proteobacteria\t44.87827\n" \
+            "c__Gammaproteobacteria\tclass\td__Bacteria|p__Proteobacteria|c__Gammaproteobacteria\td__Bacteria|p__Proteobacteria|c__Gammaproteobacteria\t44.87827\n"
+        self.assertEqual(expected, stdout)
+
+    def test_output_cami_iii_gtdb_profile_multiple_samples(self):
+        # Each sample gets its own header block, which is how OPAL delimits
+        # samples within a single profile file.
+        stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/condense/small_condense_output_2_samples.csv \
+            --output-cami-iii-gtdb-profile /dev/stdout')
+        self.assertEqual(
+            ['@SampleID:anonymous_reads', '@SampleID:anonymous_reads2'],
+            [line for line in stdout.split('\n') if line.startswith('@SampleID')])
+        self.assertEqual(2, stdout.count('@@TAXID\tRANK\tTAXPATH\tTAXPATHSN\tPERCENTAGE'))
+
+    def test_output_cami_iii_gtdb_profile_requires_taxonomic_profile_input(self):
+        with self.assertRaises(Exception) as cm:
+            extern.run(f'singlem summarise --input-otu-tables {path_to_data}/small.otu_table.csv \
+                --output-cami-iii-gtdb-profile /dev/stdout')
+        self.assertIn('--output-cami-iii-gtdb-profile requires --input-taxonomic-profiles', str(cm.exception))
+
+    def test_output_cami_iii_gtdb_profile_rejects_non_prokaryotic_domains(self):
+        for domain in ['d__Viruses', 'd__Eukaryota']:
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.profile') as f:
+                f.write("sample\tcoverage\ttaxonomy\n")
+                f.write("sample1\t1.5\tRoot; d__Bacteria\n")
+                f.write(f"sample1\t1.5\tRoot; {domain}\n")
+                f.flush()
+                with self.assertRaises(Exception) as cm:
+                    extern.run(f'singlem summarise --input-taxonomic-profile {f.name} \
+                        --output-cami-iii-gtdb-profile /dev/null')
+                self.assertIn(domain, str(cm.exception))
+                self.assertIn('Bacteria and Archaea only', str(cm.exception))
+
     def test_taxonomic_profile_coverage_not_down_to_species(self):
         stdout = extern.run(f'singlem summarise --input-taxonomic-profile {path_to_data}/summarise/marine0.head5.profile \
             --output-taxonomic-level-coverage /dev/stdout')

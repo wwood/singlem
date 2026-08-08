@@ -1402,4 +1402,54 @@ class CondensedCommunityProfileKronaWriter:
             f.close()
 
 
+class CondensedCommunityProfileCamiIiiGtdbWriter:
+    '''Writes taxonomic profiles in the CAMI III GTDB taxonomic profiling
+    format, described at https://cami-challenge.org/file-formats/#taxonomic-profiling'''
+
+    VERSION = '0.9.2'
+    RANKS = ['domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']
+    # GTDB covers prokaryotes only, so eukaryotic and viral domains (e.g. from
+    # lyrebird, or a metapackage with eukaryotic markers) cannot be represented.
+    ACCEPTED_DOMAINS = set(['d__Bacteria', 'd__Archaea'])
+
+    @staticmethod
+    def write_profile(condensed_profiles, output_io):
+        for profile in condensed_profiles:
+            unacceptable_domains = [
+                d for d in profile.tree.children.keys()
+                if d not in CondensedCommunityProfileCamiIiiGtdbWriter.ACCEPTED_DOMAINS]
+            if len(unacceptable_domains) > 0:
+                raise Exception(
+                    "The CAMI III GTDB taxonomic profiling format assumes GTDB ranks and taxonomy, which "
+                    "covers Bacteria and Archaea only, so the domain(s) {} found in sample {} cannot be "
+                    "converted to it.".format(', '.join(sorted(unacceptable_domains)), profile.sample))
+
+            print("@SampleID:{}".format(profile.sample), file=output_io)
+            print("@Version:{}".format(CondensedCommunityProfileCamiIiiGtdbWriter.VERSION), file=output_io)
+            print("@Ranks:{}".format('|'.join(CondensedCommunityProfileCamiIiiGtdbWriter.RANKS)), file=output_io)
+            print("@@TAXID\tRANK\tTAXPATH\tTAXPATHSN\tPERCENTAGE", file=output_io)
+
+            total_coverage = sum(
+                node.get_full_coverage() for node in profile.tree.children.values())
+            if total_coverage == 0:
+                continue
+
+            for node in profile.breadth_first_iter():
+                level = node.calculate_level() - 1 # 0-based rank index, Root is -1
+                if level < 0 or level >= len(CondensedCommunityProfileCamiIiiGtdbWriter.RANKS):
+                    continue
+                coverage = node.get_full_coverage()
+                if coverage == 0:
+                    continue
+                taxpathsn = '|'.join(node.get_taxonomy()[1:]) # drop 'Root'
+                percentage = coverage / total_coverage * 100
+                print("\t".join([
+                    node.word,
+                    CondensedCommunityProfileCamiIiiGtdbWriter.RANKS[level],
+                    taxpathsn,
+                    taxpathsn,
+                    str(round(percentage, 5)),
+                ]), file=output_io)
+
+
 

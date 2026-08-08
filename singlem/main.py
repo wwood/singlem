@@ -587,6 +587,7 @@ def main():
     # Note: num decimal places default should align with the default in summariser.py
     summarise_taxonomic_profile_output_args.add_argument('--num-decimal-places', metavar='INT', type=int, help="Number of decimal places to report in the coverage column of the --output-taxonomic-profile-with-extras [default: 2].")
     summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-level-coverage', metavar='FILE', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file.")
+    summarise_taxonomic_profile_output_args.add_argument('--output-cami-iii-gtdb-profile', metavar='FILE', help="Output taxonomic profile to this file in the CAMI III GTDB taxonomic profiling format (https://cami-challenge.org/file-formats/#taxonomic-profiling).")
     
     summarise_otu_table_input_args = summarise_parser.add_argument_group('OTU table input')
     summarise_otu_table_input_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
@@ -942,6 +943,7 @@ def main():
         if args.output_taxonomic_level_coverage: num_output_types += 1
         if args.output_filled_taxonomic_profile: num_output_types += 1
         if args.output_taxonomic_profile_with_extras: num_output_types += 1
+        if args.output_cami_iii_gtdb_profile: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and \
@@ -982,6 +984,8 @@ def main():
             raise Exception("--output-taxonomic-profile-with-extras requires --input-taxonomic-profiles to be defined")
         if args.num_decimal_places and not args.output_taxonomic_profile_with_extras:
             raise Exception("--num-decimal-places currently requires --output-taxonomic-profile-with-extras to be defined")
+        if args.output_cami_iii_gtdb_profile and not args.input_taxonomic_profiles:
+            raise Exception("--output-cami-iii-gtdb-profile requires --input-taxonomic-profiles to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -1174,6 +1178,11 @@ def main():
                         input_taxonomic_profile_files = args.input_taxonomic_profiles,
                         output_taxonomic_profile_extras_io = f,
                         num_decimal_places = args.num_decimal_places)
+            elif args.output_cami_iii_gtdb_profile:
+                with open(args.output_cami_iii_gtdb_profile, 'w') as f:
+                    Summariser.write_cami_iii_gtdb_profile(
+                        input_taxonomic_profile_files = args.input_taxonomic_profiles,
+                        output_cami_iii_gtdb_profile_io = f)
             else:
                 raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance or --output-taxonomic-level-coverage to be defined, since --input-taxonomic-profiles was defined")
 
