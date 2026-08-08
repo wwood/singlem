@@ -76,6 +76,26 @@ marine0.1  0.8       0.8            11.13               phylum  Root; d__Bacteri
 marine0.1  2.17      2.17           30.18               phylum  Root; d__Bacteria; p__Proteobacteria
 ```
 
+## Conversion to CAMI III GTDB profile format
+Taxonomic profiles can be converted to the [CAMI III GTDB taxonomic profiling format](https://cami-challenge.org/file-formats/#taxonomic-profiling), for comparison against other profilers using e.g. [OPAL](https://github.com/CAMI-challenge/OPAL):
+```
+singlem summarise --input-taxonomic-profile doco_example.profile \
+    --output-cami-iii-gtdb-profile doco_example.cami.profile
+```
+The generated `doco_example.cami.profile` contains
+```
+@SampleID:marine0.1
+@Version:0.9.2
+@Ranks:domain|phylum|class|order|family|genus|species
+@@TAXID	RANK	TAXPATH	TAXPATHSN	PERCENTAGE
+d__Archaea	domain	d__Archaea	d__Archaea	58.41446
+d__Bacteria	domain	d__Bacteria	d__Bacteria	41.58554
+p__Thermoproteota	phylum	d__Archaea|p__Thermoproteota	d__Archaea|p__Thermoproteota	7.7886
+p__Desulfobacterota	phylum	d__Bacteria|p__Desulfobacterota	d__Bacteria|p__Desulfobacterota	11.12656
+p__Proteobacteria	phylum	d__Bacteria|p__Proteobacteria	d__Bacteria|p__Proteobacteria	30.18081
+```
+Percentages are relative abundances of the [filled coverage](/Glossary#coverage-unfilled-coverage-and-filled-coverage) of each taxon. GTDB taxon names are used in place of NCBI taxonomy IDs, since this format is GTDB-based. Each sample in the input is written as its own header block, which is how a multi-sample profile file is delimited. Since GTDB covers prokaryotes only, profiles containing eukaryotic or viral domains (e.g. from Lyrebird) are rejected.
+
 # Summarising OTU tables
 The following describes how summarise can be used to transform [OTU tables](/Glossary#otu-table), rather than [taxonomomic profiles](/Glossary#taxonomic-profile). 
 
