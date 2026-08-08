@@ -341,7 +341,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             n.write(inseqs)
             n.flush()
 
-            cmd = "%s pipe --sequences %s --metapackage %s --assignment-method diamond --taxonomic-profile /dev/stdout --taxonomic-profile-krona /tmp/blah.html" % (
+            cmd = "%s pipe --sequences %s --metapackage %s --assignment-method diamond --taxonomic-profile /dev/stdout --taxonomic-profile-krona /tmp/blah.html --no-weebill" % (
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg.smpkg'))
             self.assertEqual(
                 expected, extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),'SAMPLE_ID'))

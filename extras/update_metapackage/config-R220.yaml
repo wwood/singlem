@@ -10,6 +10,18 @@ new_version_number: 4.3.0
 # untarred ~/m/db/gtdb/gtdb_release214/genomic_files_reps/gtdb_proteins_aa_reps_r207.tar.gz
 gtdb_protein_faa_reps: /work/microbiome/db/gtdb/gtdb_release220/genomic_files_reps/protein_faa_reps
 # gtdb_protein_faa_reps: /home/woodcrob/git/singlem/extras/update_metapackage/test_protein_faa_reps2 # test
+# Whole representative genome assemblies (untarred gtdb_genomes_reps_r220.tar.gz),
+# used to build the bundled weebill two-stage database. Required. File names must
+# carry the GCA_/GCF_ accession, as GTDB's do, since that is how weebill's genomes
+# are matched back to taxonomy.
+gtdb_genome_reps: /work/microbiome/db/gtdb/gtdb_release220/genomic_files_reps/gtdb_genomes_reps_r220
+# This directory holds each of its 113104 genomes twice, as both .fna and .fna.gz,
+# so restrict the glob to the compressed copy -- the default extension list would
+# otherwise sketch every genome twice.
+weebill_genome_extensions:
+  - "*.fna.gz"
+# -c the weebill database is built at, and so also the -c reads are sketched at.
+weebill_c: 100
 gtdb_bac_tax: /work/microbiome/db/gtdb/gtdb_release220/bac120_taxonomy_r220.tsv
 gtdb_arc_tax: /work/microbiome/db/gtdb/gtdb_release220/ar53_taxonomy_r220.tsv
 pfams: /work/microbiome/msingle/sam/HMMs/Pfam

@@ -6,6 +6,13 @@ metapackage: /work/microbiome/db/singlem/S4.3.0.GTDB_r220.metapackage_20240523.s
 new_metapackage: S5.4.0.GTDB_r226.metapackage_20250331.smpkg
 new_version_number: 5.4.0
 gtdb_protein_faa_reps: /work/microbiome/msingle/mess/196_metapackage_r226/protein_faa_reps
+# Whole representative genome assemblies (untarred gtdb_genomes_reps_r226.tar.gz),
+# used to build the bundled weebill two-stage database. Required. File names must
+# carry the GCA_/GCF_ accession, as GTDB's do, since that is how weebill's genomes
+# are matched back to taxonomy. All 143614 genomes here are .fna.gz.
+gtdb_genome_reps: /work/microbiome/db/gtdb/gtdb_release226/genomic_files_reps/gtdb_genomes_reps_r226
+# -c the weebill database is built at, and so also the -c reads are sketched at.
+weebill_c: 100
 gtdb_bac_tax: /work/microbiome/msingle/mess/196_metapackage_r226/bac120_taxonomy_r226.tsv
 gtdb_arc_tax: /work/microbiome/msingle/mess/196_metapackage_r226/ar53_taxonomy_r226.tsv
 pfams: /work/microbiome/msingle/sam/HMMs/Pfam

@@ -58,6 +58,15 @@ class SearchPipe:
         exclude_off_target_hits = kwargs.pop('exclude_off_target_hits', False)
         output_extras = kwargs.pop('output_extras', False)
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', None)
+        no_weebill = kwargs.pop('no_weebill', False)
+        output_weebill_sketch = kwargs.pop('output_weebill_sketch', None)
+
+        # The original read inputs, captured before run_to_otu_table consumes them,
+        # so weebill can sketch them if the metapackage bundles a weebill database.
+        weebill_forward_reads = kwargs.get('sequences')
+        weebill_reverse_reads = kwargs.get('reverse_read_files')
+        weebill_unsupported_input = kwargs.get('genomes') or kwargs.get('input_sra_files')
+        weebill_threads = kwargs.get('threads')
 
         outputting_taxonomic_profile = output_taxonomic_profile or output_taxonomic_profile_krona
         if outputting_taxonomic_profile:
@@ -74,6 +83,27 @@ class SearchPipe:
         if viral_profile_output and outputting_taxonomic_profile and metapackage.version < 6:
             raise Exception("Viral profile output is only available for metapackages version 6 or higher")
 
+        # Viral profiling (lyrebird) does not support weebill: its markers are not
+        # single-copy, so condense falls back to the standard algorithm and there is
+        # nothing for a weebill profile to be integrated into.
+        weebill_available = not no_weebill and not viral_profile_output
+        if outputting_taxonomic_profile and weebill_available and len(metapackage.weebill_databases()) == 0:
+            raise Exception("The metapackage does not bundle a weebill database, so a joint SingleM + weebill "
+                "taxonomic profile cannot be produced. Pass --no-weebill to profile from the markers alone, or "
+                "use a metapackage that bundles a weebill database.")
+        weebill_available = weebill_available and len(metapackage.weebill_databases()) > 0
+        running_weebill = outputting_taxonomic_profile and weebill_available
+        # --output-weebill-sketch is honoured even when no taxonomic profile is
+        # requested, since its purpose is letting a later 'renew
+        # --input-weebill-sketch' produce one without needing the raw reads again.
+        sketching_weebill = output_weebill_sketch is not None and weebill_available and not running_weebill
+        if (running_weebill or sketching_weebill) and weebill_forward_reads and not weebill_unsupported_input:
+            # Check weebill is installed before the marker search rather than after
+            # it, which is an hour or more of work to throw away.
+            if shutil.which('weebill') is None:
+                raise Exception("The metapackage bundles a weebill database, but the weebill binary was not "
+                    "found on the PATH. Install it, or pass --no-weebill to profile from the markers alone.")
+
         otu_table_object = self.run_to_otu_table(**kwargs)
 
         if otu_table_object is not None:
@@ -85,19 +115,50 @@ class SearchPipe:
                 metapackage,
                 exclude_off_target_hits)
 
-            if output_taxonomic_profile or output_taxonomic_profile_krona:
+            if outputting_taxonomic_profile:
                 tempfile.tempdir = original_tmpdir
-                from .condense import Condenser
+                from .condense import Condenser, DEFAULT_JOINT_CONDENSE_ARGUMENTS
+                from .weebill import WeebillProfiler
                 otu_table_collection = StreamingOtuTableCollection()
                 otu_table_collection.add_archive_otu_table_object(otu_table_object)
-                Condenser().condense(
-                    input_streaming_otu_table = otu_table_collection,
-                    output_otu_table = output_taxonomic_profile,
-                    krona = output_taxonomic_profile_krona,
-                    metapackage = metapackage,
-                    min_taxon_coverage = min_taxon_coverage,
-                    viral_mode = viral_profile_output,
-                )
+
+                with tempfile.TemporaryDirectory(prefix='singlem-weebill') as weebill_working_directory:
+                    weebill_profile = None
+                    use_joint = False
+                    # If the metapackage bundles a weebill database, profile the reads
+                    # with it and integrate that into the taxonomic profile.
+                    if running_weebill:
+                        if not weebill_forward_reads or weebill_unsupported_input:
+                            logging.warning("Metapackage bundles a weebill database, but weebill integration "
+                                "is currently only supported for read inputs; skipping it.")
+                        else:
+                            weebill_profile = os.path.join(weebill_working_directory, 'weebill_annotated.tsv')
+                            WeebillProfiler().run_from_reads(
+                                weebill_forward_reads, weebill_reverse_reads, metapackage, weebill_threads,
+                                weebill_profile, weebill_working_directory, sketch_output=output_weebill_sketch)
+                            use_joint = True
+
+                    Condenser().condense(
+                        input_streaming_otu_table = otu_table_collection,
+                        output_otu_table = output_taxonomic_profile,
+                        krona = output_taxonomic_profile_krona,
+                        metapackage = metapackage,
+                        min_taxon_coverage = min_taxon_coverage,
+                        viral_mode = viral_profile_output,
+                        weebill_profile = weebill_profile,
+                        **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if use_joint else {})
+                    )
+            elif sketching_weebill:
+                from .weebill import WeebillProfiler
+                if not weebill_forward_reads or weebill_unsupported_input:
+                    logging.warning("--output-weebill-sketch was given, but weebill integration is currently "
+                        "only supported for read inputs; skipping it.")
+                else:
+                    with tempfile.TemporaryDirectory(prefix='singlem-weebill') as weebill_working_directory:
+                        WeebillProfiler().run_from_reads(
+                            weebill_forward_reads, weebill_reverse_reads, metapackage, weebill_threads,
+                            os.path.join(weebill_working_directory, 'weebill_annotated.tsv'),
+                            weebill_working_directory, sketch_output=output_weebill_sketch)
 
 
 

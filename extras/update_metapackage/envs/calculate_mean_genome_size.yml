@@ -1,9 +1,0 @@
-name: calculate_mean_genome_size
-channels:
-  - conda-forge
-  - base
-  - bioconda
-dependencies:
-  - python=3.11
-  - polars>=0.19.3 # old versions fail with group_by, or strip_chars
-  

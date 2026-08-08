@@ -68,6 +68,18 @@ else:
 
 if not "max_threads" in config: config["max_threads"] = 8
 
+# The weebill two-stage database bundled into the metapackage, built from the
+# GTDB representative genome assemblies (not the transcripts used for the spkgs).
+# -c is the subsampling rate; it is baked into the database and must be reused
+# when sketching reads, so the metapackage records it alongside the database.
+# Lower c is more sensitive at low coverage and correspondingly bigger/slower.
+weebill_c = config.get("weebill_c", 100)
+weebill_genome_extensions = config.get("weebill_genome_extensions", ["*.fna.gz", "*.fa.gz", "*.fna", "*.fa"])
+if "gtdb_genome_reps" not in config:
+    raise Exception(
+        "The config must set gtdb_genome_reps (the directory of GTDB representative "
+        "genome assemblies), since every metapackage now bundles a weebill database.")
+
 wildcard_constraints:
     genome = r"(archaea|bacteria)/\w+.\d+_protein.faa"
 
@@ -265,7 +277,9 @@ rule concatenate_seqs_and_taxonomies:
         mem_mb = 16*1024,
         runtime = 24*60,
     shell:
-        "mkdir -p {params.concat_dir} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep .faa$ |parallel -j1 --ungroup cat {{}} >{params.spkg_seq} && find {params.hmmseq_dir} |grep -F {wildcards.spkg} |grep _taxonomy.tsv$ |parallel -j1 --ungroup cat {{}} >{params.spkg_tax}"
+        "mkdir -p {params.concat_dir} && "
+        "find {params.hmmseq_dir} -name '*{wildcards.spkg}*.faa' -exec cat {{}} + >{params.spkg_seq} && "
+        "find {params.hmmseq_dir} -name '*{wildcards.spkg}*_taxonomy.tsv' -exec cat {{}} + >{params.spkg_tax}"
 
 # Rule not part of the main workflow here.
 rule all_concatenate_seqs_and_taxonomies:
@@ -426,11 +440,14 @@ rule create_SingleM_metapackage:
     input:
         packages = expand(output_dir + "/packages/{spkg}.spkg", spkg = singlem_packages),
         sdb = output_dir + "/taxonomy/transcripts.sdb",
-        genome_sizes = output_dir + "/gtdb_mean_genome_sizes.tsv"
+        genome_sizes = output_dir + "/gtdb_mean_genome_sizes.tsv",
+        weebill_db = output_dir + "/weebill/gtdb.syl2db",
     output:
         directory(output_dir + "/metapackage/" + config["new_metapackage"])
     params:
-        singlem = singlem_bin
+        singlem = singlem_bin,
+        weebill_args = lambda wildcards, input: \
+            "--weebill-db {} --weebill-c {} ".format(input.weebill_db, weebill_c),
     threads:
         config["max_threads"]
     resources:
@@ -443,11 +460,77 @@ rule create_SingleM_metapackage:
         "--singlem-packages {input.packages} "
         "--nucleotide-sdb {input.sdb} "
         "--taxon-genome-lengths {input.genome_sizes} "
+        "{params.weebill_args}"
         "--metapackage {output} "
         "--threads {threads} "
         "--taxonomy-database-name '{taxonomy_database_name}' "
         "--taxonomy-database-version '{taxonomy_database_version}' "
         "&> {log}"
+
+####################################
+### weebill two-stage database ###
+####################################
+# weebill profiles reads against whole GTDB representative genomes, which are a
+# different input to the per-genome proteins/transcripts the SingleM packages are
+# built from, so the genome directory is configured separately (gtdb_genome_reps).
+rule weebill_genome_list:
+    input:
+        dir = config["gtdb_genome_reps"],
+    output:
+        genome_list = output_dir + "/weebill/genome_list.txt",
+    threads: 1
+    resources:
+        mem_mb = 4*1024,
+        runtime = 4*60,
+    params:
+        find_args = " -o ".join("-name '{}'".format(e) for e in weebill_genome_extensions),
+    log:
+        logs_dir + "/weebill/genome_list.log"
+    shell:
+        """
+        mkdir -p $(dirname {output.genome_list}) && \
+        find -L {input.dir} \\( {params.find_args} \\) | sort > {output.genome_list} 2> {log} && \
+        test -s {output.genome_list}
+        """
+
+rule weebill_sketch_genomes:
+    input:
+        genome_list = output_dir + "/weebill/genome_list.txt",
+    output:
+        syldb = output_dir + "/weebill/gtdb.syldb",
+    threads:
+        config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48*60,
+    params:
+        out_name = output_dir + "/weebill/gtdb",
+        c = weebill_c,
+    benchmark:
+        benchmark_dir + "/weebill_sketch_genomes.benchmark"
+    log:
+        logs_dir + "/weebill/sketch_genomes.log"
+    shell:
+        "pixi run -e update-metapackage weebill sketch -l {input.genome_list} -c {params.c} -t {threads} -o {params.out_name} &> {log}"
+
+rule weebill_db_convert:
+    input:
+        syldb = output_dir + "/weebill/gtdb.syldb",
+    output:
+        syl2db = output_dir + "/weebill/gtdb.syl2db",
+    threads:
+        config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 24*60,
+    params:
+        out_name = output_dir + "/weebill/gtdb",
+    benchmark:
+        benchmark_dir + "/weebill_db_convert.benchmark"
+    log:
+        logs_dir + "/weebill/db_convert.log"
+    shell:
+        "pixi run -e update-metapackage weebill db-convert {input.syldb} -t {threads} -o {params.out_name} &> {log}"
 
 #######################################
 ### Mean genome size table creation ###

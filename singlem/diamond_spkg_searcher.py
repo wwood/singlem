@@ -270,17 +270,14 @@ class DiamondSpkgSearcher:
                     animation_thread.join(timeout=1)
                 sys.stderr.write('\r' + ' ' * 80 + '\r')
                 sys.stderr.flush()
-
-                # check for DIAMOND errors
-                diamond_stderr_f.flush()
-                diamond_stderr_f.seek(0)
-                stderr_output = diamond_stderr_f.read()
-                if stderr_output:
-                    logging.error(f"DIAMOND stderr: {stderr_output}")
                 
                 # check for non-zero return code
                 return_code = proc.wait()
                 if return_code != 0:
+                    diamond_stderr_f.flush()
+                    diamond_stderr_f.seek(0)
+                    stderr_output = diamond_stderr_f.read()
+                    logging.error(f"DIAMOND stderr: {stderr_output}")
                     # We use extern ExternCalledProcessError here because it is what the rest of the code is designed to catch, but we have to construct it ourselves here because we're using Popen directly.
                     raise extern.ExternCalledProcessError(proc, cmd)
 

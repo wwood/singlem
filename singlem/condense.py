@@ -9,10 +9,25 @@ from queue import Queue
 from .archive_otu_table import ArchiveOtuTable, ArchiveOtuTableEntry
 from .metapackage import Metapackage
 from .taxonomy import *
+from .utils import FastaNameToSampleName
 
 DEFAULT_TRIM_PERCENT = 10
 DEFAULT_MIN_TAXON_COVERAGE = 0.35
 DEFAULT_GENOME_MIN_TAXON_COVERAGE = 0.1
+
+# How pipe and renew condense once weebill has profiled the reads. The
+# three settings are one method, not three independent knobs: weebill is run with
+# -u so its coverages are already on SingleM's scale (alpha 1), which is what makes
+# it safe to pin every species it reports at its own coverage, and the novel budget
+# then caps what the markers may add above those species at what the markers say is
+# there but unaccounted for. Pinning without a calibrated alpha, or without the
+# budget, is the configuration that fabricates novel lineages.
+DEFAULT_JOINT_CONDENSE_ARGUMENTS = {
+    'joint': True,
+    'joint_pin_weebill_species': True,
+    'joint_novel_budget': True,
+    'alpha': 1.0,
+}
 
 # Set CSV field limit to deal with pipe --output-extras as per
 # https://github.com/wwood/singlem/issues/89 following
@@ -73,9 +88,42 @@ class Condenser:
         min_taxon_coverage = kwargs.pop('min_taxon_coverage', DEFAULT_MIN_TAXON_COVERAGE)
         # apply_expectation_maximisation = kwargs.pop('apply_expectation_maximisation')
         output_after_em_otu_table = kwargs.pop('output_after_em_otu_table', False)
+        weebill_profile = kwargs.pop('weebill_profile', None)
+        alpha = kwargs.pop('alpha', None)
+        joint = kwargs.pop('joint', False)
+        joint_l1_penalty = kwargs.pop('joint_l1_penalty', 1.0)
+        joint_absence_weight = kwargs.pop('joint_absence_weight', 100.0)
+        joint_min_markers = kwargs.pop('joint_min_markers', 3)
+        joint_adaptive_weebill_weight = kwargs.pop('joint_adaptive_weebill_weight', False)
+        joint_pin_weebill_species = kwargs.pop('joint_pin_weebill_species', False)
+        joint_novel_budget = kwargs.pop('joint_novel_budget', False)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
         logging.info("Using minimum taxon coverage of {}".format(min_taxon_coverage))
+
+        if joint and weebill_profile is None:
+            raise Exception("condense --joint requires a weebill profile (--weebill-profile)")
+
+        # Parse the weebill profile once. Used for Regime 3 injection, or for the
+        # joint NNLS deconvolution when --joint is set.
+        weebill_sample_to_hits = {}
+        if weebill_profile is not None:
+            weebill_sample_to_hits = WeebillProfile.read_tsv(weebill_profile)
+            logging.info("Read weebill coverage for {} sample(s) from {}".format(
+                len(weebill_sample_to_hits), weebill_profile))
+            self._validate_weebill_against_metapackage(weebill_sample_to_hits, metapackage)
+            # A True_cov profile comes from weebill -u, which corrects each genome's
+            # coverage for the unknown sequence fraction and so already reports it on
+            # SingleM's scale: alpha is 1 by construction and there is nothing to
+            # estimate. Saying so is worth more than the estimate, because the anchor
+            # is biased low at low coverage -- on a 0.2x community it lands near 0.13
+            # and inflates every weebill-supported species by the reciprocal. An
+            # explicit --alpha still wins.
+            if alpha is None and WeebillProfile.is_unknown_corrected(weebill_profile):
+                alpha = 1.0
+                logging.info(
+                    "Weebill profile reports unknown-corrected coverage (weebill -u), so "
+                    "alpha is 1 by construction; pass --alpha to override")
 
         markers = {} # set of markers used to the domains they target
         target_domains = {"Archaea": [], "Bacteria": [], "Eukaryota": [], "Viruses": []}
@@ -107,12 +155,94 @@ class Condenser:
 
             logging.debug("Processing sample {} ..".format(sample))
             apply_diamond_expectation_maximisation = True
-            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
-                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode)
+            weebill_hits = self._weebill_hits_for_sample(sample, weebill_sample_to_hits) if weebill_profile is not None else None
+            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
+                True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
+                weebill_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers,
+                joint_adaptive_weebill_weight, joint_pin_weebill_species, joint_novel_budget)
 
-    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage, 
+    def _domain_coverage_estimates(self, sample_otus, target_domains, trim_percent):
+        '''Per domain, the total genome-equivalent coverage of everything in that domain,
+        estimated the way the standard condense estimates any taxon's: the trimmed mean
+        of its per-marker coverage over its full marker complement, markers with no hit
+        counted as zero.
+
+        Every organism carries one copy of each of its domain's single-copy markers, so
+        the total coverage observed on one marker is the domain's whole community
+        coverage as measured by that marker, and the trimmed mean across the complement
+        is the community coverage. It is evidence about the total that does not depend on
+        the deconvolution, which is what makes it usable as a budget: whatever weebill's
+        species do not account for is the most the novel columns can honestly claim.
+
+        Per domain rather than pooled, because most markers are domain-specific. Pooling
+        takes a trimmed mean over a mixture of bacterial markers (seeing only the
+        bacteria) and archaeal ones (seeing only the archaea), which estimates neither
+        total but something between them -- on the phylogenetic-novelty benchmark, 13.3x
+        against a community of 20x, where per domain gives 9.3x + 9.7x.'''
+        per_domain_marker = {}  # domain -> marker -> summed coverage
+        for otu in sample_otus:
+            domain = None
+            for rank in otu.taxonomy.split(';'):
+                rank = rank.strip()
+                if rank.startswith('d__'):
+                    domain = rank[3:]
+                    break
+            if domain is None:
+                continue
+            per_domain_marker.setdefault(domain, {})
+            per_domain_marker[domain][otu.marker] = \
+                per_domain_marker[domain].get(otu.marker, 0.0) + otu.coverage
+
+        estimates = {}
+        for domain, domain_markers in target_domains.items():
+            if len(domain_markers) == 0:
+                continue
+            observed = per_domain_marker.get(domain, {})
+            coverages = [observed.get(marker, 0.0) for marker in domain_markers]
+            estimates[domain] = _tmean(coverages, trim_percent) if trim_percent > 0 \
+                else sum(coverages) / len(coverages)
+        logging.info("Per-domain community coverage from markers: {}".format(
+            ', '.join('{}={:.2f}'.format(d, c) for d, c in sorted(estimates.items()) if c > 0)))
+        return estimates
+
+    def _validate_weebill_against_metapackage(self, weebill_sample_to_hits, metapackage):
+        '''Shared-DB sanity check: warn if many weebill species are not found among
+        the metapackage's known species (indicating a GTDB-release mismatch).'''
+        weebill_keys = set()
+        for hits in weebill_sample_to_hits.values():
+            weebill_keys.update(hits.keys())
+        if len(weebill_keys) == 0:
+            return
+        try:
+            db_keys = set(_canonical_species_key(t) for t in metapackage.get_all_taxonomy_strings())
+        except Exception as e:
+            logging.debug("Could not load metapackage taxonomy strings for weebill validation: {}".format(e))
+            return
+        missing = [k for k in weebill_keys if k not in db_keys]
+        if len(missing) > len(weebill_keys) * 0.5:
+            logging.warning("{} of {} weebill species are not in the metapackage's taxonomy. Are weebill and "
+                "SingleM built from the same GTDB release? (e.g. {})".format(
+                    len(missing), len(weebill_keys), missing[0]))
+
+    def _weebill_hits_for_sample(self, sample, weebill_sample_to_hits):
+        '''Return the per-taxon weebill hits for a SingleM sample, matching on the
+        weebill Sample_file column. If the weebill TSV carried no sample column, its
+        single None key holds hits for every sample. A single named key is NOT
+        treated as a fallback for other samples, since that would silently reuse one
+        sample's weebill hits for every other sample in a multi-sample run.'''
+        if sample in weebill_sample_to_hits:
+            return weebill_sample_to_hits[sample]
+        if list(weebill_sample_to_hits.keys()) == [None]:
+            return weebill_sample_to_hits[None]
+        logging.warning("No weebill coverage found for sample {}, skipping weebill injection for it".format(sample))
+        return {}
+
+    def _condense_a_sample(self, sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
             apply_query_expectation_maximisation, apply_diamond_expectation_maximisation, metapackage,
-            output_after_em_otu_table, viral_mode):
+            output_after_em_otu_table, viral_mode, weebill_hits=None, alpha=None,
+            joint=False, joint_l1_penalty=1.0, joint_absence_weight=100.0, joint_min_markers=3,
+            joint_adaptive_weebill_weight=False, joint_pin_weebill_species=False,
+            joint_novel_budget=False):
 
 
         # Remove off-target OTUs genes
@@ -129,8 +259,8 @@ class Condenser:
         taxon_marker_counts = None
         if viral_mode:
             logging.info("Running condense in viral mode...")
-            if metapackage.version not in [6]:
-                raise Exception("Viral mode only works with version 6 metapackages.")
+            if metapackage.version not in [6, 7]:
+                raise Exception("Viral mode only works with version 6+ metapackages.")
             avg_num_genes_per_species = round(metapackage.avg_num_genes_per_species())
             if avg_num_genes_per_species is None:
                 raise Exception("Metapackage does not contain average number of genes per species")
@@ -142,6 +272,41 @@ class Condenser:
                         query_best_hits.add(best_hit.replace('; ',';')) # pre-emptively strip to avoid issues with whitespace
             # query_best_hits = [o.equal_best_hit_taxonomies() for o in sample_otus if o.taxonomy_assignment_method() == QUERY_BASED_ASSIGNMENT_METHOD]
             taxon_marker_counts = metapackage.get_taxon_marker_counts(query_best_hits)
+
+        # Joint mode replaces the EM + trimmed-mean condense (steps 2-4) with a
+        # single NNLS deconvolution against the weebill profile.
+        if joint and not viral_mode:
+            from .condense_joint import JointDeconvolver
+            logging.info("Converting DIAMOND IDs to taxons")
+            self._convert_diamond_best_hit_ids_to_taxonomies(metapackage, sample_otus)
+            domain_marker_counts = {domain: len(genes) for domain, genes in target_domains.items()}
+            domain_coverage_estimates = None
+            if joint_novel_budget:
+                domain_coverage_estimates = self._domain_coverage_estimates(
+                    sample_otus, target_domains, trim_percent)
+            condensed_otus = JointDeconvolver().solve(
+                sample, sample_otus, weebill_hits if weebill_hits is not None else {},
+                domain_marker_counts=domain_marker_counts,
+                alpha=alpha, l1_penalty=joint_l1_penalty, absence_weight=joint_absence_weight,
+                min_markers=joint_min_markers,
+                adaptive_weebill_weight=joint_adaptive_weebill_weight,
+                pin_weebill_species=joint_pin_weebill_species,
+                domain_coverage_estimates=domain_coverage_estimates,
+                min_singlem_coverage=min_taxon_coverage, trim_percent=trim_percent)
+            # No push-down of genus coverage into species here. The trimmed-mean condense
+            # needs it because it has no way to say "something in this genus that is not
+            # one of these species", so coverage stranded at the genus node is assumed to
+            # be its species' reads scattered by sequencing error. The joint model says
+            # exactly that, with a novel-at-clade column, and pushing 10% of the genus
+            # down afterwards takes the novel organism's reads and hands them to its named
+            # relatives -- which is the one thing the novel column exists to prevent. In
+            # known50, where roughly three quarters of the sample is a novel Streptomyces,
+            # the deconvolution puts S. rimosus at 173x against a truth of 170x and the
+            # push-down inflated it to 260x.
+            self._report_taxonomic_level_assignment_stats(condensed_otus)
+            return condensed_otus
+        elif joint and viral_mode:
+            logging.warning("condense --joint is not supported in viral mode; falling back to the standard algorithm")
 
         if apply_query_expectation_maximisation:
             sample_otus = self._apply_species_expectation_maximization(sample_otus, trim_percent, target_domains, taxon_marker_counts)
@@ -170,6 +335,13 @@ class Condenser:
         self._push_down_genus_to_species(condensed_otus, 0.1)
         logging.info("Total profile coverage after push down: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
 
+        # Regime 3: inject species that weebill detected but SingleM missed. Done
+        # after the EM and the condense tree is built, so injected leaves bypass
+        # the EM proximity pruning entirely.
+        if weebill_hits:
+            self._inject_weebill_only_species(condensed_otus, weebill_hits, alpha)
+            logging.info("Total profile coverage after weebill injection: {}".format(sum([o.coverage for o in condensed_otus.breadth_first_iter()])))
+
         self._report_taxonomic_level_assignment_stats(condensed_otus)
 
         return condensed_otus
@@ -191,6 +363,89 @@ class Condenser:
                 rank,
                 level_coverage[level]/total_coverage*100 if total_coverage > 0 else 0,
                 level_count[level]))
+
+    def _fit_alpha(self, singlem_species_coverage, weebill_hits, min_coverage=10.0, min_anchors=3):
+        '''Fit the scale factor alpha that converts weebill effective coverage onto
+        SingleM's genome-equivalent coverage scale, by regressing SingleM
+        coverage against weebill eff_cov (through the origin) over the species both
+        tools detect at moderate abundance. If fewer than min_anchors species are
+        detected by both tools at >= min_coverage SingleM coverage, default to 1.'''
+        eff_covs = []
+        singlem_covs = []
+        for key, singlem_cov in singlem_species_coverage.items():
+            if singlem_cov >= min_coverage and key in weebill_hits:
+                eff_covs.append(weebill_hits[key].eff_cov)
+                singlem_covs.append(singlem_cov)
+
+        if len(eff_covs) < min_anchors:
+            logging.info("Found only {} anchor species (>= {}x SingleM coverage and weebill-detected), "
+                "fewer than {}; defaulting alpha to 1".format(len(eff_covs), min_coverage, min_anchors))
+            return 1.0
+
+        denominator = sum(e * e for e in eff_covs)
+        if denominator == 0:
+            logging.info("Weebill effective coverage is zero across anchor species; defaulting alpha to 1")
+            return 1.0
+        alpha = sum(e * s for e, s in zip(eff_covs, singlem_covs)) / denominator
+        logging.info("Fit alpha={:.4f} by regression over {} anchor species".format(alpha, len(eff_covs)))
+        return alpha
+
+    def _inject_weebill_only_species(self, condensed_otus, weebill_hits, alpha):
+        '''Regime 3: inject species that weebill detected but SingleM placed at zero
+        as new species leaves at coverage alpha*eff_cov. Injected coverage is
+        drawn down from the nearest ancestor internal node's (novel/unresolved)
+        coverage so SingleM stays the authority on each clade's budget; only the
+        residual beyond that budget is genuinely new coverage.'''
+
+        # Species already present in the SingleM profile (collected before any
+        # injection so injected leaves do not pollute the anchor set).
+        singlem_species_coverage = {}
+        for node in condensed_otus.breadth_first_iter():
+            if node.calculate_level() == 7 and node.word.startswith('s__') and node.coverage > 0:
+                key = _canonical_species_key(';'.join(node.get_taxonomy()))
+                singlem_species_coverage[key] = node.coverage
+
+        if alpha is None:
+            alpha = self._fit_alpha(singlem_species_coverage, weebill_hits)
+        else:
+            logging.info("Using user-supplied alpha={}".format(alpha))
+
+        num_injected = 0
+        total_injected = 0.0
+        total_residual = 0.0
+        for key, hit in weebill_hits.items():
+            if key in singlem_species_coverage:
+                continue  # Detected by both tools; left to the EM (Regimes 1/2)
+            coverage = alpha * hit.eff_cov
+            if coverage <= 0:
+                continue
+            taxon_array = _gtdb_string_to_wordnode_array(hit.taxonomy)
+            if len(taxon_array) < 2 or not taxon_array[-1].startswith('s__'):
+                logging.debug("Skipping weebill taxon without a species rank: {}".format(hit.taxonomy))
+                continue
+
+            # Materialise the lineage and add the species leaf coverage.
+            condensed_otus.tree.add_words(taxon_array, coverage)
+            leaf = condensed_otus.tree
+            for word in taxon_array[1:]:
+                leaf = leaf.children[word]
+
+            # Reconcile against the clade's SingleM budget: draw the injected
+            # coverage down from the nearest ancestors' novel coverage first.
+            remaining = coverage
+            ancestor = leaf.parent
+            while ancestor is not None and ancestor.word != 'Root' and remaining > 0:
+                take = min(remaining, ancestor.coverage)
+                ancestor.coverage -= take
+                remaining -= take
+                ancestor = ancestor.parent
+
+            num_injected += 1
+            total_injected += coverage
+            total_residual += remaining
+
+        logging.info("Injected {} weebill-only species (alpha={:.4f}): {:.2f} coverage at species level, "
+            "{:.2f} net new coverage after reconciliation".format(num_injected, alpha, total_injected, total_residual))
 
     def _convert_diamond_best_hit_ids_to_taxonomies(self, metapackage, sample_otus):
         '''Input OTU tables assigned taxonomy with diamond have sequence IDs as
@@ -831,6 +1086,94 @@ class Condenser:
                         more_to_go = False
         return species_to_eq_class
 
+def _canonical_species_key(taxon_string):
+    '''Normalise a taxonomy string to a canonical key for matching weebill GTDB
+    strings against condense tree nodes: drop a leading "Root" and any empty
+    ranks, strip whitespace, and rejoin with ";".'''
+    parts = [p.strip() for p in taxon_string.split(';')]
+    return ';'.join([p for p in parts if p != '' and p != 'Root'])
+
+def _gtdb_string_to_wordnode_array(taxon_string):
+    '''Convert a GTDB taxonomy string into the ["Root", "d__..", .., "s__X"]
+    array form used by WordNode.add_words.'''
+    parts = [p.strip() for p in taxon_string.split(';')]
+    return ['Root'] + [p for p in parts if p != '' and p != 'Root']
+
+class WeebillHit:
+    def __init__(self, taxonomy, eff_cov):
+        self.taxonomy = taxonomy # Original GTDB taxonomy string from the TSV
+        self.eff_cov = eff_cov
+
+class WeebillProfile:
+    '''Parser for a pre-annotated weebill profile TSV carrying a GTDB taxonomy
+    column and a weebill effective coverage column (and an optional sample
+    column).'''
+    TAXONOMY_COLUMNS = ['taxonomy', 'Taxonomy', 'clade_name']
+    # True_cov is what weebill -u (--estimate-unknown) reports in place of Eff_cov:
+    # a coverage corrected for the unknown sequence fraction, and so on the same
+    # scale as SingleM's own coverage rather than a fixed fraction of it. Listed
+    # first so that a profile carrying both prefers it.
+    COVERAGE_COLUMNS = ['True_cov', 'true_cov', 'Eff_cov', 'eff_cov']
+    SAMPLE_COLUMNS = ['Sample_file', 'sample']
+
+    @staticmethod
+    def _pick_column(fields, candidates, description, path):
+        for candidate in candidates:
+            if candidate in fields:
+                return candidate
+        raise Exception("Weebill profile {} must contain a {} column (one of {}); found columns {}".format(
+            path, description, candidates, fields))
+
+    # The subset of COVERAGE_COLUMNS that weebill only emits under -u
+    # (--estimate-unknown), and which therefore need no alpha calibration.
+    UNKNOWN_CORRECTED_COLUMNS = ['True_cov', 'true_cov']
+
+    @staticmethod
+    def is_unknown_corrected(path):
+        '''True if the profile's coverage column is one weebill reports only under -u.'''
+        with open(path) as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            fields = reader.fieldnames or []
+        cov_col = next((c for c in WeebillProfile.COVERAGE_COLUMNS if c in fields), None)
+        return cov_col in WeebillProfile.UNKNOWN_CORRECTED_COLUMNS
+
+    @staticmethod
+    def read_tsv(path):
+        '''Parse the weebill TSV into {sample: {canonical_key: WeebillHit}}. When the
+        TSV has no recognised sample column, a single None key holds all hits.
+
+        The sample column carries weebill's Sample_file (e.g. a read file path such
+        as "reads/mock.r1.fq"), while SingleM sample IDs are derived from the same
+        file with FastaNameToSampleName (e.g. "mock.r1"). Normalizing here keeps
+        both sides on the same key, so _weebill_hits_for_sample's exact match finds
+        every sample rather than only ones that happen to already agree.'''
+        sample_to_hits = {}
+        with open(path) as f:
+            reader = csv.DictReader(f, delimiter='\t')
+            fields = reader.fieldnames
+            if fields is None:
+                raise Exception("Weebill profile {} appears to be empty".format(path))
+            tax_col = WeebillProfile._pick_column(fields, WeebillProfile.TAXONOMY_COLUMNS, 'taxonomy', path)
+            cov_col = WeebillProfile._pick_column(fields, WeebillProfile.COVERAGE_COLUMNS, 'effective coverage', path)
+            sample_col = next((c for c in WeebillProfile.SAMPLE_COLUMNS if c in fields), None)
+
+            for row in reader:
+                taxonomy = row[tax_col]
+                if taxonomy is None or taxonomy.strip() == '':
+                    continue
+                try:
+                    eff_cov = float(row[cov_col])
+                except (TypeError, ValueError):
+                    continue
+                sample = None
+                if sample_col is not None and row[sample_col] is not None:
+                    sample = FastaNameToSampleName.fasta_to_name(row[sample_col].strip())
+                if sample not in sample_to_hits:
+                    sample_to_hits[sample] = {}
+                key = _canonical_species_key(taxonomy)
+                sample_to_hits[sample][key] = WeebillHit(taxonomy.strip(), eff_cov)
+        return sample_to_hits
+
 def _tmean(data, proportiontocut):
     """
     Returns trimmed mean of an array.
@@ -1107,7 +1450,6 @@ class CondensedCommunityProfileCamiIiiGtdbWriter:
                     taxpathsn,
                     str(round(percentage, 5)),
                 ]), file=output_io)
-
 
 
 
