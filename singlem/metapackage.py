@@ -47,8 +47,14 @@ class Metapackage:
     DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS = 'diamond_taxonomy_assignment_performance_parameters'
     MAKEIDX_SENSITIVITY_PARAMS = 'makeidx_sensitivity_params'
     AVG_NUM_GENES_PER_SPECIES = 'avg_num_genes_per_species'
+    # A list of {'db': <basename>, 'c': <int>} entries, one per bundled weebill
+    # two-stage database, so each database is tightly coupled to the -c it was built
+    # with -- reads must be sketched at the same -c to be profiled against it.
+    WEEBILL_DBS_KEY = 'weebill_dbs'
+    WEEBILL_DB_SUBKEY = 'db'
+    WEEBILL_C_SUBKEY = 'c'
 
-    _CURRENT_FORMAT_VERSION = 6
+    _CURRENT_FORMAT_VERSION = 7
 
     _REQUIRED_KEYS = {'1': [
                             VERSION_KEY,
@@ -91,6 +97,20 @@ class Metapackage:
                         DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
                         MAKEIDX_SENSITIVITY_PARAMS,
                         AVG_NUM_GENES_PER_SPECIES,
+                        ],
+                    '7': [
+                        VERSION_KEY,
+                        PREFILTER_DB_PATH_KEY,
+                        NUCLEOTIDE_SDB,
+                        SQLITE_DB_PATH_KEY,
+                        TAXON_GENOME_LENGTHS_KEY,
+                        TAXONOMY_DATABASE_NAME_KEY,
+                        TAXONOMY_DATABASE_VERSION_KEY,
+                        DIAMOND_PREFILTER_PERFORMANCE_PARAMETERS_KEY,
+                        DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS,
+                        MAKEIDX_SENSITIVITY_PARAMS,
+                        AVG_NUM_GENES_PER_SPECIES,
+                        WEEBILL_DBS_KEY,
                         ],
                       }
 
@@ -186,7 +206,7 @@ class Metapackage:
         v=contents_hash[Metapackage.VERSION_KEY]
         logging.debug("Loading version %i SingleM metapackage: %s" % (v, metapackage_path))
 
-        if v not in range(1,7):
+        if v not in range(1,8):
             raise Exception("Bad SingleM metapackage version: %s" % str(v))
 
         spkg_relative_paths = contents_hash[Metapackage.SINGLEM_PACKAGES]
@@ -222,6 +242,10 @@ class Metapackage:
                 mpkg._avg_num_genes_per_species = contents_hash.get(Metapackage.AVG_NUM_GENES_PER_SPECIES, None)
             else:
                 mpkg._avg_num_genes_per_species = None
+        if v >= 7:
+            mpkg._weebill_databases = [
+                (os.path.join(metapackage_path, entry[Metapackage.WEEBILL_DB_SUBKEY]), entry[Metapackage.WEEBILL_C_SUBKEY])
+                for entry in (contents_hash.get(Metapackage.WEEBILL_DBS_KEY) or [])]
         return mpkg
 
     @staticmethod
@@ -306,9 +330,30 @@ class Metapackage:
         diamond_taxonomy_assignment_performance_parameters = kwargs.pop('diamond_taxonomy_assignment_performance_parameters')
         makeidx_sensitivity_params = kwargs.pop('makeidx_sensitivity_params')
         calculate_average_num_genes_per_species = kwargs.pop('calculate_average_num_genes_per_species', False)
+        weebill_db = kwargs.pop('weebill_db', None)  # list of database paths, or None
+        weebill_c = kwargs.pop('weebill_c', None)    # list of -c values, or None
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        weebill_db_paths = list(weebill_db) if weebill_db else []
+        weebill_c_values = list(weebill_c) if weebill_c else []
+        if len(weebill_db_paths) != len(weebill_c_values):
+            raise Exception("Each weebill database (--weebill-db) requires a matching -c (--weebill-c), since -c is "
+                "needed to sketch reads and must match the -c used to build the database. Got {} database(s) "
+                "and {} -c value(s).".format(len(weebill_db_paths), len(weebill_c_values)))
+        if len(set(weebill_c_values)) > 1:
+            raise Exception("Bundling weebill databases with differing -c values is not yet supported (got -c "
+                "values {}). All --weebill-db must share a single --weebill-c.".format(sorted(set(weebill_c_values))))
+        # 'weebill profile --two-stage' reads only two-stage databases, and that is
+        # the only way a bundled database is ever profiled, so anything else -- a
+        # plain .syldb, say -- would be copied in and then found unusable at pipe time.
+        from .weebill import TWO_STAGE_DB_EXTENSION
+        not_two_stage = [p for p in weebill_db_paths if not p.endswith(TWO_STAGE_DB_EXTENSION)]
+        if not_two_stage:
+            raise Exception("Only weebill two-stage ({}) databases can be bundled into a metapackage, since "
+                "that is what 'weebill profile --two-stage' reads. Convert with 'weebill db-convert'. "
+                "Got {}.".format(TWO_STAGE_DB_EXTENSION, not_two_stage))
 
         if calculate_average_num_genes_per_species not in (True, False):
             raise Exception("calculate_average_num_genes_per_species must be a boolean")
@@ -376,6 +421,25 @@ class Metapackage:
             logging.info("Skipping taxon genome lengths csv")
             taxon_genome_lengths_csv_name = None
 
+        # Copy weebill database(s) into output directory, each paired with its -c
+        weebill_db_entries = []
+        seen_weebill_db_names = set()
+        for db_path, c in zip(weebill_db_paths, weebill_c_values):
+            db_abspath = os.path.abspath(db_path)
+            db_name = os.path.basename(db_abspath)
+            if db_name in seen_weebill_db_names:
+                raise Exception("Cannot bundle two weebill databases with the same basename: {}".format(db_name))
+            seen_weebill_db_names.add(db_name)
+            dest = os.path.join(output_path, db_name)
+            logging.info("Copying weebill database {} (c={}) to {} ..".format(db_path, c, dest))
+            shutil.copy(db_abspath, dest)
+            weebill_db_entries.append({
+                Metapackage.WEEBILL_DB_SUBKEY: db_name,
+                Metapackage.WEEBILL_C_SUBKEY: c,
+            })
+        if not weebill_db_entries:
+            logging.info("Skipping weebill database")
+
         # Create on-target and dereplicated prefilter fasta file
         if prefilter_diamond_db:
             postfix = '.dmnd'
@@ -417,11 +481,11 @@ class Metapackage:
             os.remove(prefilter_path)
 
         logging.info("Generating read name taxonomy store ..")
-        sqlitedb_path = os.path.join(output_path, 'read_taxonomies.sqlite3')
+        sqlitedb_path = os.path.join(output_path, 'read_taxonomies.duckdb')
         MetapackageReadNameStore.generate(
             singlem_packages, sqlitedb_path, taxonomy_marker_counts)
 
-        contents_hash = {Metapackage.VERSION_KEY: 6,
+        contents_hash = {Metapackage.VERSION_KEY: 7,
                         Metapackage.SINGLEM_PACKAGES: singlem_package_relpaths,
                         Metapackage.PREFILTER_DB_PATH_KEY: prefilter_dmnd_name,
                         Metapackage.NUCLEOTIDE_SDB: nucleotide_sdb_name,
@@ -433,6 +497,7 @@ class Metapackage:
                         Metapackage.DIAMOND_TAXONOMY_ASSIGNMENT_PERFORMANCE_PARAMETERS: diamond_taxonomy_assignment_performance_parameters,
                         Metapackage.MAKEIDX_SENSITIVITY_PARAMS: makeidx_sensitivity_params,
                         Metapackage.AVG_NUM_GENES_PER_SPECIES: avg_num_genes_per_species,
+                        Metapackage.WEEBILL_DBS_KEY: weebill_db_entries,
                         }
 
         # save contents file
@@ -587,6 +652,23 @@ class Metapackage:
             return None
         return pl.read_csv(tsv, separator='\t')
     
+    def weebill_databases(self):
+        '''Return a list of (db_path, c) tuples of the weebill two-stage databases
+        bundled in the metapackage, each paired with the -c it was built with. Empty
+        if the metapackage bundles none (version < 7, created without --weebill-db,
+        or from spkgs directly).'''
+        try:
+            return list(self._weebill_databases)
+        except AttributeError:
+            return []
+
+    def genome_accession_to_taxonomy(self, accessions=None):
+        '''Return a dict of genome accession (e.g. GCF_000744455.1) to GTDB
+        taxonomy string, derived from the read-name taxonomy store. If accessions
+        is given, only those are returned.'''
+        store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
+        return store.get_taxonomy_by_genome_accession(accessions)
+
     def taxonomy_database_name(self):
         try:
             return self._taxonomy_database_name

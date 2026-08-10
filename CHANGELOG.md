@@ -1,14 +1,30 @@
 ## Unreleased
 
+* `pipe`/`condense`: Add joint SingleM + weebill taxonomic profiling (`--joint`), which uses NNLS deconvolution against a weebill coverage profile instead of the default EM-based condense, with sylph-only species injection, species-level pinning (`--joint-pin-weebill-species`) and a novel-lineage budget (`--joint-novel-budget`) to avoid fabricating novel lineages in communities weebill already fully explains. `pipe`/`renew` run weebill automatically whenever the metapackage bundles a weebill database; disable with `--no-weebill`. Add `--output-weebill-sketch`/`renew --input-weebill-sketch` to save/reuse a weebill read sketch without keeping the raw reads. Metapackage format bumped to v7 to bundle a two-stage weebill database (`metapackage --weebill-db`/`--weebill-c`).
+* `pipe`: Remove `--weebill-injection`; the joint SingleM + weebill deconvolution is now the only way weebill is integrated. `pipe` now raises an error if a taxonomic profile is requested and the metapackage bundles no weebill database, unless `--no-weebill` is given.
 * Archive OTU tables are now written at version 5, which stores the OTUs column-wise, stores fields that are constant across every OTU once rather than per OTU, and dereplicates read sequences into a shared list. Versions 1-4 are still read, and `ArchiveOtuTable` presents the same list of rows whichever version it read, but code that parses the JSON itself rather than going through `ArchiveOtuTable` needs updating - see the Archive OTU table entry in the glossary for the layout.
 * Archive OTU tables version 5 also add a `reads_with_repaired_deletions` field, recording which of an OTU's reads have an ambiguous base that frameshift repair inserted.
 * `pipe`: When processing one chunk of a dataset with `--read-chunk-size`/`--read-chunk-number`, the ambiguous bases left by frameshift repair are no longer resolved within the chunk. Which window a read ended up with otherwise depended on what else was in that chunk, so the chunks did not combine into the result the whole dataset would have given.
 * `pipe`: Fix the `nucleotides_aligned` of an archive OTU table being ordered independently of `read_names` and `read_unaligned_sequences`, which were sorted by read name while it was not. The two orders only differ when the reads of one OTU do not all have the same aligned length, which takes an insert column inside the window's span that is a gap in some of them, so this was rarely visible - but `renew` reads the three as parallel.
 * `summarise`: Add `--resolve-ambiguous-windows` (and `--max-frameshift-repair-divergence`), which resolves those bases while archive OTU tables are combined, where every chunk is present. Use it when combining the chunks of a dataset processed with `pipe --read-chunk-size`.
 * `summarise`: `--collapse-to-sample-name` and `--collapse-paired-with-unpaired-archive-otu-table` now combine archive OTU tables of different versions, rather than rejecting them. The output takes the newest version's fields, and OTUs from an older archive have no value for the fields that version lacked. Previously an archive made before this release could not be combined with one made after it.
-* `pipe`: Fix `--assignment-method annoy` failing outright on single-ended input with `UnboundLocalError: cannot access local variable 'read_name_to_fullseq'`. Pre-existing, and missed because the tests covering it are skipped unless `annoy` is installed, which it is not in CI.
-
 * `pipe`: Frameshift repair, which uses the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM, so reads carrying single base indels still yield a window, is now on by default. Substantially improves window recovery on Nanopore data, where indels rather than substitutions are the dominant error. Where a repaired deletion leaves a base of unknown identity, it is taken from the most abundant window within `--max-frameshift-repair-divergence` mismatches, and only for windows where repair actually inserted that base, not a pre-existing ambiguous base in the raw read. Disable with `--no-repair-frameshifts`. 
+* `condense`: Fix a bug where, in a multi-sample run, a weebill profile with hits for exactly one named sample had those hits reused for every other sample instead of being skipped for them.
+* `condense`: Normalize weebill's `Sample_file` column against SingleM sample IDs before matching, fixing a bug where multi-sample weebill profiles silently fell back to marker-only profiles for every sample.
+* `condense`: Fix `condense.py` assuming a bacteria/archaea metapackage, so it now works with eukaryote and other non-standard (e.g. plastid marker) SingleM packages.
+* `condense`: Fix a `ZeroDivisionError` when calculating the trimmed mean for a taxon whose domain has no genes listed.
+* `supplement`: Raise an error rather than silently carrying forward a stale weebill database when supplementing a metapackage that bundles one, since weebill has no way to add genomes to an existing database and the new genomes would be invisible to the joint profile.
+* `pipe`: Deduplicate identical read windows before sending them to the DIAMOND blastx fallback, cutting DIAMOND calls in proportion to sample redundancy; fix a resulting bug where pplacer-assigned reads were caught up in the deduplication, and fix the logged DIAMOND fallback OTU count/percentage.
+* `pipe`: Warn (rather than raising an opaque error) about corrupted/malformed reads encountered while parsing DIAMOND output.
+* `pipe`: Fix a deadlock where DIAMOND failure left background chunking/decompression processes blocked writing to a FIFO nobody was reading.
+* `pipe`: Use `awk` rather than `tail`/`head` for read chunking, avoiding a hang when the last chunk is shorter than the requested chunk size.
+* `prefilter`: Write DIAMOND prefilter database creation input to a tempfile rather than a pipe, avoiding a DIAMOND makedb bug.
+* `prefilter`: Only log DIAMOND stderr when DIAMOND actually fails, rather than on every run.
+* Add `prefilter-pad` mode (expert), which creates a prefilter FASTA with each on-target sequence padded to a fixed length with the window in a consistent position.
+* deps: Require DIAMOND >=2.2.3 (fixes issues with earlier versions).
+* `update_metapackage`: Migrate the Snakefile fully to pixi environments, removing the old per-rule conda envs.
+* `update_metapackage`: Always build the weebill database from `gtdb_genome_reps`, and source weebill from bioconda rather than requiring it on the `PATH` by hand.
+* `summarise`: Add `--output-cami-iii-gtdb-profile`, which converts a taxonomic profile into the [CAMI III GTDB taxonomic profiling format](https://cami-challenge.org/file-formats/#taxonomic-profiling), for benchmarking against other profilers with e.g. OPAL. Requires `--input-taxonomic-profiles`.
 
 ## v0.21.3
 
@@ -186,4 +202,3 @@ This release is equivalent to 1.0.0beta8, and is intended as a pre-release for v
 * Memory improvements for singlem makedb
 * db: Use and require the new diamond version / database format
 * summarise: Only output to a single html for --krona where possible
-

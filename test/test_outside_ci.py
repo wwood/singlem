@@ -400,7 +400,7 @@ ACACGGCCTTGACGGTCAATTTCAAGAACCTTAACTGGTACTTCTTGACCTTCAGTTAGGTAGTCAGACACTTTCTCAAC
             bad_fasta2.flush()
 
             # This should not raise an exception. Run singlem, outputing a taxonomic profile
-            cmd = "singlem pipe -1 {} -2 {} -p /dev/stdout".format(bad_fasta1.name, bad_fasta2.name)
+            cmd = "singlem pipe -1 {} -2 {} -p /dev/stdout --no-weebill".format(bad_fasta1.name, bad_fasta2.name)
             stdout = extern.run(cmd)
             self.assertEqual("sample\tcoverage\ttaxonomy\n", stdout)
 

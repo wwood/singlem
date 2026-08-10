@@ -1,5 +1,6 @@
 import gzip
 import logging
+import os
 import tempfile
 import zipfile
 
@@ -35,6 +36,7 @@ class Renew:
         viral_mode = kwargs.pop('viral_mode', False)
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
+        input_weebill_sketch = kwargs.pop('input_weebill_sketch', None)
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -193,15 +195,32 @@ class Renew:
                 exclude_off_target_hits)
         
         if output_taxonomic_profile or output_taxonomic_profile_krona:
-            from .condense import Condenser
+            from .condense import Condenser, DEFAULT_JOINT_CONDENSE_ARGUMENTS
+            from .weebill import WeebillProfiler
             otu_table_collection = StreamingOtuTableCollection()
             otu_table_collection.add_archive_otu_table_object(otu_table_object)
-            Condenser().condense(
-                input_streaming_otu_table = otu_table_collection,
-                output_otu_table = output_taxonomic_profile,
-                krona = output_taxonomic_profile_krona,
-                metapackage = metapackage,
-                viral_mode = viral_mode)
+
+            with tempfile.TemporaryDirectory(prefix='singlem-renew-weebill') as weebill_working_directory:
+                weebill_profile = None
+                use_joint = False
+                # Integrate weebill from a previously-saved sketch, so renew needs no
+                # access to the raw reads.
+                if input_weebill_sketch is not None:
+                    if len(metapackage.weebill_databases()) == 0:
+                        raise Exception("--input-weebill-sketch was given but the metapackage does not bundle a weebill database")
+                    weebill_profile = os.path.join(weebill_working_directory, 'weebill_annotated.tsv')
+                    WeebillProfiler().run_from_sketch(
+                        input_weebill_sketch, metapackage, threads, weebill_profile, weebill_working_directory)
+                    use_joint = True
+
+                Condenser().condense(
+                    input_streaming_otu_table = otu_table_collection,
+                    output_otu_table = output_taxonomic_profile,
+                    krona = output_taxonomic_profile_krona,
+                    metapackage = metapackage,
+                    viral_mode = viral_mode,
+                    weebill_profile = weebill_profile,
+                    **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if use_joint else {}))
 
         logging.info("Renew is finished")
 

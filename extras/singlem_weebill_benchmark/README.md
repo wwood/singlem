@@ -1,0 +1,48 @@
+# SingleM, SingleM+weebill, and weebill benchmark
+
+This workflow benchmarks three end-to-end profiling modes on the `known50`,
+`toy_sim`, and `known100` paired-read datasets in
+`~/m/msingle/mess/231_singlem2_messing_more`:
+
+The `known100` dataset is the `5_100_species_known` benchmark from
+`~/m/msingle/mess/231_singlem2_messing_more/singlem-benchmarking`: 100 GTDB r207
+species simulated from their representative genomes (so every species is present
+in the reference databases).
+
+- standard SingleM (`singlem pipe --no-weebill`), using the GTDB r207 SingleM
+  metapackage;
+- SingleM's joint weebill condense, with the weebill profile generated against
+  the same GTDB r207 database;
+- standalone `weebill profile --two-stage`, using
+  `/home/woodcrob/m/msingle/mess/230_weebill_r232/r207.100.syl2db`.
+
+`singlem pipe` writes a persistent archive OTU table to
+`results/archives/{dataset}.json`. Standard and joint-weebill condense are separate
+downstream rules that share this archive, so changes to condense do not rerun
+read processing. The joint rule also consumes a persistent r207-annotated
+weebill profile. Each rule uses 1 thread and a 1-hour limit. SingleM rules
+request at most 8 GB RAM and weebill requests 16 GB. Snakemake records wall
+time, CPU time, peak memory, and I/O in `results/benchmarks/`; the workflow
+combines the method benchmarks into `results/benchmark_summary.tsv` and records
+git revisions in `results/revisions.tsv`. Pipe timings are retained separately
+under `results/benchmarks/singlem_pipe/`.
+
+Accuracy is evaluated with OPAL following the workflow in
+`~/git/singlem-benchmarking`. Truth and predicted condensed profiles are
+converted with that repository's `bin/condensed_profile_to_biobox.py`, then
+OPAL reports are reduced to Bray-Curtis distance, F1 score, false-positive rate,
+and false-negative rate at genus and species ranks in
+`results/accuracy_summary.tsv`.
+
+Run each rule as its own aqua queue job:
+
+```bash
+PATH=/home/woodcrob/e/snakemake-v9.9.0/bin:$PATH \
+  snakemake --profile aqua --jobs 6
+```
+
+For a scheduler dry-run:
+
+```bash
+/home/woodcrob/e/snakemake-v9.9.0/bin/snakemake --dry-run
+```

@@ -12,7 +12,7 @@ from .rarefier import Rarefier
 from .ordered_set import OrderedSet
 from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD, NO_ASSIGNMENT_METHOD
-from .condense import CondensedCommunityProfile
+from .condense import CondensedCommunityProfile, CondensedCommunityProfileCamiIiiGtdbWriter
 from .frameshift_repair import (
     resolve_windows, AMBIGUOUS_CHAR, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
 
@@ -829,3 +829,21 @@ class Summariser:
                         num_printed += 1
 
         logging.info("Wrote {} lines of taxonomic profile with extras".format(num_printed))
+
+    @staticmethod
+    def write_cami_iii_gtdb_profile(**kwargs):
+        input_taxonomic_profile_files = kwargs.pop('input_taxonomic_profile_files')
+        output_io = kwargs.pop('output_cami_iii_gtdb_profile_io')
+        if len(kwargs) > 0:
+            raise Exception("Unexpected arguments detected: %s" % kwargs)
+
+        logging.info("Writing CAMI III GTDB taxonomic profile")
+
+        num_samples = 0
+        for profile_file in input_taxonomic_profile_files:
+            with open(profile_file) as f:
+                for profile in CondensedCommunityProfile.each_sample_wise(f):
+                    CondensedCommunityProfileCamiIiiGtdbWriter.write_profile([profile], output_io)
+                    num_samples += 1
+
+        logging.info("Wrote CAMI III GTDB taxonomic profile for {} sample(s)".format(num_samples))

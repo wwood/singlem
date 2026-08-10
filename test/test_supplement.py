@@ -84,6 +84,20 @@ class Tests(unittest.TestCase):
             self.assertEqual('test_supplement', mpkg.taxonomy_database_name())
             self.assertEqual('1.0', mpkg.taxonomy_database_version())
 
+    def test_weebill_db_in_input_metapackage_croaks(self):
+        with in_tempdir():
+            # Bundle a (dummy) weebill database into a copy of the input metapackage.
+            weebill_metapackage_cmd = (
+                f"{singlem} metapackage --singlem-packages {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/4.11.22seqs.gpkg.spkg "
+                f"--no-nucleotide-sdb --no-taxon-genome-lengths "
+                f"--weebill-db {os.path.join(os.path.dirname(__file__), 'data', 'dummy.syl2db')} --weebill-c 100 "
+                f"--metapackage with_weebill.smpkg")
+            extern.run(weebill_metapackage_cmd)
+
+            cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage with_weebill.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+            with self.assertRaises(extern.ExternCalledProcessError):
+                extern.run(cmd)
+
     def test_output_matched_protein_sequences(self):
         with in_tempdir():
             gene_definitions = os.path.join(os.getcwd(), 'gene_definitions.tsv')

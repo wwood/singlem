@@ -21,10 +21,14 @@ orfm = ">=2.1.1" #2.1.0 was fail.
 mfqe = "*"
 krona = "*"
 smafa = "*"
+# Needed for the joint SingleM + weebill taxonomic profile that pipe produces when
+# the metapackage bundles a weebill database (or run pipe with --no-weebill).
+weebill = ">=0.3.0"
 
 [feature.typical-python.dependencies]
 python = ">=3.7"
 sqlalchemy = "*"
+duckdb = "*"  # v7+ metapackage read-name taxonomy store
 bird_tool_utils_python = ">=0.6.0"
 pyranges = "*"
 polars = "*"
@@ -34,6 +38,8 @@ biopython = "*"
 extern = "*"
 zenodo_backpack = ">=0.4.0"
 graftm = "*"
+numpy = "*"
+scipy = "*"  # Used by condense --joint NNLS deconvolution
 
 # These dependencies are used alongside the "typical" ones listed above.
 [feature.main.dependencies]

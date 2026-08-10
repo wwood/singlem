@@ -66,7 +66,8 @@ def main():
 
     # Reuse pipe args from main
     common_pipe_arguments = pipe_parser.add_argument_group('Common options')
-    add_common_pipe_arguments(common_pipe_arguments, extra_args=True)
+    # weebill is not supported for viral profiling, so its arguments are left out.
+    add_common_pipe_arguments(common_pipe_arguments, extra_args=True, weebill=False)
 
     less_common_pipe_arguments = pipe_parser.add_argument_group('Less common options')
     add_less_common_pipe_arguments(less_common_pipe_arguments, extra_args=True)
@@ -79,13 +80,13 @@ def main():
     renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
-    add_common_pipe_arguments(renew_common)
+    add_common_pipe_arguments(renew_common, weebill=False)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
     add_less_common_pipe_arguments(renew_less_common)
 
     condense_description = 'Combine OTU tables across different markers into a single taxonomic profile. Modified for non-universal markers and requires a Lyrebird metapackage. Note that while this mode can be run independently, it is often more straightforward to invoke its methodology by specifying -p / --taxonomic-profile when running pipe mode.'
     condense_parser = bird_argparser.new_subparser('condense', condense_description)
-    add_condense_arguments(condense_parser)
+    add_condense_arguments(condense_parser, weebill=False)
 
     args = bird_argparser.parse_the_args()
     parse_genome_fasta_files(args)

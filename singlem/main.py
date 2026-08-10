@@ -66,7 +66,7 @@ def seqs(args):
     print(best_position)
 
 # Make pipe argument functions here so the code can be re-used between pipe and renew
-def add_common_pipe_arguments(argument_group, extra_args=False):
+def add_common_pipe_arguments(argument_group, extra_args=False, weebill=True):
     if extra_args:
         sequence_input_group = argument_group.add_mutually_exclusive_group(required=True)
         # Keep parity of these arguments with the 'read_fraction' command
@@ -96,8 +96,18 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
                 nargs='+',
                 metavar='sra_file',
                 help='"sra" format files (usually from NCBI SRA) to be searched')
-    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table. Taxonomic profiles output can be further converted to other formats using singlem summarise.")
+    argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table.{} Taxonomic profiles output can be further converted to other formats using singlem summarise.".format(
+        " When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile." if weebill else ""))
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
+    if weebill:
+        if extra_args:
+            argument_group.add_argument('--no-weebill', action='store_true',
+                help="Do not run weebill even if the metapackage bundles a weebill database, so the taxonomic profile comes from the marker genes alone.")
+            argument_group.add_argument('--output-weebill-sketch', metavar='DIRECTORY',
+                help="Save the weebill read sketch here, so it can later be passed to 'renew --input-weebill-sketch' without the raw reads. "
+                    "Written as compressed sketches (.sylspc) by default. For further compression, build a reference database with "
+                    "'sylph ref-build' and run 'weebill sketch --reference' yourself to produce smaller .sylspr sketches (not currently "
+                    "readable by 'renew --input-weebill-sketch').")
     argument_group.add_argument('--otu-table', metavar='filename', help='output OTU table')
     current_default = pipe.DEFAULT_THREADS
     argument_group.add_argument('--threads', type=int, metavar='num_threads', help='number of CPUS to use [default: %i]' % current_default, default=current_default)
@@ -263,7 +273,7 @@ def validate_pipe_args(args, subparser='pipe'):
         if args.read_chunk_size and args.genome_fasta_files:
             raise Exception("Can't use --read-chunk-size with input genomes currently")
 
-def add_condense_arguments(parser):
+def add_condense_arguments(parser, weebill=True):
     input_condense_arguments = parser.add_argument_group("Input arguments (1+ required)")
     input_condense_arguments.add_argument('--input-archive-otu-tables', '--input-archive-otu-table', nargs='+', help="Condense from these archive tables")
     input_condense_arguments.add_argument('--input-archive-otu-table-list',
@@ -283,6 +293,25 @@ def add_condense_arguments(parser):
         help='Set taxons with less coverage to coverage=0. [default: {}]'.format(current_default), default=current_default, type=float)
     current_default = CONDENSE_DEFAULT_TRIM_PERCENT
     optional_condense_arguments.add_argument('--trim-percent', type=float, default=current_default, help="percentage of markers to be trimmed for each taxonomy [default: {}]".format(current_default))
+    if weebill:
+        optional_condense_arguments.add_argument('--weebill-profile', metavar='filename',
+            help="pre-annotated weebill profile TSV (GTDB taxonomy + Eff_cov or True_cov columns). Species weebill detected but SingleM missed are injected into the profile. Running weebill with -u (--estimate-unknown), which reports True_cov, is recommended: its coverages are then already in SingleM's units and no alpha calibration is needed.")
+        optional_condense_arguments.add_argument('--alpha', type=float,
+            help="scale factor converting weebill effective coverage to SingleM coverage units when injecting weebill-only species. [default: 1 for a True_cov (weebill -u) profile, which needs no calibration; otherwise fit per sample by regression, or 1 when fewer than 3 species are detected by both tools at >= 10x SingleM coverage]")
+        optional_condense_arguments.add_argument('--joint', action='store_true',
+            help="jointly profile SingleM and weebill with an NNLS deconvolution instead of the default EM-based condense. Requires --weebill-profile.")
+        optional_condense_arguments.add_argument('--joint-l1-penalty', type=float, default=1.0,
+            help="[--joint] L1 sparsity penalty (controls pruning of low-coverage taxa) [default: 1.0]")
+        optional_condense_arguments.add_argument('--joint-absence-weight', type=float, default=100.0,
+            help="[--joint] weight suppressing species in the DB that weebill did not report [default: 100.0]")
+        optional_condense_arguments.add_argument('--joint-min-markers', type=int, default=3,
+            help="[--joint] minimum number of uniquely-assigned markers required for a taxon that weebill did not detect; taxa below this are set to zero coverage [default: 3]")
+        optional_condense_arguments.add_argument('--joint-pin-weebill-species', action='store_true',
+            help="[--joint] take species-level assignments from weebill alone: each weebill-detected species is fixed at its own coverage and every other database species is fixed to zero, leaving SingleM's markers to determine only the novel (higher-rank) coverage. Requires a well-calibrated alpha, so use a weebill -u profile or pass --alpha [default: off]")
+        optional_condense_arguments.add_argument('--joint-novel-budget', action='store_true',
+            help="[--joint] cap each domain's total novel coverage at what its markers imply is present but weebill did not account for, estimated as the trimmed mean of per-marker coverage over the domain's full marker complement. Suppresses novel lineages fabricated in communities that are already fully explained by weebill's species [default: off]")
+        optional_condense_arguments.add_argument('--joint-adaptive-weebill-weight', action='store_true',
+            help="[--joint] scale each species' deference to weebill by how well its own SingleM markers corroborate weebill's coverage: species whose markers agree with weebill are trusted more (better on known species), while those that disagree keep the base weight (protecting novel strains) [default: off]")
 
 def generate_streaming_otu_table_from_args(args,
     input_prefix=False, query_prefix=False, archive_only=False, min_archive_otu_table_version=None):
@@ -546,6 +575,7 @@ def main():
     # Note: num decimal places default should align with the default in summariser.py
     summarise_taxonomic_profile_output_args.add_argument('--num-decimal-places', metavar='INT', type=int, help="Number of decimal places to report in the coverage column of the --output-taxonomic-profile-with-extras [default: 2].")
     summarise_taxonomic_profile_output_args.add_argument('--output-taxonomic-level-coverage', metavar='FILE', help="Output summary of how much coverage has been assigned to each taxonomic level in a taxonomic profile to a TSV file.")
+    summarise_taxonomic_profile_output_args.add_argument('--output-cami-iii-gtdb-profile', metavar='FILE', help="Output taxonomic profile to this file in the CAMI III GTDB taxonomic profiling format (https://cami-challenge.org/file-formats/#taxonomic-profiling).")
     
     summarise_otu_table_input_args = summarise_parser.add_argument_group('OTU table input')
     summarise_otu_table_input_args.add_argument('--input-otu-tables', '--input-otu-table', nargs='+', help="Summarise these tables")
@@ -626,6 +656,7 @@ def main():
     renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
     renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
+    renew_input_args.add_argument('--input-weebill-sketch', metavar='PATH', help="A read sketch saved by 'pipe --output-weebill-sketch'. When the metapackage bundles a weebill database, this is profiled and integrated into the taxonomic profile, so renew does not need the raw reads.")
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
@@ -676,6 +707,8 @@ def main():
     metapackage_parser.add_argument('--no-nucleotide-sdb', action='store_true', help="Skip nucleotide SingleM database")
     metapackage_parser.add_argument('--taxon-genome-lengths', help="TSV file of genome lengths for each taxon")
     metapackage_parser.add_argument('--no-taxon-genome-lengths', action='store_true', help="Skip taxon genome lengths")
+    metapackage_parser.add_argument('--weebill-db', nargs='+', metavar='SYL2DB', help="One or more weebill two-stage databases (.syl2db, from 'weebill db-convert') to bundle into the metapackage, for joint SingleM + weebill profiling [default: none]")
+    metapackage_parser.add_argument('--weebill-c', nargs='+', type=int, metavar='C', help="The -c subsampling value each --weebill-db was built with, in the same order. One value per database; required when --weebill-db is given.")
     current_default = CUSTOM_TAXONOMY_DATABASE_NAME
     metapackage_parser.add_argument('--taxonomy-database-name', help='Name of the taxonomy database to use [default: %s]' % current_default, default=current_default)
     metapackage_parser.add_argument('--taxonomy-database-version', help='Version of the taxonomy database to use [default: unspecified]')
@@ -841,6 +874,8 @@ def main():
             context_window = args.context_window,
             repair_frameshifts = not args.no_repair_frameshifts,
             max_frameshift_repair_divergence = args.max_frameshift_repair_divergence,
+            no_weebill = args.no_weebill,
+            output_weebill_sketch = args.output_weebill_sketch,
         )
 
     elif args.subparser_name=='renew':
@@ -869,6 +904,7 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
+            input_weebill_sketch = args.input_weebill_sketch,
             )
 
     elif args.subparser_name == 'summarise':
@@ -899,6 +935,7 @@ def main():
         if args.output_taxonomic_level_coverage: num_output_types += 1
         if args.output_filled_taxonomic_profile: num_output_types += 1
         if args.output_taxonomic_profile_with_extras: num_output_types += 1
+        if args.output_cami_iii_gtdb_profile: num_output_types += 1
         if num_output_types != 1:
             raise Exception("Exactly 1 output type must be specified, sorry, %i were provided" % num_output_types)
         if not args.input_otu_tables and \
@@ -942,6 +979,8 @@ def main():
             raise Exception("--output-taxonomic-profile-with-extras requires --input-taxonomic-profiles to be defined")
         if args.num_decimal_places and not args.output_taxonomic_profile_with_extras:
             raise Exception("--num-decimal-places currently requires --output-taxonomic-profile-with-extras to be defined")
+        if args.output_cami_iii_gtdb_profile and not args.input_taxonomic_profiles:
+            raise Exception("--output-cami-iii-gtdb-profile requires --input-taxonomic-profiles to be defined")
 
         if args.stream_inputs or args.unaligned_sequences_dump_file:
             from singlem.otu_table_collection import StreamingOtuTableCollection
@@ -1138,6 +1177,11 @@ def main():
                         input_taxonomic_profile_files = args.input_taxonomic_profiles,
                         output_taxonomic_profile_extras_io = f,
                         num_decimal_places = args.num_decimal_places)
+            elif args.output_cami_iii_gtdb_profile:
+                with open(args.output_cami_iii_gtdb_profile, 'w') as f:
+                    Summariser.write_cami_iii_gtdb_profile(
+                        input_taxonomic_profile_files = args.input_taxonomic_profiles,
+                        output_cami_iii_gtdb_profile_io = f)
             else:
                 raise Exception("Expected --output-taxonomic-profile-krona or --output-site-by-species-relative-abundance or --output-taxonomic-level-coverage to be defined, since --input-taxonomic-profiles was defined")
 
@@ -1394,6 +1438,8 @@ def main():
                 diamond_taxonomy_assignment_performance_parameters = args.diamond_taxonomy_assignment_performance_parameters,
                 makeidx_sensitivity_params = args.makeidx_sensitivity_params,
                 calculate_average_num_genes_per_species = args.calculate_average_num_genes_per_species,
+                weebill_db = args.weebill_db,
+                weebill_c = args.weebill_c,
             )
 
     elif args.subparser_name == 'condense':
@@ -1411,7 +1457,16 @@ def main():
             output_otu_table = args.taxonomic_profile,
             krona = args.taxonomic_profile_krona,
             min_taxon_coverage = args.min_taxon_coverage,
-            output_after_em_otu_table = args.output_after_em_otu_table)
+            output_after_em_otu_table = args.output_after_em_otu_table,
+            weebill_profile = args.weebill_profile,
+            alpha = args.alpha,
+            joint = args.joint,
+            joint_l1_penalty = args.joint_l1_penalty,
+            joint_absence_weight = args.joint_absence_weight,
+            joint_min_markers = args.joint_min_markers,
+            joint_adaptive_weebill_weight = args.joint_adaptive_weebill_weight,
+            joint_pin_weebill_species = args.joint_pin_weebill_species,
+            joint_novel_budget = args.joint_novel_budget)
 
     elif args.subparser_name == 'trim_package_hmms':
         from singlem.trim_package_hmms import PackageHmmTrimmer
