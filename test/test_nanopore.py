@@ -32,15 +32,6 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data', 
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
-TEST_ANNOY = False
-try:
-    import annoy
-    TEST_ANNOY = True
-    print("annoy found, running relevant tests", file=sys.stderr)
-except ImportError:
-    print("WARNING: annoy not found, skipping relevant tests", file=sys.stderr)
-    pass
-
 class Tests(unittest.TestCase):
 
     path_to_fastas = 'test/data/nanopore/fastas'

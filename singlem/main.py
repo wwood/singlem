@@ -106,23 +106,15 @@ def add_common_pipe_arguments(argument_group, extra_args=False):
         '--assignment-method', '--assignment_method',
         choices=(
                 pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD,
-                pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD,
                 pipe.DIAMOND_ASSIGNMENT_METHOD,
                 pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD,
-                pipe.ANNOY_ASSIGNMENT_METHOD,
                 pipe.PPLACER_ASSIGNMENT_METHOD),
         help='Method of assigning taxonomy to OTUs and taxonomic profiles [default: %s]\n\n' % (current_default) +
             table_roff([
                 ["Method", "Description"],
                 [pipe.SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm (using the smafa implementation) over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
-                [pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using a brute force algorithm over all window sequences in the database, and if none are found use DIAMOND blastx of all reads from each OTU."],
-                [pipe.ANNOY_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using ANNOY rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
-                [pipe.SCANN_THEN_DIAMOND_ASSIGNMENT_METHOD, "Same as {}, except search using SCANN rather than using brute force. Requires a non-standard metapackage.".format(pipe.SCANN_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD)],
                 [pipe.DIAMOND_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU."],
                 [pipe.DIAMOND_EXAMPLE_BEST_HIT_ASSIGNMENT_METHOD, "DIAMOND blastx best hit(s) of all reads from each OTU, but report the best hit as a sequence ID instead of a taxonomy."],
-                [pipe.ANNOY_ASSIGNMENT_METHOD, "Search for the most similar window sequences <= 3bp different using ANNOY, otherwise no taxonomy is assigned. Requires a non-standard metapackage."],
                 [pipe.PPLACER_ASSIGNMENT_METHOD, "Use pplacer to assign taxonomy of each read in each OTU. Requires a non-standard metapackage."]
             ]),
         default=current_default)
@@ -495,16 +487,12 @@ def main():
     current_default = ['smafa-naive']
     makedb_other_args.add_argument('--sequence-database-methods',
         nargs='+',
-        choices = ['smafa-naive','annoy','scann','nmslib','scann-naive','none'],
+        choices = ['smafa-naive','none'],
         default = current_default,
-        help='Index sequences using these methods. Note that specifying "scann-naive" means "scann" databases will also be built [default {}]'.format(current_default))
+        help='Index sequences using these methods [default {}]'.format(current_default))
     current_default = ['nucleotide']
     makedb_other_args.add_argument('--sequence-database-types', help='Index sequences using these types. [default: {}]'.format(current_default), nargs='+', default=['nucleotide'], choices=['nucleotide','protein'])
     makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
-    DEFAULT_ANNOY_NUCLEOTIDE_NTREES = 10
-    makedb_other_args.add_argument('--num-annoy-nucleotide-trees', help='make annoy nucleotide sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_NUCLEOTIDE_NTREES),default=DEFAULT_ANNOY_NUCLEOTIDE_NTREES,type=int)
-    DEFAULT_ANNOY_PROTEIN_NTREES = 10
-    makedb_other_args.add_argument('--num-annoy-protein-trees', help='make annoy protein sequence indices with this ntrees [default {}]'.format(DEFAULT_ANNOY_PROTEIN_NTREES),default=DEFAULT_ANNOY_PROTEIN_NTREES,type=int)
     makedb_other_args.add_argument('--tmpdir', help='[for internal usage] use this directory internally for working')
 
     query_description = 'Find closely related sequences in a SingleM database.'
@@ -521,12 +509,12 @@ def main():
     query_otu_args.add_argument('--max-nearest-neighbours', help="How many nearest neighbours to report. Each neighbour is a distinct sequence from the DB. [default: {}]".format(current_default), type=int, default=current_default)
     query_otu_args.add_argument('--max-divergence', metavar='INT', help="Report sequences less than or equal to this divergence i.e. number of different bases/amino acids", type=int)
     current_default = 'smafa-naive'
-    query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['smafa-naive','nmslib','annoy','scann','scann-naive'])
+    query_otu_args.add_argument('--search-method', help="Algorithm to perform search [default: {}]".format(current_default), default=current_default, choices=['smafa-naive'])
     current_default = 'nucleotide'
     query_otu_args.add_argument('--sequence-type', help="Which sequence types to compare (i.e. protein for blastp, nucleotide for blastn) [default: {}]".format(current_default), default=current_default,
         choices=['nucleotide','protein'])
     current_default = 100
-    query_otu_args.add_argument('--max-search-nearest-neighbours', help="How many nearest neighbours to search for with approximate nearest neighbours. Of these hits, only --max-nearest-neighbours will actually be reported. Ignored for --search-method naive and scann-naive. [default: {}]".format(current_default), type=int, default=current_default)
+    query_otu_args.add_argument('--max-search-nearest-neighbours', help="How many nearest neighbours to search before limiting results with --max-nearest-neighbours. [default: {}]".format(current_default), type=int, default=current_default)
     # query_otu_args.add_argument('--stream-output','--stream_output', help='Stream output. Results may not be sorted by divergence [default: do not]', action='store_true')
     current_default = 1
     query_otu_args.add_argument('--threads', help='Use this many threads where possible [default %i]' % current_default, default=current_default)
@@ -1469,8 +1457,6 @@ def main():
             otus,
             num_threads=args.threads,
             pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
-            num_annoy_nucleotide_trees=args.num_annoy_nucleotide_trees,
-            num_annoy_protein_trees=args.num_annoy_protein_trees,
             tmpdir = args.tmpdir,
             sequence_database_methods = sequence_database_methods,
             sequence_database_types = args.sequence_database_types)

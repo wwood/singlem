@@ -42,13 +42,6 @@ from singlem.sequence_classes import SeqReader
 from singlem.archive_otu_table import ArchiveOtuTable
 
 TEST_ANNOY = False
-try:
-    import annoy
-    TEST_ANNOY = True
-    print("annoy found, running relevant tests", file=sys.stderr)
-except ImportError:
-    print("WARNING: annoy not found, skipping relevant tests", file=sys.stderr)
-    pass
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')

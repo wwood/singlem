@@ -33,33 +33,9 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)),'..')]+sys.path
 
-TEST_NMSLIB = False
-try:
-    import nmslib
-    TEST_NMSLIB = True
-    print("nmslib found, running relevant tests", file=sys.stderr)
-except ImportError:
-    print("WARNING: nmslib not found, skipping relevant tests", file=sys.stderr)
-    pass
-
-TEST_SCANN = False
-try:
-    import scann
-    TEST_SCANN = True
-    print("scann found, running relevant tests", file=sys.stderr)
-except ImportError:
-    print("WARNING: scann not found, skipping relevant tests", file=sys.stderr)
-    pass
-
-TEST_ANNOY = False
-try:
-    import annoy
-    TEST_ANNOY = True
-    print("annoy found, running relevant tests", file=sys.stderr)
-except ImportError:
-    print("WARNING: annoy not found, skipping relevant tests", file=sys.stderr)
-    pass
-
+# Tests for the removed optional index backends are retained temporarily as
+# historical coverage, but must never be selected.
+TEST_NMSLIB = TEST_SCANN = TEST_ANNOY = False
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
@@ -98,13 +74,6 @@ class Tests(unittest.TestCase):
     def test_makedb_query_methanobacteria(self):
         with tempfile.TemporaryDirectory() as d:
             methods = ['smafa-naive']
-            if TEST_NMSLIB:
-                methods.append('nmslib')
-            if TEST_SCANN:
-                methods.append('scann')
-                methods.append('scann-naive')
-            if TEST_ANNOY:
-                methods.append('annoy')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s" %(
                 path_to_script,
                 d,
@@ -173,13 +142,6 @@ class Tests(unittest.TestCase):
     def test_limit_per_sequence(self):
         with tempfile.TemporaryDirectory() as d:
             methods = ['smafa-naive']
-            if TEST_NMSLIB:
-                methods.append('nmslib')
-            if TEST_SCANN:
-                methods.append('scann')
-                methods.append('scann-naive')
-            if TEST_ANNOY:
-                methods.append('annoy')
             cmd = "%s makedb --db %s/db --otu-table %s/methanobacteria/otus.transcripts.on_target.csv --sequence-database-methods %s --sequence-database-types nucleotide protein" %(path_to_script,
                                                             d,
                                                             path_to_data,
