@@ -82,8 +82,8 @@ class Tests(unittest.TestCase):
         self.assertIn(' -u ', cmd)  # -u, so coverages are on SingleM's scale
         self.assertIn(' -c 100 ', cmd)  # the -c the database was built at
         self.assertIn(' -t 4 ', cmd)
-        self.assertIn(' -1 r.1.fq.gz -2 r.2.fq.gz ', cmd)
-        self.assertTrue(cmd.endswith('/db/gtdb.syl2db'))
+        self.assertTrue(cmd.endswith(' -1 r.1.fq.gz -2 r.2.fq.gz'))
+        self.assertIn('/db/gtdb.syl2db', cmd)
 
         # The unknown-corrected column is carried through annotation, since it is
         # the only record that -u was in effect.
@@ -96,7 +96,7 @@ class Tests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='singlem-weebill-test') as d:
             WeebillProfiler().run_from_reads(
                 ['r.fq.gz'], None, self._metapackage(), 1, os.path.join(d, 'annotated.tsv'), d)
-        self.assertIn(' -r r.fq.gz ', runner.commands[0])
+        self.assertTrue(runner.commands[0].endswith(' -r r.fq.gz'))
 
     def test_run_from_reads_saving_sketches_sketches_first(self):
         runner = _RecordingRunner()

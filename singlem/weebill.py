@@ -132,9 +132,9 @@ class WeebillProfiler:
         if not forward_reads:
             raise Exception("No reads provided to weebill profile")
         logging.info("Profiling reads against {} weebill database(s) ..".format(len(databases)))
-        extern.run("weebill profile --two-stage -u -c {} -t {} -o {}{} {}".format(
-            c, threads, output_tsv, self._read_arguments(forward_reads, reverse_reads),
-            ' '.join(databases)))
+        extern.run("weebill profile --two-stage {} -u -c {} -t {} -o {}{}".format(
+            ' '.join(databases), c, threads, output_tsv, 
+            self._read_arguments(forward_reads, reverse_reads)))
         return output_tsv
 
     def _profile_sketches(self, sketches, databases, threads, output_tsv):

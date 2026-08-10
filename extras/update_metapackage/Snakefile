@@ -84,7 +84,8 @@ wildcard_constraints:
     genome = r"(archaea|bacteria)/\w+.\d+_protein.faa"
 
 def get_mem_mb(wildcards, threads, attempt):
-    return 8 * 1000 * threads * attempt
+    # create singlem metapackage - some die on 8G, so just go straight to 16.
+    return 16 * 1000 * threads * attempt
 
 rule all:
     input:
