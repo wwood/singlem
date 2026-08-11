@@ -1,3 +1,10 @@
+## v0.21.4
+
+* `pipe`: Avoid a potential deadlock during DIAMOND prefiltering of large metagenomes by safely capturing DIAMOND's stderr output.
+* `pipe`: Improve compatibility with recent DIAMOND versions by building temporary prefilter databases from a FASTA file rather than stdin.
+* `pipe`: Report a clearer error when malformed DIAMOND output may indicate corrupted FASTA/FASTQ input. Thanks @CarloCroci for reporting #301.
+* `pipe`: Correct the OTU count and percentage logged when DIAMOND is used as a fallback after smafa taxonomic assignment.
+
 ## v0.21.3
 
 * Fix PyPI dependency list by generating `admin/requirements.txt` in CI before the wheel build; previous releases shipped without dependencies because the generated file was never committed to release tags.
@@ -174,4 +181,3 @@ This release is equivalent to 1.0.0beta8, and is intended as a pre-release for v
 * Memory improvements for singlem makedb
 * db: Use and require the new diamond version / database format
 * summarise: Only output to a single html for --krona where possible
-
