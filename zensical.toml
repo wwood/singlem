@@ -1,0 +1,81 @@
+[project]
+site_name = "SingleM"
+site_url = "https://wwood.github.io/singlem/"
+site_description = "Novelty-inclusive microbial community profiling"
+repo_url = "https://github.com/wwood/singlem"
+repo_name = "wwood/singlem"
+copyright = "SingleM is licensed under GPL-3.0-or-later."
+exclude_docs = """
+AGENTS.md
+FAQ.md
+Glossary.md
+Installation.md
+Installation.md.in
+Lyrebird.md
+README.md
+SKILL.md
+SKILL.md.in
+advanced/
+preludes/
+tools/
+"""
+
+nav = [
+  { "Home" = "index.md" },
+  { "Tutorial" = "tutorial.md" },
+  { "How-to guides" = [
+    { "Download reference data" = "how-to/download-reference-data.md" },
+    { "Profile metagenomes" = "how-to/profile-metagenomes.md" },
+    { "Profile genomes and assemblies" = "how-to/profile-genomes-and-assemblies.md" },
+    { "Profile phages" = "how-to/profile-phages.md" },
+    { "Process multiple samples" = "how-to/process-multiple-samples.md" },
+    { "Visualise a profile" = "how-to/visualise-a-profile.md" },
+    { "Create abundance tables" = "how-to/create-abundance-tables.md" },
+    { "Convert profiles for CAMI" = "how-to/convert-profiles-for-cami.md" },
+    { "Transform OTU tables" = "how-to/transform-otu-tables.md" },
+    { "Calculate beta diversity" = "how-to/calculate-beta-diversity.md" },
+    { "Estimate the prokaryotic fraction" = "how-to/estimate-the-prokaryotic-fraction.md" },
+    { "Appraise genome recovery" = "how-to/appraise-genome-recovery.md" },
+    { "Update taxonomy" = "how-to/update-taxonomy.md" },
+    { "Add genomes to a metapackage" = "how-to/add-genomes-to-a-metapackage.md" },
+    { "Search OTU sequences" = "how-to/search-otu-sequences.md" },
+    { "Create a SingleM package" = "how-to/create-a-singlem-package.md" },
+    { "Create or inspect a metapackage" = "how-to/create-or-inspect-a-metapackage.md" },
+    { "Use a 16S package" = "how-to/use-a-16s-package.md" },
+  ] },
+  { "Reference" = [
+    { "SingleM" = [
+      { "data" = "reference/singlem-data.md" }, { "pipe" = "reference/singlem-pipe.md" },
+      { "appraise" = "reference/singlem-appraise.md" }, { "summarise" = "reference/singlem-summarise.md" },
+      { "prokaryotic_fraction" = "reference/singlem-prokaryotic_fraction.md" }, { "renew" = "reference/singlem-renew.md" },
+      { "supplement" = "reference/singlem-supplement.md" }, { "makedb" = "reference/singlem-makedb.md" },
+      { "query" = "reference/singlem-query.md" }, { "condense" = "reference/singlem-condense.md" },
+      { "seqs" = "reference/singlem-seqs.md" }, { "create" = "reference/singlem-create.md" },
+      { "regenerate" = "reference/singlem-regenerate.md" }, { "metapackage" = "reference/singlem-metapackage.md" },
+      { "get_tree" = "reference/singlem-get_tree.md" }, { "chainsaw" = "reference/singlem-chainsaw.md" },
+      { "trim_package_hmms" = "reference/singlem-trim_package_hmms.md" }, { "prefilter-pad" = "reference/singlem-prefilter-pad.md" },
+      { "microbial_fraction (deprecated)" = "reference/singlem-microbial_fraction.md" },
+    ] },
+    { "Lyrebird" = [
+      { "data" = "reference/lyrebird-data.md" }, { "pipe" = "reference/lyrebird-pipe.md" },
+      { "renew" = "reference/lyrebird-renew.md" }, { "condense" = "reference/lyrebird-condense.md" },
+    ] },
+  ] },
+  { "Explanation" = [
+    { "OTU tables" = "explanation/otu-tables.md" },
+    { "The 60 bp window" = "explanation/marker-window.md" },
+    { "SingleM prokaryotic fraction" = "explanation/spf.md" },
+    { "Condense and taxonomic profiles" = "explanation/condense.md" },
+  ] },
+]
+
+[project.theme]
+language = "en"
+favicon = "_include/favicon.ico"
+features = ["content.code.copy", "navigation.sections", "navigation.top", "search.highlight"]
+
+[project.markdown_extensions]
+attr_list = {}
+toc = { permalink = true }
+pymdownx.highlight = {}
+pymdownx.superfences = {}

@@ -84,10 +84,19 @@ setuptools-scm = "*"
 gtdbtk = "==2.4.1" # Must match the version of GTDB release used to make the default metapackage.
 kingfisher = "*"
 
+[feature.docs.dependencies]
+python = ">=3.10"
+zensical = "*"
+pandoc = "*"
+
+[feature.docs.pypi-dependencies]
+singlem = {path = ".", editable = true}
+
 [environments]
 default = ["main", "typical-non-python", "typical-python"]
 dev = ["dev", "main", "typical-non-python", "typical-python"]
 typical = ["typical-non-python", "typical-python"]
+docs = ["docs", "typical-non-python", "typical-python"]
 
 [tasks]
 test-base = "pytest test"
@@ -96,3 +105,7 @@ test-base = "pytest test"
 depends-on = [
     {task = "test-base", environment = "dev"},
 ]
+
+[feature.docs.tasks]
+generate-docs-reference = "python bin/generate_docs_reference.py"
+docs-build = { cmd = "zensical build --clean && python bin/add_docs_redirects.py", depends-on = ["generate-docs-reference"] }
