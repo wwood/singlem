@@ -11,7 +11,7 @@ pyarrow==24.0.0
 pyranges==0.1.4
 seqmagick==0.8.6
 SQLAlchemy==2.0.49
-sqlparse==0.5.5
+sqlparse==0.6.0
 squarify==0.4.3
 tqdm==4.67.3
 zenodo_backpack==0.4.0
