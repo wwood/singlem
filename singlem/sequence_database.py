@@ -8,14 +8,12 @@ import json
 import itertools
 import csv
 import extern
+import duckdb
 import numpy as np
-
-from sqlalchemy import create_engine, select, distinct
 
 import Bio.Data.CodonTable
 
 from .otu_table import OtuTable
-from .singlem_database_models import NucleotideSequence, NucleotidesProteins, ProteinSequence, Taxonomy, Otu, Marker
 from .otu_table_entry import OtuTableEntry
 
 DEFAULT_NUM_THREADS = 1
@@ -26,15 +24,16 @@ NUCLEOTIDE_DATABASE_TYPE = 'nucleotide'
 PROTEIN_DATABASE_TYPE = 'protein'
 
 class SequenceDatabase:
-    version = 5
+    version = 6
     SQLITE_DB_NAME = 'otus.sqlite3'
+    DUCKDB_NAME = 'otus.duckdb'
     _marker_to_smafa_naive_nucleotide_index_file = {}
 
     _CONTENTS_FILE_NAME = 'CONTENTS.json'
 
     VERSION_KEY = 'singlem_database_version'
 
-    _REQUIRED_KEYS = {5: [VERSION_KEY]}
+    _REQUIRED_KEYS = {5: [VERSION_KEY], 6: [VERSION_KEY]}
 
     NUCLEOTIDE_TYPE = 'nucleotide'
     PROTEIN_TYPE = 'protein'
@@ -45,16 +44,45 @@ class SequenceDatabase:
     def get_marker_via_cache(self, marker_id):
         if self._marker_cache is None:
             logging.info('Loading marker cache')
-            with self.engine.connect() as conn:
-                self._marker_cache = Marker.generate_python_index(conn)
+            self._marker_cache = self._id_index('markers', 'marker')
         return self._marker_cache[marker_id]
 
     def get_taxonomy_via_cache(self, taxonomy_id):
         if self._taxonomy_cache is None:
             logging.debug('Loading taxonomy cache')
-            with self.engine.connect() as conn:
-                self._taxonomy_cache = Taxonomy.generate_python_index(conn)
+            self._taxonomy_cache = self._id_index('taxonomy', 'taxonomy')
         return self._taxonomy_cache[taxonomy_id]
+
+    def _connect(self):
+        if self._backend == 'duckdb':
+            return duckdb.connect(self.database_file, read_only=True)
+        return sqlite3.connect('file:{}?mode=ro'.format(self.database_file), uri=True)
+
+    def fetchall(self, sql, parameters=()):
+        with self._connect() as connection:
+            return connection.execute(sql, parameters).fetchall()
+
+    def fetchone(self, sql, parameters=()):
+        with self._connect() as connection:
+            return connection.execute(sql, parameters).fetchone()
+
+    def _id_index(self, table, value_column):
+        rows = self.fetchall('SELECT id, {} FROM {} ORDER BY id'.format(value_column, table))
+        entries = [None] * ((rows[-1][0] + 1) if rows else 0)
+        for identifier, value in rows:
+            entries[identifier] = value
+        return entries
+
+    def marker_id(self, marker):
+        row = self.fetchone('SELECT id FROM markers WHERE marker = ?', (marker,))
+        return None if row is None else row[0]
+
+    @staticmethod
+    def _duckdb_copy_tsv(connection, table, path):
+        # DuckDB's CSV sniffer rejects a zero-byte file. Empty SDBs are valid
+        # and are used by appraiser when no suitable marker is found.
+        if os.path.getsize(path) > 0:
+            connection.execute("COPY {} FROM ? (DELIMITER '\\t', HEADER false)".format(table), [path])
 
     def add_sequence_db(self, marker_name, db_path, index_format, sequence_type):
         if index_format == SMAFA_NAIVE_INDEX_FORMAT:
@@ -107,7 +135,7 @@ class SequenceDatabase:
             if found_version < min_version:
                 raise Exception("SingleM database version {} is too old for this operations. Version {} or newer is required.".format(
                     found_version, min_version))
-        if found_version == 5:
+        if found_version in (5, 6):
             for key in SequenceDatabase._REQUIRED_KEYS[found_version]:
                 if key not in db._contents_hash:
                     raise Exception(
@@ -116,9 +144,10 @@ class SequenceDatabase:
         else:
             raise Exception("Unexpected SingleM DB version found: {}".format(found_version))
 
-        db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
-        db.engine = create_engine("sqlite:///" + db.sqlite_file)
-        db.sqlalchemy_connection = db.engine.connect()
+        db._backend = 'duckdb' if found_version >= 6 else 'sqlite'
+        db.database_file = os.path.join(path, SequenceDatabase.DUCKDB_NAME if found_version >= 6 else SequenceDatabase.SQLITE_DB_NAME)
+        if not os.path.isfile(db.database_file):
+            raise Exception("Failed to find relational database file in SingleM DB {}".format(db.database_file))
 
         smafa_naive_nucleotide_index_files = glob.glob("%s/nucleotide_indices_smafa_naive/*" % path)
         logging.debug("Found smafa-naive: %s" % ", ".join(smafa_naive_nucleotide_index_files))
@@ -139,7 +168,6 @@ class SequenceDatabase:
         db_path,
         otu_table_collection, 
         num_threads=DEFAULT_NUM_THREADS,
-        pregenerated_sqlite3_db=None,
         tmpdir=None,
         sequence_database_methods = [SMAFA_NAIVE_INDEX_FORMAT],
         sequence_database_types = [NUCLEOTIDE_DATABASE_TYPE]):
@@ -163,20 +191,10 @@ class SequenceDatabase:
         contents_file_path = os.path.join(db_path, SequenceDatabase._CONTENTS_FILE_NAME)
         with open(contents_file_path, 'w') as f:
             json.dump({
-                SequenceDatabase.VERSION_KEY: 5,
+                SequenceDatabase.VERSION_KEY: 6,
             }, f)
 
-        if pregenerated_sqlite3_db:
-            logging.info("Re-using previous SQLite database {}".format(pregenerated_sqlite3_db))
-            sqlite_db_path = pregenerated_sqlite3_db
-
-            # Symlink instead of cp to the old otus.sqlite3 because the main use
-            # case for this is messing with the nmslib/annoy DB creation
-            # parameters.
-            from pathlib import Path
-            Path(os.path.join(db_path,'otus.sqlite3')).symlink_to(os.path.abspath(pregenerated_sqlite3_db))
-
-        else:
+        if True:
             # Dumping the table into SQL and then modifying it form there is
             # taking too long (or I don't understand SQL well enough). The main
             # issue is that creating a table with (id, sequence) take a while to
@@ -228,13 +246,13 @@ class SequenceDatabase:
                             proc.returncode, proc.stderr.read()))
                 proc.stderr.close()
 
-                logging.info("Loading taxonomy table ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE taxonomy (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " taxonomy text);\n"
-                        '.separator "\\t"\n'
-                        ".import {} taxonomy".format(taxonomy_loading_path))
+                logging.info("Loading taxonomy table into DuckDB ..")
+                duckdb_path = os.path.join(db_path, SequenceDatabase.DUCKDB_NAME)
+                db = duckdb.connect(duckdb_path)
+                # Preserve legacy behavior: a blank taxonomy field is imported
+                # as NULL by DuckDB and is valid input to appraiser.
+                db.execute("CREATE TABLE taxonomy (id INTEGER PRIMARY KEY, taxonomy VARCHAR)")
+                SequenceDatabase._duckdb_copy_tsv(db, 'taxonomy', taxonomy_loading_path)
                 logging.info("Loaded {} taxonomy entries".format(len(taxonomy_name_to_id)))
 
 
@@ -293,34 +311,20 @@ class SequenceDatabase:
                 proc.stderr.close()
 
                 #################################################################
-                logging.info("Importing OTU table into SQLite ..")
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE otus (id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                        " sample_name text, num_hits int, coverage float, taxonomy_id int, marker_id int, sequence_id int, sequence text, marker_wise_sequence_id int);\n"
-                        '.separator "\\t"\n'
-                        ".import {} otus".format(numbered_table_file))
+                logging.info("Importing OTU table into DuckDB ..")
+                db.execute("CREATE TABLE otus (id INTEGER PRIMARY KEY, sample_name VARCHAR NOT NULL, num_hits INTEGER NOT NULL, coverage DOUBLE NOT NULL, taxonomy_id INTEGER NOT NULL, marker_id INTEGER NOT NULL, sequence_id INTEGER NOT NULL, sequence VARCHAR NOT NULL, marker_wise_sequence_id INTEGER NOT NULL)")
+                SequenceDatabase._duckdb_copy_tsv(db, 'otus', numbered_table_file)
 
-                logging.info("Importing markers table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE markers (id INTEGER PRIMARY KEY,"
-                        " marker text);\n"
-                        '.separator "\\t"\n'
-                        ".import {} markers".format(numbered_markers_file))
+                logging.info("Importing markers table into DuckDB ..")
+                db.execute("CREATE TABLE markers (id INTEGER PRIMARY KEY, marker VARCHAR NOT NULL)")
+                SequenceDatabase._duckdb_copy_tsv(db, 'markers', numbered_markers_file)
 
-                logging.info("Importing sequence table into SQLite ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE nucleotides (id INTEGER PRIMARY KEY,"
-                        " marker_id int, sequence text, marker_wise_id int);\n"
-                        '.separator "\\t"\n'
-                        ".import {} nucleotides".format(numbered_sequences_file))
+                logging.info("Importing sequence table into DuckDB ..")
+                db.execute("CREATE TABLE nucleotides (id INTEGER PRIMARY KEY, marker_id INTEGER NOT NULL, sequence VARCHAR NOT NULL, marker_wise_id INTEGER NOT NULL)")
+                SequenceDatabase._duckdb_copy_tsv(db, 'nucleotides', numbered_sequences_file)
 
 
                 logging.info("Creating SQL indexes on otus ..")
-                sqlite_db_path = os.path.join(db_path, SequenceDatabase.SQLITE_DB_NAME)
-                logging.debug("Connecting to db %s" % sqlite_db_path)
-                db = sqlite3.connect(sqlite_db_path)
                 c = db.cursor()
 
                 c.execute("CREATE INDEX otu_sample_name on otus (sample_name)")
@@ -338,7 +342,6 @@ class SequenceDatabase:
 
                 logging.info("Creating SQL indexes on taxonomy ..")
                 c.execute("CREATE INDEX taxonomy_taxonomy on taxonomy (taxonomy)")
-                db.commit()
 
 
                 logging.info("Creating sorted protein sequences data ..")
@@ -395,30 +398,19 @@ class SequenceDatabase:
                                     last_marker_wise_protein_id += 1
                                 print("\t".join([str(i), nucleotide_id, str(last_protein_id)]), file=nucleotide_proteins_file_io)
                 logging.info("Running imports of proteins and protein_nucleotides ..")
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE proteins ("
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "marker_wise_id INTEGER, "
-                    "protein_sequence text);\n"
-                        '.separator "\\t"\n'
-                        ".import {} proteins".format(proteins_file))
-                extern.run('sqlite3 {}'.format(sqlite_db_path), stdin= \
-                    "CREATE TABLE nucleotides_proteins ("
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-                    "nucleotide_id int,"
-                    "protein_id int);\n"
-                        '.separator "\\t"\n'
-                        ".import {} nucleotides_proteins".format(nucleotide_proteins_file))
+                db.execute("CREATE TABLE proteins (id INTEGER PRIMARY KEY, marker_wise_id INTEGER NOT NULL, protein_sequence VARCHAR NOT NULL)")
+                SequenceDatabase._duckdb_copy_tsv(db, 'proteins', proteins_file)
+                db.execute("CREATE TABLE nucleotides_proteins (id INTEGER PRIMARY KEY, nucleotide_id INTEGER NOT NULL, protein_id INTEGER NOT NULL)")
+                SequenceDatabase._duckdb_copy_tsv(db, 'nucleotides_proteins', nucleotide_proteins_file)
 
                 logging.info("Creating proteins indices ..")
                 c.execute("CREATE INDEX proteins_sequence on proteins (protein_sequence)")
                 c.execute("CREATE INDEX proteins_marker_wise_id on proteins (marker_wise_id)")
-                db.commit()
 
                 logging.info("Creating nucleotides_proteins indices ..")
                 c.execute("CREATE INDEX nucleotides_proteins_protein_id on nucleotides_proteins (protein_id)")
                 c.execute("CREATE INDEX nucleotides_proteins_nucleotide_id on nucleotides_proteins (nucleotide_id)")
-                db.commit()
+                db.close()
             
 
         # Create sequence indices
@@ -434,18 +426,14 @@ class SequenceDatabase:
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_smafa_naive')
         os.makedirs(nucleotide_db_dir)
         
-        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
-            marker_name = marker_row.marker
+        for marker_id, marker_name in self.fetchall('SELECT id, marker FROM markers'):
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
             with tempfile.NamedTemporaryFile(prefix='singlem-smafa-create-', suffix='.fasta') as fasta_file:
-                for row in self.sqlalchemy_connection.execute(select(
-                    NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                    .where(NucleotideSequence.marker_id == marker_row.id)
-                    .order_by(NucleotideSequence.marker_wise_id)):
-
-                    fasta_file.write(str.encode(">{}\n{}\n".format(row.marker_wise_id, row.sequence)))
+                for sequence, marker_wise_id in self.fetchall(
+                        'SELECT sequence, marker_wise_id FROM nucleotides WHERE marker_id = ? ORDER BY marker_wise_id', (marker_id,)):
+                    fasta_file.write(str.encode(">{}\n{}\n".format(marker_wise_id, sequence)))
                     count += 1
                 fasta_file.flush()
 
@@ -460,18 +448,15 @@ class SequenceDatabase:
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_nmslib')
         os.makedirs(nucleotide_db_dir)
         
-        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+        for marker_id, marker_name in self.fetchall('SELECT id, marker FROM markers'):
             nucleotide_index = SequenceDatabase._nucleotide_nmslib_init()
 
-            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.sqlalchemy_connection.execute(select(
-                NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                .where(NucleotideSequence.marker_id == marker_row.id)):
-
-                nucleotide_index.addDataPoint(row.marker_wise_id, nucleotides_to_binary(row.sequence))
+            for sequence, marker_wise_id in self.fetchall(
+                    'SELECT sequence, marker_wise_id FROM nucleotides WHERE marker_id = ?', (marker_id,)):
+                nucleotide_index.addDataPoint(marker_wise_id, nucleotides_to_binary(sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -487,19 +472,17 @@ class SequenceDatabase:
         logging.info("Creating nmslib protein sequence indices ..")
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_nmslib')
         os.makedirs(protein_db_dir)
-        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+        for marker_id, marker_name in self.fetchall('SELECT id, marker FROM markers'):
             protein_index = SequenceDatabase._protein_nmslib_init()
 
-            marker_name = marker_row.marker
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.sqlalchemy_connection.execute(select(
-                distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
-                    .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
-                    .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                    .where(NucleotideSequence.marker_id == marker_row.id)):
-                protein_index.addDataPoint(row.marker_wise_id, protein_to_binary(row.protein_sequence))
+            for marker_wise_id, protein_sequence in self.fetchall(
+                    'SELECT DISTINCT p.marker_wise_id, p.protein_sequence FROM proteins p '
+                    'JOIN nucleotides_proteins np ON p.id = np.protein_id '
+                    'JOIN nucleotides n ON np.nucleotide_id = n.id WHERE n.marker_id = ?', (marker_id,)):
+                protein_index.addDataPoint(marker_wise_id, protein_to_binary(protein_sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -516,18 +499,15 @@ class SequenceDatabase:
         nucleotide_db_dir = os.path.join(self.base_directory, 'nucleotide_indices_annoy')
         os.makedirs(nucleotide_db_dir)
 
-        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+        for marker_id, marker_name in self.fetchall('SELECT id, marker FROM markers'):
             annoy_index = self._nucleotide_annoy_init()
 
-            marker_name = marker_row.marker
             logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.sqlalchemy_connection.execute(select(
-                NucleotideSequence.sequence, NucleotideSequence.marker_wise_id) \
-                .where(NucleotideSequence.marker_id == marker_row.id)):
-
-                annoy_index.add_item(row.marker_wise_id, nucleotides_to_binary_array(row.sequence))
+            for sequence, marker_wise_id in self.fetchall(
+                    'SELECT sequence, marker_wise_id FROM nucleotides WHERE marker_id = ?', (marker_id,)):
+                annoy_index.add_item(marker_wise_id, nucleotides_to_binary_array(sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -545,20 +525,17 @@ class SequenceDatabase:
         protein_db_dir = os.path.join(self.base_directory, 'protein_indices_annoy')
         os.makedirs(protein_db_dir)
 
-        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
+        for marker_id, marker_name in self.fetchall('SELECT id, marker FROM markers'):
             annoy_index = self._protein_annoy_init()
 
-            marker_name = marker_row.marker
             logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
             count = 0
 
-            for row in self.sqlalchemy_connection.execute(select(
-                distinct(ProteinSequence.marker_wise_id), ProteinSequence.protein_sequence) \
-                    .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
-                    .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                    .where(NucleotideSequence.marker_id == marker_row.id)):
-
-                annoy_index.add_item(row.marker_wise_id, protein_to_binary_array(row.protein_sequence))
+            for marker_wise_id, protein_sequence in self.fetchall(
+                    'SELECT DISTINCT p.marker_wise_id, p.protein_sequence FROM proteins p '
+                    'JOIN nucleotides_proteins np ON p.id = np.protein_id '
+                    'JOIN nucleotides n ON np.nucleotide_id = n.id WHERE n.marker_id = ?', (marker_id,)):
+                annoy_index.add_item(marker_wise_id, protein_to_binary_array(protein_sequence))
                 count += 1
 
             # TODO: Tweak index creation parameters?
@@ -619,17 +596,12 @@ class SequenceDatabase:
                     options=tf.saved_model.SaveOptions(namespace_whitelist=["Scann"]))
                 del searcher_naive
 
-        for marker_row in self.sqlalchemy_connection.execute(select(Marker)):
-            marker_name = marker_row.marker
-            marker_id = marker_row.id
+        for marker_id, marker_name in self.fetchall('SELECT id, marker FROM markers'):
             
             if NUCLEOTIDE_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique nucleotide sequences for {}..".format(marker_name))
-                a = np.concatenate([np.array([nucleotides_to_binary_array(entry.sequence)]) for entry in \
-                    self.sqlalchemy_connection.execute(select(
-                        NucleotideSequence.sequence) \
-                        .where(NucleotideSequence.marker_id == marker_id) \
-                        .order_by(NucleotideSequence.marker_wise_id))
+                a = np.concatenate([np.array([nucleotides_to_binary_array(sequence)]) for sequence, in \
+                    self.fetchall('SELECT sequence FROM nucleotides WHERE marker_id = ? ORDER BY marker_wise_id', (marker_id,))
                 ])
                 if a.shape[0] < 16:
                     logging.warning("Adding dummy nucleotide sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
@@ -639,14 +611,11 @@ class SequenceDatabase:
             
             if PROTEIN_DATABASE_TYPE in sequence_database_types:
                 logging.info("Tabulating unique protein sequences for {}..".format(marker_name))
-                a = np.concatenate([np.array([protein_to_binary_array(entry.protein_sequence)]) for entry in \
-                    self.sqlalchemy_connection.execute(select(
-                        ProteinSequence.protein_sequence) \
-                            .order_by(ProteinSequence.marker_wise_id) \
-                            .where(ProteinSequence.id == NucleotidesProteins.protein_id) \
-                            .where(NucleotidesProteins.nucleotide_id == NucleotideSequence.id) \
-                            .where(NucleotideSequence.marker_id == marker_id)
-                            .distinct())
+                a = np.concatenate([np.array([protein_to_binary_array(protein_sequence)]) for protein_sequence, in \
+                    self.fetchall('SELECT DISTINCT p.protein_sequence, p.marker_wise_id FROM proteins p '
+                        'JOIN nucleotides_proteins np ON p.id = np.protein_id '
+                        'JOIN nucleotides n ON np.nucleotide_id = n.id WHERE n.marker_id = ? '
+                        'ORDER BY p.marker_wise_id', (marker_id,))
                 ])
                 if a.shape[0] < 16:
                     logging.warn("Adding dummy protein sequences to SCANN AH/NAIVE DB creation since the number of real datapoints is too small")
@@ -682,22 +651,15 @@ class SequenceDatabaseOtuTable:
         self.db = db
 
     def __iter__(self):
-        engine = self.db.engine
-
-        with engine.connect() as conn:
-            # First cache the taxonomy
-            taxonomy_entries = Taxonomy.generate_python_index(conn)
-
-            # And markers
-            marker_entries = Marker.generate_python_index(conn)
-        
-            batch_size = 10000
-            builder = select(
-                Otu.marker_id, Otu.sample_name, Otu.sequence, Otu.num_hits, Otu.coverage, Otu.taxonomy_id
-                ).execution_options(yield_per=batch_size)
-        
-            for batch in conn.execute(builder).partitions(batch_size):
-                for row in batch:
+        taxonomy_entries = self.db._id_index('taxonomy', 'taxonomy')
+        marker_entries = self.db._id_index('markers', 'marker')
+        with self.db._connect() as conn:
+            cursor = conn.execute('SELECT marker_id, sample_name, sequence, num_hits, coverage, taxonomy_id FROM otus')
+            while True:
+                batch = cursor.fetchmany(10000)
+                if not batch:
+                    break
+                for marker_id, sample_name, sequence, num_hits, coverage, taxonomy_id in batch:
                     entry = OtuTableEntry()
                     # marker = None
                     # sample_name = None
@@ -707,12 +669,12 @@ class SequenceDatabaseOtuTable:
                     # coverage = None
                     # data = None
                     # fields = None
-                    entry.marker = marker_entries[row.marker_id]
-                    entry.sample_name = row.sample_name
-                    entry.sequence = row.sequence
-                    entry.count = row.num_hits
-                    entry.coverage = row.coverage
-                    entry.taxonomy = taxonomy_entries[row.taxonomy_id]
+                    entry.marker = marker_entries[marker_id]
+                    entry.sample_name = sample_name
+                    entry.sequence = sequence
+                    entry.count = num_hits
+                    entry.coverage = coverage
+                    entry.taxonomy = taxonomy_entries[taxonomy_id]
                     yield entry
 
 

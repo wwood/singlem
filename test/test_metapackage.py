@@ -51,13 +51,22 @@ class Tests(unittest.TestCase):
 
     def test_metapackage_create_with_sdb(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --nucleotide-sdb test/data/a.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(
-                path_to_script, f
-            )
+            extern.run("{} makedb --otu-table test/data/methanobacteria/otus.transcripts.on_target.csv --db {}/a.sdb --sequence-database-methods none".format(path_to_script, f))
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --nucleotide-sdb {}/a.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(
+                path_to_script, f, f)
             extern.run(cmd)
             with open(os.path.join(f, 'a.smpkg', 'CONTENTS.json')) as con:
                 self.assertEqual('{"singlem_metapackage_version": 7, "singlem_packages": ["4.11.22seqs.v3_archaea_targetted.gpkg.spkg"], "prefilter_db_path": "prefilter.fna.dmnd", "nucleotide_sdb": "a.sdb", "sqlite_db_path_key": "read_taxonomies.duckdb", "taxon_genome_lengths": null, "taxonomy_database_name": "custom_taxonomy_database", "taxonomy_database_version": null, "diamond_prefilter_performance_parameters": "--block-size 0.5 --target-indexed -c1", "diamond_taxonomy_assignment_performance_parameters": "--block-size 0.5 --target-indexed -c1", "makeidx_sensitivity_params": null, "avg_num_genes_per_species": null, "weebill_dbs": []}',
                 con.read())
+            sqlite_files = [name for _, _, files in os.walk(os.path.join(f, 'a.smpkg')) for name in files
+                            if name.endswith(('.sqlite', '.sqlite3'))]
+            self.assertEqual([], sqlite_files)
+
+    def test_metapackage_rejects_legacy_sdb(self):
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --nucleotide-sdb test/data/a.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(path_to_script, f)
+            with self.assertRaisesRegex(Exception, 'version 6 or newer'):
+                extern.run(cmd)
 
     def test_metapackage_create_with_weebill_db(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
@@ -120,9 +129,9 @@ class Tests(unittest.TestCase):
 
     def test_metapackage_read_name_store(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
-            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.gpkg.spkg.smpkg/22seqs.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(
-                path_to_script, f
-            )
+            extern.run("{} makedb --otu-table test/data/methanobacteria/otus.transcripts.on_target.csv --db {}/a.sdb --sequence-database-methods none".format(path_to_script, f))
+            cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.gpkg.spkg --nucleotide-sdb {}/a.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(
+                path_to_script, f, f)
             extern.run(cmd)
 
             mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))

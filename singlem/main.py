@@ -521,7 +521,6 @@ def main():
         help='Index sequences using these methods [default {}]'.format(current_default))
     current_default = ['nucleotide']
     makedb_other_args.add_argument('--sequence-database-types', help='Index sequences using these types. [default: {}]'.format(current_default), nargs='+', default=['nucleotide'], choices=['nucleotide','protein'])
-    makedb_other_args.add_argument('--pregenerated-otu-sqlite-db', help='[for internal usage] remake the indices using this input SQLite database')
     makedb_other_args.add_argument('--tmpdir', help='[for internal usage] use this directory internally for working')
 
     query_description = 'Find closely related sequences in a SingleM database.'
@@ -1495,10 +1494,7 @@ def main():
         from singlem.sequence_database import SequenceDatabase
         # from singlem.otu_table_collection import StreamingOtuTableCollection
 
-        if args.pregenerated_otu_sqlite_db:
-            otus = None
-        else:
-            otus = generate_streaming_otu_table_from_args(args)
+        otus = generate_streaming_otu_table_from_args(args)
 
         sequence_database_methods = args.sequence_database_methods
         if 'none' in sequence_database_methods:
@@ -1511,7 +1507,6 @@ def main():
             args.db,
             otus,
             num_threads=args.threads,
-            pregenerated_sqlite3_db=args.pregenerated_otu_sqlite_db,
             tmpdir = args.tmpdir,
             sequence_database_methods = sequence_database_methods,
             sequence_database_types = args.sequence_database_types)

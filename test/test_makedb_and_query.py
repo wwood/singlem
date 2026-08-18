@@ -66,6 +66,11 @@ class Tests(unittest.TestCase):
                                                             path_to_data)
             extern.run(cmd)
 
+            self.assertTrue(os.path.isfile(os.path.join(d, 'db', 'otus.duckdb')))
+            self.assertFalse(os.path.exists(os.path.join(d, 'db', 'otus.sqlite3')))
+            with open(os.path.join(d, 'db', 'CONTENTS.json')) as contents:
+                self.assertIn('"singlem_database_version": 6', contents.read())
+
             observed = extern.run("%s query --dump --db %s/db" % (path_to_script, d))
             with open('%s/methanobacteria/otus.transcripts.on_target.csv' % path_to_data) as f:
                 expected = [l.split("\t") for l in f.read().split("\n")]

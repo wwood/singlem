@@ -358,6 +358,13 @@ class Metapackage:
         if calculate_average_num_genes_per_species not in (True, False):
             raise Exception("calculate_average_num_genes_per_species must be a boolean")
 
+        if nucleotide_sdb:
+            from .sequence_database import SequenceDatabase
+            sequence_database = SequenceDatabase.acquire(nucleotide_sdb)
+            if sequence_database._contents_hash[SequenceDatabase.VERSION_KEY] < 6:
+                raise Exception("New metapackages require a version 6 or newer SingleM sequence database. "
+                    "Rebuild the nucleotide SDB with 'singlem makedb' so it uses DuckDB.")
+
         if os.path.exists(output_path):
             raise Exception("Not writing new SingleM metapackage to already existing file/directory with name %s" % output_path)
         os.mkdir(output_path)
