@@ -9,6 +9,7 @@ import itertools
 import csv
 import extern
 import numpy as np
+from urllib.parse import quote
 
 from sqlalchemy import create_engine, select, distinct
 
@@ -53,6 +54,12 @@ class SequenceDatabase:
 
     _marker_cache = None
     _taxonomy_cache = None
+
+    @staticmethod
+    def _acquire_readonly_engine(sqlite_file):
+        quoted_sqlite_path = quote(os.path.abspath(sqlite_file), safe="/")
+        sqlite_uri = f"sqlite+pysqlite:///file:{quoted_sqlite_path}?mode=ro&immutable=1&uri=true"
+        return create_engine(sqlite_uri)
 
     def get_marker_via_cache(self, marker_id):
         if self._marker_cache is None:
@@ -241,7 +248,7 @@ class SequenceDatabase:
             raise Exception("Unexpected SingleM DB version found: {}".format(found_version))
 
         db.sqlite_file = os.path.join(path, SequenceDatabase.SQLITE_DB_NAME)
-        db.engine = create_engine("sqlite:///" + db.sqlite_file)
+        db.engine = SequenceDatabase._acquire_readonly_engine(db.sqlite_file)
         db.sqlalchemy_connection = db.engine.connect()
 
         nmslib_nucleotide_index_files = glob.glob("%s/nucleotide_indices_nmslib/*.nmslib_index" % path)
