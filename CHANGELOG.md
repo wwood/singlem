@@ -14,17 +14,21 @@
 * `condense`: Fix `condense.py` assuming a bacteria/archaea metapackage, so it now works with eukaryote and other non-standard (e.g. plastid marker) SingleM packages.
 * `condense`: Fix a `ZeroDivisionError` when calculating the trimmed mean for a taxon whose domain has no genes listed.
 * `supplement`: Raise an error rather than silently carrying forward a stale weebill database when supplementing a metapackage that bundles one, since weebill has no way to add genomes to an existing database and the new genomes would be invisible to the joint profile.
-* `pipe`: Deduplicate identical read windows before sending them to the DIAMOND blastx fallback, cutting DIAMOND calls in proportion to sample redundancy; fix a resulting bug where pplacer-assigned reads were caught up in the deduplication, and fix the logged DIAMOND fallback OTU count/percentage.
-* `pipe`: Warn (rather than raising an opaque error) about corrupted/malformed reads encountered while parsing DIAMOND output.
+* `pipe`: Deduplicate identical read windows before sending them to the DIAMOND blastx fallback, cutting DIAMOND calls in proportion to sample redundancy, and fix a resulting bug where pplacer-assigned reads were caught up in the deduplication.
 * `pipe`: Fix a deadlock where DIAMOND failure left background chunking/decompression processes blocked writing to a FIFO nobody was reading.
 * `pipe`: Use `awk` rather than `tail`/`head` for read chunking, avoiding a hang when the last chunk is shorter than the requested chunk size.
-* `prefilter`: Write DIAMOND prefilter database creation input to a tempfile rather than a pipe, avoiding a DIAMOND makedb bug.
-* `prefilter`: Only log DIAMOND stderr when DIAMOND actually fails, rather than on every run.
 * Add `prefilter-pad` mode (expert), which creates a prefilter FASTA with each on-target sequence padded to a fixed length with the window in a consistent position.
 * deps: Require DIAMOND >=2.2.3 (fixes issues with earlier versions).
 * `update_metapackage`: Migrate the Snakefile fully to pixi environments, removing the old per-rule conda envs.
 * `update_metapackage`: Always build the weebill database from `gtdb_genome_reps`, and source weebill from bioconda rather than requiring it on the `PATH` by hand.
 * `summarise`: Add `--output-cami-iii-gtdb-profile`, which converts a taxonomic profile into the [CAMI III GTDB taxonomic profiling format](https://cami-challenge.org/file-formats/#taxonomic-profiling), for benchmarking against other profilers with e.g. OPAL. Requires `--input-taxonomic-profiles`.
+
+## v0.21.4
+
+* `pipe`: Avoid a potential deadlock during DIAMOND prefiltering of large metagenomes by safely capturing DIAMOND's stderr output.
+* `pipe`: Improve compatibility with recent DIAMOND versions by building temporary prefilter databases from a FASTA file rather than stdin.
+* `pipe`: Report a clearer error when malformed DIAMOND output may indicate corrupted FASTA/FASTQ input. Thanks @CarloCroci for reporting #301.
+* `pipe`: Correct the OTU count and percentage logged when DIAMOND is used as a fallback after smafa taxonomic assignment.
 
 ## v0.21.3
 
