@@ -31,6 +31,11 @@ if __name__ == "__main__":
 
     print("Building dependency definition files based on pixi.toml and pixi.lock") # TODO: Do we need to update pixi.lock first?
     extern.run('pixi run admin/build_dep_defs_from_pixi.py')
+    # admin/requirements.txt is only tracked as a stub - committing the pinned
+    # versions makes future `pixi update` runs unsolvable, because the pins
+    # conflict with the fresh conda solve. CI regenerates the pinned file from
+    # pixi.lock before building the wheel.
+    extern.run('git checkout -- admin/requirements.txt')
 
     print("building docs")
     extern.run("pixi run python3 admin/build_docs.py --version {}".format(version))
@@ -40,12 +45,8 @@ if __name__ == "__main__":
     )
     extern.run('if [[ $(git diff --shortstat 2> /dev/null | tail -n1) != "" ]]; then exit 1; fi')
 
-    # Generate the version file based on the git tag
-    extern.run("pixi run -e dev bash -c 'SETUPTOOLS_SCM_PRETEND_VERSION={} python -m setuptools_scm --force-write-version-files'".format(version))
-
-    print("Committing the version file")
-    extern.run('git commit -a -m "v{}"'.format(version))
-
+    # No version file is committed - singlem/__init__.py reads the installed
+    # package metadata, which setuptools_scm derives from the tag below.
     print("Tagging the release as v{}".format(version))
     extern.run('git tag v{}'.format(version))
     

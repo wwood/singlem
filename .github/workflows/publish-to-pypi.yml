@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          # setuptools_scm derives the version from the git tag, so the tags
+          # (and history) must be present - singlem/version.py is no longer
+          # committed.
+          fetch-depth: 0
       - uses: actions/setup-python@v2
       # admin/requirements.txt is tracked only as a stub; the real pinned
       # contents are generated here from pixi.toml/pixi.lock so setuptools
