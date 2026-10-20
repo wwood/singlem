@@ -41,7 +41,7 @@ rule get_ictv_genomes:
         "logs/get_ictv_genomes.log"
     resources:
         mem_mb = 20 * 1024,
-        runtime = 2 * 60 * 60,  # 2 hours
+        runtime = "2h",  # 2 hours
     conda:
         "envs/ictv-download.yml"
     shell:
@@ -58,7 +58,7 @@ rule get_metavr_genomes:
         "logs/get_metavr_genomes.log"
     resources:
         mem_mb = 64 * 1024,
-        runtime = 12 * 60 * 60,  # 12 hours
+        runtime = "12h",  # 12 hours
     conda:
         "envs/ictv-download.yml"
     shell:
@@ -114,7 +114,7 @@ checkpoint split_genome_filepaths:
     log:
         "logs/split_genome_filepaths.log"
     resources:
-        runtime = 1 * 60 * 60,  # 1 hour
+        runtime = "1h",  # 1 hour
     run:
         from csv import DictReader
 
@@ -170,7 +170,7 @@ rule galah_cluster_chunk:
     threads: 16
     resources:
         mem_mb = 128 * 1024,
-        runtime = 8 * 60 * 60,  # 8 hours
+        runtime = "8h",  # 8 hours
     conda:
         "envs/galah.yml"
     shell:
@@ -200,7 +200,7 @@ rule galah_cluster_merge:
         "logs/galah_clustering.log"
     threads: 64
     resources:
-        runtime = "12h",  # 12 hours
+        runtime = "48h",  # 48 hours
         mem_mb = 256 * 1024,
     conda:
         "envs/galah.yml"
@@ -227,7 +227,7 @@ rule prodigal_gv:
     threads: 64
     resources:
         mem_mb = 500 * 1024,
-        runtime = 12 * 60 * 60,  # 12 hours
+        runtime = "12h",  # 12 hours
     conda:
         "envs/prodigal-gv.yml"
     shell: # use GNU parallel to speed this up
@@ -258,6 +258,7 @@ rule vcontact3:
         vcontact_output_dir = directory("vcontact3_output")
     threads: 64
     resources:
+        runtime = "48h",
         mem_mb = 500 * 1024,
     log:
         "logs/vcontact3.log"
