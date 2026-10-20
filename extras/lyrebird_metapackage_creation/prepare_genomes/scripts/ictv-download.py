@@ -159,7 +159,8 @@ def main():
         os.makedirs(args.outdir)
     download_vmr_data(args.url, vmr_file)
     accessions = read_and_fetch_phage_accessions(vmr_file)
-    download_genomes(accessions, args.outdir)
+    no_version_accessions = {acc.split('.')[0]: tax for acc, tax in accessions.items()}
+    download_genomes(no_version_accessions, args.outdir)
     logging.info("ICTV phage genome processing completed.")
 
 if __name__ == "__main__":
