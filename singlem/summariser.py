@@ -717,7 +717,7 @@ class Summariser:
         if target_level is not None:
             profiles = pl.concat(all_profiles[level_index])
             num_samples = len(profiles)
-            profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
+            profiles.pivot(index=['taxonomy'], on=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_species_by_site_relative_abundance_table, separator='\t')
             logging.info("Wrote site by species table for {} samples".format(num_samples))
         else:
             # Write out a CSV for each level, with the name being the prefix, and the level being the suffix
@@ -725,7 +725,7 @@ class Summariser:
                 num_samples = len(profiles)
                 profiles = pl.concat(profiles)
                 output_filename = output_species_by_site_relative_abundance_table+'-'+levels[level]+'.tsv'
-                profiles.pivot(index=['taxonomy'], columns=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_filename, separator='\t')
+                profiles.pivot(index=['taxonomy'], on=['sample'], values=['relative_abundance']).fill_null(0).write_csv(output_filename, separator='\t')
                 logging.info("Wrote site by species table {} for {} sample(s) at level {}".format(
                     output_filename, num_samples, levels[level]))
         

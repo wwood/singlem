@@ -1381,7 +1381,7 @@ class CondensedCommunityProfile:
             ((pl.col('coverage') / pl.col('coverage').sum()).alias('relative_abundance') * 100).round(2),
         )
 
-        if assume_8_levels or len(result.select(pl.col('level')).group_by('level').count()) in [7, 8]:
+        if assume_8_levels or len(result.select(pl.col('level')).group_by('level').len()) in [7, 8]:
             # If there's 7 or 8 (including 0) levels, then assume that this is a regular taxonomy going on.
             levels = ['root', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species']
             level_id_to_level_name = {i: levels[i] for i in range(len(levels))}
