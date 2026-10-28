@@ -392,7 +392,7 @@ def run_hmmsearch_on_one_genome(lock, data, matched_transcripts_fna, output_matc
     df2 = df.sort('bitscore', descending=True).group_by('transcript').first()
     # Remove genes where there is >1 hit
     # If any HMM is associated with multiple genes, remove it as being potentially dubious
-    ok_genes = list(df2.group_by('hmm').count().filter(pl.col('count') == 1).select('hmm'))[0]
+    ok_genes = list(df2.group_by('hmm').len().filter(pl.col('len') == 1).select('hmm'))[0]
     df3 = df2.filter(pl.col('hmm').is_in(ok_genes))
     logging.debug("After filtering, {} hits remain, from {} total hits".format(len(df3), len(df2)))
 
