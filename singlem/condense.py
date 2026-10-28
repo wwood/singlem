@@ -151,15 +151,36 @@ class Condenser:
             if target_domains[domain] in [1, 2]:
                 raise Exception("Number of markers for all domains must either be >= 3 or equal to 0. Only {} markers for domain '{}' found".format(target_domains[domain], domain))
 
-        for sample, sample_otus in input_otu_table.each_sample_otus(generate_archive_otu_table=True):
-
-            logging.debug("Processing sample {} ..".format(sample))
+        def condense_sample(sample, sample_otus):
             apply_diamond_expectation_maximisation = True
             weebill_hits = self._weebill_hits_for_sample(sample, weebill_sample_to_hits) if weebill_profile is not None else None
-            yield self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
+            return self._condense_a_sample(sample, sample_otus, markers, target_domains, trim_percent, min_taxon_coverage,
                 True, apply_diamond_expectation_maximisation, metapackage, output_after_em_otu_table, viral_mode,
                 weebill_hits, alpha, joint, joint_l1_penalty, joint_absence_weight, joint_min_markers,
                 joint_adaptive_weebill_weight, joint_pin_weebill_species, joint_novel_budget)
+
+        condensed_samples = set()
+        for sample, sample_otus in input_otu_table.each_sample_otus(generate_archive_otu_table=True):
+            logging.debug("Processing sample {} ..".format(sample))
+            condensed_samples.add(sample)
+            yield condense_sample(sample, sample_otus)
+
+        # A sample in which weebill detected species but no marker window was
+        # extracted, as can happen at low depth, is absent from the OTU table, but
+        # its weebill species still belong in its profile.
+        for sample in self._weebill_only_samples(weebill_sample_to_hits, condensed_samples):
+            logging.info("Sample {} has no marker OTUs, so is profiled from its weebill coverage alone".format(sample))
+            empty_otus = ArchiveOtuTable()
+            empty_otus.fields = ArchiveOtuTable.FIELDS
+            yield condense_sample(sample, empty_otus)
+
+    @staticmethod
+    def _weebill_only_samples(weebill_sample_to_hits, condensed_samples):
+        '''Named weebill samples with hits that are not among condensed_samples. A
+        profile without a sample column (the None key) applies to every SingleM
+        sample, so it names no sample of its own.'''
+        return sorted(sample for (sample, hits) in weebill_sample_to_hits.items()
+                      if sample is not None and len(hits) > 0 and sample not in condensed_samples)
 
     def _domain_coverage_estimates(self, sample_otus, target_domains, trim_percent):
         '''Per domain, the total genome-equivalent coverage of everything in that domain,

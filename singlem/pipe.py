@@ -98,6 +98,12 @@ class SearchPipe:
         # --input-weebill-sketch' produce one without needing the raw reads again.
         sketching_weebill = output_weebill_sketch is not None and weebill_available and not running_weebill
         if (running_weebill or sketching_weebill) and weebill_forward_reads and not weebill_unsupported_input:
+            # weebill would profile the whole of the reads rather than just the
+            # chunk the markers were searched in.
+            if kwargs.get('read_chunk_number') is not None:
+                raise Exception("weebill cannot currently be run on a single chunk of reads, so "
+                    "--read-chunk-number is incompatible with a weebill profile or sketch. Pass --no-weebill "
+                    "to profile from the markers alone.")
             # Check weebill is installed before the marker search rather than after
             # it, which is an hour or more of work to throw away.
             if shutil.which('weebill') is None:

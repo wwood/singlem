@@ -143,7 +143,7 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
     argument_group.add_argument('--read-chunk-number',
             type=int,
             metavar='chunk_number',
-            help='Process only this specific chunk number (1-based index). Requires --read-chunk-size.')
+            help='Process only this specific chunk number (1-based index). Requires --read-chunk-size. Incompatible with running weebill, so requires --no-weebill when the metapackage bundles a weebill database and a taxonomic profile or weebill sketch is requested.')
     argument_group.add_argument('--output-jplace', metavar='filename', help='Output a jplace format file for each singlem package to a file starting with this string, each with one entry per OTU. Requires \'%s\' as the --assignment_method [default: unused]' % pipe.PPLACER_ASSIGNMENT_METHOD)
     argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
     argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')

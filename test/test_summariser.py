@@ -419,6 +419,30 @@ minimal2	0.2
         # its record of the repair stays.
         self.assertEqual(['r1'], self._repaired_reads(otu))
 
+    def test_resolved_window_takes_the_donors_assignment(self):
+        # The ambiguous window has more reads than its donor, so without care the
+        # combined OTU would keep the taxonomy assigned to the ambiguous window,
+        # rather than the one the whole dataset would have given its reads.
+        def assigned(otu, taxonomy, equal_best_hit_taxonomies):
+            otu[5] = taxonomy
+            otu[10] = equal_best_hit_taxonomies
+            otu[11] = 'diamond'
+            return otu
+        genus = 'Root; d__Bacteria; g__A'
+        species = 'Root; d__Bacteria; g__A; s__A b'
+        combined = self._collapse(
+            [[assigned(self._otu(self.AMBIGUOUS_WINDOW, ['r1', 'r2', 'r3', 'r4', 'r5'],
+                                 repaired=range(5)), genus, [genus])],
+             [assigned(self._otu(self.DONOR_WINDOW, ['r6']), species, [species])]],
+            extra_args='--resolve-ambiguous-windows')
+        self.assertEqual(1, len(combined.data))
+        otu = list(combined)[0]
+        self.assertEqual(self.DONOR_WINDOW, otu.sequence)
+        self.assertEqual(6, otu.count)
+        self.assertEqual(species, otu.taxonomy)
+        self.assertEqual([species, species], otu.equal_best_hit_taxonomies())
+        self.assertEqual('diamond', otu.taxonomy_assignment_method())
+
     def test_chunks_combine_unresolved_without_the_flag(self):
         combined = self._collapse(
             [[self._otu(self.AMBIGUOUS_WINDOW, ['r1'], repaired=[0])],
