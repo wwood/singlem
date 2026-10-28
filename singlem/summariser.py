@@ -360,14 +360,14 @@ class Summariser:
         # Abundances are pooled across samples within a gene, as in pipe, so that
         # a low coverage sample can still draw on a donor.
         abundances_by_gene = {}
-        # The row of each donor window with the most hits, whose taxonomic
+        # The row of each unambiguous window with the most hits, whose taxonomic
         # assignment a window resolving to it takes, as the grouping below does.
-        donor_rows = {}
+        window_rows = {}
         for (i, (gene, sequence, hits)) in enumerate(zip(genes, sequences, num_hits)):
             if AMBIGUOUS_CHAR not in sequence:
                 abundances_by_gene.setdefault(gene, Counter())[sequence] += hits
-                if (gene, sequence) not in donor_rows or hits > num_hits[donor_rows[(gene, sequence)]]:
-                    donor_rows[(gene, sequence)] = i
+                if (gene, sequence) not in window_rows or hits > num_hits[window_rows[(gene, sequence)]]:
+                    window_rows[(gene, sequence)] = i
 
         ambiguous_by_gene = {}
         resolvable = []
@@ -393,7 +393,11 @@ class Summariser:
 
         # The ambiguous window was assigned a taxonomy of its own, but the whole
         # dataset would have resolved it before assigning taxonomy, and so given
-        # it the donor's assignment.
+        # it the assignment of the window it resolves to. That is only known when
+        # the resolved window is present: it need not be, since only the
+        # ambiguous bases are taken from the donor, and a window that differs
+        # from it elsewhere too resolves to one of its own, which keeps the
+        # assignment it has as there is no assigning taxonomy here.
         assignment_fields = [field for field in ASSIGNMENT_FIELDS if field in df.columns]
         assignments = {field: df.get_column(field).to_list() for field in assignment_fields}
 
@@ -408,9 +412,10 @@ class Summariser:
                 resolved = resolutions[sequences[i]]
                 if resolved is not None:
                     sequences[i] = resolved
-                    donor = donor_rows[(gene, resolved)]
-                    for values in assignments.values():
-                        values[i] = values[donor]
+                    same_window = window_rows.get((gene, resolved))
+                    if same_window is not None:
+                        for values in assignments.values():
+                            values[i] = values[same_window]
                     num_resolved += 1
 
         df = df.with_columns(
