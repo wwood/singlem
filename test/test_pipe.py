@@ -1356,6 +1356,26 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTA
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace('chunked_reads',''))
 
+    def test_read_chunk_number_incompatible_with_weebill(self):
+        # weebill would see the whole of the reads, not just the chunk.
+        with tempfile.TemporaryDirectory() as td:
+            metapackage = os.path.join(td, 'a.smpkg')
+            extern.run("{} metapackage --singlem-packages {} --no-nucleotide-sdb --no-taxon-genome-lengths "
+                "--weebill-db {} --weebill-c 100 --metapackage {}".format(
+                    path_to_script,
+                    os.path.join(path_to_data, '4.11.22seqs.v3_archaea_targetted.gpkg.spkg'),
+                    os.path.join(path_to_data, 'dummy.syl2db'),
+                    metapackage))
+            cmd = "{} pipe --sequences {} --otu-table /dev/null --metapackage {} --read-chunk-size 2 " \
+                "--read-chunk-number 1 --output-weebill-sketch {}".format(
+                    path_to_script,
+                    os.path.join(path_to_data, '1_pipe', 'small.fa'),
+                    metapackage,
+                    os.path.join(td, 'sketch'))
+            with self.assertRaises(extern.ExternCalledProcessError) as context:
+                extern.run(cmd)
+            self.assertIn('--read-chunk-number is incompatible with a weebill', str(context.exception))
+
     def test_read_chunk_size_paired(self):
         target_seq_aln = 'TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA'
         target_seq = 'ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA'

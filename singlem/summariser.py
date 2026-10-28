@@ -18,6 +18,8 @@ from .frameshift_repair import (
     DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
 
 VARIANTS_FIELD = ArchiveOtuTable.UNALIGNED_SEQUENCE_VARIANTS_FIELD_NAME
+# The fields describing an OTU's taxonomic assignment, which depend on its window.
+ASSIGNMENT_FIELDS = ['taxonomy', 'equal_best_hit_taxonomies', 'taxonomy_assignment_method']
 
 class Summariser:
     @staticmethod
@@ -358,9 +360,14 @@ class Summariser:
         # Abundances are pooled across samples within a gene, as in pipe, so that
         # a low coverage sample can still draw on a donor.
         abundances_by_gene = {}
-        for (gene, sequence, hits) in zip(genes, sequences, num_hits):
+        # The row of each donor window with the most hits, whose taxonomic
+        # assignment a window resolving to it takes, as the grouping below does.
+        donor_rows = {}
+        for (i, (gene, sequence, hits)) in enumerate(zip(genes, sequences, num_hits)):
             if AMBIGUOUS_CHAR not in sequence:
                 abundances_by_gene.setdefault(gene, Counter())[sequence] += hits
+                if (gene, sequence) not in donor_rows or hits > num_hits[donor_rows[(gene, sequence)]]:
+                    donor_rows[(gene, sequence)] = i
 
         ambiguous_by_gene = {}
         resolvable = []
@@ -384,6 +391,12 @@ class Summariser:
             resolvable.append(i)
             ambiguous_by_gene.setdefault(genes[i], set()).add(sequence)
 
+        # The ambiguous window was assigned a taxonomy of its own, but the whole
+        # dataset would have resolved it before assigning taxonomy, and so given
+        # it the donor's assignment.
+        assignment_fields = [field for field in ASSIGNMENT_FIELDS if field in df.columns]
+        assignments = {field: df.get_column(field).to_list() for field in assignment_fields}
+
         num_resolved = 0
         for (gene, windows) in ambiguous_by_gene.items():
             resolutions = resolve_windows(
@@ -395,9 +408,15 @@ class Summariser:
                 resolved = resolutions[sequences[i]]
                 if resolved is not None:
                     sequences[i] = resolved
+                    donor = donor_rows[(gene, resolved)]
+                    for values in assignments.values():
+                        values[i] = values[donor]
                     num_resolved += 1
 
-        df = df.with_columns(pl.Series('sequence', sequences))
+        df = df.with_columns(
+            [pl.Series('sequence', sequences)] +
+            [pl.Series(field, values, dtype=df.schema[field])
+             for (field, values) in assignments.items()])
         return (df, num_resolved, num_partial)
 
     @staticmethod
@@ -532,9 +551,9 @@ class Summariser:
             raise Exception("Multiple taxonomy_by_known found: {}".format(', '.join(map(str, taxonomy_by_known))))
 
         # Done before the OTUs are grouped below, so that a window which resolves
-        # to one that is already present is grouped with it, taking that OTU's
-        # taxonomy - which is the taxonomy the whole dataset would have given it,
-        # since pipe resolves windows before assigning taxonomy.
+        # to one that is already present is grouped with it. It also takes that
+        # OTU's taxonomic assignment, which is what the whole dataset would have
+        # given it, since pipe resolves windows before assigning taxonomy.
         if resolve_ambiguous_windows:
             if VARIANTS_FIELD not in ar.fields:
                 raise Exception(

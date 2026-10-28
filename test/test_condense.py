@@ -365,6 +365,46 @@ class Tests(unittest.TestCase):
         self.assertEqual(hits, condenser._weebill_hits_for_sample('sample1', weebill_sample_to_hits))
         self.assertEqual(hits, condenser._weebill_hits_for_sample('sample2', weebill_sample_to_hits))
 
+    def test_weebill_only_samples(self):
+        hits = {_canonical_species_key(self.S_ECOLI): WeebillHit(self.S_ECOLI, 9.0)}
+        self.assertEqual(['sample2', 'sample3'], Condenser._weebill_only_samples(
+            {'sample3': hits, 'sample1': hits, 'sample2': hits, 'empty': {}}, {'sample1'}))
+        # Hits without a sample name are not a sample of their own.
+        self.assertEqual([], Condenser._weebill_only_samples({None: hits}, set()))
+
+    def test_sample_detected_only_by_weebill_is_profiled(self):
+        # sample1 has weebill hits but no marker OTUs, so it is not in the OTU
+        # table, but its profile should still have its weebill species.
+        import tempfile
+        from singlem.metapackage import Metapackage
+        from singlem.otu_table_collection import StreamingOtuTableCollection
+        from singlem.condense import DEFAULT_JOINT_CONDENSE_ARGUMENTS
+        species = 'Root; d__Archaea; p__X; c__X; o__X; f__X; g__X; s__X'
+        with tempfile.TemporaryDirectory() as td:
+            extern.run("{} metapackage --singlem-packages {} --no-nucleotide-sdb --no-taxon-genome-lengths "
+                "--metapackage {}".format(
+                    path_to_script,
+                    os.path.join(path_to_data, '..', '4.11.22seqs.v3_archaea_targetted.gpkg.spkg'),
+                    os.path.join(td, 'a.smpkg')))
+            metapackage = Metapackage.acquire(os.path.join(td, 'a.smpkg'))
+            for joint in (False, True):
+                otus = ArchiveOtuTable(metapackage.singlem_packages)
+                otus.data = [['4.11.22seqs', 'other', 'A' * 60, 1, 2.0, species, ['r1'], [60], False,
+                              ['A' * 60], [species], QUERY_BASED_ASSIGNMENT_METHOD, None]]
+                collection = StreamingOtuTableCollection()
+                collection.add_archive_otu_table_object(otus)
+                profile = os.path.join(td, 'profile.tsv')
+                Condenser().condense(
+                    input_streaming_otu_table=collection, output_otu_table=profile, krona=None,
+                    metapackage=metapackage,
+                    weebill_profile=os.path.join(path_to_data, 'small_weebill_profile.tsv'),
+                    **(DEFAULT_JOINT_CONDENSE_ARGUMENTS if joint else {}))
+                with open(profile) as f:
+                    rows = [line.rstrip('\n').split('\t') for line in f][1:]
+                self.assertIn(
+                    ['sample1', '9.0', 'Root; ' + '; '.join(self.S_ECOLI.split(';'))], rows,
+                    'joint' if joint else 'standard')
+
     def test_weebill_profile_is_unknown_corrected(self):
         # The column name is the only record of whether weebill was run with -u, and
         # condense keys alpha off it: True_cov is already on SingleM's coverage
