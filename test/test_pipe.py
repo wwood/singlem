@@ -21,6 +21,7 @@
 # If not, see <http://www.gnu.org/licenses/>.
 #=======================================================================
 
+import csv
 import unittest
 import os.path
 import tempfile
@@ -45,7 +46,7 @@ TEST_ANNOY = False
 
 class Tests(unittest.TestCase):
     headers = str.split('gene sample sequence num_hits coverage taxonomy')
-    headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method')
+    headers_with_extras = headers + str.split('read_names nucleotides_aligned taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method read_unaligned_sequence_variants')
     maxDiff = None
     two_packages = '%s %s' % (
         os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
@@ -756,22 +757,22 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         # sorting. The aligned lengths here differ between reads of the one OTU,
         # which happens when an insert column inside the window's span is a gap in
         # some reads and not others.
-        (names, unaligned_sequences, aligned_lengths, repaired_deletions) = \
+        (names, unaligned_sequences, aligned_lengths, variants) = \
             SearchPipe._read_columns_sorted_by_name(
                 ['read_c', 'read_a', 'read_b'],
                 ['CCC', 'AAA', 'BBB'],
                 [63, 60, 57],
-                [False, True, False])
+                [None, [[1, 'AN', 'A']], None])
         self.assertEqual(['read_a', 'read_b', 'read_c'], names)
         self.assertEqual(['AAA', 'BBB', 'CCC'], unaligned_sequences)
         self.assertEqual([60, 57, 63], aligned_lengths)
-        # read_a is the one with a frameshift-repaired base, and sorts first.
-        self.assertEqual([0], repaired_deletions)
+        # read_a is the one that was frameshift-repaired, and sorts first.
+        self.assertEqual([[[1, 'AN', 'A']], None, None], variants)
 
     def test_read_columns_sorted_by_name_keeps_duplicate_names_in_order(self):
         (names, unaligned_sequences, aligned_lengths, _) = \
             SearchPipe._read_columns_sorted_by_name(
-                ['read_a', 'read_a'], ['first', 'second'], [60, 57], [False, False])
+                ['read_a', 'read_a'], ['first', 'second'], [60, 57], [None, None])
         self.assertEqual(['read_a', 'read_a'], names)
         self.assertEqual(['first', 'second'], unaligned_sequences)
         self.assertEqual([60, 57], aligned_lengths)
@@ -791,11 +792,11 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                 path_to_script, n.name, os.path.join(path_to_data,'4.11.22seqs.gpkg.spkg'))
 
             # Read the JSON directly rather than through ArchiveOtuTable, since
-            # that is what an external consumer does. From version 5 the OTUs are
+            # that is what an external consumer does. From version 6 the OTUs are
             # stored column-wise, with the fields that are the same in every OTU
             # hoisted into constant_fields.
             j = json.loads(extern.run(cmd))
-            self.assertEqual(5, j['version'])
+            self.assertEqual(6, j['version'])
             def column(field):
                 if field in j['constant_fields']:
                     return [j['constant_fields'][field]] * j['num_otus']
@@ -806,6 +807,102 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
                                   column('gene'), column('taxonomy'), column('read_names'))
                               for name in read_names]
                             )
+
+    def _frameshifted_reads(self):
+        '''Reads with a base deleted from, or inserted into, the window region
+        of one that hits 4.11.22seqs, which DIAMOND reports as frameshifts.'''
+        with open(os.path.join(path_to_data, 'nanopore', 'fastas', 'one_hit.fasta')) as f:
+            read = f.read().split('\n')[1]
+        return {
+            'deletion': read[:120] + read[121:],
+            'insertion': read[:80] + 'T' + read[80:],
+        }
+
+    def _pipe_frameshifted_reads(self, tempdir, reads, extra_args=''):
+        fasta = os.path.join(tempdir, 'reads.fa')
+        with open(fasta, 'w') as f:
+            for (name, seq) in reads.items():
+                f.write('>{}\n{}\n'.format(name, seq))
+        archive = os.path.join(tempdir, 'archive.json')
+        extern.run('{} pipe --sequences {} --archive-otu-table {} --singlem-packages {} '
+                   '--assignment-method diamond {}'.format(
+                       path_to_script, fasta, archive,
+                       os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'), extra_args))
+        with open(archive) as f:
+            return (archive, ArchiveOtuTable.read(f))
+
+    def _read_data(self, archive):
+        return {
+            name: (stored, variants, original)
+            for otu in archive
+            for (name, stored, variants, original) in zip(
+                otu.read_names(), otu.read_unaligned_sequences(),
+                otu.read_unaligned_sequence_variants() or [None] * len(otu.read_names()),
+                otu.read_original_unaligned_sequences())}
+
+    def test_archive_records_frameshift_repairs_as_variants(self):
+        reads = self._frameshifted_reads()
+        with tempfile.TemporaryDirectory() as tempdir:
+            (_, archive) = self._pipe_frameshifted_reads(tempdir, reads)
+        observed = self._read_data(archive)
+        self.assertEqual(sorted(reads), sorted(observed))
+        # The stored read is the repaired one, and the variants turn it back into
+        # the read as sequenced.
+        (stored, variants, original) = observed['deletion']
+        self.assertEqual([[121, 'AN', 'A']], variants)
+        self.assertEqual(len(reads['deletion']) + 1, len(stored))
+        self.assertEqual(reads['deletion'], original)
+        (stored, variants, original) = observed['insertion']
+        self.assertEqual([[79, 'T', 'TT']], variants)
+        self.assertEqual(len(reads['insertion']) - 1, len(stored))
+        self.assertEqual(reads['insertion'], original)
+
+    def test_otu_table_extras_include_frameshift_variants(self):
+        reads = self._frameshifted_reads()
+        with tempfile.TemporaryDirectory() as tempdir:
+            otu_table = os.path.join(tempdir, 'otu_table.tsv')
+            self._pipe_frameshifted_reads(
+                tempdir, reads, '--otu-table {} --output-extras'.format(otu_table))
+            with open(otu_table) as f:
+                rows = list(csv.DictReader(f, delimiter='\t'))
+        observed = {}
+        for row in rows:
+            observed.update(zip(
+                row['read_names'].split(' '),
+                row['read_unaligned_sequence_variants'].split(' ')))
+        self.assertEqual({'deletion': '121:AN>A', 'insertion': '79:T>TT'}, observed)
+
+    def test_archive_frameshift_variants_with_context_window(self):
+        # Only the region around the hit is stored, and that it is shorter than
+        # the read is not recorded as a variant, so the variants recreate just
+        # that region of the read.
+        reads = self._frameshifted_reads()
+        with tempfile.TemporaryDirectory() as tempdir:
+            (_, archive) = self._pipe_frameshifted_reads(
+                tempdir, reads, '--context-window 20')
+        observed = {name.split(':')[0]: data for (name, data) in self._read_data(archive).items()}
+        self.assertEqual(sorted(reads), sorted(observed))
+        for (name, (stored, variants, original)) in observed.items():
+            self.assertEqual(1, len(variants))
+            self.assertLess(len(original), len(reads[name]))
+            self.assertIn(original, reads[name])
+            self.assertNotEqual(stored, original)
+
+    def test_renew_keeps_frameshift_variants(self):
+        reads = self._frameshifted_reads()
+        with tempfile.TemporaryDirectory() as tempdir:
+            (archive_path, archive) = self._pipe_frameshifted_reads(tempdir, reads)
+            renewed_path = os.path.join(tempdir, 'renewed.json')
+            extern.run('{} renew --input-archive-otu-table {} --singlem-packages {} '
+                       '--assignment-method diamond --archive-otu-table {}'.format(
+                           path_to_script, archive_path,
+                           os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'), renewed_path))
+            with open(renewed_path) as f:
+                renewed = ArchiveOtuTable.read(f)
+        self.assertEqual(self._read_data(archive), self._read_data(renewed))
+        self.assertEqual(
+            sorted(round(otu.coverage, 6) for otu in archive),
+            sorted(round(otu.coverage, 6) for otu in renewed))
 
     def test_protein_package_non60_length(self):
         expected = [
@@ -899,7 +996,7 @@ CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTAT
 '''
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.11	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	[\'2524614704\']	diamond',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.11	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	[\'2524614704\']	diamond	.',
             '']
         with tempfile.NamedTemporaryFile(mode='w',suffix='.fa') as n:
             n.write(inseqs)
@@ -917,7 +1014,7 @@ CTAAATAAATAAATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTAT
         # Reads should be merged
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT	[\'2524614704\'] [\'2524614704\']	diamond',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT	[\'2524614704\'] [\'2524614704\']	diamond	. .',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
@@ -949,7 +1046,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # Reads should be merged
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	3	7.32	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2 seq3	60 60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	[\'2524614704\'] [\'2524614704\'] [\'2524614704\']	diamond',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	3	7.32	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2 seq3	60 60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	[\'2524614704\'] [\'2524614704\'] [\'2524614704\']	diamond	. . .',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
@@ -986,7 +1083,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # Reads should be merged
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT	[\'2524614704\'] [\'2524614704\']	diamond',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT	[\'2524614704\'] [\'2524614704\']	diamond	. .',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
@@ -1019,7 +1116,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # Reads should be merged
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	2524614704	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT	None	diamond_example',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	4.88	2524614704	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAAT	None	diamond_example	. .',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA
@@ -1087,7 +1184,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         # more frequently)
         expected = [
             "\t".join(self.headers_with_extras),
-            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
+            'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGNGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond	80:GN>G',
             '']
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
@@ -1346,8 +1443,8 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 
     @unittest.skipIf(not TEST_ANNOY, "annoy not installed")
     def test_annoy_only_assignment_output_extras_single(self):
-        expected = ['gene	sample	sequence	num_hits	coverage	taxonomy	read_names	nucleotides_aligned	taxonomy_by_known?	read_unaligned_sequences	equal_best_hit_taxonomies	taxonomy_assignment_method',
-        '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179 Root; part_of_sdb; novel_domain	singlem_query_based']
+        expected = ['gene	sample	sequence	num_hits	coverage	taxonomy	read_names	nucleotides_aligned	taxonomy_by_known?	read_unaligned_sequences	equal_best_hit_taxonomies	taxonomy_assignment_method	read_unaligned_sequence_variants',
+        '4.11.22seqs	4.11.22seqs.gpkg.spkg_inseqs	TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	1	2.44	Root; part_of_sdb	HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482	60	False	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAA	Root; part_of_sdb; Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179 Root; part_of_sdb; novel_domain	singlem_query_based	.']
         cmd = '{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --assignment-singlem-db {} --assignment-method annoy --output-extras'.format(
             path_to_script,
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs.fna'),
@@ -1367,7 +1464,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs_and_inseqs2.manually_different_species.otu_table.csv.sdb'),
         )
         # Compared as OTUs rather than as JSON, since the same OTUs have more than
-        # one valid on-disk spelling from archive version 5 on.
+        # one valid on-disk spelling from archive version 6 on.
         observed = ArchiveOtuTable.read(StringIO(extern.run(cmd)))
         self.assertEqual(ArchiveOtuTable.version, observed.version)
         self.assertEqual(["4b0bf5b3d7fd2ca16e54eed59d3a07eab388f70f7078ac096bf415f1c04731d9"],
@@ -1532,7 +1629,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         all_ascii_chars = ''.join(chr(i) for i in list(range(33, 127)) + list(range(161, 255)))
         expected = [
             "\t".join(self.headers_with_extras),
-            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	{all_ascii_chars}	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond',
+            f'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	{all_ascii_chars}	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGNGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond	80:GN>G',
             '']
         inseqs = inseqs = (
             f'>{all_ascii_chars}\n'
@@ -1555,7 +1652,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
         truncated, and the wrong coverage value to be reported.'''
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	None	no_assign_taxonomy',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 seq2	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA	None	no_assign_taxonomy	. .',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
@@ -1588,7 +1685,7 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
         truncated, and the wrong coverage value to be reported.'''
         expected = [
             "\t".join(self.headers_with_extras),
-            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482:1-99,253 seq2:2-104,304	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGA TCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAA	None	no_assign_taxonomy',
+            '4.11.22seqs		TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA	2	2.54		HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482:1-99,253 seq2:2-104,304	60 60	True	ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGA TCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAGTAACTTCAGCTACTGTTAATAAAA	None	no_assign_taxonomy	. .',
             '']
         inseqs = '''>HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482 1:N:0:TAAGGCGACTAAGCCT
 ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTACGTCGTGCAGCTGAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA

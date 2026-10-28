@@ -27,7 +27,7 @@ from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import *
 from .otu_table_collection import StreamingOtuTableCollection, OtuTableCollection
 from .genome_fasta_mux import GenomeFastaMux
-from .frameshift_repair import resolve_ambiguous_windows, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE
+from .frameshift_repair import resolve_ambiguous_windows, apply_variants, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE
 
 from graftm.sequence_extractor import SequenceExtractor
 from graftm.greengenes_taxonomy import GreenGenesTaxonomy
@@ -424,11 +424,6 @@ class SearchPipe:
             if not diamond_prefilter:
                 diamond_package_assignment = False
 
-            # Populated below when the DIAMOND prefilter runs with frameshift
-            # repair on; used later to restrict resolve_ambiguous_windows() to
-            # windows whose 'N' actually came from a repaired deletion.
-            repaired_deletion_qseqids = set()
-
             #### Extract diamond_prefilter_performance_parameters from metapackage (v5 metapackages only)
             if diamond_prefilter:
                 # Set the min ORF length in DIAMOND, as this saves CPU time and
@@ -532,24 +527,10 @@ class SearchPipe:
                 if any([len(r.best_hits)>0 for r in diamond_forward_search_results]):
                     found_a_hit = True
                 forward_read_files = list([r.query_sequences_file for r in diamond_forward_search_results])
-                repaired_deletion_qseqids = set()
-                for r in diamond_forward_search_results:
-                    repaired_deletion_qseqids.update(r.repaired_deletion_qseqids)
                 if analysing_pairs:
                     reverse_read_files = list([r.query_sequences_file for r in diamond_reverse_search_results])
                     if any([len(r.best_hits)>0 for r in diamond_reverse_search_results]):
                         found_a_hit = True
-                    for r in diamond_reverse_search_results:
-                        repaired_deletion_qseqids.update(r.repaired_deletion_qseqids)
-                if input_sra_files:
-                    # unknown_sequences are renamed by KingfisherSra to strip the
-                    # SRA .0/.1/.2 direction suffix and the ••gene suffix (see
-                    # KingfisherSra._split_extracted_reads); normalise these
-                    # qseqids the same way so they still match by .name below.
-                    sra_regex = KingfisherSra()._split_regex()
-                    repaired_deletion_qseqids = {
-                        (m.group(1) if (m := sra_regex.match(qseqid)) else qseqid)
-                        for qseqid in repaired_deletion_qseqids}
                 logging.info("Finished DIAMOND prefilter phase")
                 if not found_a_hit:
                     logging.info("No reads identified in any samples, stopping")
@@ -651,7 +632,7 @@ class SearchPipe:
                     num_resolved += resolve_ambiguous_windows(
                         window_sequences,
                         max_divergence=max_frameshift_repair_divergence,
-                        repaired_names=repaired_deletion_qseqids)
+                        only_repair_inserted=True)
                 logging.info(
                     "Resolved the ambiguous base(s) of {} window sequence(s)".format(
                         num_resolved))
@@ -676,7 +657,6 @@ class SearchPipe:
                 assignment_singlem_db=assignment_singlem_db,
                 diamond_forward_qseqs = diamond_forward_qseqs if diamond_prefilter else None,
                 diamond_reverse_qseqs = diamond_reverse_qseqs if (diamond_prefilter and analysing_pairs) else None,
-                repaired_deletion_read_names = repaired_deletion_qseqids,
             )
     
             if genome_fasta_files:
@@ -701,8 +681,6 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db')
         diamond_forward_qseqs = kwargs.pop('diamond_forward_qseqs')
         diamond_reverse_qseqs = kwargs.pop('diamond_reverse_qseqs')
-        # renew has no frameshift repair information, so it does not pass this.
-        repaired_deletion_read_names = kwargs.pop('repaired_deletion_read_names', set())
 
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
@@ -741,7 +719,6 @@ class SearchPipe:
                 known_sequence_tax if known_sequence_taxonomy else None,
                 diamond_forward_qseqs,
                 diamond_reverse_qseqs,
-                repaired_deletion_read_names,
                 # outputs
                 otu_table_object,
                 package_to_taxonomy_bihash,
@@ -787,7 +764,6 @@ class SearchPipe:
             known_sequence_tax,
             diamond_forward_qseqs,
             diamond_reverse_qseqs,
-            repaired_deletion_read_names,
             # outputs
             otu_table_object,
             package_to_taxonomy_bihash):
@@ -809,12 +785,12 @@ class SearchPipe:
                 # before printing otu table
                 names = [name.split('••')[0] for name in info.names]
 
-                (names, unaligned_sequences, aligned_lengths, repaired_deletions) = \
+                (names, unaligned_sequences, aligned_lengths, unaligned_sequence_variants) = \
                     self._read_columns_sorted_by_name(
                         names,
                         info.unaligned_sequences,
                         info.aligned_lengths,
-                        info.repaired_deletions)
+                        info.unaligned_sequence_variants)
 
                 to_print = [
                     singlem_package.graftm_package_basename(),
@@ -829,10 +805,11 @@ class SearchPipe:
                     unaligned_sequences,
                     info.equal_best_taxonomies,
                     info.taxonomy_assignment_method,
-                    # None rather than an empty list when no read has one, so the
-                    # column collapses to a single constant in the archive (see
-                    # ArchiveOtuTable).
-                    repaired_deletions if len(repaired_deletions) > 0 else None]
+                    # None rather than a list of Nones when no read was
+                    # repaired, so the column collapses to a single constant in
+                    # the archive (see ArchiveOtuTable).
+                    unaligned_sequence_variants
+                    if any(v is not None for v in unaligned_sequence_variants) else None]
                 otu_table_object.data.append(to_print)
 
         def extract_placement_parser(
@@ -871,9 +848,7 @@ class SearchPipe:
                 known_sequence_taxonomy,
                 None,
                 None,
-                None,
-                None,
-                repaired_deletion_read_names)
+                None)
             add_info(known_infos, otu_table_object, True)
 
             if not analysing_pairs and len(readset.unknown_sequences) == 0:
@@ -884,9 +859,35 @@ class SearchPipe:
                 return []
             else: # if any sequences were aligned (not just already known)
                 if diamond_forward_qseqs:
+                    # Up to now each read's unaligned_sequence has been just the
+                    # part of it that hit in the prefilter. The archive OTU table
+                    # records the whole read (or with a context window, the region
+                    # around the hit), with its frameshifts repaired. This is the
+                    # last point at which it is known which reads are forward and
+                    # which reverse.
+                    #
+                    # The names here are e.g.
+                    # 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704',
+                    # whereas the full sequences are named without the ••marker.
                     forward_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_forward_qseqs[sample_name])
-                if diamond_reverse_qseqs:
-                    reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
+                    if analysing_pairs:
+                        reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
+                        sides = [(readset[0], forward_full_qseqs), (readset[1], reverse_full_qseqs)]
+                    else:
+                        sides = [(readset, forward_full_qseqs)]
+                    for (side_readset, full_qseqs) in sides:
+                        for s in side_readset.unknown_sequences:
+                            original = full_qseqs[s.name.split('••')[0]]
+                            if s.unaligned_sequence_variants is None:
+                                s.unaligned_sequence = original
+                            else:
+                                s.unaligned_sequence = apply_variants(original, s.unaligned_sequence_variants)
+                            # Coverage is calculated from the length of the read as
+                            # sequenced, not as repaired. With a context window the
+                            # recorded read is only part of it, and the length
+                            # already set is that of the whole read.
+                            if not self._context_window:
+                                s.full_nucleotide_sequence_length = len(original)
 
                 if analysing_pairs:
                     aligned_seqs = list(itertools.chain(
@@ -906,12 +907,6 @@ class SearchPipe:
                         equal_best_hit_hash = assignment_result.get_equal_best_hits(singlem_package, sample_name)
                         equal_best_taxonomies = {}
                         if analysing_pairs:
-                            if diamond_forward_qseqs:
-                                # Include all reads, not just those with taxonomy hits,
-                                # since aligned_seqs may contain reads found by HMMER
-                                # but not by DIAMOND. Reverse first, then forward overwrites.
-                                read_name_to_fullseq = dict(reverse_full_qseqs)
-                                read_name_to_fullseq.update(forward_full_qseqs)
                             for (name, best_hits) in best_hit_hash[1].items():
                                 taxonomies[name] = best_hits
                             for (name, best_hits) in best_hit_hash[0].items():
@@ -923,8 +918,6 @@ class SearchPipe:
                                 # Overwrite reverse hit with the forward hit
                                 equal_best_taxonomies[name] = equal_best_hits
                         else:
-                            if diamond_forward_qseqs:
-                                read_name_to_fullseq = forward_full_qseqs
                             for (name, best_hits) in best_hit_hash.items():
                                 taxonomies[name] = best_hits
                             for (name, equal_best_hits) in equal_best_hit_hash.items():
@@ -979,31 +972,6 @@ class SearchPipe:
                         taxonomies = known_sequence_tax
                     else:
                         taxonomies = {}
-                    # We need to go through each
-                    # unalignedalignednucleotidesequence and put in the actual
-                    # unaligned sequence, because this is the last time we have
-                    # access to knowing what is the forward and what is the
-                    # reverse read sequence.
-                    read_name_to_fullseq = None
-                    # In [8]: readset[0].unknown_sequences[0].name
-                    # Out[8]: 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704'
-                    #
-                    # In [9]: forward_full_qseqs
-                    # Out[9]: {'HWI-ST1243:156:D1K8
-                    if analysing_pairs:
-                        for s in readset[0].unknown_sequences:
-                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
-                            if not self._context_window: # Do not reset length if context windowing is used, because the full_qseq is truncated
-                                s.full_nucleotide_sequence_length = None
-                        for s in readset[1].unknown_sequences:
-                            s.unaligned_sequence = reverse_full_qseqs[s.name.split('••')[0]]
-                            if not self._context_window:
-                                s.full_nucleotide_sequence_length = None
-                    else:
-                        for s in readset.unknown_sequences:
-                            s.unaligned_sequence = forward_full_qseqs[s.name.split('••')[0]]
-                            if not self._context_window:
-                                s.full_nucleotide_sequence_length = None
                 new_infos = list(self._seqs_to_counts_and_taxonomy(
                     aligned_seqs, singlem_assignment_method,
                     known_sequence_tax if known_sequence_taxonomy else {},
@@ -1013,8 +981,6 @@ class SearchPipe:
                         SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD) else None,
                     placement_parser if singlem_assignment_method == PPLACER_ASSIGNMENT_METHOD else None,
                     assignment_methods,
-                    read_name_to_fullseq if diamond_forward_qseqs else None,
-                    repaired_deletion_read_names,
                 ))
 
                 if output_jplace:
@@ -1078,9 +1044,7 @@ class SearchPipe:
                                      per_read_taxonomies,
                                      per_read_equal_best_taxonomies,
                                      placement_parser,
-                                     taxonomy_assignment_methods,
-                                     read_name_to_fullseq,
-                                     repaired_deletion_read_names):
+                                     taxonomy_assignment_methods):
         '''Given an array of UnalignedAlignedNucleotideSequence objects, and taxonomic
         assignment-related results, yield over 'Info' objects that contain e.g.
         the counts of the aggregated sequences and corresponding median
@@ -1099,10 +1063,6 @@ class SearchPipe:
             Used only if assignment_method is PPLACER_ASSIGNMENT_METHOD.
         taxonomy_assignment_methods: SingleAnswerAssignmentMethodStore or MultiAnswerAssignmentMethodStore
             What method(s) were used to assign taxonomy to individual OTUs.
-        repaired_deletion_read_names: set of str
-            names of the reads whose window has an ambiguous base that frameshift
-            repair inserted, recorded per OTU so that the base can still be
-            resolved after this run finishes (see Summariser).
         '''
         class CollectedInfo:
             def __init__(self):
@@ -1115,7 +1075,7 @@ class SearchPipe:
                 self.aligned_lengths = []
                 self.orf_names = []
                 self.known_sequence_taxonomies = []
-                self.repaired_deletions = []
+                self.unaligned_sequence_variants = []
 
         seq_to_collected_info = {}
         for s in sequences:
@@ -1156,18 +1116,14 @@ class SearchPipe:
             if per_read_equal_best_taxonomies is not None and equal_best_tax is not None:
                 collected_info.equal_best_taxonomies.append(equal_best_tax)
             collected_info.names.append(s.name)
-            if read_name_to_fullseq:
-                collected_info.unaligned_sequences.append(
-                    read_name_to_fullseq[s.name.split('••')[0]])
-            else:
-                collected_info.unaligned_sequences.append(s.unaligned_sequence)
+            collected_info.unaligned_sequences.append(s.unaligned_sequence)
             collected_info.coverage += s.coverage_increment()
             collected_info.aligned_lengths.append(s.aligned_length)
             collected_info.orf_names.append(s.orf_name)
-            collected_info.repaired_deletions.append(s.name in repaired_deletion_read_names)
+            collected_info.unaligned_sequence_variants.append(s.unaligned_sequence_variants)
 
         class Info:
-            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths, taxonomy_assignment_method, repaired_deletions):
+            def __init__(self, seq, count, taxonomy, equal_best_taxonomies, names, unaligned_sequences, coverage, aligned_lengths, taxonomy_assignment_method, unaligned_sequence_variants):
                 self.seq = seq
                 self.count = count
                 self.taxonomy = taxonomy
@@ -1177,7 +1133,7 @@ class SearchPipe:
                 self.coverage = coverage
                 self.aligned_lengths = aligned_lengths
                 self.taxonomy_assignment_method = taxonomy_assignment_method
-                self.repaired_deletions = repaired_deletions
+                self.unaligned_sequence_variants = unaligned_sequence_variants
 
         for seq, collected_info in seq_to_collected_info.items():
             # All seqs in OTU have the same assignment method, except in rare
@@ -1227,7 +1183,7 @@ class SearchPipe:
                        collected_info.coverage,
                        collected_info.aligned_lengths,
                        otu_taxonomy_assignment_method,
-                       collected_info.repaired_deletions)
+                       collected_info.unaligned_sequence_variants)
 
     def _median_taxonomy(self, taxonomies):
         levels_to_counts = []
@@ -1906,7 +1862,7 @@ class SearchPipe:
             "read1" if is_forward else "read2")
 
     @staticmethod
-    def _read_columns_sorted_by_name(names, unaligned_sequences, aligned_lengths, repaired_deletions):
+    def _read_columns_sorted_by_name(names, unaligned_sequences, aligned_lengths, unaligned_sequence_variants):
         '''Put an OTU's per-read data in read name order.
 
         These lists are parallel - index i describes the same read in each - and
@@ -1917,18 +1873,12 @@ class SearchPipe:
         towards nucleotides_aligned without appearing in the window itself, so two
         reads can share a window and still differ there.
 
-        Returns the four lists in name order, except that the last becomes the
-        indices of the reads whose window has an ambiguous base inserted by
-        frameshift repair, which is how the OTU table records it.
+        Returns the four lists in name order.
         '''
         reads = sorted(
-            zip(names, unaligned_sequences, aligned_lengths, repaired_deletions),
+            zip(names, unaligned_sequences, aligned_lengths, unaligned_sequence_variants),
             key=lambda read: read[0])
-        return (
-            [read[0] for read in reads],
-            [read[1] for read in reads],
-            [read[2] for read in reads],
-            [i for (i, read) in enumerate(reads) if read[3]])
+        return tuple([read[i] for read in reads] for i in range(4))
 
     def _remove_single_sequence_duplicates(self, readset):
         '''In extremely rare circumstances, a single read can have >1 OTU

@@ -38,24 +38,32 @@ The extended OTU table form generated with the `--output-extras` option to the [
   1. read_names - the names of the reads which encode the OTU sequence
   2. nucleotides_aligned - the number of nucleotides which aligned to the window (usually 60, but can be more or less if there are gaps or inserts)
   3. taxonomy_by_known? - whether the taxonomy of the OTU was determined by known genomes (TRUE) or by the reads themselves (FALSE). Currently this is a disused column and is always marked FALSE.
-  4. read_unaligned_sequences - the raw sequences of the reads which encode the OTU sequence
+  4. read_unaligned_sequences - the sequences of the reads which encode the OTU sequence, after any frameshift repair
   5. equal_best_hit_taxonomies - the taxonomies of the best hits to the OTU sequence, if there are multiple equally good hits. This is a JSON array of strings.
+  6. taxonomy_assignment_method - the method used to assign the taxonomy of the OTU
+  7. read_unaligned_sequence_variants - the modifications made to each read by frameshift repair (see archive OTU table, below), with one space-separated entry per read in the order of read_names. An entry is `.` for a read that was not modified, and otherwise the read's variants written as `POS:REF>ALT` and separated by commas, e.g. `121:AN>A,150:T>TT`.
 
 
 ## **Archive OTU table**
 Similar to an extended form OTU table, but in JSON form for machine readability and with formatting version recorded. The [renew](/tools/renew) subcommand which re-analyses a dataset requires this format of OTU table rather than the default tab-separated OTU table format. The canonical file extension for SingleM packages is `.json`.
 
-From version 5, archive OTU tables are laid out to reduce the repetition that dominates the file, so the same OTUs take less space on disk:
+From version 6, archive OTU tables are laid out to reduce the repetition that dominates the file, so the same OTUs take less space on disk:
 
 * `otus` maps each field name to the list of that field's values across the OTUs, rather than being a list of one row per OTU.
 * Fields whose value is identical in every OTU are stored once in `constant_fields` and left out of `otus`. `num_otus` gives the number of OTUs, since the columns alone do not when every field is constant.
 * `reads` holds the unaligned read sequences, dereplicated: a read hitting two markers is stored once rather than once per marker. The `read_unaligned_sequences` field then holds, for each read of an OTU, either `0` for "the next read of `reads` not yet used" or `n` for a repeat of `reads[n - 1]`.
 
-Version 5 also records frameshift repairs. A missing read base is stored as `N` in the OTU `sequence`; `reads_with_repaired_deletions` stores the zero-based indices of the affected reads in `read_names`. This distinguishes repair-inserted `N`s from ambiguous bases already present in the reads. The value is `null` when no read is affected. Repairs that remove an extra base need no additional metadata.
+Version 6 also records the modifications that frameshift repair makes to each read. The `read_unaligned_sequences` are the reads *after* repair: where a base is missing from a read, an `N` is inserted, and where a read has an extra base, it is removed. The `read_unaligned_sequence_variants` field records, for each read of an OTU, how to turn that stored sequence back into the read as sequenced. It is `null` for a read that was not modified, and is `null` for the whole OTU when none of its reads were. Otherwise it is a list of VCF-style variants `[POS, REF, ALT]`, in which the stored sequence plays the part of the VCF reference:
 
-This field is internal and is omitted from extended TSV OTU tables. [summarise](/tools/summarise) uses it with `--resolve-ambiguous-windows` to resolve deferred `N`s after combining chunks produced by [pipe](/tools/pipe) `--read-chunk-size`.
+* `POS` is the 1-based position in the stored sequence at which the variant starts.
+* `REF` is the stored sequence from `POS` onwards, and `ALT` what the read as sequenced has in its place.
+* As in VCF, each variant includes the base before the edit (or the base after it, when the edit is at the very start of the read). So `[7, "CN", "C"]` means an `N` was inserted after the `C` at position 7, and `[7, "C", "CT"]` means a `T` after that `C` was removed. Edits close enough for these bases to overlap are combined into one variant, so variants never overlap and are listed in order of `POS`.
 
-Versions 1 to 4, which store `otus` as a list of rows with every field present in each, are still read. Code that reads archive OTU tables through `singlem.archive_otu_table.ArchiveOtuTable` sees a list of rows regardless of the version on disk; code that parses the JSON itself needs to handle the layout of the version it is given.
+Replacing each `REF` with its `ALT` recreates the read as sequenced. When reading archive OTU tables through `singlem.archive_otu_table.ArchiveOtuTable`, `read_original_unaligned_sequences()` does this. With `pipe --context-window`, only the region around each hit is stored rather than the whole read, and this shortening is not recorded as a variant.
+
+The variants also show which reads had an `N` inserted by repair (a variant whose `REF` has more `N`s than its `ALT`), as opposed to ambiguous bases already present in the read. [summarise](/tools/summarise) uses that with `--resolve-ambiguous-windows` to resolve deferred `N`s in OTU sequences after combining chunks produced by [pipe](/tools/pipe) `--read-chunk-size`.
+
+Version 5 archive OTU tables were only ever written by development versions of SingleM, and are not supported. Versions 1 to 4, which store `otus` as a list of rows with every field present in each, are still read. Code that reads archive OTU tables through `singlem.archive_otu_table.ArchiveOtuTable` sees a list of rows regardless of the version on disk; code that parses the JSON itself needs to handle the layout of the version it is given.
 
 ## **Coverage, unfilled coverage and filled coverage**
 First, to define *coverage*. Coverage of a single species is defined in the standard way as in e.g. [CoverM](https://github.com/wwood/CoverM). It is the average number of reads covering each position in that species' genome. SingleM (and Lyrebird) do not directly calculate this via mapping, but instead assume that the coverage of a species' single copy marker genes is representative of the coverage of the whole genome. In particular, it is estimated from the reads that encode sequences recruited to the highly conserved marker gene windows.

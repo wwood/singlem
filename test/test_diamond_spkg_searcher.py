@@ -51,7 +51,7 @@ class DiamondSpkgSearcherTests(unittest.TestCase):
                         repair_frameshifts=False,
                     )
 
-    def _prefilter_on_one_hit(self, tempdir, line, repair_frameshifts):
+    def _prefilter_on_one_hit(self, tempdir, line, repair_frameshifts, context_window=None):
         searcher = DiamondSpkgSearcher(num_threads=1, working_directory=tempdir)
         with patch(
             'singlem.diamond_spkg_searcher.Popen',
@@ -64,7 +64,7 @@ class DiamondSpkgSearcherTests(unittest.TestCase):
                 performance_parameters='',
                 sample_names=['sample.fna'],
                 min_orf_length=0,
-                context_window=None,
+                context_window=context_window,
                 repair_frameshifts=repair_frameshifts,
             )
 
@@ -83,15 +83,19 @@ class DiamondSpkgSearcherTests(unittest.TestCase):
             results = self._prefilter_on_one_hit(tempdir, line, True)
             with open(results[0].query_sequences_file) as f:
                 output = f.read()
+            with open(results[0].full_query_sequences_file) as f:
+                full = f.read()
         # Only the aligned region (nt 1-26) is written, with an 'N' inserted at
         # the frameshift, so it is one base longer than the region.
         repaired = output.split('\n')[1]
         self.assertEqual('ATGAAANCCCGGGTTTAAACCCGGGTT', repaired)
         self.assertEqual(27, len(repaired))
         self.assertEqual(0, len(repaired) % 3)
-        # The hit's deletion should be recorded so resolve_ambiguous_windows()
-        # can later tell this 'N' apart from one in the raw read.
-        self.assertEqual({'read1••gene'}, results[0].repaired_deletion_qseqids)
+        # The repair is recorded against the whole read, which is what goes
+        # into the archive OTU table, and the read is written there unrepaired.
+        self.assertEqual(
+            {'read1••gene': [[6, 'AN', 'A']]}, results[0].unaligned_sequence_variants)
+        self.assertEqual('>read1\n{}\n'.format(sequence), full)
 
     def test_frameshift_repair_removes_extra_base_for_an_insertion(self):
         sequence = 'ATGAAACCCGGGTTTAAACCCGGGTTTAAA'
@@ -107,9 +111,9 @@ class DiamondSpkgSearcherTests(unittest.TestCase):
         self.assertEqual('ATGAAACCGGGTTTAAACCCGGGTTTA', repaired)
         self.assertEqual(27, len(repaired))
         self.assertEqual(0, len(repaired) % 3)
-        # An insertion does not leave an ambiguous base, so nothing needs
-        # tracking for resolve_ambiguous_windows().
-        self.assertEqual(set(), results[0].repaired_deletion_qseqids)
+        # The removed base is recorded so that the read can be recreated.
+        self.assertEqual(
+            {'read1••gene': [[6, 'A', 'AC']]}, results[0].unaligned_sequence_variants)
 
     def test_frameshift_repair_inserts_ambiguous_base_for_a_deletion_on_reverse_strand(self):
         # Same deletion as test_frameshift_repair_inserts_ambiguous_base_for_a_deletion,
@@ -124,6 +128,20 @@ class DiamondSpkgSearcherTests(unittest.TestCase):
         self.assertEqual('ATGAAACCCGGGTTTAAACCNCGGGTT', repaired)
         self.assertEqual(27, len(repaired))
         self.assertEqual(0, len(repaired) % 3)
+
+    def test_frameshift_repair_with_context_window_is_relative_to_the_window(self):
+        # With a context window only the region around the hit (here nt 4-30) is
+        # recorded, and cutting the read down to it is not itself a variant.
+        sequence = 'GGGATGAAACCCGGGTTTAAACCCGGGTTTAAA'
+        line = 'read1\t{}\tgene~ref1\t7\t29\t2/-6\n'.format(sequence)
+        with tempfile.TemporaryDirectory() as tempdir:
+            results = self._prefilter_on_one_hit(tempdir, line, True, context_window=3)
+            with open(results[0].full_query_sequences_file) as f:
+                full = f.read()
+        name = 'read1:4-32,33••gene'
+        self.assertEqual('>read1:4-32,33\n{}\n'.format(sequence[3:32]), full)
+        # The read is missing a base after nt 12, i.e. nt 9 of the region.
+        self.assertEqual({name: [[9, 'CN', 'C']]}, results[0].unaligned_sequence_variants)
 
     def test_no_frameshift_repair_when_not_requested(self):
         # Without --repair-frameshifts, DIAMOND is not asked for BTOP and the

@@ -131,8 +131,7 @@ def repair_frameshifts(sequence, frameshifts, ambiguous_char=AMBIGUOUS_CHAR):
     frame.
 
     Deletions have ambiguous_char inserted (the deleted base is unknown);
-    insertions have the extra base removed. Edits are applied from the 3' end
-    backwards so that earlier positions stay valid.
+    insertions have the extra base removed.
 
     Parameters
     ----------
@@ -145,17 +144,155 @@ def repair_frameshifts(sequence, frameshifts, ambiguous_char=AMBIGUOUS_CHAR):
     -------
     the repaired sequence.
     '''
-    for (position, kind) in sorted(frameshifts, key=lambda f: -f[0]):
-        if position < 0 or position > len(sequence):
+    return repair_frameshifts_with_variants(sequence, frameshifts, ambiguous_char)[0]
+
+
+def repair_frameshifts_with_variants(sequence, frameshifts, ambiguous_char=AMBIGUOUS_CHAR):
+    '''As repair_frameshifts(), but also describe the repairs as VCF-style
+    variants that turn the repaired sequence back into the original one.
+
+    The repaired sequence plays the part of the VCF reference, and the original
+    the alternate allele, because it is the repaired sequence that is kept (e.g.
+    in the archive OTU table) and the original that needs recreating from it.
+    Each variant is [POS, REF, ALT]: POS is 1-based in the repaired sequence,
+    REF is the repaired sequence from POS onwards, and ALT what the original has
+    in its place. As in VCF, each carries the base before the edit, or the base
+    after it when the edit is at the very start. A deleted base repaired as 'N'
+    after a 'C' at POS 7 is [7, 'CN', 'C']; an extra 'T' removed after that 'C'
+    is [7, 'C', 'CT']. Edits close enough for those bases to overlap are merged
+    into one variant, so variants never overlap and are in order of POS.
+
+    Returns
+    -------
+    (repaired sequence, list of variants), the list being empty when no
+    frameshift could be applied.
+    '''
+    # Edits as (position in the repaired sequence, bases there in the repaired
+    # sequence, bases there in the original), without the anchoring base.
+    edits = []
+    repaired_parts = []
+    repaired_length = 0
+    consumed = 0
+    for (position, kind) in sorted(frameshifts, key=lambda f: f[0]):
+        if position < consumed or position > len(sequence) or \
+                (kind != 'deletion' and position == len(sequence)):
             logging.warning(
                 "Ignoring frameshift at out-of-range position %i of a %i bp sequence",
                 position, len(sequence))
             continue
+        repaired_parts.append(sequence[consumed:position])
+        repaired_length += position - consumed
         if kind == 'deletion':
-            sequence = sequence[:position] + ambiguous_char + sequence[position:]
+            edits.append((repaired_length, ambiguous_char, ''))
+            repaired_parts.append(ambiguous_char)
+            repaired_length += 1
+            consumed = position
         else:
-            sequence = sequence[:position] + sequence[position + 1:]
-    return sequence
+            edits.append((repaired_length, '', sequence[position]))
+            consumed = position + 1
+    repaired_parts.append(sequence[consumed:])
+    repaired = ''.join(repaired_parts)
+
+    # Give each edit its anchoring base, merging those whose spans then overlap.
+    clusters = []
+    for edit in edits:
+        (position, ref, _) = edit
+        if position > 0:
+            (start, end) = (position - 1, position + len(ref))
+        else:
+            (start, end) = (0, min(len(repaired), len(ref) + 1))
+        if len(clusters) > 0 and start < clusters[-1][1]:
+            clusters[-1][1] = max(clusters[-1][1], end)
+            clusters[-1][2].append(edit)
+        else:
+            clusters.append([start, end, [edit]])
+
+    variants = []
+    for (start, end, cluster_edits) in clusters:
+        alt_parts = []
+        cursor = start
+        for (position, ref, alt) in cluster_edits:
+            alt_parts.append(repaired[cursor:position])
+            alt_parts.append(alt)
+            cursor = position + len(ref)
+        alt_parts.append(repaired[cursor:end])
+        variants.append([start + 1, repaired[start:end], ''.join(alt_parts)])
+    return (repaired, variants)
+
+
+def apply_variants(original, variants):
+    '''Recreate the repaired sequence from the original one, given the variants
+    repair_frameshifts_with_variants() returned for it.'''
+    parts = []
+    cursor = 0
+    shift = 0
+    for (position, ref, alt) in variants:
+        start = position - 1 + shift
+        if start < cursor or original[start:start + len(alt)] != alt:
+            raise Exception(
+                "Variant {} does not match the sequence it is applied to".format(
+                    [position, ref, alt]))
+        parts.append(original[cursor:start])
+        parts.append(ref)
+        cursor = start + len(alt)
+        shift += len(alt) - len(ref)
+    parts.append(original[cursor:])
+    return ''.join(parts)
+
+
+def revert_variants(repaired, variants):
+    '''Recreate the original sequence from the repaired one, given the variants
+    repair_frameshifts_with_variants() returned for it. This is how a reader of
+    an archive OTU table recovers a read as it was before its frameshifts were
+    repaired.'''
+    parts = []
+    cursor = 0
+    for (position, ref, alt) in variants:
+        start = position - 1
+        if start < cursor or repaired[start:start + len(ref)] != ref:
+            raise Exception(
+                "Variant {} does not match the sequence it is applied to".format(
+                    [position, ref, alt]))
+        parts.append(repaired[cursor:start])
+        parts.append(alt)
+        cursor = start + len(ref)
+    parts.append(repaired[cursor:])
+    return ''.join(parts)
+
+
+def original_length(repaired_length, variants):
+    '''Length of the original sequence, given that of the repaired one.'''
+    if variants is None:
+        return repaired_length
+    return repaired_length + sum(len(alt) - len(ref) for (_, ref, alt) in variants)
+
+
+def variants_insert_ambiguous_base(variants, ambiguous_char=AMBIGUOUS_CHAR):
+    '''True if the variants record a repaired deletion, i.e. the repaired
+    sequence has an ambiguous_char that the original did not, as opposed to one
+    that was already in the raw read.'''
+    if variants is None:
+        return False
+    return any(ref.count(ambiguous_char) > alt.count(ambiguous_char)
+               for (_, ref, alt) in variants)
+
+
+NO_VARIANTS_TEXT = '.'
+
+
+def format_variants(otu_variants, num_reads):
+    '''Text form of an OTU's read_unaligned_sequence_variants, for a TSV cell.
+
+    Reads are separated by spaces, as other per-read fields are, and each read
+    is NO_VARIANTS_TEXT if unmodified, or else its variants as POS:REF>ALT
+    separated by commas, e.g. "121:AN>A,150:T>TT". otu_variants may be None,
+    meaning that none of the num_reads reads were modified.'''
+    if otu_variants is None:
+        otu_variants = [None] * num_reads
+    return ' '.join(
+        NO_VARIANTS_TEXT if variants is None
+        else ','.join('%i:%s>%s' % (pos, ref, alt) for (pos, ref, alt) in variants)
+        for variants in otu_variants)
 
 
 def shift_position(position, frameshifts):
@@ -335,7 +472,7 @@ def resolve_windows(ambiguous_windows, abundances,
 def resolve_ambiguous_windows(window_sequences,
                               max_divergence=DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
                               ambiguous_char=AMBIGUOUS_CHAR,
-                              repaired_names=None):
+                              only_repair_inserted=False):
     '''Fill in ambiguous bases in window sequences from other windows in the same
     set.
 
@@ -357,12 +494,12 @@ def resolve_ambiguous_windows(window_sequences,
         modified in place (their aligned_sequence attribute is updated).
     max_divergence: int
         maximum number of mismatches at unambiguous positions.
-    repaired_names: set of str, or None
-        if given, only windows whose .name is in this set are eligible to be
-        resolved, since an ambiguous_char elsewhere is not from frameshift
-        repair (e.g. an 'N' already present in the raw read) and inventing a
-        base for it would misrepresent the read. If None, every ambiguous
-        window is eligible, as when no such provenance is available.
+    only_repair_inserted: bool
+        if True, only windows whose unaligned_sequence_variants record a
+        repaired deletion are eligible to be resolved, since an ambiguous_char
+        elsewhere is not from frameshift repair (e.g. an 'N' already present in
+        the raw read) and inventing a base for it would misrepresent the read.
+        If False, every ambiguous window is eligible.
 
     Returns
     -------
@@ -370,7 +507,8 @@ def resolve_ambiguous_windows(window_sequences,
     '''
     ambiguous = [s for s in window_sequences
                  if ambiguous_char in s.aligned_sequence
-                 and (repaired_names is None or s.name in repaired_names)]
+                 and (not only_repair_inserted
+                      or variants_insert_ambiguous_base(s.unaligned_sequence_variants))]
     if len(ambiguous) == 0:
         return 0
 
