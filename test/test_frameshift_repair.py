@@ -28,8 +28,9 @@ import unittest
 sys.path = [os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')] + sys.path
 
 from singlem.frameshift_repair import (
-    parse_btop, walk_btop, repair_frameshifts, shift_position,
-    resolve_ambiguous_windows)
+    parse_btop, walk_btop, repair_frameshifts, repair_frameshifts_with_variants,
+    apply_variants, revert_variants, original_length, variants_insert_ambiguous_base,
+    format_variants, shift_position, resolve_ambiguous_windows)
 
 
 class ParseBtopTests(unittest.TestCase):
@@ -138,6 +139,87 @@ class RepairFrameshiftsTests(unittest.TestCase):
         self.assertEqual(0, len(repaired) % 3)
 
 
+class RepairFrameshiftsWithVariantsTests(unittest.TestCase):
+    def assertRecreates(self, sequence, frameshifts):
+        (repaired, variants) = repair_frameshifts_with_variants(sequence, frameshifts)
+        self.assertEqual(repair_frameshifts(sequence, frameshifts), repaired)
+        self.assertEqual(sequence, revert_variants(repaired, variants))
+        self.assertEqual(repaired, apply_variants(sequence, variants))
+        self.assertEqual(len(sequence), original_length(len(repaired), variants))
+        return (repaired, variants)
+
+    def test_no_frameshifts(self):
+        self.assertEqual(('ACGT', []), self.assertRecreates('ACGT', []))
+
+    def test_deletion(self):
+        # The base before the edit anchors it, as in VCF.
+        self.assertEqual(
+            ('ACNGTACGT', [[2, 'CN', 'C']]),
+            self.assertRecreates('ACGTACGT', [(2, 'deletion')]))
+
+    def test_insertion(self):
+        self.assertEqual(
+            ('ACTACGT', [[2, 'C', 'CG']]),
+            self.assertRecreates('ACGTACGT', [(2, 'insertion')]))
+
+    def test_edit_at_start_anchored_by_following_base(self):
+        self.assertEqual(
+            ('NACGT', [[1, 'NA', 'A']]),
+            self.assertRecreates('ACGT', [(0, 'deletion')]))
+        self.assertEqual(
+            ('CGT', [[1, 'C', 'AC']]),
+            self.assertRecreates('ACGT', [(0, 'insertion')]))
+
+    def test_deletion_at_end(self):
+        self.assertEqual(
+            ('ACGTN', [[4, 'TN', 'T']]),
+            self.assertRecreates('ACGT', [(4, 'deletion')]))
+
+    def test_several_frameshifts(self):
+        self.assertEqual(
+            ('ACNGTCGT', [[2, 'CN', 'C'], [5, 'T', 'TA']]),
+            self.assertRecreates('ACGTACGT', [(2, 'deletion'), (4, 'insertion')]))
+
+    def test_adjacent_frameshifts_merged(self):
+        # Anchored separately, these would both start at the C, which VCF does
+        # not allow.
+        (repaired, variants) = self.assertRecreates(
+            'ACGTACGT', [(2, 'insertion'), (3, 'deletion')])
+        self.assertEqual('ACNTACGT', repaired)
+        self.assertEqual([[2, 'CN', 'CG']], variants)
+
+    def test_random_frameshifts_recreate_the_original(self):
+        import random
+        rng = random.Random(42)
+        for _ in range(2000):
+            sequence = ''.join(rng.choice('ACGTN') for _ in range(rng.randint(1, 12)))
+            frameshifts = list({
+                rng.randint(0, len(sequence)): rng.choice(['deletion', 'insertion'])
+                for _ in range(rng.randint(0, 4))}.items())
+            (_, variants) = self.assertRecreates(sequence, frameshifts)
+            for (first, second) in zip(variants, variants[1:]):
+                self.assertLessEqual(first[0] + len(first[1]), second[0])
+
+    def test_mismatched_variant_rejected(self):
+        with self.assertRaises(Exception):
+            revert_variants('ACGT', [[2, 'GN', 'G']])
+        with self.assertRaises(Exception):
+            apply_variants('ACGT', [[2, 'GN', 'G']])
+
+    def test_variants_insert_ambiguous_base(self):
+        self.assertTrue(variants_insert_ambiguous_base([[2, 'CN', 'C']]))
+        self.assertFalse(variants_insert_ambiguous_base([[2, 'C', 'CG']]))
+        self.assertFalse(variants_insert_ambiguous_base(None))
+        # An 'N' that was in the read all along is not one repair inserted.
+        self.assertFalse(variants_insert_ambiguous_base([[2, 'N', 'NA']]))
+
+    def test_format_variants(self):
+        self.assertEqual('. .', format_variants(None, 2))
+        self.assertEqual(
+            '121:AN>A,150:T>TT .',
+            format_variants([[[121, 'AN', 'A'], [150, 'T', 'TT']], None], 2))
+
+
 class ShiftPositionTests(unittest.TestCase):
     def test_no_frameshifts(self):
         self.assertEqual(10, shift_position(10, []))
@@ -156,9 +238,10 @@ class FakeWindowSequence:
     '''Stands in for UnalignedAlignedNucleotideSequence, which needs more setup
     than these tests require.'''
 
-    def __init__(self, aligned_sequence, name=None):
+    def __init__(self, aligned_sequence, name=None, unaligned_sequence_variants=None):
         self.aligned_sequence = aligned_sequence
         self.name = name
+        self.unaligned_sequence_variants = unaligned_sequence_variants
 
 
 class ResolveAmbiguousWindowsTests(unittest.TestCase):
@@ -173,23 +256,22 @@ class ResolveAmbiguousWindowsTests(unittest.TestCase):
         self.assertEqual(1, resolve_ambiguous_windows(sequences))
         self.assertEqual('ACGTACGT', ambiguous.aligned_sequence)
 
-    def test_repaired_names_restricts_resolution(self):
+    def test_only_repair_inserted_restricts_resolution(self):
         # An 'N' that came from the raw read rather than frameshift repair must
         # not be filled in, even if a perfect donor is available.
         raw_n = FakeWindowSequence('ACGNACGT', name='raw_read')
-        repaired = FakeWindowSequence('ACGNACGT', name='repaired_read')
+        repaired = FakeWindowSequence(
+            'ACGNACGT', name='repaired_read', unaligned_sequence_variants=[[10, 'GN', 'G']])
         sequences = [raw_n, repaired, FakeWindowSequence('ACGTACGT', name='donor')]
         self.assertEqual(
-            1, resolve_ambiguous_windows(sequences, repaired_names={'repaired_read'}))
+            1, resolve_ambiguous_windows(sequences, only_repair_inserted=True))
         self.assertEqual('ACGNACGT', raw_n.aligned_sequence)
         self.assertEqual('ACGTACGT', repaired.aligned_sequence)
 
-    def test_repaired_names_none_resolves_everything(self):
-        # Without provenance information, every ambiguous window is eligible,
-        # matching the previous behaviour.
+    def test_not_only_repair_inserted_resolves_everything(self):
         ambiguous = FakeWindowSequence('ACGNACGT', name='unknown')
         sequences = [ambiguous, FakeWindowSequence('ACGTACGT', name='donor')]
-        self.assertEqual(1, resolve_ambiguous_windows(sequences, repaired_names=None))
+        self.assertEqual(1, resolve_ambiguous_windows(sequences, only_repair_inserted=False))
         self.assertEqual('ACGTACGT', ambiguous.aligned_sequence)
 
     def test_most_abundant_donor_wins(self):

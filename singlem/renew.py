@@ -9,6 +9,7 @@ from .metapackage import Metapackage
 from .archive_otu_table import ArchiveOtuTable
 from .pipe_sequence_extractor import ExtractedReads, ExtractedReadSet
 from .sequence_classes import Sequence, UnalignedAlignedNucleotideSequence
+from .frameshift_repair import original_length
 from .otu_table_collection import StreamingOtuTableCollection
 
 class Renew:
@@ -139,11 +140,20 @@ class Renew:
             nucleotides_aligned = otu.data[nucleotides_aligned_field]
             if len(read_names) != len(nucleotides_aligned) or len(seqs) != len(nucleotides_aligned):
                 raise Exception("Unexpected format of otu found: {}".format(otu))
-            for (name, seq, num_aligned) in zip(read_names, seqs, nucleotides_aligned):
+            # Carried through so that the output archive still records the
+            # frameshift repairs made by the pipe run that the input came from.
+            all_variants = otu.read_unaligned_sequence_variants()
+            if all_variants is None:
+                all_variants = [None] * len(read_names)
+            for (name, seq, num_aligned, variants) in zip(read_names, seqs, nucleotides_aligned, all_variants):
                 state.current_sequences.append(Sequence(name, seq))
                 state.current_unaligned_aligned_nuc_seqs.append(
                     UnalignedAlignedNucleotideSequence(
-                        name, None, otu.sequence, seq, num_aligned))
+                        name, None, otu.sequence, seq, num_aligned,
+                        # As in pipe, coverage is from the length of the read as
+                        # sequenced rather than as repaired.
+                        full_nucleotide_sequence_length=None if variants is None else original_length(len(seq), variants),
+                        unaligned_sequence_variants=variants))
         if ignore_missing_singlem_packages:
             logging.info("Ignored {} OTUs that were not found in the specified singlem packages".format(num_ignored_otus))
         

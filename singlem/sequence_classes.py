@@ -48,7 +48,8 @@ class UnalignedAlignedNucleotideSequence:
 
     '''
 
-    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length, full_nucleotide_sequence_length=None):
+    def __init__(self, name, orf_name, aligned_sequence, unaligned_sequence, aligned_length, full_nucleotide_sequence_length=None,
+                 unaligned_sequence_variants=None):
         '''
         Parameters
         ---------
@@ -63,6 +64,13 @@ class UnalignedAlignedNucleotideSequence:
         aligned_length:
             the number of nucleotides used in the alignment, including columns
             that were removed as not aligned
+        unaligned_sequence_variants: list of [POS, REF, ALT], or None
+            the frameshift repairs made to the read, as VCF-style variants that
+            turn the repaired read back into the original one (see
+            frameshift_repair.repair_frameshifts_with_variants). They are
+            relative to the whole read as recorded in the archive OTU table,
+            which is not necessarily unaligned_sequence until pipe puts that
+            read there. None if the read was not repaired.
         '''
         self.name = name
         self.orf_name = orf_name
@@ -70,6 +78,7 @@ class UnalignedAlignedNucleotideSequence:
         self.unaligned_sequence = unaligned_sequence
         self.aligned_length = aligned_length
         self.full_nucleotide_sequence_length = full_nucleotide_sequence_length
+        self.unaligned_sequence_variants = unaligned_sequence_variants
 
     def coverage_increment(self):
         '''Given the alignment came from a read of length

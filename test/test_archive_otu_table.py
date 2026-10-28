@@ -34,14 +34,14 @@ path_to_data = os.path.join(os.path.dirname(os.path.realpath(__file__)),'data')
 def otu(gene='4.11.22seqs', sample='sample1', sequence='ACGT', num_hits=1, coverage=1.0,
         taxonomy='Root', read_names=None, nucleotides_aligned=None, taxonomy_by_known=False,
         read_unaligned_sequences=None, equal_best_hit_taxonomies=None,
-        taxonomy_assignment_method='diamond', reads_with_repaired_deletions=None):
+        taxonomy_assignment_method='diamond', read_unaligned_sequence_variants=None):
     return [gene, sample, sequence, num_hits, coverage, taxonomy,
             read_names if read_names is not None else ['read1'],
             nucleotides_aligned if nucleotides_aligned is not None else [60],
             taxonomy_by_known,
             read_unaligned_sequences if read_unaligned_sequences is not None else ['AAAACCCC'],
             equal_best_hit_taxonomies, taxonomy_assignment_method,
-            reads_with_repaired_deletions]
+            read_unaligned_sequence_variants]
 
 
 class Tests(unittest.TestCase):
@@ -69,7 +69,7 @@ class Tests(unittest.TestCase):
 
     def test_writes_the_current_version(self):
         j = json.loads(self.write([otu()]))
-        self.assertEqual(5, j['version'])
+        self.assertEqual(6, j['version'])
         self.assertEqual(ArchiveOtuTable.FIELDS, j['fields'])
 
     def test_round_trip_single_otu(self):
@@ -175,13 +175,34 @@ class Tests(unittest.TestCase):
         self.assertEqual(95, len(observed.data))
         self.assertEqual(ArchiveOtuTable.FIELDS_VERSION4, observed.fields)
 
-    def test_version_4_and_version_5_hold_the_same_otus(self):
+    def test_version_4_and_version_6_hold_the_same_otus(self):
         with open(os.path.join(path_to_data, 'SRR8653040.json')) as f:
             version_4 = ArchiveOtuTable.read(f)
-        version_5 = ArchiveOtuTable.read(StringIO(self.write(version_4.data)))
-        # Version 5 adds reads_with_repaired_deletions, which a version 4 archive
-        # does not record, so its OTUs gain a None for it.
-        self.assertEqual([row + [None] for row in version_4.data], version_5.data)
+        version_6 = ArchiveOtuTable.read(StringIO(self.write(version_4.data)))
+        # Version 6 adds read_unaligned_sequence_variants, which a version 4
+        # archive does not record, so its OTUs gain a None for it.
+        self.assertEqual([row + [None] for row in version_4.data], version_6.data)
+
+    def test_version_5_rejected(self):
+        j = json.loads(self.write([otu()]))
+        j['version'] = 5
+        with self.assertRaisesRegex(Exception, 'version 5'):
+            ArchiveOtuTable.read(StringIO(json.dumps(j)))
+
+    def test_round_trip_variants(self):
+        variants = [None, [[3, 'GN', 'G'], [8, 'C', 'CT']]]
+        observed = self.round_trip([otu(
+            read_names=['read1', 'read2'], nucleotides_aligned=[60, 60],
+            read_unaligned_sequences=['AAAACCCC', 'ACGNTTTCAA'],
+            read_unaligned_sequence_variants=variants)])
+        entry = list(observed)[0]
+        self.assertEqual(variants, entry.read_unaligned_sequence_variants())
+        self.assertEqual(['AAAACCCC', 'ACGTTTCTAA'], entry.read_original_unaligned_sequences())
+
+    def test_original_unaligned_sequences_without_variants(self):
+        entry = list(self.round_trip([otu()]))[0]
+        self.assertEqual(None, entry.read_unaligned_sequence_variants())
+        self.assertEqual(['AAAACCCC'], entry.read_original_unaligned_sequences())
 
     def test_version_4_tables_are_still_written_row_wise(self):
         table = ArchiveOtuTable()
@@ -199,8 +220,8 @@ class Tests(unittest.TestCase):
 
     def test_min_version(self):
         with self.assertRaises(InsufficientArchiveOtuTableVersionException):
-            ArchiveOtuTable.read(StringIO(self.write([otu()])), min_version=6)
-        ArchiveOtuTable.read(StringIO(self.write([otu()])), min_version=5)
+            ArchiveOtuTable.read(StringIO(self.write([otu()])), min_version=7)
+        ArchiveOtuTable.read(StringIO(self.write([otu()])), min_version=6)
 
     def test_unknown_version_rejected(self):
         j = json.loads(self.write([otu()]))

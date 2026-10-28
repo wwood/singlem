@@ -346,6 +346,13 @@ def _extract_reads_by_diamond_for_package_and_sample(prefilter_result, spkg,
 
 
     logging.debug("[PID: {}] Found {} window sequences for spkg {}".format(pid, len(window_seqs),spkg.base_directory()))
+
+    # Attached to the window sequences here, while their names still match the
+    # prefilter's, so that the record of each read's frameshift repairs travels
+    # with it through any renaming (e.g. of SRA reads) to the archive OTU table.
+    for window_seq in window_seqs:
+        window_seq.unaligned_sequence_variants = \
+            prefilter_result.unaligned_sequence_variants.get(window_seq.name)
     return ExtractedReadSet(
         sample_name, spkg,
         sequences, [], window_seqs

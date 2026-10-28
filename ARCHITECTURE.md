@@ -49,8 +49,11 @@ Ordered roughly by where a reader should start.
   of lost windows on Nanopore reads. Resolution is the one step whose answer depends on the rest
   of the dataset, so a chunked run (`--read-chunk-size`) skips it and `summarise
   --resolve-ambiguous-windows` does it over the combined chunks instead; both go through the
-  shared `resolve_windows()`, and the archive's `reads_with_repaired_deletions` field is what
-  carries the provenance that far.
+  shared `resolve_windows()`. The repairs to each read are recorded as VCF-style variants
+  (`repair_frameshifts_with_variants()`), computed in the prefilter, attached to each window
+  sequence as `unaligned_sequence_variants`, and written to the archive's
+  `read_unaligned_sequence_variants` field; that is also what carries the provenance of a
+  repair-inserted `N` as far as `summarise`.
 - **`prefilter_pad.py`** — `PrefilterPadder` plus the pure helpers `window_alignment_positions()`
   and `pad_aligned_sequence()`. Emits a prefilter FASTA where every on-target sequence is
   padded to a fixed length (30aa + 20aa window + 30aa, `X`-padded) with the window in a
@@ -62,9 +65,10 @@ Ordered roughly by where a reader should start.
   The OTU data model. `OtuTableEntry` is one (marker, sample, window sequence, count,
   coverage, taxonomy) row; `OtuTable` is the plain TSV form; `ArchiveOtuTable` is the richer
   JSON form (retains per-read data, enabling `renew`); collection classes provide streaming
-  iteration over many tables (`StreamingOtuTableCollection`). Archive version 5 writes the
+  iteration over many tables (`StreamingOtuTableCollection`). Archive version 6 writes the
   OTUs column-wise, hoists fields that are constant across every OTU into `constant_fields`,
-  and dereplicates read sequences into a shared `reads` list; versions 1-4 are still read.
+  and dereplicates read sequences into a shared `reads` list; versions 1-4 are still read,
+  but not version 5, which only development versions wrote.
   In memory the table is a list of rows either way, so only `ArchiveOtuTable` itself cares.
 - **`condense.py`** — `Condenser` turns per-marker OTUs into a `CondensedCommunityProfile`
   (a coverage tree of `WordNode`s), applying trimmed means and genus/species

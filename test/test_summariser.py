@@ -361,16 +361,32 @@ minimal2	0.2
         table.singlem_package_sha256s = ['spkg_sha']
         if version is not None:
             table.version = version
-            table.fields = ArchiveOtuTable.FIELDS_OF_EACH_VERSION[version - 1]
+            table.fields = ArchiveOtuTable.FIELDS_OF_EACH_VERSION[version]
             otus = [otu[:len(table.fields)] for otu in otus]
         table.data = otus
         with open(path, 'w') as f:
             table.write_to(f)
 
+    # How frameshift repair records a deletion it inserted an 'N' for.
+    REPAIRED_DELETION = [[2, 'AN', 'A']]
+
     def _otu(self, sequence, read_names, repaired=None):
+        '''repaired gives the indices of the reads that had a deletion repaired.'''
+        if repaired is None:
+            variants = None
+        else:
+            variants = [self.REPAIRED_DELETION if i in repaired else None
+                        for i in range(len(read_names))]
         return ['gene1', 'chunked_sample', sequence, len(read_names), float(len(read_names)),
                 'Root; d__Bacteria', read_names, [60] * len(read_names), False,
-                ['AAAA'] * len(read_names), None, 'no_assign_taxonomy', repaired]
+                ['AANAA'] * len(read_names), None, 'no_assign_taxonomy', variants]
+
+    def _repaired_reads(self, otu):
+        '''Names of the reads of otu recorded as having a deletion repaired.'''
+        variants = otu.read_unaligned_sequence_variants()
+        if variants is None:
+            return []
+        return sorted(name for (name, v) in zip(otu.read_names(), variants) if v is not None)
 
     def _collapse(self, otus_per_chunk, extra_args=''):
         with in_tempdir():
@@ -399,8 +415,9 @@ minimal2	0.2
         self.assertEqual(self.DONOR_WINDOW, otu.sequence)
         self.assertEqual(4, otu.count)
         self.assertEqual(['r1', 'r2', 'r3', 'r4'], sorted(otu.read_names()))
-        # Nothing ambiguous is left, so nothing is left marked as repaired.
-        self.assertEqual(None, otu.reads_with_repaired_deletions())
+        # The window is resolved, but the read itself is still as repaired, so
+        # its record of the repair stays.
+        self.assertEqual(['r1'], self._repaired_reads(otu))
 
     def test_chunks_combine_unresolved_without_the_flag(self):
         combined = self._collapse(
@@ -429,7 +446,7 @@ minimal2	0.2
         otu = list(combined)[0]
         self.assertEqual(self.AMBIGUOUS_WINDOW, otu.sequence)
         # Still marked, so a later combination that does have a donor can resolve it.
-        self.assertEqual([0], otu.reads_with_repaired_deletions())
+        self.assertEqual(['r1'], self._repaired_reads(otu))
 
     def test_partially_repaired_otu_is_left_alone(self):
         # Two reads share the window but only one got its ambiguous base from a
@@ -442,19 +459,23 @@ minimal2	0.2
             sorted([self.AMBIGUOUS_WINDOW, self.DONOR_WINDOW]),
             sorted(otu.sequence for otu in combined))
 
-    def test_repaired_deletion_indices_are_reindexed_when_otus_merge(self):
-        # Two chunks each hold part of the same unresolvable OTU; the indices are
-        # into each chunk's own read names, so they shift when the reads join up.
+    def test_variants_stay_with_their_reads_when_otus_merge(self):
+        # Two chunks each hold part of the same unresolvable OTU, one of them
+        # with no repaired reads at all, which is recorded as a single None.
         combined = self._collapse(
-            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1', 'r2'], repaired=[0, 1])],
-             [self._otu(self.AMBIGUOUS_WINDOW, ['r3'], repaired=[0])]])
+            [[self._otu(self.AMBIGUOUS_WINDOW, ['r1', 'r2'], repaired=[1])],
+             [self._otu(self.AMBIGUOUS_WINDOW, ['r3'])]])
         self.assertEqual(1, len(combined.data))
         otu = list(combined)[0]
         self.assertEqual(3, len(otu.read_names()))
-        self.assertEqual([0, 1, 2], otu.reads_with_repaired_deletions())
+        self.assertEqual(3, len(otu.read_unaligned_sequence_variants()))
+        self.assertEqual(['r2'], self._repaired_reads(otu))
+        self.assertEqual(
+            {'r1': 'AANAA', 'r2': 'AAAA', 'r3': 'AANAA'},
+            dict(zip(otu.read_names(), otu.read_original_unaligned_sequences())))
 
     def test_collapse_archives_of_different_versions(self):
-        # An archive made before reads_with_repaired_deletions existed can still
+        # An archive made before read_unaligned_sequence_variants existed can still
         # be combined with one made after, since the fields only ever grow.
         with in_tempdir():
             self._chunk_archive('old.json', [self._otu('AAAA', ['r1'])], version=4)
@@ -470,8 +491,8 @@ minimal2	0.2
         self.assertEqual(ArchiveOtuTable.version, combined.version)
         by_sequence = {otu.sequence: otu for otu in combined}
         self.assertEqual(['AAAA', 'CCCC'], sorted(by_sequence))
-        self.assertEqual(None, by_sequence['AAAA'].reads_with_repaired_deletions())
-        self.assertEqual([0], by_sequence['CCCC'].reads_with_repaired_deletions())
+        self.assertEqual(None, by_sequence['AAAA'].read_unaligned_sequence_variants())
+        self.assertEqual(['r2'], self._repaired_reads(by_sequence['CCCC']))
 
     def test_collapse_archives_of_the_same_old_version(self):
         # Combining two old archives still gives that old version out.

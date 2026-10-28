@@ -5,26 +5,32 @@ re-run from it.
 On-disk encodings
 -----------------
 Versions 1-4 store `otus` as a list of rows, each row a list of values in
-`fields` order. Version 5 stores the same rows column-wise, hoists fields whose
+`fields` order. Version 6 stores the same rows column-wise, hoists fields whose
 value is identical in every row into `constant_fields`, and dereplicates read
 sequences into a shared `reads` list that the rows refer to. Those three changes
 only remove repetition; nothing is added or lost.
 
-Version 5 also adds one field, `reads_with_repaired_deletions`, which records
-which of an OTU's reads had an ambiguous base inserted into their window by
-frameshift repair. `pipe` needs that to tell such a base apart from one already
-present in a raw read, and until version 5 it only existed in memory, so the
-resolution of ambiguous windows had to happen inside the same `pipe` run. It is
-None whenever no read of the OTU has one, which is every OTU of a run without
-frameshift repair, so constant hoisting collapses the whole column to a single
-entry there.
+Version 6 also adds one field, `read_unaligned_sequence_variants`, recording the
+modifications made to each read by frameshift repair. The unaligned sequence
+stored is the read after repair, and for each read the field holds either None
+(not modified) or the repairs as VCF-style variants that turn the stored
+sequence back into the read as sequenced (see
+frameshift_repair.repair_frameshifts_with_variants). `pipe` also needs this to
+tell an ambiguous base that repair inserted apart from one already present in a
+raw read, when resolving such bases is deferred to `summarise`. The field is
+None for an OTU none of whose reads were repaired, which is every OTU of a run
+without frameshift repair, so constant hoisting collapses the whole column to a
+single entry there.
 
-The gain is real but modest: on test/data/SRR8653040.json (95 OTUs, 1197 reads)
-gzip -9 goes from 36.6 KB to 35.6 KB and zstd -19 from 32.1 KB to 30.4 KB. Most
-of what remains is beyond the reach of any layout - the read sequences
-themselves, and the per-package sha256s in the header, which are incompressible
-and alone account for 13% of that gzipped file. Storing fewer or shorter reads is
-the only thing that would shrink an archive substantially.
+Version 5 was the same layout with a different record of frameshift repair, and
+was only ever written by development versions of SingleM. It is not read.
+
+The gain from the layout is real but modest: on test/data/SRR8653040.json (95
+OTUs, 1197 reads) gzip -9 goes from 36.6 KB to 35.6 KB and zstd -19 from 32.1 KB
+to 30.4 KB. Most of what remains is beyond the reach of any layout - the read
+sequences themselves, and the per-package sha256s in the header, which are
+incompressible and alone account for 13% of that gzipped file. Storing fewer or
+shorter reads is the only thing that would shrink an archive substantially.
 
 In memory the table is the same either way: `self.data` is a list of rows in
 `self.fields` order, so nothing downstream of `read()` needs to know which
@@ -37,7 +43,7 @@ from .otu_table_entry import OtuTableEntry
 
 
 class ArchiveOtuTable:
-    version = 5
+    version = 6
 
     FIELDS_VERSION1 = str.split(
         'gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known?'
@@ -51,18 +57,21 @@ class ArchiveOtuTable:
     FIELDS_VERSION4 = str.split(
         'gene    sample    sequence    num_hits    coverage    taxonomy    read_names    nucleotides_aligned  taxonomy_by_known? read_unaligned_sequences equal_best_hit_taxonomies taxonomy_assignment_method'
     )
-    FIELDS_VERSION5 = FIELDS_VERSION4 + str.split('reads_with_repaired_deletions')
-    FIELDS_OF_EACH_VERSION = [
-        FIELDS_VERSION1,
-        FIELDS_VERSION2,
-        FIELDS_VERSION3,
-        FIELDS_VERSION4,
-        FIELDS_VERSION5,
-    ]
-    FIELDS = FIELDS_OF_EACH_VERSION[version - 1]
+    FIELDS_VERSION6 = FIELDS_VERSION4 + str.split('read_unaligned_sequence_variants')
+    # Version 5 is absent, being unsupported (see above).
+    FIELDS_OF_EACH_VERSION = {
+        1: FIELDS_VERSION1,
+        2: FIELDS_VERSION2,
+        3: FIELDS_VERSION3,
+        4: FIELDS_VERSION4,
+        6: FIELDS_VERSION6,
+    }
+    FIELDS = FIELDS_OF_EACH_VERSION[version]
 
     # The first version written column-wise rather than row-wise.
-    FIRST_COLUMNAR_VERSION = 5
+    FIRST_COLUMNAR_VERSION = 6
+
+    UNSUPPORTED_VERSION = 5
 
     # The one field whose values are dereplicated into the shared 'reads' list,
     # being both by far the largest (~85% of an uncompressed archive) and the
@@ -80,11 +89,7 @@ class ArchiveOtuTable:
     # the common case into a run of identical values, which does compress away.
     NEXT_NEW_READ = 0
 
-    # Fields that exist for SingleM's own bookkeeping, and so are left out of the
-    # extended (TSV) OTU table. reads_with_repaired_deletions indexes into an
-    # OTU's read names, which is of no use to someone reading a TSV, and adding a
-    # column there would change that format to no-one's benefit.
-    FIELDS_NOT_IN_EXTENDED_OTU_TABLE = frozenset(['reads_with_repaired_deletions'])
+    UNALIGNED_SEQUENCE_VARIANTS_FIELD_NAME = 'read_unaligned_sequence_variants'
 
     READ_NAME_FIELD_INDEX = 6
     SAMPLE_ID_FIELD_INDEX = FIELDS_VERSION4.index('sample')
@@ -95,7 +100,7 @@ class ArchiveOtuTable:
     TAXONOMY_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy')
     NUCLEOTIDES_ALIGNED_FIELD_INDEX = FIELDS_VERSION4.index('nucleotides_aligned')
     TAXONOMY_BY_KNOWN_FIELD_INDEX = FIELDS_VERSION4.index('taxonomy_by_known?')
-    READS_WITH_REPAIRED_DELETIONS_FIELD_INDEX = FIELDS_VERSION5.index('reads_with_repaired_deletions')
+    UNALIGNED_SEQUENCE_VARIANTS_FIELD_INDEX = FIELDS_VERSION6.index(UNALIGNED_SEQUENCE_VARIANTS_FIELD_NAME)
 
     def __init__(self, singlem_packages=None):
         self.singlem_packages = singlem_packages
@@ -161,7 +166,7 @@ class ArchiveOtuTable:
         return all(type(value) is type(first) and value == first for value in values)
 
     def _columnar_body(self):
-        '''The version 5 encoding of self.data: columns, minus the fields that
+        '''The version 6 encoding of self.data: columns, minus the fields that
         are constant across every row, with read sequences dereplicated.'''
         rows = self._rows_padded_to_fields()
         columns = {field: [row[i] for row in rows] for (i, field) in enumerate(self.fields)}
@@ -250,7 +255,12 @@ class ArchiveOtuTable:
     def read(input_io, min_version=None):
         otus = ArchiveOtuTable()
         j = json.load(input_io)
-        if j['version'] not in range(1, ArchiveOtuTable.version + 1):
+        if j['version'] == ArchiveOtuTable.UNSUPPORTED_VERSION:
+            raise Exception(
+                "Archive OTU tables of version {} were only written by development "
+                "versions of SingleM, and are not supported. Regenerate it with the "
+                "current version of SingleM.".format(j['version']))
+        if j['version'] not in ArchiveOtuTable.FIELDS_OF_EACH_VERSION:
             raise Exception("Wrong OTU table version detected")
         otus.version = j['version']
         if min_version is not None and otus.version < min_version:
@@ -261,7 +271,7 @@ class ArchiveOtuTable:
         otus.singlem_package_sha256s = j['singlem_package_sha256s']
 
         otus.fields = j['fields']
-        if otus.fields != ArchiveOtuTable.FIELDS_OF_EACH_VERSION[j['version'] - 1]:
+        if otus.fields != ArchiveOtuTable.FIELDS_OF_EACH_VERSION[j['version']]:
             raise Exception("Unexpected archive OTU table format detected")
 
         if otus.version >= ArchiveOtuTable.FIRST_COLUMNAR_VERSION:
@@ -269,6 +279,14 @@ class ArchiveOtuTable:
         else:
             otus.data = j['otus']
         return otus
+
+    @staticmethod
+    def version_with_fields(fields):
+        '''The version whose field list is fields, or None if there is none.'''
+        for (version, version_fields) in ArchiveOtuTable.FIELDS_OF_EACH_VERSION.items():
+            if version_fields == fields:
+                return version
+        return None
 
     def sort(self):
         self.data.sort()
@@ -308,15 +326,28 @@ class ArchiveOtuTableEntry(OtuTableEntry):
     def taxonomy_by_known(self):
         return self.data[ArchiveOtuTable.TAXONOMY_BY_KNOWN_FIELD_INDEX]
 
-    def reads_with_repaired_deletions(self):
-        '''Indices into read_names() of the reads whose window carries an
-        ambiguous base that frameshift repair inserted, as opposed to one that
-        was already in the raw read. None when there are none, and when the OTU
-        came from an archive written before version 5, which did not record
-        it.'''
-        if len(self.data) <= ArchiveOtuTable.READS_WITH_REPAIRED_DELETIONS_FIELD_INDEX:
+    def read_unaligned_sequence_variants(self):
+        '''For each read of read_unaligned_sequences(), the modifications that
+        frameshift repair made to it, as a list of VCF-style [POS, REF, ALT]
+        variants that turn the stored sequence back into the read as sequenced,
+        or None if it was not modified (see
+        frameshift_repair.repair_frameshifts_with_variants). None rather than a
+        list when no read was modified, and when the OTU came from an archive
+        written before version 6, which did not record it.'''
+        if len(self.data) <= ArchiveOtuTable.UNALIGNED_SEQUENCE_VARIANTS_FIELD_INDEX:
             return None
-        return self.data[ArchiveOtuTable.READS_WITH_REPAIRED_DELETIONS_FIELD_INDEX]
+        return self.data[ArchiveOtuTable.UNALIGNED_SEQUENCE_VARIANTS_FIELD_INDEX]
+
+    def read_original_unaligned_sequences(self):
+        '''read_unaligned_sequences(), but as the reads were before any
+        modification by frameshift repair.'''
+        from .frameshift_repair import revert_variants
+        sequences = self.read_unaligned_sequences()
+        variants = self.read_unaligned_sequence_variants()
+        if variants is None:
+            return sequences
+        return [sequence if read_variants is None else revert_variants(sequence, read_variants)
+                for (sequence, read_variants) in zip(sequences, variants)]
     
     def coverage(self):
         return self.data[ArchiveOtuTable.COVERAGE_FIELD_INDEX]

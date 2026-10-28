@@ -14,9 +14,10 @@ from .archive_otu_table import ArchiveOtuTable
 from .taxonomy import QUERY_BASED_ASSIGNMENT_METHOD, DIAMOND_ASSIGNMENT_METHOD, NO_ASSIGNMENT_METHOD
 from .condense import CondensedCommunityProfile, CondensedCommunityProfileCamiIiiGtdbWriter
 from .frameshift_repair import (
-    resolve_windows, AMBIGUOUS_CHAR, DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
+    resolve_windows, variants_insert_ambiguous_base, AMBIGUOUS_CHAR,
+    DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
 
-REPAIRED_DELETIONS_FIELD = 'reads_with_repaired_deletions'
+VARIANTS_FIELD = ArchiveOtuTable.UNALIGNED_SEQUENCE_VARIANTS_FIELD_NAME
 
 class Summariser:
     @staticmethod
@@ -166,9 +167,7 @@ class Summariser:
         if output_extras:
             OtuTable.write_otus_to(
                 table_collection, output_table_io,
-                fields_to_print=[
-                    field for field in table_collection.example_field_names()
-                    if field not in ArchiveOtuTable.FIELDS_NOT_IN_EXTENDED_OTU_TABLE])
+                fields_to_print=table_collection.example_field_names())
         else:
             OtuTable.write_otus_to(table_collection, output_table_io)
 
@@ -354,8 +353,7 @@ class Summariser:
         genes = df.get_column('gene').to_list()
         sequences = df.get_column('sequence').to_list()
         num_hits = df.get_column('num_hits').to_list()
-        read_names = df.get_column('read_names').to_list()
-        repaired = df.get_column(REPAIRED_DELETIONS_FIELD).to_list()
+        variants = df.get_column(VARIANTS_FIELD).to_list()
 
         # Abundances are pooled across samples within a gene, as in pipe, so that
         # a low coverage sample can still draw on a donor.
@@ -368,9 +366,12 @@ class Summariser:
         resolvable = []
         num_partial = 0
         for (i, sequence) in enumerate(sequences):
-            if AMBIGUOUS_CHAR not in sequence or repaired[i] is None or len(repaired[i]) == 0:
+            if AMBIGUOUS_CHAR not in sequence or variants[i] is None:
                 continue
-            if len(repaired[i]) != len(read_names[i]):
+            repaired = [variants_insert_ambiguous_base(v) for v in variants[i]]
+            if not any(repaired):
+                continue
+            if not all(repaired):
                 # Only some of this OTU's reads have a repair-inserted base, so
                 # resolving it would mean splitting the OTU in two, and the
                 # per-read coverage needed to divide up its coverage exactly is
@@ -394,14 +395,9 @@ class Summariser:
                 resolved = resolutions[sequences[i]]
                 if resolved is not None:
                     sequences[i] = resolved
-                    # No ambiguous base is left to resolve, so the OTU no longer
-                    # needs marking as having one.
-                    repaired[i] = None
                     num_resolved += 1
 
-        df = df.with_columns(
-            pl.Series('sequence', sequences),
-            pl.Series(REPAIRED_DELETIONS_FIELD, repaired, dtype=pl.Object))
+        df = df.with_columns(pl.Series('sequence', sequences))
         return (df, num_resolved, num_partial)
 
     @staticmethod
@@ -435,7 +431,7 @@ class Summariser:
                     "nucleotides_aligned",
                     "read_unaligned_sequences",
                     "equal_best_hit_taxonomies",
-                    "reads_with_repaired_deletions",
+                    VARIANTS_FIELD,
                 }:
                     schema[field] = pl.Object
                 elif field == "num_hits":
@@ -462,6 +458,15 @@ class Summariser:
             return [row if len(row) == width else list(row) + [None] * (width - len(row))
                     for row in otus]
 
+        def archive_dataframe(rows, fields):
+            '''Build a column at a time, since polars infers a type for the
+            values of an Object column when building row-wise, and fails on the
+            mixed integers and strings of read_unaligned_sequence_variants.'''
+            schema = archive_schema(fields)
+            return pl.DataFrame([
+                pl.Series(field, [row[i] for row in rows], dtype=schema[field])
+                for (i, field) in enumerate(fields)])
+
         def read_archive_table(df, f, prev_ar):
             logging.debug("Reading archive table {} into RAM ..".format(a))
             ar = ArchiveOtuTable.read(f)
@@ -470,9 +475,7 @@ class Summariser:
                 # alignment_hmm_sha256s = ar.alignment_hmm_sha256s
                 # singlem_package_sha256s = ar.singlem_package_sha256s
                 fields = ar.fields
-                df = pl.DataFrame(
-                    ar.data, schema=archive_schema(fields), orient="row"
-                )
+                df = archive_dataframe(ar.data, fields)
             else:
                 fields = wider_fields(prev_ar.fields, ar.fields)
                 if fields is None:
@@ -487,15 +490,12 @@ class Summariser:
                 for field in fields[len(df.columns):]:
                     df = df.with_columns(
                         pl.Series(field, [None] * len(df), dtype=schema[field]))
-                df2 = pl.DataFrame(
-                    rows_of_width(ar.data, len(fields)), schema=archive_schema(fields),
-                    orient="row"
-                )
+                df2 = archive_dataframe(rows_of_width(ar.data, len(fields)), fields)
                 df = pl.concat([df, df2], how="vertical")
             # The output is written at whichever version has these fields, so that
             # combining an old archive with a new one gives a new one.
             ar.fields = fields
-            ar.version = ArchiveOtuTable.FIELDS_OF_EACH_VERSION.index(fields) + 1
+            ar.version = ArchiveOtuTable.version_with_fields(fields)
             return df, ar
             
         for a in archive_otu_tables:
@@ -536,11 +536,11 @@ class Summariser:
         # taxonomy - which is the taxonomy the whole dataset would have given it,
         # since pipe resolves windows before assigning taxonomy.
         if resolve_ambiguous_windows:
-            if REPAIRED_DELETIONS_FIELD not in ar.fields:
+            if VARIANTS_FIELD not in ar.fields:
                 raise Exception(
                     "Cannot resolve ambiguous windows in an archive OTU table of version "
-                    "{}, which does not record which reads have a frameshift-repaired "
-                    "base. Regenerate it with a current version of pipe.".format(ar.version))
+                    "{}, which does not record which reads were frameshift-repaired. "
+                    "Regenerate it with a current version of pipe.".format(ar.version))
             logging.info("Resolving ambiguous bases in frameshift-repaired windows ..")
             (df, num_resolved, num_partial) = Summariser._resolve_ambiguous_windows_in_dataframe(
                 df, max_frameshift_repair_divergence)
@@ -593,19 +593,18 @@ class Summariser:
                 tax_assignment_method,
             ]
 
-            if REPAIRED_DELETIONS_FIELD in ar.fields:
-                # The indices point into each OTU's own read names, and those are
-                # concatenated above in group order, so each is shifted by the
-                # number of reads the earlier OTUs of the group contributed.
-                merged_repaired = []
-                offset = 0
-                for (names, indices) in zip(
+            if VARIANTS_FIELD in ar.fields:
+                # Concatenated in the same order as the read names above. An OTU
+                # with no repaired read holds None rather than a list, so it
+                # contributes one None per read.
+                merged_variants = []
+                for (names, otu_variants) in zip(
                         grouped.get_column("read_names").to_list(),
-                        grouped.get_column(REPAIRED_DELETIONS_FIELD).to_list()):
-                    if indices is not None:
-                        merged_repaired.extend(offset + i for i in indices)
-                    offset += len(names)
-                collapsed_row.append(merged_repaired if len(merged_repaired) > 0 else None)
+                        grouped.get_column(VARIANTS_FIELD).to_list()):
+                    merged_variants.extend(
+                        [None] * len(names) if otu_variants is None else otu_variants)
+                collapsed_row.append(
+                    merged_variants if any(v is not None for v in merged_variants) else None)
 
             collapsed_rows.append(collapsed_row)
 

@@ -2,6 +2,7 @@ import csv
 
 from .archive_otu_table import ArchiveOtuTable
 from .otu_table_entry import OtuTableEntry
+from .frameshift_repair import format_variants
 
 
 class OtuTable:
@@ -146,9 +147,15 @@ class OtuTable:
         if fields_to_print is None: fields_to_print = OtuTable.DEFAULT_OUTPUT_FIELDS
         output_io.write("\t".join(fields_to_print)+"\n")
         for o in otu_table_entries:
-            field_indices_to_print = [o.fields.index(f) for f in fields_to_print]
-            output_io.write("\t".join([OtuTable._to_printable(cell) for cell in [
-                o.data[i] for i in field_indices_to_print]])+"\n")
+            output_io.write("\t".join([
+                OtuTable._field_to_printable(o, f) for f in fields_to_print])+"\n")
+
+    @staticmethod
+    def _field_to_printable(otu, field):
+        cell = otu.data[otu.fields.index(field)]
+        if field == ArchiveOtuTable.UNALIGNED_SEQUENCE_VARIANTS_FIELD_NAME:
+            return format_variants(cell, len(otu.data[otu.fields.index('read_names')]))
+        return OtuTable._to_printable(cell)
 
     @staticmethod
     def _to_printable(e):

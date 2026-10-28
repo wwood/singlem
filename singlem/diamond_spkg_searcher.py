@@ -9,7 +9,8 @@ import extern
 from subprocess import Popen, PIPE
 
 from .utils import FastaNameToSampleName
-from .frameshift_repair import walk_btop, repair_frameshifts as repair_frameshifts_in_sequence
+from .frameshift_repair import walk_btop, repair_frameshifts as repair_frameshifts_in_sequence, \
+    repair_frameshifts_with_variants
 
 class DiamondSpkgSearcher:
     def __init__(self, num_threads, working_directory):
@@ -137,7 +138,7 @@ class DiamondSpkgSearcher:
             query_sequence_lengths = {}
             num_frameshifts_repaired = 0
             num_reads_with_frameshifts = 0
-            repaired_deletion_qseqids = set()
+            unaligned_sequence_variants = {}
             do_logging = not sys.stderr.isatty() or logging.getLogger().level != logging.INFO
             if not do_logging:
                 # Start animation thread
@@ -229,6 +230,15 @@ class DiamondSpkgSearcher:
                         # to the prefilter database to the fasta file.
                         truncated_qseq = full_qseq[int(qstart_int)-1:int(qend_int)]
 
+                        # The read as it is to be recorded in the archive OTU
+                        # table. With a context window that is only the region
+                        # around the hit, and cutting it down to that is not
+                        # recorded as a modification of the read.
+                        if context_window is not None:
+                            recorded_qseq = truncated_qseq
+                        else:
+                            recorded_qseq = full_qseq
+
                         # Restore the reading frame of the region that is about to
                         # be translated and aligned to the HMM. Only frameshifts
                         # inside the region matter, and they are re-based onto it.
@@ -244,24 +254,32 @@ class DiamondSpkgSearcher:
                                     truncated_qseq, frameshifts_here)
                                 num_frameshifts_repaired += len(frameshifts_here)
                                 num_reads_with_frameshifts += 1
-                                # Only deletions insert an ambiguous base; track
-                                # those hits so resolve_ambiguous_windows() can
-                                # later tell a repair-inserted 'N' apart from an
-                                # 'N' that was already in the raw read.
-                                if any(kind == 'deletion' for (_, kind) in frameshifts_here):
-                                    repaired_deletion_qseqids.add(unique_qseqid)
+                                # The same repairs, but of the read as recorded,
+                                # described so that the archive OTU table can
+                                # hold the repaired read and still allow the
+                                # original to be recreated. This also lets
+                                # resolve_ambiguous_windows() tell an 'N' that
+                                # repair inserted apart from one that was already
+                                # in the raw read.
+                                recorded_offset = region_start if context_window is not None else 0
+                                (_, variants) = repair_frameshifts_with_variants(
+                                    recorded_qseq,
+                                    [(position - recorded_offset, kind)
+                                     for (position, kind) in frameshifts
+                                     if region_start <= position < region_end])
+                                if len(variants) > 0:
+                                    unaligned_sequence_variants[unique_qseqid] = variants
 
                         fasta_file.write(f'>{unique_qseqid}\n{truncated_qseq}\n')
 
                         # Write the full read sequence to the fasta file as well
                         # so it can be included in the archive OTU table later
                         # on. Write without the unique_qseqid modification, to save space.
+                        # This is the read before repair, since a read with
+                        # hits to several markers can be repaired differently
+                        # for each; pipe applies each hit's repairs to it.
                         if qseqid not in seen_full_qseqs:
-                            if context_window is not None:
-                                qseq_full_seq = full_qseq[int(qstart_int)-1:int(qend_int)]
-                            else:
-                                qseq_full_seq = full_qseq
-                            full_qseq_f.write(f'>{qseqid}\n{qseq_full_seq}\n')
+                            full_qseq_f.write(f'>{qseqid}\n{recorded_qseq}\n')
                             seen_full_qseqs.add(qseqid)
 
                 # Stop animation and clear the line
@@ -288,23 +306,23 @@ class DiamondSpkgSearcher:
 
             diamond_results.append(DiamondSearchResult(
                 fasta_path, full_qseq_fasta_path, best_hits, query_sequence_lengths,
-                repaired_deletion_qseqids))
+                unaligned_sequence_variants))
             logging.info(f"Found {len(best_hits)} hits for {os.path.basename(file)}")
 
         return diamond_results
 
 class DiamondSearchResult:
     def __init__(self, query_sequence_file, full_query_sequences_file, best_hits, query_sequence_lengths,
-                 repaired_deletion_qseqids=None):
+                 unaligned_sequence_variants=None):
         self.query_sequences_file = query_sequence_file
         self.full_query_sequences_file = full_query_sequences_file
         self.best_hits = best_hits
         self.query_sequence_lengths = query_sequence_lengths
-        # unique_qseqid values (see _prefilter) of hits where frameshift repair
-        # inserted an ambiguous base for a deletion, i.e. whose 'N' is safe to
-        # resolve in resolve_ambiguous_windows(), as opposed to an 'N' that was
-        # already present in the raw read.
-        self.repaired_deletion_qseqids = repaired_deletion_qseqids if repaired_deletion_qseqids is not None else set()
+        # unique_qseqid (see _prefilter) of each hit whose frameshifts were
+        # repaired, to the repairs as VCF-style variants (see
+        # frameshift_repair.repair_frameshifts_with_variants) relative to the
+        # read as written to full_query_sequences_file.
+        self.unaligned_sequence_variants = unaligned_sequence_variants if unaligned_sequence_variants is not None else {}
 
     def sample_name(self):
         return FastaNameToSampleName().fasta_to_name(self.query_sequences_file)

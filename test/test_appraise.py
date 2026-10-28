@@ -55,11 +55,11 @@ class Tests(unittest.TestCase):
 
     def assertArchiveEqual(self, expected_version, expected_shas, expected_otu_jsons, observed_json):
         '''Assert an archive OTU table holds the given OTUs. The rows are compared
-        as parsed by ArchiveOtuTable rather than as text, since from version 5 on
+        as parsed by ArchiveOtuTable rather than as text, since from version 6 on
         the same rows have more than one valid on-disk spelling.'''
         observed = ArchiveOtuTable.read(StringIO(observed_json))
         self.assertEqual(expected_version, observed.version)
-        self.assertEqual(ArchiveOtuTable.FIELDS_OF_EACH_VERSION[expected_version - 1], observed.fields)
+        self.assertEqual(ArchiveOtuTable.FIELDS_OF_EACH_VERSION[expected_version], observed.fields)
         (alignment_shas, package_shas) = expected_shas
         self.assertEqual(alignment_shas, observed.alignment_hmm_sha256s)
         self.assertEqual(package_shas, observed.singlem_package_sha256s)
@@ -710,8 +710,8 @@ class Tests(unittest.TestCase):
                                   )
 
         expected_shas = self._shas_of(alignment_shas, package_shas)
-        self.assertArchiveEqual(5, expected_shas, [binned_otu], found_otu_table_io.getvalue())
-        self.assertArchiveEqual(5, expected_shas, [unbinned_otu], not_found_otu_table_io.getvalue())
+        self.assertArchiveEqual(6, expected_shas, [binned_otu], found_otu_table_io.getvalue())
+        self.assertArchiveEqual(6, expected_shas, [unbinned_otu], not_found_otu_table_io.getvalue())
 
     def test_print_appraisal_archive_input_output_cli(self):
         with in_tempdir():
@@ -741,8 +741,8 @@ class Tests(unittest.TestCase):
                 observed_not_found = "".join(f.readlines())
 
             expected_shas = self._shas_of(alignment_shas, package_shas)
-            self.assertArchiveEqual(5, expected_shas, [binned_otu], observed_found)
-            self.assertArchiveEqual(5, expected_shas, [unbinned_otu], observed_not_found)
+            self.assertArchiveEqual(6, expected_shas, [binned_otu], observed_found)
+            self.assertArchiveEqual(6, expected_shas, [unbinned_otu], observed_not_found)
 
     def test_contamination(self):
         metagenome_otu_table = [
