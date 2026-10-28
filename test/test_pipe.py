@@ -1356,6 +1356,58 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTTTAAAGTATACAAAAACACTA
                 list([line.split("\t") for line in expected]),
                 extern.run(cmd).replace('chunked_reads',''))
 
+    def test_weebill_profile_without_marker_hits(self):
+        # The reads hit no marker, but weebill detects a species in them, which
+        # should still be profiled rather than pipe stopping for lack of hits.
+        with tempfile.TemporaryDirectory() as td:
+            metapackage = os.path.join(td, 'a.smpkg')
+            shutil.copytree(os.path.join(path_to_data, 'archaeal_small.v4.smpkg'), metapackage)
+            contents_path = os.path.join(metapackage, 'CONTENTS.json')
+            with open(contents_path) as f:
+                contents = json.load(f)
+            contents.update({
+                'singlem_metapackage_version': 7,
+                'taxonomy_database_name': 'test', 'taxonomy_database_version': None,
+                'diamond_prefilter_performance_parameters': None,
+                'diamond_taxonomy_assignment_performance_parameters': None,
+                'makeidx_sensitivity_params': None, 'avg_num_genes_per_species': None,
+                'weebill_dbs': [{'db': 'fake.syl2db', 'c': 100}]})
+            with open(contents_path, 'w') as f:
+                json.dump(contents, f)
+            open(os.path.join(metapackage, 'fake.syl2db'), 'w').close()
+
+            # Stands in for weebill, reporting one genome the metapackage knows.
+            bin_dir = os.path.join(td, 'bin')
+            os.mkdir(bin_dir)
+            fake_weebill = os.path.join(bin_dir, 'weebill')
+            with open(fake_weebill, 'w') as f:
+                f.write('#!/bin/bash\n'
+                        'while [ $# -gt 0 ]; do\n'
+                        '  if [ "$1" = -o ]; then out=$2; fi\n'
+                        '  if [ "$1" = -r ]; then reads=$2; fi\n'
+                        '  shift\n'
+                        'done\n'
+                        'printf "Sample_file\\tGenome_file\\tTrue_cov\\n%s\\tGCA_011042755.1_genomic.fna.gz\\t3.5\\n" '
+                        '"$reads" > "$out"\n')
+            os.chmod(fake_weebill, 0o755)
+
+            reads = os.path.join(td, 'reads.fa')
+            with open(reads, 'w') as f:
+                f.write('>r1\n{}\n>r2\n{}\n'.format('ACGT' * 50, 'TTGCA' * 40))
+            otu_table = os.path.join(td, 'otu_table.tsv')
+            profile = os.path.join(td, 'profile.tsv')
+            extern.run('PATH={}:$PATH {} pipe --sequences {} --metapackage {} --otu-table {} -p {}'.format(
+                bin_dir, path_to_script, reads, metapackage, otu_table, profile))
+            with open(otu_table) as f:
+                self.assertEqual(['gene\tsample\tsequence\tnum_hits\tcoverage\ttaxonomy\n'], f.readlines())
+            with open(profile) as f:
+                rows = [line.rstrip('\n').split('\t') for line in f]
+        self.assertEqual(['sample', 'coverage', 'taxonomy'], rows[0])
+        self.assertIn(
+            ['reads', '3.5', 'Root; d__Archaea; p__Thermoproteota; c__Korarchaeia; o__Korarchaeales; '
+             'f__Korarchaeaceae; g__DRBY01; s__DRBY01 sp011042755'],
+            rows[1:])
+
     def test_read_chunk_number_incompatible_with_weebill(self):
         # weebill would see the whole of the reads, not just the chunk.
         with tempfile.TemporaryDirectory() as td:
