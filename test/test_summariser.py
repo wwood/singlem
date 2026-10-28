@@ -443,6 +443,21 @@ minimal2	0.2
         self.assertEqual([species, species], otu.equal_best_hit_taxonomies())
         self.assertEqual('diamond', otu.taxonomy_assignment_method())
 
+    def test_resolved_window_differing_from_its_donor_keeps_its_assignment(self):
+        # The ambiguous window also differs from its donor at an unambiguous
+        # position, so resolving it gives a window that is in neither chunk, and
+        # there is no assignment to take for it.
+        window = self.AMBIGUOUS_WINDOW[:45] + 'T' + self.AMBIGUOUS_WINDOW[46:]
+        ambiguous = self._otu(window, ['r1'], repaired=[0])
+        ambiguous[5] = 'Root; d__Bacteria; g__A'
+        combined = self._collapse(
+            [[ambiguous], [self._otu(self.DONOR_WINDOW, ['r2', 'r3', 'r4'])]],
+            extra_args='--resolve-ambiguous-windows')
+        by_sequence = {otu.sequence: otu for otu in combined}
+        resolved = window.replace('N', self.DONOR_WINDOW[30])
+        self.assertEqual(sorted([resolved, self.DONOR_WINDOW]), sorted(by_sequence))
+        self.assertEqual('Root; d__Bacteria; g__A', by_sequence[resolved].taxonomy)
+
     def test_chunks_combine_unresolved_without_the_flag(self):
         combined = self._collapse(
             [[self._otu(self.AMBIGUOUS_WINDOW, ['r1'], repaired=[0])],
