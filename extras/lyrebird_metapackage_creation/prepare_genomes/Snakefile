@@ -3,9 +3,12 @@ Steps:
 1. Create base environment:
     conda env create -f ../envs/create_metapackage.yml -n lyrebird-metapackage
 2. Install vcontact3 and download the latest vcontact3 database
-    conda env create -f /envs/vcontact3.yml -n vcontact3
+    conda create -n vcontact3 python=3.10
     conda activate vcontact3
-    vcontact3 prepare_databases --get-version 230 --set-location ./db (or use --get-version latest)
+    git clone https://bitbucket.org/MAVERICLab/vcontact3.git
+    cd vcontact3
+    python -m pip install .
+    vcontact3 prepare_databases --get-version 232 --set-location ./db (or use --get-version latest)
 3. Update the variables vcontact_env and vcontact_db_path below with your conda environment name and database path
 4. Download metaVR metadata and genomes, and update the variables (this is a >77GB download, ensure you have enough space)
     wget https://www.meta-virome.org/DownloadUvigMetadata
@@ -17,19 +20,18 @@ Steps:
 import os
 from Bio import SeqIO
 
-vcontact_env = "" # Specify your pre-installed vcontact3 conda environment
-vcontact_db_path = "" # Specify your downloaded vcontact3 database path
+vcontact_env = "vcontact3-v3.2.0" # Specify your pre-installed vcontact3 conda environment
+vcontact_db_path = "/mnt/weka/scratch/microbiome/n10927662/vcontact3/db/232.json" # Specify your downloaded vcontact3 database path
 metavr_metadata_fp = "/mnt/hpccs01/work/microbiome/msingle/rossenzhao/metaVR/uvig_metadata.tsv.gz" # Specify your downloaded metaVR metadata file path
 metavr_genomes_fp = "/mnt/hpccs01/work/microbiome/msingle/rossenzhao/metaVR/IMGVR5_UViG.fna.gz" # Specify your downloaded metaVR genomes file path
 galah_chunk_size = int(config.get("galah_chunk_size", 50000))
 
-localrules: order_genomes_fps, process_taxonomy
+localrules: split_metavr_genomes, process_taxonomy
 
 rule all:
     input:
         "prodigal_gv.done",
-        # "vcontact3.done",
-        #TODO: fill in final output files
+        "vcontact3_taxonomy_processed.done",
 
 rule get_ictv_genomes:
     params:
@@ -67,91 +69,69 @@ rule get_metavr_genomes:
         "--genome-file {input.genomes_fp} " \
         "--outdir {output.outdir} &> {log}"
 
-rule order_genomes_fps:
+rule cluster_ictv:
     input:
         ictv_done = "ictv/done",
-        ictv_dir = "ictv",
-        metavr_done = "metavr/done",
-        metavr_dir = "metavr"
-    params:
-        ictv_metadata = "ictv/genome_metadata.tsv",
-        metavr_metadata = "metavr/metavr_filtered_metadata.tsv"
+        ictv_dir = "ictv/genomes"
     output:
-        done = touch("ordered_genomes.done"),
-        ordered_filepaths = "ordered_genome_filepaths.txt"
-    run:
-        from os.path import join
-        from csv import DictReader
-        # order ictv first, then metavr by length descending
-        ictv_fps = []
-        with open(params.ictv_metadata, 'r') as infile:
-            reader = DictReader(infile, delimiter='\t')
-            for row in reader:
-                genome_fp = join(input.ictv_dir, "genomes", f"{row['genome']}.fna")
-                ictv_fps.append( (int(row['length']), genome_fp) )
-        metavr_fps = []
-        with open(params.metavr_metadata, 'r') as infile:
-            reader = DictReader(infile, delimiter='\t')
-            for row in reader:
-                genome_fp = join(input.metavr_dir, "genomes", f"{row['uvig']}.fna")
-                metavr_fps.append( (int(row['length']), genome_fp) )
-        # sort by length descending
-        ictv_fps.sort(key=lambda x: x[0], reverse=True)
-        metavr_fps.sort(key=lambda x: x[0], reverse=True)
-        with open(output.ordered_filepaths, 'w') as outfile:
-            for _, fp in ictv_fps:
-                outfile.write(f"{fp}\n")
-            for _, fp in metavr_fps:
-                outfile.write(f"{fp}\n")
-
-checkpoint split_genome_filepaths:
-    input:
-        genome_filepaths = "ordered_genome_filepaths.txt",
-        ordered_genomes_done = "ordered_genomes.done"
-    output:
-        manifest = "genome_chunk_manifest.tsv",
-        chunk_dir = directory("genome_chunks")
+        representative_genomes_list = "ictv_representative_genomes.list"
     log:
-        "logs/split_genome_filepaths.log"
+        "logs/cluster_ictv.log"
+    threads: 8
     resources:
-        runtime = "1h",  # 1 hour
+        mem_mb = 64 * 1024,
+        runtime = "8h",
+    conda:
+        "envs/galah.yml"
+    shell:
+        "find {input.ictv_dir} -type f | sort > ictv_genome_filepaths.list && "
+        "galah cluster --genome-fasta-list ictv_genome_filepaths.list --threads {threads} "
+        "--ani 95 --min-aligned-fraction 85 --fragment-length 500 "
+        "--precluster-method skani --precluster-ani 90 --small-genomes "
+        "--output-representative-list {output.representative_genomes_list} "
+        "&> {log}"
+
+checkpoint split_metavr_genomes:
+    input:
+        metavr_done = "metavr/done",
+        metavr_dir = "metavr/genomes"
+    output:
+        manifest = "metavr_genome_chunk_manifest.tsv",
+        chunk_dir = directory("metavr_genome_chunks")
+    log:
+        "logs/split_metavr_genomes.log"
+    resources:
+        runtime = "1h",
     run:
-        from csv import DictReader
-
-        with open(input.genome_filepaths) as infile:
-            genome_filepaths = [line.strip() for line in infile if line.strip()]
-        with open("ictv/genome_metadata.tsv") as infile:
-            ictv_count = sum(1 for _ in DictReader(infile, delimiter="\t"))
-
-        if not genome_filepaths:
-            raise ValueError("No genome filepaths were found")
-        if ictv_count > len(genome_filepaths):
-            raise ValueError("ICTV metadata contains more genomes than the ordered list")
+        genome_filepaths = sorted(
+            os.path.join(input.metavr_dir, filename)
+            for filename in os.listdir(input.metavr_dir)
+            if filename.endswith((".fna", ".fasta"))
+        )
         if galah_chunk_size < 1:
             raise ValueError("galah_chunk_size must be positive")
+        if not genome_filepaths:
+            raise ValueError("No metaVR genome filepaths were found")
 
         os.makedirs(output.chunk_dir, exist_ok=True)
         chunks = []
-        for source, source_filepaths in (
-            ("ictv", genome_filepaths[:ictv_count]),
-            ("metavr", genome_filepaths[ictv_count:]),
-        ):
-            for chunk_number in range(0, len(source_filepaths), galah_chunk_size):
-                chunk_id = f"{source}-{chunk_number // galah_chunk_size:06d}"
-                chunk_filepath = os.path.join(output.chunk_dir, f"{chunk_id}.genome-list.txt")
-                with open(chunk_filepath, "w") as outfile:
-                    outfile.write("\n".join(source_filepaths[chunk_number:chunk_number + galah_chunk_size]))
-                    outfile.write("\n")
-                chunks.append((chunk_id, source, len(source_filepaths[chunk_number:chunk_number + galah_chunk_size])))
+        for chunk_number in range(0, len(genome_filepaths), galah_chunk_size):
+            chunk_id = f"metavr-{chunk_number // galah_chunk_size:06d}"
+            chunk_filepaths = genome_filepaths[chunk_number:chunk_number + galah_chunk_size]
+            chunk_filepath = os.path.join(output.chunk_dir, f"{chunk_id}.genome-list.txt")
+            with open(chunk_filepath, "w") as outfile:
+                outfile.write("\n".join(chunk_filepaths))
+                outfile.write("\n")
+            chunks.append((chunk_id, len(chunk_filepaths)))
 
         with open(output.manifest, "w") as outfile:
-            outfile.write("chunk\tsource\tgenome_count\n")
-            for chunk_id, source, genome_count in chunks:
-                outfile.write(f"{chunk_id}\t{source}\t{genome_count}\n")
+            outfile.write("chunk\tgenome_count\n")
+            for chunk_id, genome_count in chunks:
+                outfile.write(f"{chunk_id}\t{genome_count}\n")
 
 
 def genome_chunk_ids(wildcards):
-    checkpoint_output = checkpoints.split_genome_filepaths.get(**wildcards).output
+    checkpoint_output = checkpoints.split_metavr_genomes.get(**wildcards).output
     with open(checkpoint_output.manifest) as infile:
         return [line.split("\t", 1)[0] for line in infile.read().splitlines()[1:]]
 
@@ -159,12 +139,12 @@ def genome_chunk_ids(wildcards):
 rule galah_cluster_chunk:
     input:
         genome_filepaths = lambda wildcards: os.path.join(
-            checkpoints.split_genome_filepaths.get(**wildcards).output.chunk_dir,
+            checkpoints.split_metavr_genomes.get(**wildcards).output.chunk_dir,
             f"{wildcards.chunk}.genome-list.txt",
-        )
+        ),
+        reference_genomes = "ictv_representative_genomes.list",
     output:
-        cluster_rep_tsv = "galah_chunks/{chunk}/cluster_representatives.tsv",
-        cluster_dir = directory("galah_chunks/{chunk}/representatives")
+        rep_list = temp("galah_chunks/{chunk}/representatives.txt"),
     log:
         "logs/galah_chunks/{chunk}.log"
     threads: 16
@@ -175,45 +155,37 @@ rule galah_cluster_chunk:
         "envs/galah.yml"
     shell:
         "galah cluster --genome-fasta-list {input.genome_filepaths} --threads {threads} "\
-        "--ani 95 --min-aligned-fraction 85 --fragment-length 500 "\
-        "--precluster-method finch --precluster-ani 95 --small-genomes "\
-        "--output-cluster-definition {output.cluster_rep_tsv} "\
-        "--output-representative-fasta-directory {output.cluster_dir} "\
+        "--reference-genomes-list {input.reference_genomes} --skip-input-dereplication "\
+        "--ani 95 --min-aligned-fraction 85 --fragment-length 500 --small-genomes "\
+        "--precluster-method skani --precluster-ani 90 "\
+        "--output-representative-list {output.rep_list} "\
         "&> {log}"
 
-rule galah_cluster_merge:
+rule merge_galah_chunks:
     input:
-        chunk_tsvs = lambda wildcards: [
-            f"galah_chunks/{chunk}/cluster_representatives.tsv"
+        chunk_reps = lambda wildcards: [
+            f"galah_chunks/{chunk}/representatives.txt"
             for chunk in genome_chunk_ids(wildcards)
         ],
-        chunk_dirs = lambda wildcards: [
-            f"galah_chunks/{chunk}/representatives"
-            for chunk in genome_chunk_ids(wildcards)
-        ]
+        ictv_reps = "ictv_representative_genomes.list",
     output:
         done = touch("galah_clustering.done"),
-        cluster_rep_tsv = "galah_cluster_representatives.tsv",
         cluster_dir = directory("galah_clusters"),
         merge_input_list = "galah_merge_genome_filepaths.txt"
     log:
         "logs/galah_clustering.log"
-    threads: 64
+    threads: 1
     resources:
         runtime = "48h",  # 48 hours
-        mem_mb = 256 * 1024,
+        mem_mb = 64 * 1024,
     conda:
         "envs/galah.yml"
     shell:
-        "find {input.chunk_dirs} \\( -type f -o -type l \\) "\
-        "\\( -name '*.fna' -o -name '*.fasta' \\) | sort > {output.merge_input_list} && "\
-        "test -s {output.merge_input_list} && "\
-        "galah cluster --genome-fasta-list {output.merge_input_list} --threads {threads} "\
-        "--ani 95 --min-aligned-fraction 85 --fragment-length 500 "\
-        "--precluster-method finch --precluster-ani 95 --small-genomes "\
-        "--output-cluster-definition {output.cluster_rep_tsv} "\
-        "--output-representative-fasta-directory {output.cluster_dir} "\
-        "&> {log}"
+        # merge the ICTV and metaVR representative genome filepath lists, sort and remove duplicates, then ln -s the representative genomes into the galah_clusters directory from the merged list
+        "cat {input.ictv_reps} {input.chunk_reps} | sort | uniq > {output.merge_input_list} && "
+        "mkdir -p {output.cluster_dir} && "
+        "while read genome_fp; do ln -s ../$genome_fp {output.cluster_dir}/$(basename $genome_fp); done < {output.merge_input_list} && "
+        "touch {output.done}"
 
 rule prodigal_gv:
     input:
@@ -234,7 +206,7 @@ rule prodigal_gv:
         "mkdir -p {params.log_dir} ; " \
         "mkdir -p {output.transcripts_dir} ; " \
         "mkdir -p {output.proteins_dir} ; " \
-        "find {input.cluster_dir} -name '*.fasta' | " \
+        "find {input.cluster_dir} -name '*.fna' | " \
         "parallel -j {threads} --will-cite -- 'prodigal-gv -i {{}} -a {output.proteins_dir}/{{/}}_protein.faa -d {output.transcripts_dir}/{{/}}_transcript.fna -p meta &> {params.log_dir}/{{/}}.log'" \
 
 rule prepare_for_vcontact3:
@@ -243,7 +215,7 @@ rule prepare_for_vcontact3:
         galah_done = "galah_clustering.done",
     output:
         done = touch("vcontact3_prepared.done"),
-        concat_genomes = "vcontact3_concat_genomes.fna",
+        concat_genomes = temp("vcontact3_concat_genomes.fna"),
     shell: # there are many files, so use cat with find
         "find {input.galah_dir} -name '*.fna' -exec cat {{}} + > {output.concat_genomes}"
 
@@ -272,7 +244,7 @@ rule vcontact3:
         "--pyrodigal-gv "\
         "&> {log}"
 
-rule process_taxonomy: #TODO: script for processing vcontact3 taxonomy
+rule process_taxonomy:
     input:
         vcontact_output_dir = "vcontact3_output",
         vcontact_done = "vcontact3.done"
@@ -287,4 +259,4 @@ rule process_taxonomy: #TODO: script for processing vcontact3 taxonomy
     log:
         "logs/process_vcontact3_taxonomy.log"
     script:
-        "{workflow.basedir}/scripts/process_vcontact3_taxonomy.py"
+        "scripts/process_vcontact3_taxonomy.py"
