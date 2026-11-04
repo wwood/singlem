@@ -67,7 +67,25 @@ def filter_metadata(metadata_path) -> pl.DataFrame:
     df = df.filter(pl.col('completeness') >= 80.0)
     df = df.filter(pl.col('checkv_contamination') <= 10)
     df = df.filter(pl.col('genome_type') == 'dsDNA')
+    logging.info(f"Found {len(df)} suitable dsDNA genomes...")
     return df
+
+def select_votu_reps(df: pl.DataFrame) -> pl.DataFrame:
+    # Select one representative per VOTU: the most complete genome.
+    # Ties are broken by lowest contamination, then by uvig ID so the
+    # result is deterministic.
+    result = (
+        df.sort(
+            ["votu", "completeness", "checkv_contamination", "uvig"],
+            descending=[False, True, False, False],
+        )
+        .group_by("votu", maintain_order=True)
+        .first()
+        .select(df.columns)  # restore original column order
+    )
+
+    logging.info(f"Selected {len(result)} representative genomes based on VOTU and completeness.")
+    return result
 
 def extract_genomes(genomes_path: str, valid_uvigs: set, outdir: str):
     logging.info("Extracting valid genomes to directory")
@@ -129,6 +147,7 @@ def main():
             return
 
     filtered_df = filter_metadata(metadata_path)
+    filtered_df = select_votu_reps(filtered_df)
     filtered_df.write_csv(os.path.join(outdir, "metavr_filtered_metadata.tsv"), separator="\t")
     logging.info(f"Filtered metadata saved to {os.path.join(outdir, 'metavr_filtered_metadata.tsv')}")
     valid_uvigs = set(filtered_df['uvig'].to_list())
