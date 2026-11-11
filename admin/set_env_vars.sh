@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-SINGLEM_METAPACKAGE_PATH_RELATIVE="db/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb"
+SINGLEM_METAPACKAGE_PATH_RELATIVE="db/S7.5.0.GTDB_r232.metapackage_20260805.smpkg.zb"
 LYREBIRD_METAPACKAGE_PATH_RELATIVE="db/lyrebird_v0.3.1_phrog_v4.1_metapackage_20250720.smpkg.zb"
 GTDBTK_DATA_PATH_RELATIVE="db/release232"
 
