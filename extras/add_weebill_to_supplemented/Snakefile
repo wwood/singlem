@@ -9,6 +9,10 @@ from the supplemented metapackage's read-name store, then matched to their FASTA
 files. The grown database is bundled into a copy of the supplemented metapackage,
 which is upgraded to metapackage version 7.
 
+'singlem supplement' now extends the input metapackage's weebill database
+itself (or one given with --weebill-db-base), so this pipeline is only needed
+for metapackages supplemented by older versions of SingleM.
+
 Usage:
 
 pixi run snakemake --configfile config-GlobDB_r232.yaml --profile aqua

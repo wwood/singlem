@@ -84,19 +84,128 @@ class Tests(unittest.TestCase):
             self.assertEqual('test_supplement', mpkg.taxonomy_database_name())
             self.assertEqual('1.0', mpkg.taxonomy_database_version())
 
-    def test_weebill_db_in_input_metapackage_croaks(self):
-        with in_tempdir():
-            # Bundle a (dummy) weebill database into a copy of the input metapackage.
-            weebill_metapackage_cmd = (
-                f"{singlem} metapackage --singlem-packages {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/4.11.22seqs.gpkg.spkg "
-                f"--no-nucleotide-sdb --no-taxon-genome-lengths "
-                f"--weebill-db {os.path.join(os.path.dirname(__file__), 'data', 'dummy.syl2db')} --weebill-c 100 "
-                f"--metapackage with_weebill.smpkg")
-            extern.run(weebill_metapackage_cmd)
+    weebill_genome = 'binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12.fna'
+    weebill_base_db = os.path.join(path_to_data, 'weebill_base.syl2db')
 
-            cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna --input-metapackage with_weebill.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/GCA_011373445.1_genomic.mutated93_ms.manually_added_nongaps.fna.taxonomy --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+    def _make_weebill_input_metapackage(self, weebill_dbs=None):
+        weebill_dbs = weebill_dbs or [self.weebill_base_db]
+        extern.run(
+            f"{singlem} metapackage --singlem-packages {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/4.11.22seqs.gpkg.spkg "
+            f"--nucleotide-sdb {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/22seqs.sdb --no-taxon-genome-lengths "
+            f"--weebill-db {' '.join(weebill_dbs)} --weebill-c {' '.join(['100'] * len(weebill_dbs))} "
+            f"--metapackage with_weebill.smpkg")
+        return 'with_weebill.smpkg'
+
+    def _supplement_cmd(self, input_metapackage, genomes=None, taxonomy_file=None, extra=''):
+        genomes = genomes or [os.path.join(path_to_data, self.weebill_genome)]
+        taxonomy_file = taxonomy_file or os.path.join(path_to_data, self.weebill_genome + '.taxonomy')
+        return (f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication "
+                f"--skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter "
+                f"--new-genome-fasta-files {' '.join(genomes)} --input-metapackage {input_metapackage} "
+                f"--output-metapackage out.smpkg --new-fully-defined-taxonomies {taxonomy_file} {extra}")
+
+    def _weebill_num_genomes(self, syl2db):
+        import yaml
+        extern.run(f"weebill inspect -o inspect.yaml {syl2db}")
+        with open('inspect.yaml') as f:
+            return yaml.safe_load(f)[0]['num_genomes']
+
+    def test_weebill_db_in_input_metapackage_is_extended(self):
+        with in_tempdir():
+            mpkg = self._make_weebill_input_metapackage()
+            extern.run(self._supplement_cmd(mpkg))
+            out = Metapackage.acquire('out.smpkg')
+            dbs = out.weebill_databases()
+            self.assertEqual(1, len(dbs))
+            self.assertEqual('weebill_base.syl2db', os.path.basename(dbs[0][0]))
+            self.assertEqual(100, dbs[0][1])
+            self.assertEqual(1, self._weebill_num_genomes(self.weebill_base_db))
+            self.assertEqual(2, self._weebill_num_genomes(dbs[0][0]))
+
+    def test_weebill_db_end_to_end_annotation(self):
+        # weebill coverage of the supplemented genome maps to the taxonomy
+        # supplement gave it
+        from singlem.weebill import WeebillProfiler
+        with in_tempdir():
+            mpkg = self._make_weebill_input_metapackage()
+            extern.run(self._supplement_cmd(mpkg))
+            out = Metapackage.acquire('out.smpkg')
+            genome_path = os.path.join(path_to_data, self.weebill_genome)
+            with open('raw.tsv', 'w') as f:
+                f.write('Sample_file\tGenome_file\tTrue_cov\n')
+                f.write(f's1\t{genome_path}\t3.5\n')
+            WeebillProfiler().annotate('raw.tsv', out, 'annotated.tsv')
+            with open(os.path.join(path_to_data, self.weebill_genome + '.taxonomy')) as f:
+                expected_taxonomy = f.read().strip().split('\t')[1]
+            with open('annotated.tsv') as f:
+                lines = f.read().splitlines()
+            self.assertEqual('Sample_file\ttaxonomy\tTrue_cov', lines[0])
+            self.assertEqual(2, len(lines))
+            sample, taxonomy, coverage = lines[1].split('\t')
+            self.assertEqual(('s1', '3.5'), (sample, coverage))
+            self.assertEqual([t.strip() for t in expected_taxonomy.split(';')],
+                             [t.strip() for t in taxonomy.split(';')])
+
+    def test_weebill_genome_without_marker_hits_not_added(self):
+        with in_tempdir():
+            mpkg = self._make_weebill_input_metapackage()
+            no_marker = os.path.join(path_to_data, 'no_marker_genome.fna')
+            with open(os.path.join(path_to_data, self.weebill_genome + '.taxonomy')) as f:
+                taxonomy = f.read().strip().split('\t')[1]
+            with open('taxonomy.tsv', 'w') as f:
+                f.write(f'{self.weebill_genome}\t{taxonomy}\n')
+                f.write(f'no_marker_genome.fna\t{taxonomy.replace("s__", "s__NO_MARKER_")}\n')
+            extern.run(self._supplement_cmd(
+                mpkg, genomes=[os.path.join(path_to_data, self.weebill_genome), no_marker],
+                taxonomy_file='taxonomy.tsv'))
+            dbs = Metapackage.acquire('out.smpkg').weebill_databases()
+            self.assertEqual(2, self._weebill_num_genomes(dbs[0][0]))
+
+    def test_no_weebill(self):
+        with in_tempdir():
+            mpkg = self._make_weebill_input_metapackage()
+            extern.run(self._supplement_cmd(mpkg, extra='--no-weebill'))
+            self.assertEqual([], Metapackage.acquire('out.smpkg').weebill_databases())
+
+    def test_weebill_db_base(self):
+        with in_tempdir():
+            extern.run(self._supplement_cmd(
+                f'{path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/',
+                extra=f'--weebill-db-base {self.weebill_base_db} --weebill-c 100'))
+            out = Metapackage.acquire('out.smpkg')
+            self.assertEqual(7, out.version)
+            dbs = out.weebill_databases()
+            self.assertEqual(1, len(dbs))
+            self.assertEqual(100, dbs[0][1])
+            self.assertEqual(2, self._weebill_num_genomes(dbs[0][0]))
+
+    def test_weebill_db_base_with_bundled_db_croaks(self):
+        with in_tempdir():
+            mpkg = self._make_weebill_input_metapackage()
             with self.assertRaises(extern.ExternCalledProcessError):
-                extern.run(cmd)
+                extern.run(self._supplement_cmd(
+                    mpkg, extra=f'--weebill-db-base {self.weebill_base_db} --weebill-c 100'))
+
+    def test_two_bundled_weebill_dbs_croaks(self):
+        with in_tempdir():
+            dummy = os.path.join(os.path.dirname(__file__), 'data', 'dummy.syl2db')
+            mpkg = self._make_weebill_input_metapackage([self.weebill_base_db, dummy])
+            with self.assertRaises(extern.ExternCalledProcessError):
+                extern.run(self._supplement_cmd(mpkg))
+
+    def test_weebill_genome_already_in_db_croaks(self):
+        # Adding a genome whose file name is already in the weebill database
+        # fails rather than adding it twice
+        with in_tempdir():
+            input_mpkg = f'{path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/'
+            extern.run(self._supplement_cmd(
+                input_mpkg, extra=f'--weebill-db-base {self.weebill_base_db} --weebill-c 100'))
+            os.rename('out.smpkg', 'first.smpkg')
+            grown = Metapackage.acquire('first.smpkg').weebill_databases()[0][0]
+            with self.assertRaises(extern.ExternCalledProcessError) as cm:
+                extern.run(self._supplement_cmd(
+                    input_mpkg, extra=f'--weebill-db-base {grown} --weebill-c 100'))
+            self.assertIn('already added by an earlier supplement', str(cm.exception))
 
     def test_output_matched_protein_sequences(self):
         with in_tempdir():
