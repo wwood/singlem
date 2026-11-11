@@ -305,6 +305,24 @@ class Tests(unittest.TestCase):
             ]
             self.assertEqualOtuTable(list([line.split("\t") for line in expected]), output)
 
+    def test_supplemented_genome_key_to_taxonomy(self):
+        # weebill reports genomes by FASTA path, and these must map back to the
+        # taxonomy supplement gave them even when their name is not an accession.
+        from singlem.weebill import WeebillProfiler
+        genome = 'binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12.fna'
+        with in_tempdir():
+            cmd = f"{run} --ignore-taxonomy-database-incompatibility --no-taxon-genome-lengths --no-dereplication --skip-taxonomy-check --hmmsearch-evalue 1e-5 --no-quality-filter --new-genome-fasta-files {path_to_data}/{genome} --input-metapackage {path_to_data}/4.11.22seqs.gpkg.spkg.smpkg/ --output-metapackage out.smpkg --new-fully-defined-taxonomies {path_to_data}/{genome}.taxonomy --new-taxonomy-database-name test_supplement --new-taxonomy-database-version 1.0"
+            extern.run(cmd)
+            mpkg = Metapackage.acquire('out.smpkg')
+            key = WeebillProfiler()._genome_key(os.path.join('/somewhere', genome))
+            with open(os.path.join(path_to_data, genome + '.taxonomy')) as f:
+                expected_taxonomy = f.read().strip().split('\t')[1]
+            observed = mpkg.genome_key_to_taxonomy([key])
+            self.assertEqual([key], list(observed.keys()))
+            self.assertEqual(
+                [t.strip() for t in expected_taxonomy.split(';')],
+                [t.strip() for t in observed[key].split(';')])
+
 
 if __name__ == "__main__":
     unittest.main()

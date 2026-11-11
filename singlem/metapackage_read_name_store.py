@@ -5,8 +5,41 @@ import tempfile
 from bird_tool_utils import iterable_chunks
 
 from .singlem_package import SingleMPackage
+from .biolib_lite.common import remove_extension
 
 _GENOME_ACCESSION_REGEX = re.compile(r'(GC[AF]_\d+\.\d+)')
+# supplement names its reference sequences '<spkg prefix>~<genome>‡<gene>'. The
+# prefix never contains '~', but the genome name may.
+_SUPPLEMENTED_GENOME_REGEX = re.compile(r'^[^~]*~(.+?)‡')
+
+
+def genome_key_from_read_name(read_name):
+    '''The key identifying the genome a metapackage reference sequence came from,
+    or None. It is the sequence's versioned GCA_/GCF_ accession if it has one
+    (e.g. 'rplB~GB_GCA_000013625.1' -> 'GCA_000013625.1'). Otherwise, for a
+    sequence added by 'singlem supplement', it is the genome name supplement
+    recorded: the FASTA basename with its last extension removed
+    ('rplB~AMXMAG_0092.fa‡gene' -> 'AMXMAG_0092.fa'). Must agree with
+    genome_key_from_genome_file.'''
+    match = _GENOME_ACCESSION_REGEX.search(read_name)
+    if match:
+        return match.group(1)
+    match = _SUPPLEMENTED_GENOME_REGEX.search(read_name)
+    if match:
+        return match.group(1)
+    return None
+
+
+def genome_key_from_genome_file(genome_file):
+    '''The key identifying a genome FASTA file, e.g. a weebill profile's
+    Genome_file. It is the versioned GCA_/GCF_ accession in the path if there is
+    one. Otherwise it is the basename with its last extension removed, which is
+    how 'singlem supplement' names genomes ('/x/AMXMAG_0092.fa.gz' ->
+    'AMXMAG_0092.fa'). Must agree with genome_key_from_read_name.'''
+    match = _GENOME_ACCESSION_REGEX.search(genome_file)
+    if match:
+        return match.group(1)
+    return remove_extension(genome_file)
 
 READ_NAME_TAXONOMY_TABLE = 'read_name_taxonomy'
 TAXONOMY_MARKER_COUNT_TABLE = 'taxonomy_marker_count'
@@ -106,24 +139,23 @@ class MetapackageReadNameStore:
         return [row[0] for row in self._iterate(
             "SELECT DISTINCT taxonomy FROM {}".format(READ_NAME_TAXONOMY_TABLE))]
 
-    def get_taxonomy_by_genome_accession(self, accessions=None):
-        '''Return a dict of genome accession (e.g. GCF_000744455.1) to taxonomy
-        string. Read names are formatted '<marker>~<accession>' (the accession
-        carrying the usual GB_/RS_ prefix), so the accession is parsed out of each
-        read name. If accessions is given, only those are returned.'''
-        wanted = set(accessions) if accessions is not None else None
-        accession_to_taxonomy = {}
+    def get_taxonomy_by_genome_key(self, genome_keys=None):
+        '''Return a dict of genome key (see genome_key_from_read_name, e.g.
+        GCF_000744455.1 for a GTDB genome or AMXMAG_0092.fa for a supplemented
+        one) to taxonomy string. If genome_keys is given, only those are
+        returned.'''
+        wanted = set(genome_keys) if genome_keys is not None else None
+        key_to_taxonomy = {}
         for read_name, taxonomy in self._iterate(
                 "SELECT read_name, taxonomy FROM {}".format(READ_NAME_TAXONOMY_TABLE)):
-            match = _GENOME_ACCESSION_REGEX.search(read_name)
-            if match is None:
+            key = genome_key_from_read_name(read_name)
+            if key is None:
                 continue
-            accession = match.group(1)
-            if wanted is not None and accession not in wanted:
+            if wanted is not None and key not in wanted:
                 continue
-            if accession not in accession_to_taxonomy:
-                accession_to_taxonomy[accession] = taxonomy
-        return accession_to_taxonomy
+            if key not in key_to_taxonomy:
+                key_to_taxonomy[key] = taxonomy
+        return key_to_taxonomy
 
     def get_marker_counts_of_species(self, taxons):
         '''Return dict of taxonomy string to marker count'''

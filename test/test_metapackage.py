@@ -109,11 +109,30 @@ class Tests(unittest.TestCase):
 
     REGIME3_METAPACKAGE = '/work/microbiome/db/singlem/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb'
 
-    def test_genome_accession_to_taxonomy(self):
+    def test_genome_key_from_read_name(self):
+        from singlem.metapackage_read_name_store import genome_key_from_read_name, genome_key_from_genome_file
+        self.assertEqual('GCA_000013625.1', genome_key_from_read_name('ribosomal_protein_L2_rplB~GB_GCA_000013625.1'))
+        self.assertEqual('GCF_000744455.1', genome_key_from_read_name('S3.1~RS_GCF_000744455.1'))
+        # Sequences added by supplement: '<prefix>~<genome>‡<gene>'
+        self.assertEqual('AMXMAG_0092.fa', genome_key_from_read_name(
+            'EIF_2_alpha~AMXMAG_0092.fa‡AMXMAG_0092_000000000003_120_1_1_9'))
+        # The genome name may itself contain '~'
+        self.assertEqual('binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12', genome_key_from_read_name(
+            '4.11.22seqs~binchicken_co4822.157=binchicken_co4822.157~k141_197776_18_1_1_12‡k141_1_2_3'))
+        # An empty spkg prefix
+        self.assertEqual('g1', genome_key_from_read_name('~g1‡gene'))
+        # A supplemented genome named by accession resolves to the accession on
+        # both sides
+        self.assertEqual('GCA_011373445.1', genome_key_from_read_name('4.11.22seqs~GCA_011373445.1_genomic.mutated‡x'))
+        self.assertEqual('GCA_011373445.1', genome_key_from_genome_file('/d/GCA_011373445.1_genomic.mutated.fna'))
+        self.assertIsNone(genome_key_from_read_name('2513020051'))
+        self.assertIsNone(genome_key_from_read_name('marker~no_dagger'))
+
+    def test_genome_key_to_taxonomy(self):
         if not os.path.exists(self.REGIME3_METAPACKAGE):
             self.skipTest("GTDB r232 metapackage not present")
         mp = Metapackage.acquire(self.REGIME3_METAPACKAGE)
-        d = mp.genome_accession_to_taxonomy(['GCF_000744455.1', 'GCF_000191585.1'])
+        d = mp.genome_key_to_taxonomy(['GCF_000744455.1', 'GCF_000191585.1'])
         self.assertEqual(2, len(d))
         self.assertIn('s__Methanobacterium_B sp000744455', d['GCF_000744455.1'])
         self.assertIn('s__Methanobacterium_B lacus', d['GCF_000191585.1'])
