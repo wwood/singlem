@@ -2,7 +2,7 @@ version: 7
 platforms:
 - name: linux-64
   virtual-packages:
-  - __unix=0=0
+  - __unix=0
   - __linux=4.18
   - __glibc=2.28
   - __archspec=0=x86_64
@@ -459,7 +459,7 @@ environments:
     - url: https://conda.anaconda.org/bioconda/
     packages:
       linux-64:
-      - conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.3.0-hec9b1f2_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.4.0-hec9b1f2_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-9.14.5-hdfd78af_0.conda
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-executor-plugin-cluster-generic-1.0.9-pyhdfd78af_0.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/noarch/snakemake-interface-common-1.22.0-pyhd4c3c12_0.conda
@@ -933,9 +933,9 @@ packages:
   license: Public Domain
   size: 64003013
   timestamp: 1750275321138
-- conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.3.0-hec9b1f2_0.conda
-  sha256: 84afc1909647b76c152e59c6790bdbe25a0bd2d64a53bbc9d817fe874c301633
-  md5: 153bbec3b8ccc161405cc0305fb14a62
+- conda: https://conda.anaconda.org/bioconda/linux-64/weebill-0.4.0-hec9b1f2_0.conda
+  sha256: 41bb7621ac0770d99c73c6b806aab47e0542ff2fee06dc010cf931e98954fc8b
+  md5: 9e24100dcd8bfef235535b2f7be9662a
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=14
@@ -946,9 +946,9 @@ packages:
   license_family: MIT
   run_exports:
     weak:
-    - weebill >=0.3.0,<0.4.0a0
-  size: 1148040
-  timestamp: 1785793992011
+    - weebill >=0.4.0,<0.5.0a0
+  size: 1190221
+  timestamp: 1792053718384
 - conda: https://conda.anaconda.org/bioconda/noarch/bcbiogff-0.6.6-pyh864c0ab_2.tar.bz2
   sha256: 4cfec29f63d19d3045240fe375011049aa036aec93243eaca2ae7c20bdee5476
   md5: 952a42003572e0a63f1d475a9c63b1e3
