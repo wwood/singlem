@@ -137,6 +137,75 @@ class Tests(unittest.TestCase):
         self.assertIn('s__Methanobacterium_B sp000744455', d['GCF_000744455.1'])
         self.assertIn('s__Methanobacterium_B lacus', d['GCF_000191585.1'])
 
+    def _make_duckdb_store(self, path, rows):
+        import duckdb
+        con = duckdb.connect(path)
+        con.execute("CREATE TABLE read_name_taxonomy (id BIGINT, read_name VARCHAR, taxonomy VARCHAR)")
+        for i, (name, tax) in enumerate(rows):
+            con.execute("INSERT INTO read_name_taxonomy VALUES (?, ?, ?)", [i + 1, name, tax])
+        con.close()
+
+    def test_genome_taxonomy_table(self):
+        from singlem.metapackage_read_name_store import MetapackageReadNameStore
+        rows = [
+            ('rplB~GB_GCA_000013625.1', 'd__Bacteria;s__A'),
+            ('rplK~GB_GCA_000013625.1', 'd__Bacteria;s__A'),
+            ('S3.1~RS_GCF_000744455.1', 'd__Archaea;s__B'),
+            ('4.11.22seqs~AMXMAG_0092.fa‡AMXMAG_0092_1', 'd__Bacteria;s__C'),
+            ('4.11.22seqs~a~b‡gene', 'd__Bacteria;s__D'),
+            ('2513020051', 'd__Bacteria;s__E'),
+        ]
+        expected = {
+            'GCA_000013625.1': 'd__Bacteria;s__A',
+            'GCF_000744455.1': 'd__Archaea;s__B',
+            'AMXMAG_0092.fa': 'd__Bacteria;s__C',
+            'a~b': 'd__Bacteria;s__D',
+        }
+        with tempfile.TemporaryDirectory(prefix='singlem') as d:
+            db = os.path.join(d, 'r.duckdb')
+            self._make_duckdb_store(db, rows)
+            # Without the table, the full scan is used
+            store = MetapackageReadNameStore.acquire(db)
+            self.assertFalse(store.has_genome_taxonomy_table())
+            self.assertEqual(expected, store.get_taxonomy_by_genome_key())
+            self.assertEqual({'AMXMAG_0092.fa': 'd__Bacteria;s__C'},
+                store.get_taxonomy_by_genome_key(['AMXMAG_0092.fa', 'missing']))
+
+            MetapackageReadNameStore.add_genome_taxonomy_table(db)
+            store = MetapackageReadNameStore.acquire(db)
+            self.assertTrue(store.has_genome_taxonomy_table())
+            self.assertEqual(expected, store.get_taxonomy_by_genome_key())
+            self.assertEqual(expected, store._get_taxonomy_by_genome_key_by_scan(None))
+            self.assertEqual({'AMXMAG_0092.fa': 'd__Bacteria;s__C', 'GCA_000013625.1': 'd__Bacteria;s__A'},
+                store.get_taxonomy_by_genome_key(['AMXMAG_0092.fa', 'GCA_000013625.1', 'missing']))
+            # Adding again is a no-op
+            MetapackageReadNameStore.add_genome_taxonomy_table(db)
+
+            # Converting a store copies everything and adds the table
+            db2 = os.path.join(d, 'r2.duckdb')
+            MetapackageReadNameStore.convert_to_duckdb(db, db2)
+            store2 = MetapackageReadNameStore.acquire(db2)
+            self.assertTrue(store2.has_genome_taxonomy_table())
+            self.assertEqual(expected, store2.get_taxonomy_by_genome_key())
+            self.assertEqual(['d__Bacteria', 's__E'], store2.get_taxonomy_of_reads(['2513020051'])['2513020051'])
+
+    def test_generated_store_has_genome_taxonomy_table(self):
+        from singlem.metapackage_read_name_store import MetapackageReadNameStore
+        with tempfile.TemporaryDirectory(prefix='singlem') as f:
+            extern.run("{} metapackage --singlem-packages test/data/4.11.22seqs.v3_archaea_targetted.gpkg.spkg/ --no-nucleotide-sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(
+                path_to_script, f))
+            mp = Metapackage.acquire(os.path.join(f, 'a.smpkg'))
+            store = MetapackageReadNameStore.acquire(mp._sqlite_db_path)
+            self.assertTrue(store.has_genome_taxonomy_table())
+            self.assertEqual(store._get_taxonomy_by_genome_key_by_scan(None), store.get_taxonomy_by_genome_key())
+
+    def test_sqlite_store_genome_key_fallback(self):
+        # v3-v6 SQLite stores have no genome_taxonomy table
+        from singlem.metapackage_read_name_store import MetapackageReadNameStore
+        store = MetapackageReadNameStore.acquire(os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg.smpkg', 'read_taxonomies.sqlite3'))
+        self.assertFalse(store.has_genome_taxonomy_table())
+        self.assertEqual({}, store.get_taxonomy_by_genome_key(['GCA_000013625.1']))
+
     def test_metapackage_read_name_store(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
             cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.gpkg.spkg.smpkg/22seqs.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(

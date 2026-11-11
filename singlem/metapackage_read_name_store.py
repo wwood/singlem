@@ -1,4 +1,5 @@
 import logging
+import os
 import re
 import tempfile
 
@@ -43,6 +44,37 @@ def genome_key_from_genome_file(genome_file):
 
 READ_NAME_TAXONOMY_TABLE = 'read_name_taxonomy'
 TAXONOMY_MARKER_COUNT_TABLE = 'taxonomy_marker_count'
+# Optional table of genome key (see genome_key_from_read_name) to taxonomy, so
+# that weebill genomes can be mapped to taxonomy without scanning every read
+# name. Stores without it (older metapackages) fall back to a full scan.
+GENOME_TAXONOMY_TABLE = 'genome_taxonomy'
+
+
+class GenomeTaxonomyCollector:
+    '''Accumulates the first taxonomy seen for each genome key from (read_name,
+    taxonomy) pairs, warning when one genome key has differing taxonomies.'''
+
+    def __init__(self):
+        self.key_to_taxonomy = {}
+        self.num_conflicts = 0
+
+    def add(self, read_name, taxonomy):
+        key = genome_key_from_read_name(read_name)
+        if key is None:
+            return
+        existing = self.key_to_taxonomy.get(key)
+        if existing is None:
+            self.key_to_taxonomy[key] = taxonomy
+        elif existing != taxonomy:
+            self.num_conflicts += 1
+            if self.num_conflicts <= 5:
+                logging.warning("Genome key {} has differing taxonomies in the read name store, keeping the first: '{}' vs '{}'".format(
+                    key, existing, taxonomy))
+
+    def log_summary(self):
+        if self.num_conflicts > 5:
+            logging.warning("{} read names in total had a taxonomy differing from the first seen for their genome key".format(
+                self.num_conflicts))
 
 
 class MetapackageReadNameStore:
@@ -54,6 +86,7 @@ class MetapackageReadNameStore:
     def __init__(self, db_path, backend):
         self._db_path = db_path
         self._backend = backend
+        self._has_genome_taxonomy_table = None
 
     @staticmethod
     def acquire(db_path):
@@ -74,15 +107,19 @@ class MetapackageReadNameStore:
 
         num_packages = 0
         num_read_names = 0
+        genome_taxonomies = GenomeTaxonomyCollector()
         with tempfile.NamedTemporaryFile(prefix='singlem_metapackage_read_name_store', suffix='.tsv') as temp_file:
             for singlem_package_path in singlem_package_paths:
                 singlem_package = SingleMPackage.acquire(singlem_package_path)
                 num_packages += 1
                 for name, taxonomy in singlem_package.taxonomy_hash().items():
                     num_read_names += 1
+                    taxonomy_string = ';'.join(taxonomy)
+                    genome_taxonomies.add(name, taxonomy_string)
                     temp_file.write("{}\t{}\t{}\n".format(
-                        num_read_names, name, ';'.join(taxonomy)).encode('utf-8'))
+                        num_read_names, name, taxonomy_string).encode('utf-8'))
             temp_file.flush()
+            genome_taxonomies.log_summary()
 
             con = duckdb.connect(db_path)
             try:
@@ -91,6 +128,8 @@ class MetapackageReadNameStore:
                 con.execute(
                     "COPY {} FROM '{}' (DELIMITER '\t', HEADER false, QUOTE '')".format(
                         READ_NAME_TAXONOMY_TABLE, temp_file.name))
+
+                MetapackageReadNameStore._write_genome_taxonomy_table(con, genome_taxonomies.key_to_taxonomy)
 
                 if taxonomy_marker_counts is not None:
                     logging.debug("Creating taxonomy_marker_count table")
@@ -109,6 +148,101 @@ class MetapackageReadNameStore:
             finally:
                 con.close()
         logging.info("Imported {} packages and {} read names.".format(num_packages, num_read_names))
+
+    @staticmethod
+    def _write_genome_taxonomy_table(duckdb_connection, key_to_taxonomy):
+        with tempfile.NamedTemporaryFile(prefix='singlem_metapackage_genome_taxonomy', suffix='.tsv') as f:
+            for key, taxonomy in key_to_taxonomy.items():
+                f.write("{}\t{}\n".format(key, taxonomy).encode('utf-8'))
+            f.flush()
+            duckdb_connection.execute(
+                "CREATE TABLE {} (genome_key VARCHAR PRIMARY KEY, taxonomy VARCHAR)".format(GENOME_TAXONOMY_TABLE))
+            if key_to_taxonomy:  # COPY cannot sniff an empty file
+                duckdb_connection.execute(
+                    "COPY {} FROM '{}' (DELIMITER '\t', HEADER false, QUOTE '')".format(GENOME_TAXONOMY_TABLE, f.name))
+        logging.debug("Wrote {} genome keys to the {} table".format(len(key_to_taxonomy), GENOME_TAXONOMY_TABLE))
+
+    def has_genome_taxonomy_table(self):
+        '''True if the store has the genome_taxonomy table (stores built by
+        older versions of SingleM do not).'''
+        if self._has_genome_taxonomy_table is None:
+            self._has_genome_taxonomy_table = self._has_table(GENOME_TAXONOMY_TABLE)
+        return self._has_genome_taxonomy_table
+
+    def _has_table(self, table_name):
+        if self._backend == 'duckdb':
+            sql = "SELECT count(*) FROM information_schema.tables WHERE table_name = ?"
+        else:
+            sql = "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = ?"
+        conn = self._connect()
+        try:
+            return conn.execute(sql, [table_name]).fetchone()[0] > 0
+        finally:
+            conn.close()
+
+    def _collect_genome_taxonomies(self):
+        collector = GenomeTaxonomyCollector()
+        for read_name, taxonomy in self._iterate(
+                "SELECT read_name, taxonomy FROM {} ORDER BY id".format(READ_NAME_TAXONOMY_TABLE)):
+            collector.add(read_name, taxonomy)
+        collector.log_summary()
+        return collector.key_to_taxonomy
+
+    @staticmethod
+    def add_genome_taxonomy_table(db_path):
+        """Add the genome_taxonomy table to an existing DuckDB store in place, by
+        scanning its read names once. Does nothing if the table is already
+        there. For a SQLite store, use convert_to_duckdb instead."""
+        store = MetapackageReadNameStore.acquire(db_path)
+        if store._backend != 'duckdb':
+            raise Exception("Adding a {} table in place is only supported for DuckDB read name stores, not {}. "
+                "Use convert_to_duckdb.".format(GENOME_TAXONOMY_TABLE, db_path))
+        if store.has_genome_taxonomy_table():
+            logging.info("Read name store {} already has a {} table".format(db_path, GENOME_TAXONOMY_TABLE))
+            return
+        key_to_taxonomy = store._collect_genome_taxonomies()
+        import duckdb
+        con = duckdb.connect(db_path)
+        try:
+            MetapackageReadNameStore._write_genome_taxonomy_table(con, key_to_taxonomy)
+        finally:
+            con.close()
+        logging.info("Added {} genome keys to {}".format(len(key_to_taxonomy), db_path))
+
+    @staticmethod
+    def convert_to_duckdb(source_db_path, output_db_path):
+        """Write a new DuckDB store at output_db_path with the same contents as
+        the store at source_db_path (e.g. a SQLite store from a version 3-6
+        metapackage), plus the genome_taxonomy table."""
+        import duckdb
+        source = MetapackageReadNameStore.acquire(source_db_path)
+        if os.path.exists(output_db_path):
+            raise Exception("Not overwriting existing file {}".format(output_db_path))
+        tables = [(READ_NAME_TAXONOMY_TABLE, "id BIGINT, read_name VARCHAR, taxonomy VARCHAR",
+                   "SELECT id, read_name, taxonomy FROM {}".format(READ_NAME_TAXONOMY_TABLE))]
+        if source._has_table(TAXONOMY_MARKER_COUNT_TABLE):
+            tables.append((TAXONOMY_MARKER_COUNT_TABLE, "id BIGINT, taxonomy VARCHAR, marker_count BIGINT",
+                           "SELECT id, taxonomy, marker_count FROM {}".format(TAXONOMY_MARKER_COUNT_TABLE)))
+        con = duckdb.connect(output_db_path)
+        try:
+            for table, columns, select in tables:
+                with tempfile.NamedTemporaryFile(prefix='singlem_metapackage_read_name_store', suffix='.tsv') as f:
+                    num_rows = 0
+                    for row in source._iterate(select):
+                        f.write(('\t'.join(str(x) for x in row) + '\n').encode('utf-8'))
+                        num_rows += 1
+                    f.flush()
+                    con.execute("CREATE TABLE {} ({})".format(table, columns))
+                    if num_rows > 0:
+                        con.execute("COPY {} FROM '{}' (DELIMITER '\t', HEADER false, QUOTE '')".format(
+                            table, f.name))
+                logging.info("Copied {} rows of table {}".format(num_rows, table))
+            MetapackageReadNameStore._write_genome_taxonomy_table(con, source._collect_genome_taxonomies())
+        except BaseException:
+            con.close()
+            os.remove(output_db_path)
+            raise
+        con.close()
 
     def get_taxonomy_of_reads(self, read_names):
         '''Return dict of read name to taxonomy string'''
@@ -144,6 +278,32 @@ class MetapackageReadNameStore:
         GCF_000744455.1 for a GTDB genome or AMXMAG_0092.fa for a supplemented
         one) to taxonomy string. If genome_keys is given, only those are
         returned.'''
+        if self.has_genome_taxonomy_table():
+            return self._get_taxonomy_by_genome_key_from_table(genome_keys)
+        logging.debug("No {} table in the read name store, scanning all read names".format(GENOME_TAXONOMY_TABLE))
+        return self._get_taxonomy_by_genome_key_by_scan(genome_keys)
+
+    def _get_taxonomy_by_genome_key_from_table(self, genome_keys):
+        if genome_keys is None:
+            return {key: taxonomy for key, taxonomy in self._iterate(
+                "SELECT genome_key, taxonomy FROM {}".format(GENOME_TAXONOMY_TABLE))}
+        key_to_taxonomy = {}
+        conn = self._connect()
+        try:
+            for key_set in iterable_chunks(list(set(genome_keys)), 900):
+                keys = [k for k in key_set if k is not None]
+                if not keys:
+                    continue
+                placeholders = ','.join(['?'] * len(keys))
+                sql = "SELECT genome_key, taxonomy FROM {} WHERE genome_key IN ({})".format(
+                    GENOME_TAXONOMY_TABLE, placeholders)
+                for key, taxonomy in conn.execute(sql, keys).fetchall():
+                    key_to_taxonomy[key] = taxonomy
+        finally:
+            conn.close()
+        return key_to_taxonomy
+
+    def _get_taxonomy_by_genome_key_by_scan(self, genome_keys):
         wanted = set(genome_keys) if genome_keys is not None else None
         key_to_taxonomy = {}
         for read_name, taxonomy in self._iterate(
