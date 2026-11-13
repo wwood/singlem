@@ -111,11 +111,11 @@ singlem pipe \
 ### Long reads (Nanopore ≥R10.4.1 or PacBio HiFi)
 ```bash
 singlem pipe \
-  --sequences sample_nanopore.fastq.gz \
+  --long-reads sample_nanopore.fastq.gz \
   -p sample.profile.tsv \
   --threads 8
 ```
-> Long reads use the same interface; SingleM auto-detects read length.
+> `--long-reads` runs DIAMOND in frameshift mode, which tolerates the indels in long reads but is slower, so it is not used for short reads given with `-1`/`--sequences`. Long reads given with `-1` and no `-2` are detected (mean length >500 bp in the first 5 reads) and switched to `--long-reads` mode with a warning.
 
 ### Multiple samples — combined in one run
 ```bash

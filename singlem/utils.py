@@ -2,6 +2,7 @@ import csv
 import os
 import re
 import shlex
+import signal
 import subprocess
 import time
 import logging
@@ -60,8 +61,15 @@ class FastaNameToSampleName:
         return sample_name
 
 
-def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None):
-    """Return (new_paths, processes) where any .zst/.zstd files are streamed into FIFOs.
+GZIP_EXTENSIONS = ('.gz',)
+
+def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None, decompress_gzip=False):
+    """Return (new_paths, processes) where any .zst/.zstd files (and .gz files,
+    if decompress_gzip) are decompressed by a separate process into FIFOs.
+
+    gzip input is decompressed this way because DIAMOND's own gzip reading is
+    slow: it took 140s to load the queries of a 20M read FASTQ.gz file, versus
+    18s when the same file was given to it already decompressed through zcat.
 
     The caller is responsible for waiting on the returned processes.
     """
@@ -71,7 +79,11 @@ def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None):
         if path is None:
             prepared_paths.append(path)
             continue
-        if not path.endswith(ZSTD_EXTENSIONS):
+        if path.endswith(ZSTD_EXTENSIONS):
+            decompressor = 'zstdcat'
+        elif decompress_gzip and path.endswith(GZIP_EXTENSIONS):
+            decompressor = 'gzip -dc'
+        else:
             prepared_paths.append(path)
             continue
 
@@ -84,8 +96,9 @@ def prepare_zstd_fifos(file_paths, temp_dir, sleep_after_mkfifo=None):
         os.mkfifo(fifo_path)
         if sleep_after_mkfifo:
             time.sleep(sleep_after_mkfifo)
-        cmd = f"zstdcat {shlex.quote(path)} > {shlex.quote(fifo_path)}"
-        proc = subprocess.Popen(['bash', '-c', cmd], stderr=subprocess.PIPE, text=True)
+        cmd = f"{decompressor} {shlex.quote(path)} > {shlex.quote(fifo_path)}"
+        proc = subprocess.Popen(['bash', '-c', cmd], stderr=subprocess.PIPE, text=True,
+                                start_new_session=True)
         processes.append((proc, cmd))
         prepared_paths.append(fifo_path)
     return prepared_paths, processes
@@ -176,11 +189,14 @@ def prepare_chunking_fifos(file_paths, temp_dir, read_chunk_size, read_chunk_num
             add_chunking_pipe(read_chunk_size, read_chunk_number, lines_per_read),
             fifo_path)
         logging.debug("Running chunking command: {}".format(cmd))
+        # In its own process group, so that terminate_processes() can kill the
+        # whole pipeline, not just bash.
         process = subprocess.Popen(
             ['bash','-c',cmd],
             stdout=None,
             stderr=subprocess.PIPE,
-            text=True)
+            text=True,
+            start_new_session=True)
         processes.append((process, cmd))
 
     return prepared_paths, processes
@@ -190,7 +206,17 @@ def terminate_processes(processes, description):
     for proc, _cmd in processes:
         if proc.poll() is None:
             logging.debug(f"Terminating {description} process (pid {proc.pid}) due to downstream failure")
-            proc.terminate()
+        # The process is the leader of its own process group (see
+        # start_new_session above), so kill the whole group. Killing only bash
+        # would leave the commands in its pipeline running, and those can block
+        # forever opening a FIFO that is never going to be read, holding open the
+        # stderr pipe that finish_processes() then waits on. This is done even
+        # when bash itself has already exited, for the same reason.
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+        except (ProcessLookupError, PermissionError):
+            if proc.poll() is None:
+                proc.terminate()
 
 def finish_processes(processes, description):
     """Wait for streaming processes to finish and raise on non-zero exit codes."""
@@ -250,3 +276,85 @@ class LoggingTqdm(tqdm):
                 pct = f"{100*self._counter_for_logging//self.total}%" if self.total else "?"
                 self._logger.info(f"Progress: {self._counter_for_logging}/{self.total} ({pct})")
                 self._last_log = now
+def first_sequence_lengths(path, num_sequences=5):
+    '''Return the lengths of the first num_sequences sequences in a FASTA or
+    FASTQ file, which may be gzip or zstd compressed. Fewer lengths are returned
+    when the file has fewer sequences. Returns None when the file cannot be read
+    from the start (e.g. a named pipe, which reading would consume).'''
+    import gzip
+    import stat
+    if not os.path.exists(path) or not stat.S_ISREG(os.stat(path).st_mode):
+        return None
+
+    zstd_process = None
+    if path.endswith(ZSTD_EXTENSIONS):
+        zstd_process = subprocess.Popen(
+            ['zstdcat', path], stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        handle = zstd_process.stdout
+    else:
+        with open(path, 'rb') as f:
+            is_gzip = f.read(2) == b'\x1f\x8b'
+        handle = gzip.open(path, 'rt') if is_gzip else open(path)
+
+    lengths = []
+    try:
+        first_line = handle.readline()
+        if first_line.startswith('@'):
+            # FASTQ, assumed unwrapped
+            while len(lengths) < num_sequences:
+                sequence = handle.readline()
+                if sequence == '':
+                    break
+                lengths.append(len(sequence.strip()))
+                handle.readline()
+                handle.readline()
+                if handle.readline() == '':
+                    break
+        elif first_line.startswith('>'):
+            current = 0
+            for line in handle:
+                if line.startswith('>'):
+                    lengths.append(current)
+                    if len(lengths) >= num_sequences:
+                        break
+                    current = 0
+                else:
+                    current += len(line.strip())
+            else:
+                lengths.append(current)
+    finally:
+        handle.close()
+        if zstd_process is not None:
+            zstd_process.kill()
+            zstd_process.wait()
+    return lengths
+
+def first_sra_spot_read_lengths(path, num_spots=5):
+    '''Return the lengths of the biological reads in the first num_spots spots
+    of an SRA file, as a list (one entry per spot) of lists of read lengths, by
+    running vdb-dump. A spot with 2 or more biological reads is a read pair.
+    Returns None if vdb-dump fails or its output cannot be parsed.'''
+    try:
+        output = subprocess.run(
+            ['vdb-dump', '-C', 'READ_LEN,READ_TYPE', '-R', '1-{}'.format(num_spots), path],
+            capture_output=True, text=True, check=True).stdout
+    except (OSError, subprocess.CalledProcessError) as e:
+        logging.debug("Could not determine read lengths of {} with vdb-dump: {}".format(path, e))
+        return None
+
+    spots = []
+    read_lengths = None
+    for line in output.splitlines():
+        line = line.strip()
+        if line.startswith('READ_LEN:'):
+            read_lengths = [int(x) for x in line.split(':', 1)[1].split(',') if x.strip() != '']
+        elif line.startswith('READ_TYPE:') and read_lengths is not None:
+            read_types = [x.strip() for x in line.split(':', 1)[1].split(',')]
+            if len(read_types) != len(read_lengths):
+                return None
+            spots.append([length for (length, read_type) in zip(read_lengths, read_types)
+                          if 'BIOLOGICAL' in read_type and length > 0])
+            read_lengths = None
+    if len(spots) == 0:
+        return None
+    return spots

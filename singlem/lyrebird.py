@@ -79,6 +79,7 @@ def main():
     renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
     renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
+    renew_input_args.add_argument('--long-reads', action='store_true', help="The OTU table was generated from long reads (e.g. with 'pipe --long-reads'), so run DIAMOND in frameshift mode during taxonomy assignment. [default: not set, but enabled with a warning when the reads in the table have a mean length >%i bp]" % SearchPipe.LONG_READ_LENGTH_THRESHOLD)
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common, weebill=False)
     renew_less_common = renew_parser.add_argument_group("Less common arguments shared with 'pipe'")
@@ -151,6 +152,7 @@ def main():
             exclude_off_target_hits = args.exclude_off_target_hits,
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
+            long_reads = args.use_long_read_mode,
             repair_frameshifts = not args.no_repair_frameshifts,
             max_frameshift_repair_divergence = args.max_frameshift_repair_divergence,
         )
@@ -183,6 +185,7 @@ def main():
             max_species_divergence = args.max_species_divergence,
             viral_mode = True,
             parse_lyrebird_metapackage = True,
+            long_reads = args.long_reads,
             )
 
     elif args.subparser_name == 'condense':

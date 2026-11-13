@@ -33,6 +33,7 @@ from singlem.condense import DEFAULT_TRIM_PERCENT as CONDENSE_DEFAULT_TRIM_PERCE
 from singlem.prefilter_pad import DEFAULT_FLANK_LENGTH
 
 DEFAULT_WINDOW_SIZE = 60
+LONG_READ_DETECTION_NUM_SEQUENCES = 5
 SPECIES_LEVEL_AVERAGE_IDENTITY = float(DEFAULT_WINDOW_SIZE - SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE) / DEFAULT_WINDOW_SIZE
 
 
@@ -73,7 +74,11 @@ def add_common_pipe_arguments(argument_group, extra_args=False, weebill=True):
         sequence_input_group.add_argument('-1','--forward','--reads','--sequences',
                                     nargs='+',
                                     metavar='sequence_file',
-                                    help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not, short or long (but Nanopore >=10.4.1 or PacBio HiFi reads recommended).')
+                                    help='nucleotide read sequence(s) (forward or unpaired) to be searched. Can be FASTA or FASTQ format, GZIP-compressed or not. Intended for short reads e.g. Illumina; use --long-reads for long reads. If no --reverse is given and the reads appear long (mean length >%i bp among the first %i reads of any file), they are treated as if given with --long-reads, with a warning.' % (SearchPipe.LONG_READ_LENGTH_THRESHOLD, LONG_READ_DETECTION_NUM_SEQUENCES))
+        sequence_input_group.add_argument('--long-reads',
+                                    nargs='+',
+                                    metavar='sequence_file',
+                                    help='long nucleotide read sequence(s) to be searched e.g. from Nanopore (>=10.4.1 recommended) or PacBio HiFi. As for --forward, except that DIAMOND is run in frameshift mode during both the prefilter and taxonomy assignment, so that reads carrying insertions or deletions are still found and their frameshifts can be repaired. Frameshift mode is slower, so it is not used for short reads given with --forward. Can be FASTA or FASTQ format, GZIP-compressed or not.')
         argument_group.add_argument('-2', '--reverse',
                                     nargs='+',
                                     metavar='sequence_file',
@@ -95,7 +100,7 @@ def add_common_pipe_arguments(argument_group, extra_args=False, weebill=True):
         sequence_input_group.add_argument('--sra-files',
                 nargs='+',
                 metavar='sra_file',
-                help='"sra" format files (usually from NCBI SRA) to be searched')
+                help='"sra" format files (usually from NCBI SRA) to be searched. Treated as long reads if they are unpaired and the mean length of the first %i reads of any file is >%i bp.' % (LONG_READ_DETECTION_NUM_SEQUENCES, SearchPipe.LONG_READ_LENGTH_THRESHOLD))
     argument_group.add_argument('-p', '--taxonomic-profile', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table.{} Taxonomic profiles output can be further converted to other formats using singlem summarise.".format(
         " When the metapackage bundles a weebill database and the input is reads, this is a joint SingleM + weebill profile." if weebill else ""))
     argument_group.add_argument('--taxonomic-profile-krona', metavar='FILE', help="output a 'condensed' taxonomic profile for each sample based on the OTU table")
@@ -214,7 +219,7 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
         argument_group.add_argument('--sleep-after-mkfifo', type=int,
                                     help='Sleep for this many seconds after running os.mkfifo [default: None]')
         argument_group.add_argument('--no-repair-frameshifts', action='store_true',
-                                    help='Do not use the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM. By default, frameshifts are repaired so that reads carrying single base insertions or deletions still yield a window; this is particularly helpful for long reads from error-prone technologies e.g. Nanopore. [default: not set, i.e. repair frameshifts]',
+                                    help='Do not use the frameshifts DIAMOND reports during the prefilter to restore the reading frame of each read before it is aligned to the HMM. By default, frameshifts are repaired when DIAMOND is run in frameshift mode (i.e. for --long-reads and genome input) so that reads carrying single base insertions or deletions still yield a window; this is particularly helpful for long reads from error-prone technologies e.g. Nanopore. Frameshifts are never repaired in short reads. [default: not set, i.e. repair frameshifts in long reads]',
                                     default=False)
         argument_group.add_argument('--max-frameshift-repair-divergence', type=int, metavar='INT',
                                     help='When a repaired deletion leaves a base whose identity is unknown, take that base from the most abundant window within this many mismatches. [default: %i]' % pipe.DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE,
@@ -222,6 +227,57 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
         argument_group.add_argument('--context-window', type=int, metavar='bp',
                                     help='When using the DIAMOND prefilter, retain this many bases of context on each side of the aligned region when recording full_qseqs in the OTU table instead of the entire read. [default: keep the full read]. The read_name is also modified to record this information.',
                                     default=None)
+
+def resolve_long_reads(args):
+    '''Work out whether pipe should run DIAMOND in frameshift (long read) mode,
+    setting args.use_long_read_mode, and moving --long-reads input into
+    args.forward. Reads given with -1/--forward but without -2/--reverse that
+    look long are switched to long read mode with a warning, as are SRA files
+    of unpaired reads that look long.'''
+    if args.long_reads:
+        if args.reverse:
+            raise Exception("--reverse cannot be used with --long-reads")
+        args.forward = args.long_reads
+        args.use_long_read_mode = True
+    elif args.genome_fasta_files:
+        # Genomes have always been searched in frameshift mode.
+        args.use_long_read_mode = True
+    else:
+        args.use_long_read_mode = False
+        if args.sra_files:
+            # Long read runs have one (biological) read per spot, whereas paired
+            # end runs, which are extracted as interleaved pairs, have two.
+            from singlem.utils import first_sra_spot_read_lengths
+            for path in args.sra_files:
+                spots = first_sra_spot_read_lengths(path, LONG_READ_DETECTION_NUM_SEQUENCES)
+                if spots is None:
+                    continue
+                if any(len(spot) > 1 for spot in spots):
+                    continue
+                lengths = [spot[0] for spot in spots if len(spot) == 1]
+                if lengths:
+                    mean_length = sum(lengths) / len(lengths)
+                    if mean_length > SearchPipe.LONG_READ_LENGTH_THRESHOLD:
+                        logging.warning(
+                            "The first {} reads of {} have a mean length of {:.0f} bp, so treating "
+                            "the input as long reads i.e. running DIAMOND in frameshift mode.".format(
+                                len(lengths), path, mean_length))
+                        args.use_long_read_mode = True
+                        break
+        if args.forward and not args.reverse:
+            from singlem.utils import first_sequence_lengths
+            for path in args.forward:
+                lengths = first_sequence_lengths(path, LONG_READ_DETECTION_NUM_SEQUENCES)
+                if lengths:
+                    mean_length = sum(lengths) / len(lengths)
+                    if mean_length > SearchPipe.LONG_READ_LENGTH_THRESHOLD:
+                        logging.warning(
+                            "The first {} reads of {} have a mean length of {:.0f} bp, so treating "
+                            "the input as long reads i.e. as if it was given with --long-reads "
+                            "rather than --forward. Use --long-reads to avoid this warning.".format(
+                                len(lengths), path, mean_length))
+                        args.use_long_read_mode = True
+                        break
 
 def validate_pipe_args(args, subparser='pipe'):
     if not args.otu_table and not args.archive_otu_table and not args.taxonomic_profile and not args.taxonomic_profile_krona:
@@ -235,12 +291,14 @@ def validate_pipe_args(args, subparser='pipe'):
     if subparser == 'pipe':
         if args.context_window is not None and args.context_window < 0:
             raise Exception("--context-window must be a non-negative integer")
-        if not args.no_repair_frameshifts and args.no_diamond_prefilter:
+        resolve_long_reads(args)
+        repairing_frameshifts = args.use_long_read_mode and not args.no_repair_frameshifts
+        if repairing_frameshifts and args.no_diamond_prefilter:
             raise Exception(
                 "Frameshift repair requires the DIAMOND prefilter, because the "
                 "frameshifts it repairs are the ones DIAMOND reports there. Use "
                 "--no-repair-frameshifts to disable frameshift repair.")
-        if not args.no_repair_frameshifts and args.hmmsearch_package_assignment:
+        if repairing_frameshifts and args.hmmsearch_package_assignment:
             raise Exception(
                 "Frameshift repair is currently only compatible with DIAMOND "
                 "package assignment. Use --no-repair-frameshifts to disable "
@@ -656,6 +714,7 @@ def main():
     renew_input_tables.add_argument('--input-archive-otu-table', help="Renew this table")
     renew_input_tables.add_argument('--input-zipped-gzip-archive-otu-table', help="Archive OTU table stored as a gzip file inside a zip file. Provide as ZIP_PATH:MEMBER_PATH")
     renew_input_args.add_argument('--ignore-missing-singlem-packages', help="Ignore OTUs which have been assigned to packages not in the metapackage being used for renewal [default: croak]", action='store_true')
+    renew_input_args.add_argument('--long-reads', action='store_true', help="The OTU table was generated from long reads (e.g. with 'pipe --long-reads'), so run DIAMOND in frameshift mode during taxonomy assignment. [default: not set, but enabled with a warning when the reads in the table have a mean length >%i bp]" % SearchPipe.LONG_READ_LENGTH_THRESHOLD)
     renew_input_args.add_argument('--input-weebill-sketch', metavar='PATH', help="A read sketch saved by 'pipe --output-weebill-sketch'. When the metapackage bundles a weebill database, this is profiled and integrated into the taxonomic profile, so renew does not need the raw reads.")
     renew_common = renew_parser.add_argument_group("Common arguments in shared with 'pipe'")
     add_common_pipe_arguments(renew_common)
@@ -878,6 +937,7 @@ def main():
             min_taxon_coverage = get_min_taxon_coverage(args),
             max_species_divergence = args.max_species_divergence,
             context_window = args.context_window,
+            long_reads = args.use_long_read_mode,
             repair_frameshifts = not args.no_repair_frameshifts,
             max_frameshift_repair_divergence = args.max_frameshift_repair_divergence,
             no_weebill = args.no_weebill,
@@ -911,6 +971,7 @@ def main():
             translation_table = args.translation_table,
             max_species_divergence = args.max_species_divergence,
             input_weebill_sketch = args.input_weebill_sketch,
+            long_reads = args.long_reads,
             )
 
     elif args.subparser_name == 'summarise':
