@@ -23,7 +23,7 @@ krona = "*"
 smafa = "*"
 # Needed for the joint SingleM + weebill taxonomic profile that pipe produces when
 # the metapackage bundles a weebill database (or run pipe with --no-weebill).
-weebill = ">=0.3.0"
+weebill = ">=0.4.0"
 
 [feature.typical-python.dependencies]
 python = ">=3.7"

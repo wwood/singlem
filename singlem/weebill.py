@@ -2,12 +2,11 @@ import logging
 import os
 import csv
 import glob
-import re
 import shutil
 
 import extern
 
-_GENOME_ACCESSION_REGEX = re.compile(r'(GC[AF]_\d+\.\d+)')
+from .metapackage_read_name_store import genome_key_from_genome_file
 
 # weebill's two-stage databases, the only kind 'weebill profile --two-stage' reads
 # and so the only kind a metapackage may bundle.
@@ -27,7 +26,7 @@ COVERAGE_COLUMNS = [UNKNOWN_CORRECTED_COVERAGE_COLUMN, 'Eff_cov']
 
 class WeebillProfiler:
     '''Runs weebill against the two-stage database(s) bundled in a metapackage and
-    annotates its genome-level output with GTDB taxonomy, producing a TSV that
+    annotates its genome-level output with the metapackage's taxonomy, producing a TSV that
     condense's --weebill-profile path consumes (columns Sample_file, taxonomy, and
     the coverage column carried through under its original name).
 
@@ -72,8 +71,11 @@ class WeebillProfiler:
         return self._check_and_annotate(raw_tsv, metapackage, output_annotated_tsv)
 
     def annotate(self, raw_profile_tsv, metapackage, output_tsv):
-        '''Annotate a raw weebill profile with GTDB taxonomy from the metapackage,
-        writing Sample_file / taxonomy / True_cov to output_tsv.'''
+        '''Annotate a raw weebill profile with taxonomy from the metapackage,
+        writing Sample_file / taxonomy / True_cov to output_tsv. Each weebill
+        genome is matched to the metapackage by its genome key: its versioned
+        GCA_/GCF_ accession, or else its FASTA basename as 'singlem supplement'
+        records it.'''
         rows = []
         needed = set()
         with open(raw_profile_tsv) as f:
@@ -83,28 +85,35 @@ class WeebillProfiler:
             if fields is None or 'Genome_file' not in fields or coverage_column is None:
                 raise Exception("Unexpected weebill profile format: {}".format(fields))
             for row in reader:
-                accession = self._extract_accession(row['Genome_file'])
-                rows.append((row.get('Sample_file', ''), accession, row[coverage_column], row['Genome_file']))
-                if accession is not None:
-                    needed.add(accession)
+                genome_key = self._genome_key(row['Genome_file'])
+                rows.append((row.get('Sample_file', ''), genome_key, row[coverage_column], row['Genome_file']))
+                needed.add(genome_key)
 
-        accession_to_taxonomy = metapackage.genome_accession_to_taxonomy(needed)
+        key_to_taxonomy = metapackage.genome_key_to_taxonomy(needed)
 
         num_written = 0
-        num_skipped = 0
+        unmatched = []
         with open(output_tsv, 'w') as out:
             out.write('Sample_file\ttaxonomy\t{}\n'.format(coverage_column))
-            for sample, accession, coverage, genome_file in rows:
-                taxonomy = accession_to_taxonomy.get(accession)
+            for sample, genome_key, coverage, genome_file in rows:
+                taxonomy = key_to_taxonomy.get(genome_key)
                 if taxonomy is None:
-                    logging.debug("No metapackage taxonomy for weebill genome {} (accession {}), skipping".format(
-                        genome_file, accession))
-                    num_skipped += 1
+                    logging.debug("No metapackage taxonomy for weebill genome {} (genome key {}), skipping".format(
+                        genome_file, genome_key))
+                    unmatched.append(genome_file)
                     continue
                 out.write('\t'.join([sample, taxonomy, coverage]) + '\n')
                 num_written += 1
-        logging.info("Annotated {} weebill genome coverages with GTDB taxonomy ({} unmatched)".format(
-            num_written, num_skipped))
+        logging.info("Annotated {} weebill genome coverages with metapackage taxonomy ({} unmatched)".format(
+            num_written, len(unmatched)))
+        if unmatched:
+            # A genome in the weebill database but not the metapackage means the
+            # two are out of step. Under the default joint condense, which fixes
+            # species weebill did not report at zero, its species is then lost.
+            logging.warning(
+                "{} weebill genome coverage(s) could not be matched to a genome in the metapackage, so are "
+                "ignored, e.g. {}. The bundled weebill database may contain genomes the metapackage lacks.".format(
+                    len(unmatched), ', '.join(unmatched[:3])))
         return output_tsv
 
     def _databases(self, metapackage):
@@ -184,6 +193,5 @@ class WeebillProfiler:
                 "be used with alpha=1.".format(UNKNOWN_CORRECTED_COVERAGE_COLUMN, fields))
         return self.annotate(raw_profile_tsv, metapackage, output_annotated_tsv)
 
-    def _extract_accession(self, genome_file):
-        match = _GENOME_ACCESSION_REGEX.search(genome_file)
-        return match.group(1) if match else None
+    def _genome_key(self, genome_file):
+        return genome_key_from_genome_file(genome_file)

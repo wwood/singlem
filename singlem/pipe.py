@@ -48,6 +48,15 @@ class SearchPipe:
     DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
     DEFAULT_HMMSEARCH_EVALUE = 1e-5
     DEFAULT_MAX_SPECIES_DIVERGENCE = 2
+    # Mean length (bp) above which reads given as plain forward (unpaired) input
+    # are considered long reads, and so are searched with DIAMOND's frameshift
+    # mode.
+    LONG_READ_LENGTH_THRESHOLD = 500
+    # Whether DIAMOND is run in frameshift mode (--frameshift), as is needed for
+    # long reads from error-prone technologies but slows down short read
+    # processing. The prefilter and the taxonomy assignment must agree on this,
+    # otherwise some reads that pass the prefilter are assigned no taxonomy.
+    _frameshift = False
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -250,6 +259,7 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
         context_window = kwargs.pop('context_window', None)
+        long_reads = kwargs.pop('long_reads', False)
         repair_frameshifts = kwargs.pop('repair_frameshifts', True)
         max_frameshift_repair_divergence = kwargs.pop(
             'max_frameshift_repair_divergence', DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
@@ -269,6 +279,14 @@ class SearchPipe:
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
         self._max_species_divergence = max_species_divergence
         self._context_window = context_window
+        # Genomes are run in frameshift mode too, as they always have been.
+        self._frameshift = bool(long_reads or genome_fasta_files)
+        if not self._frameshift:
+            # The frameshifts repaired are those DIAMOND reports in frameshift
+            # mode, so without it there is nothing to repair.
+            repair_frameshifts = False
+        logging.info("Running DIAMOND in {} mode".format(
+            "frameshift (long read)" if self._frameshift else "standard (short read)"))
 
         if metapackage_object:
             hmms = metapackage_object
@@ -370,12 +388,19 @@ class SearchPipe:
             forward_read_files = [transcripts_path.name]
 
         zstd_processes = []
-        forward_read_files, procs = prepare_zstd_fifos(forward_read_files, tempfile_directory, sleep_after_mkfifo)
+        # Decompress gzip input outside DIAMOND, which is much faster than letting
+        # DIAMOND do it. Not when chunking, which decompresses itself, nor
+        # without the prefilter, since then the input may be read more than once.
+        decompress_gzip = diamond_prefilter and read_chunk_size is None and \
+            all(p.is_protein_package() for p in hmms)
+        forward_read_files, procs = prepare_zstd_fifos(
+            forward_read_files, tempfile_directory, sleep_after_mkfifo, decompress_gzip=decompress_gzip)
         zstd_processes.extend(procs)
         if len(zstd_processes) > 0 and not diamond_prefilter:
             raise Exception("Zstandard compressed input files can only be used with DIAMOND prefiltering at present")
         if reverse_read_files:
-            reverse_read_files, procs = prepare_zstd_fifos(reverse_read_files, tempfile_directory, sleep_after_mkfifo)
+            reverse_read_files, procs = prepare_zstd_fifos(
+                reverse_read_files, tempfile_directory, sleep_after_mkfifo, decompress_gzip=decompress_gzip)
             zstd_processes.extend(procs)
 
         # Add chunking if required
@@ -392,7 +417,6 @@ class SearchPipe:
                 chunking_processes.extend(procs)
         if len(chunking_processes) > 0 and not diamond_prefilter:
             raise Exception("Chunked input files can only be used with DIAMOND prefiltering at present")
-        time.sleep(5)
 
         def return_cleanly():
             if using_temporary_working_directory and not working_directory_dev_shm:
@@ -515,11 +539,10 @@ class SearchPipe:
                     (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                         self._num_threads, self._working_directory).run_diamond(
                         hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                        hmms.prefilter_db_path(), min_orf_length, context_window, repair_frameshifts)
+                        hmms.prefilter_db_path(), min_orf_length, context_window, repair_frameshifts,
+                        frameshift=self._frameshift)
                 except extern.ExternCalledProcessError as e:
                     logging.error("Process (DIAMOND?) failed")
-                    terminate_processes(zstd_processes, "zstdcat")
-                    terminate_processes(chunking_processes, "chunking")
                     if input_sra_files:
                         finish_sra_extraction_processes(
                             sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles,
@@ -670,8 +693,14 @@ class SearchPipe:
             return_cleanly()
             return otu_table_object
 
+        except BaseException:
+            # Otherwise finish_processes() below can wait forever on streaming
+            # processes blocked writing to FIFOs that will now never be read.
+            terminate_processes(zstd_processes, "decompression")
+            terminate_processes(chunking_processes, "chunking")
+            raise
         finally:
-            finish_processes(zstd_processes, "zstdcat")
+            finish_processes(zstd_processes, "decompression")
             finish_processes(chunking_processes, "chunking")
 
     def assign_taxonomy_and_process(self, **kwargs):
@@ -1615,9 +1644,11 @@ class SearchPipe:
                 "--evalue 0.01 " \
                 "--threads 1 " \
                 "--query-gencode %i " \
-                "--frameshift 15 " \
+                "--masking 0 " \
+                "%s" \
                 "%s " % (
                     self._translation_table,
+                    "--frameshift 15 " if self._frameshift else "",
                     diamond_taxonomy_assignment_performance_parameters)
 
             # Phase 1: Create ALL chunk files for ALL samples in ALL packages

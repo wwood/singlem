@@ -17,12 +17,16 @@ class DiamondSpkgSearcher:
         self._num_threads = num_threads
         self._working_directory = working_directory
 
-    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window, repair_frameshifts):
+    def run_diamond(self, hmms, forward_read_files, reverse_read_files, performance_parameters, diamond_db, min_orf_length, context_window, repair_frameshifts, frameshift=True):
         '''Run a single DIAMOND run for each of the forward_read_files against a 
         combined database of all sequences from the singlem package set given.
 
         diamond_db: None or str
             path to provide to DIAMOND for its DB (or None to create on the fly)
+        frameshift: boolean
+            run DIAMOND in frameshift mode (--frameshift 15), as is needed for
+            long reads from error-prone technologies. Required for
+            repair_frameshifts.
 
         Returns
         -------
@@ -48,10 +52,10 @@ class DiamondSpkgSearcher:
             for file in forward_read_files
         ]
 
-        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts)
+        fwds = self._prefilter(dmnd, forward_read_files, False, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts, frameshift)
         revs = None
         if reverse_read_files != None:
-            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts)
+            revs = self._prefilter(dmnd, reverse_read_files, True, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts, frameshift)
 
         return (fwds, revs)
 
@@ -68,7 +72,7 @@ class DiamondSpkgSearcher:
             sys.stderr.flush()
             time.sleep(0.1)
 
-    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts):
+    def _prefilter(self, diamond_database, read_files, is_reverse_reads, performance_parameters, sample_names, min_orf_length, context_window, repair_frameshifts, frameshift=True):
         '''Find all reads that match the DIAMOND database in the
         singlem_package database.
         Parameters
@@ -121,9 +125,16 @@ class DiamondSpkgSearcher:
                 "--outfmt", *outfmt,
                 "--max-target-seqs", "1",
                 "--evalue", "0.01",
-                "--frameshift", "15",
-                "--range-culling",
-                "--range-cover", "1",
+                # Query masking roughly doubles the time DIAMOND takes on short
+                # reads but makes little difference to the hits: on 2M Illumina
+                # reads it took 9.8s rather than 4.6s, and without it every
+                # hit was still found, along with 2 more. Given before
+                # performance_parameters, so that can override it.
+                "--masking", "0",
+                # Range culling, which allows a long read to hit more than one
+                # marker, is only supported by DIAMOND in frameshift mode. Short
+                # reads rarely cover more than one marker anyway.
+                *(["--frameshift", "15", "--range-culling", "--range-cover", "1"] if frameshift else []),
                 "--threads", str(self._num_threads),
                 "--query", file,
                 "--db", diamond_database

@@ -28,6 +28,7 @@ from io import StringIO
 import tempfile
 import pytest
 import extern
+import subprocess
 import re
 
 path_to_script = 'singlem'
@@ -142,6 +143,27 @@ TTTTGTTTAACCTAAAAGGAGTATCCAATGCTTGACCCCGTTGTGCAATCGGCCTTTGTTTTGATCCTTG\n'
         self.assertEqualOtuTable(
             expected,
             extern.run(cmd))
+
+    def _pipe_sra_stderr(self, sra):
+        result = subprocess.run(
+            f'{path_to_script} pipe --debug --sra-files {path_to_data}/{sra} --otu-table /dev/null '
+            f'--singlem-packages {path_to_data}/S1.2.ribosomal_protein_L3_rplC.gpkg.spkg/ --assignment-method diamond',
+            shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception(result.stderr)
+        return result.stderr
+
+    def test_sra_long_reads_detected(self):
+        # SRR41541091 is a small Oxford Nanopore run, so is run in frameshift mode
+        stderr = self._pipe_sra_stderr('SRR41541091.sra')
+        self.assertIn('treating the input as long reads', stderr)
+        self.assertIn('--frameshift 15', stderr)
+
+    def test_sra_paired_short_reads_not_frameshift(self):
+        stderr = self._pipe_sra_stderr('SRR8653040.sra')
+        self.assertNotIn('treating the input as long reads', stderr)
+        self.assertIn('diamond blastx', stderr)
+        self.assertNotIn('--frameshift', stderr)
 
     def test_sra_chunk1(self):
         '''

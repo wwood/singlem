@@ -13,6 +13,8 @@ from .frameshift_repair import original_length
 from .otu_table_collection import StreamingOtuTableCollection
 
 class Renew:
+    LONG_READ_DETECTION_NUM_SEQUENCES = 5
+
     @staticmethod
     def renew(**kwargs):
         '''Renew an OTU table, annotating old OTU tables with new taxonomy info'''
@@ -38,6 +40,7 @@ class Renew:
         max_species_divergence = kwargs.pop('max_species_divergence')
         ignore_missing_singlem_packages = kwargs.pop('ignore_missing_singlem_packages')
         input_weebill_sketch = kwargs.pop('input_weebill_sketch', None)
+        long_reads = kwargs.pop('long_reads', False)
 
         logging.info("Acquiring singlem packages ..")
         metapackage = SearchPipe()._parse_packages_or_metapackage(**kwargs)
@@ -115,6 +118,9 @@ class Renew:
         nucleotides_aligned_field = ArchiveOtuTable.FIELDS_VERSION2.index('nucleotides_aligned')
 
         num_ignored_otus = 0
+        # Lengths of the first few reads, to detect long reads when
+        # --long-reads is not given.
+        first_read_lengths = []
         for otu in input_otus:
             # Ensure that the packages in the archive exist
             if not otu.marker in marker_name_to_spkg:
@@ -146,6 +152,8 @@ class Renew:
             if all_variants is None:
                 all_variants = [None] * len(read_names)
             for (name, seq, num_aligned, variants) in zip(read_names, seqs, nucleotides_aligned, all_variants):
+                if len(first_read_lengths) < Renew.LONG_READ_DETECTION_NUM_SEQUENCES:
+                    first_read_lengths.append(len(seq))
                 state.current_sequences.append(Sequence(name, seq))
                 state.current_unaligned_aligned_nuc_seqs.append(
                     UnalignedAlignedNucleotideSequence(
@@ -164,6 +172,15 @@ class Renew:
         # To save RAM (untested)
         del input_otus
 
+        if not long_reads and len(first_read_lengths) > 0:
+            mean_length = sum(first_read_lengths) / len(first_read_lengths)
+            if mean_length > SearchPipe.LONG_READ_LENGTH_THRESHOLD:
+                logging.warning(
+                    "The first {} reads in the input OTU table have a mean length of {:.0f} bp, "
+                    "so treating them as long reads i.e. as if --long-reads was given. Use "
+                    "--long-reads to avoid this warning.".format(len(first_read_lengths), mean_length))
+                long_reads = True
+
         # Assign taxonomy and process
         pipe = SearchPipe()
         with tempfile.TemporaryDirectory(prefix='singlem-renew') as td:
@@ -176,6 +193,9 @@ class Renew:
             pipe._filter_minimum_protein = filter_minimum_protein
             pipe._translation_table = translation_table
             pipe._max_species_divergence = max_species_divergence
+            pipe._frameshift = long_reads
+            logging.info("Running DIAMOND in {} mode".format(
+                "frameshift (long read)" if long_reads else "standard (short read)"))
 
             logging.info("Running taxonomy assignment and post-processing ..")
             otu_table_object = pipe.assign_taxonomy_and_process(

@@ -529,23 +529,28 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         seq = '''>HWI-ST1240:128:C1DG3ACXX:7:2204:6599:65352 1:N:0:GTAGAGGATAGATCGC
 ACCCACAGCTCGGGGTTGCCCTTGCCCGACCCCATGCGTGTCTCGGCGGGCTTCTGGTGACGGGCTTGTCCGGGAAGACGCGGATCCAGACCTTGCCTCCGCGCTTGACGTGCCGGGTCATCGCGATACGGGCCGCCTCGATCTGACGTGC
 '''
-        expected = [
-            self.headers,
-            ['S1.7.ribosomal_protein_L16_L10E_rplP		CGCGTCTTCCCGGACAAGCCCGTCACCNAGAAGCCCGCCGAGACACGCATGGGGTCGGGC	1	1.64	GCA_000949295.1']]
-        exp = sorted(["\t".join(x) for x in expected]+[''])
-        with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
-            t.write(seq)
-            t.flush()
-            cmd = "%s pipe --quiet --sequences %s --otu-table /dev/stdout --threads 4 --assignment_method diamond_example --singlem-packages %s/S1.7.ribosomal_protein_L16_L10E_rplP.gpkg.spkg" % (
-                path_to_script,
-                t.name,
-                path_to_data)
-            self.assertEqual(exp,
-                             sorted(extern.run(cmd).
-                                    replace(
-                                        os.path.basename(t.name).replace('.fa',''),
-                                        '').
-                                    split("\n")))
+        # As long reads the indel is repaired with an N, as short reads it is not.
+        for (input_flag, window) in [
+                ('--long-reads', 'CGCGTCTTCCCGGACAAGCCCGTCACCNAGAAGCCCGCCGAGACACGCATGGGGTCGGGC'),
+                ('--sequences', 'CGCGTCTTCCCGGACAAGCCCGTCACCAGAAGCCCGCCGAGACACGCATGGGGTCGGGCA')]:
+            expected = [
+                self.headers,
+                ['S1.7.ribosomal_protein_L16_L10E_rplP\t\t{}\t1\t1.64\tGCA_000949295.1'.format(window)]]
+            exp = sorted(["\t".join(x) for x in expected]+[''])
+            with tempfile.NamedTemporaryFile(mode='w',prefix='singlem_test',suffix='.fa') as t:
+                t.write(seq)
+                t.flush()
+                cmd = "%s pipe --quiet %s %s --otu-table /dev/stdout --threads 4 --assignment_method diamond_example --singlem-packages %s/S1.7.ribosomal_protein_L16_L10E_rplP.gpkg.spkg" % (
+                    path_to_script,
+                    input_flag,
+                    t.name,
+                    path_to_data)
+                self.assertEqual(exp,
+                                 sorted(extern.run(cmd).
+                                        replace(
+                                            os.path.basename(t.name).replace('.fa',''),
+                                            '').
+                                        split("\n")))
 
     @unittest.skip(reason="fails now due to pplacer/jplace versioning issues I think")
     def test_jplace_output(self):
@@ -824,7 +829,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
             for (name, seq) in reads.items():
                 f.write('>{}\n{}\n'.format(name, seq))
         archive = os.path.join(tempdir, 'archive.json')
-        extern.run('{} pipe --sequences {} --archive-otu-table {} --singlem-packages {} '
+        extern.run('{} pipe --long-reads {} --archive-otu-table {} --singlem-packages {} '
                    '--assignment-method diamond {}'.format(
                        path_to_script, fasta, archive,
                        os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'), extra_args))
@@ -893,7 +898,7 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         with tempfile.TemporaryDirectory() as tempdir:
             (archive_path, archive) = self._pipe_frameshifted_reads(tempdir, reads)
             renewed_path = os.path.join(tempdir, 'renewed.json')
-            extern.run('{} renew --input-archive-otu-table {} --singlem-packages {} '
+            extern.run('{} renew --long-reads --input-archive-otu-table {} --singlem-packages {} '
                        '--assignment-method diamond --archive-otu-table {}'.format(
                            path_to_script, archive_path,
                            os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'), renewed_path))
@@ -903,6 +908,89 @@ ATTAACAGTAGCTGAAGTTACTGACTTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTA
         self.assertEqual(
             sorted(round(otu.coverage, 6) for otu in archive),
             sorted(round(otu.coverage, 6) for otu in renewed))
+
+    def _run_capturing_stderr(self, cmd):
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise Exception("Command failed: {}\n{}".format(cmd, result.stderr))
+        return result.stderr
+
+    def test_short_reads_not_run_in_frameshift_mode(self):
+        reads = self._frameshifted_reads()
+        with tempfile.TemporaryDirectory() as tempdir:
+            fasta = os.path.join(tempdir, 'reads.fa')
+            with open(fasta, 'w') as f:
+                for (name, seq) in reads.items():
+                    f.write('>{}\n{}\n'.format(name, seq))
+            archive_path = os.path.join(tempdir, 'archive.json')
+            stderr = self._run_capturing_stderr(
+                '{} pipe --debug --sequences {} --archive-otu-table {} --singlem-packages {} '
+                '--assignment-method diamond'.format(
+                    path_to_script, fasta, archive_path,
+                    os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg')))
+            with open(archive_path) as f:
+                archive = ArchiveOtuTable.read(f)
+        self.assertIn('diamond blastx', stderr)
+        self.assertNotIn('--frameshift', stderr)
+        self.assertNotIn('treating the input as long reads', stderr)
+        # Nothing is repaired without frameshift mode
+        for (_, variants, _) in self._read_data(archive).values():
+            self.assertIn(variants, (None, []))
+
+    def test_long_reads_given_as_forward_are_detected(self):
+        # Pad the reads out so they look long, with sequence that hits nothing.
+        padding = 'ACGT' * 100
+        reads = {'insertion': padding + self._frameshifted_reads()['insertion'] + padding}
+        with tempfile.TemporaryDirectory() as tempdir:
+            fasta = os.path.join(tempdir, 'reads.fa')
+            with open(fasta, 'w') as f:
+                for (name, seq) in reads.items():
+                    f.write('>{}\n{}\n'.format(name, seq))
+            archive_path = os.path.join(tempdir, 'archive.json')
+            stderr = self._run_capturing_stderr(
+                '{} pipe --debug --sequences {} --archive-otu-table {} --singlem-packages {} '
+                '--assignment-method diamond'.format(
+                    path_to_script, fasta, archive_path,
+                    os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg')))
+            self.assertIn('treating the input as long reads', stderr)
+            self.assertIn('--frameshift 15', stderr)
+            with open(archive_path) as f:
+                archive = ArchiveOtuTable.read(f)
+            observed = self._read_data(archive)
+            # Frameshift mode is on, so the insertion is repaired
+            self.assertEqual([[479, 'T', 'TT']], observed['insertion'][1])
+
+            # renew detects the long reads too
+            renewed_path = os.path.join(tempdir, 'renewed.json')
+            stderr = self._run_capturing_stderr(
+                '{} renew --debug --input-archive-otu-table {} --singlem-packages {} '
+                '--assignment-method diamond --archive-otu-table {}'.format(
+                    path_to_script, archive_path,
+                    os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'), renewed_path))
+            self.assertIn('treating them as long reads', stderr)
+            self.assertIn('--frameshift 15', stderr)
+
+    def test_read_chunk_size_paired_diamond_failure_does_not_hang(self):
+        # When DIAMOND failed on the forward reads, the chunking process for the
+        # reverse reads was left blocked opening its FIFO, and pipe waited on it
+        # forever.
+        fasta = os.path.join(path_to_data, 'nanopore', 'fastas', 'one_hit.fasta')
+        cmd = ('{} pipe --sequences {} --reverse {} --otu-table /dev/null --singlem-packages {} '
+               '--read-chunk-size 1 --read-chunk-number 1 '
+               '--diamond-prefilter-performance-parameters=--not-a-diamond-option').format(
+                   path_to_script, fasta, fasta, os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'))
+        result = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=120)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('not-a-diamond-option', result.stderr)
+
+    def test_long_reads_with_reverse_is_an_error(self):
+        fasta = os.path.join(path_to_data, 'nanopore', 'fastas', 'one_hit.fasta')
+        result = subprocess.run(
+            '{} pipe --long-reads {} --reverse {} --otu-table /dev/null --singlem-packages {}'.format(
+                path_to_script, fasta, fasta, os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg')),
+            shell=True, capture_output=True, text=True)
+        self.assertNotEqual(0, result.returncode)
+        self.assertIn('--reverse cannot be used with --long-reads', result.stderr)
 
     def test_protein_package_non60_length(self):
         expected = [
@@ -1182,9 +1270,16 @@ TTCAGCTGCACGACGTACCATAGTGTTTTTGTATACTTTATACTCAACACCAGCTTCACGTAATTGTGAACGTAAGTCAG
     def test_two_orfs_in_same_read(self):
         # Read finds 2 ORFs, pretty rare for reads (but happens for genomes
         # more frequently)
-        expected = [
+        # As long reads, the indel in the read is repaired with an N.
+        expected_long = [
             "\t".join(self.headers_with_extras),
             'S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCNCGAAGAAGCCGAACTCGGCGTTGCGC	1	1.64	Root; d__Bacteria; p__Actinobacteria; c__Actinobacteria; o__Propionibacteriales; f__Nocardioidaceae; g__Aeromicrobium	A00178:38:H5NYYDSXX:2:1552:32524:1517	60	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGNGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	[\'GCA_001426755.1\', \'GCA_900167475.1\']	diamond	80:GN>G',
+            '']
+        # As short reads, DIAMOND is not run in frameshift mode, so the indel
+        # is neither repaired nor tolerated by the taxonomy assignment.
+        expected_short = [
+            "\t".join(self.headers_with_extras),
+            "S1.12.ribosomal_protein_S12_S23		CGTGGTGTCTGCACCCGGGTGTACACCACCACCCGAAGA---------AGCCGAACTCGG	1	1.50	Root; d__Bacteria; p__Actinobacteria; c__Acidimicrobiia; o__Microtrichales; f__TK06; g__MedAcidi-G3; s__MedAcidi-G3_sp4	A00178:38:H5NYYDSXX:2:1552:32524:1517	51	False	CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT	['GCA_000817105.1']	diamond	.",
             '']
         inseqs = '''>A00178:38:H5NYYDSXX:2:1552:32524:1517 1:N:0:CAACGGA+ATCCGTT
 CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCGGGTGGTGGTGTACACCCGGGTGCAGACACCACGGCGCTGGGGCGAACCCTTGAGCGCAGGGGTGTTGGTCT
@@ -1193,13 +1288,15 @@ CGGGATGTAGGCAGTGACCTCCACGCCTGAGGAGAGCCGGACGCGTGCGACCTTGCGCAACGCCGAGTTCGGCTTCTTCG
             n.write(inseqs)
             n.flush()
 
-            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --output-extras --assignment-method diamond".format(
-                path_to_script,
-                n.name,
-                os.path.join(path_to_data, 'S1.12.ribosomal_protein_S12_S23.gpkg.spkg'))
-            self.assertEqualOtuTable(
-                list([line.split("\t") for line in expected]),
-                extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
+            for (input_flag, expected) in [('--sequences', expected_short), ('--long-reads', expected_long)]:
+                cmd = "{} pipe {} {} --otu-table /dev/stdout --singlem-packages {} --output-extras --assignment-method diamond".format(
+                    path_to_script,
+                    input_flag,
+                    n.name,
+                    os.path.join(path_to_data, 'S1.12.ribosomal_protein_S12_S23.gpkg.spkg'))
+                self.assertEqualOtuTable(
+                    list([line.split("\t") for line in expected]),
+                    extern.run(cmd).replace(os.path.basename(n.name).replace('.fa',''),''))
 
     def test_split_genes(self):
         # 2 ORFs found causing GraftM to do its "split" thing
@@ -1711,7 +1808,7 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             n.write(inseqs)
             n.flush()
 
-            cmd = "{} pipe --sequences {} --otu-table /dev/stdout --singlem-packages {} --output-extras --assignment-method diamond".format(
+            cmd = "{} pipe --long-reads {} --otu-table /dev/stdout --singlem-packages {} --output-extras --assignment-method diamond".format(
                 path_to_script,
                 n.name,
                 os.path.join(path_to_data, 'S1.12.ribosomal_protein_S12_S23.gpkg.spkg'))

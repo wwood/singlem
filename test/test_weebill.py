@@ -12,7 +12,7 @@ from singlem.weebill import WeebillProfiler
 
 class _StubMetapackage:
     '''Stands in for a Metapackage's weebill_databases and
-    genome_accession_to_taxonomy.'''
+    genome_key_to_taxonomy.'''
     def __init__(self, databases, accession_to_taxonomy=None):
         self._databases = databases
         self._map = accession_to_taxonomy or {}
@@ -20,10 +20,10 @@ class _StubMetapackage:
     def weebill_databases(self):
         return list(self._databases)
 
-    def genome_accession_to_taxonomy(self, accessions=None):
-        if accessions is None:
+    def genome_key_to_taxonomy(self, genome_keys=None):
+        if genome_keys is None:
             return dict(self._map)
-        return {a: t for a, t in self._map.items() if a in accessions}
+        return {a: t for a, t in self._map.items() if a in genome_keys}
 
 
 class _RecordingRunner:
@@ -57,12 +57,42 @@ class Tests(unittest.TestCase):
     def _metapackage(self):
         return _StubMetapackage(self.DATABASES, {'GCF_000744455.1': self.TAXONOMY})
 
-    def test_extract_accession(self):
+    def test_genome_key(self):
         p = WeebillProfiler()
-        self.assertEqual('GCF_000744455.1', p._extract_accession(
+        self.assertEqual('GCF_000744455.1', p._genome_key(
             'gtdb_genomes_reps_r232/database/GCF/000/744/455/GCF_000744455.1_genomic.fna.gz'))
-        self.assertEqual('GCA_000309865.1', p._extract_accession('GCA_000309865.1_genomic.fna'))
-        self.assertIsNone(p._extract_accession('not_an_accession.fna'))
+        self.assertEqual('GCA_000309865.1', p._genome_key('GCA_000309865.1_genomic.fna'))
+        # Without a versioned accession, the key is the basename with its last
+        # extension removed, as 'singlem supplement' names genomes.
+        self.assertEqual('AMXMAG_0092.fa', p._genome_key(
+            '/globdb_r232_genome_fasta/R232CHUNK000/AMXMAG_0092.fa.gz'))
+        self.assertEqual('GCF_042665465.fa', p._genome_key('/x/GCF_042665465.fa.gz'))
+        self.assertEqual('my_genome', p._genome_key('my_genome.fna'))
+
+    def test_annotate_supplemented_genome(self):
+        supplemented_taxonomy = 'd__Bacteria;p__Planctomycetota;c__Brocadiia;o__Brocadiales;f__Brocadiaceae;g__G1;s__G1 sp1'
+        mp = _StubMetapackage(self.DATABASES, {
+            'GCF_000744455.1': self.TAXONOMY,
+            'AMXMAG_0092.fa': supplemented_taxonomy,
+        })
+        with tempfile.TemporaryDirectory(prefix='singlem-weebill-test') as d:
+            raw = os.path.join(d, 'raw.tsv')
+            with open(raw, 'w') as f:
+                f.write("Sample_file\tGenome_file\tTrue_cov\n")
+                f.write("s.fq\t/db/GCF_000744455.1_genomic.fna.gz\t9.8\n")
+                f.write("s.fq\t/globdb/R232CHUNK000/AMXMAG_0092.fa.gz\t3.1\n")
+                f.write("s.fq\t/globdb/R232CHUNK000/NOT_IN_METAPACKAGE.fa.gz\t2.0\n")
+            out = os.path.join(d, 'annotated.tsv')
+            with self.assertLogs(level='WARNING') as logs:
+                WeebillProfiler().annotate(raw, mp, out)
+            with open(out) as f:
+                lines = f.read().strip().split('\n')
+        self.assertEqual([
+            'Sample_file\ttaxonomy\tTrue_cov',
+            's.fq\t{}\t9.8'.format(self.TAXONOMY),
+            's.fq\t{}\t3.1'.format(supplemented_taxonomy),
+        ], lines)
+        self.assertIn('NOT_IN_METAPACKAGE.fa.gz', '\n'.join(logs.output))
 
     def test_run_from_reads_profiles_reads_directly(self):
         runner = _RecordingRunner()
