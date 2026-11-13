@@ -256,6 +256,100 @@ def remove_file_extensions(filename):
     return filename
 
 
+# weebill's default --min-spacing, which the default metapackage's weebill
+# database is built with (extras/update_metapackage). weebill cannot report a
+# .syl2db's spacing, so it cannot be checked against the base database here.
+WEEBILL_MIN_SPACING = 30
+
+
+class WeebillExtension:
+    '''A weebill two-stage database that supplement grows with the new
+    genomes, and the -c it was built with.'''
+
+    def __init__(self, base_db, c):
+        self.base_db = base_db
+        self.c = c
+
+
+def check_weebill_installed():
+    '''Fail early, before the expensive steps, if weebill >= 0.4.0 (which has
+    db-add) is not available.'''
+    message = "Extending the weebill database requires weebill >= 0.4.0. Install it, or pass --no-weebill to " \
+        "create a metapackage without a weebill database."
+    if shutil.which('weebill') is None:
+        raise Exception("weebill was not found on the PATH. " + message)
+    try:
+        extern.run('weebill db-add --help')
+    except extern.ExternCalledProcessError:
+        raise Exception("'weebill db-add' is not available, so the installed weebill is too old. " + message)
+
+
+def warn_about_genome_key_clashes(old_metapackage, genome_fasta_files):
+    '''Warn about new genomes whose genome key (used to map weebill genomes to
+    taxonomy) is already used by a genome in the old metapackage. This happens
+    when a supplemented file name contains the versioned accession of an
+    existing genome.'''
+    from .metapackage_read_name_store import genome_key_from_genome_file
+    key_to_genomes = {}
+    for g in genome_fasta_files:
+        key_to_genomes.setdefault(genome_key_from_genome_file(g), []).append(g)
+    clashes = old_metapackage.genome_key_to_taxonomy(list(key_to_genomes.keys()))
+    for key, taxonomy in clashes.items():
+        for g in key_to_genomes[key]:
+            logging.warning(
+                "New genome {} has genome key {}, which is already used by a genome in the input metapackage "
+                "(taxonomy {}). weebill coverage of either genome will be attributed to the existing genome's "
+                "taxonomy.".format(g, key, taxonomy))
+    for key, genomes in key_to_genomes.items():
+        if len(genomes) > 1:
+            logging.warning("New genomes {} share the genome key {}, so weebill cannot tell them apart".format(
+                ', '.join(genomes), key))
+
+
+def extend_weebill_database(weebill_extension, genome_fasta_files, working_directory, threads):
+    '''Sketch genome_fasta_files and add them to a copy of the base weebill
+    database, returning the path to the grown database. Its basename is that
+    of the base database.'''
+    from .weebill import TWO_STAGE_DB_EXTENSION
+    base_name = os.path.basename(weebill_extension.base_db)
+    if not base_name.endswith(TWO_STAGE_DB_EXTENSION):
+        raise Exception("Expected a weebill two-stage database ending in {}, got {}".format(
+            TWO_STAGE_DB_EXTENSION, weebill_extension.base_db))
+    weebill_dir = os.path.join(working_directory, 'weebill')
+    os.makedirs(weebill_dir)
+
+    # Sketch from a list file, since 10^5 genome paths would exceed the
+    # command-line length limit. The paths must be exactly those supplement
+    # names genomes by, since weebill reports them as Genome_file and they are
+    # mapped back to taxonomy by basename.
+    genome_list = os.path.join(weebill_dir, 'genomes.txt')
+    with open(genome_list, 'w') as f:
+        for g in genome_fasta_files:
+            f.write(g + '\n')
+    sketch_prefix = os.path.join(weebill_dir, 'supplement_genomes')
+    logging.info("Sketching {} genomes for weebill (c={}) ..".format(len(genome_fasta_files), weebill_extension.c))
+    extern.run('weebill sketch -l {} -c {} --min-spacing {} -t {} -o {}'.format(
+        genome_list, weebill_extension.c, WEEBILL_MIN_SPACING, threads, sketch_prefix))
+
+    output_prefix = os.path.join(weebill_dir, base_name[:-len(TWO_STAGE_DB_EXTENSION)])
+    logging.info("Adding the new genomes to weebill database {} ..".format(weebill_extension.base_db))
+    try:
+        # Not --skip-existing: a genome already in the database most likely
+        # means the same genome is being supplemented again.
+        extern.run('weebill db-add -D {} -o {} -t {} {}'.format(
+            weebill_extension.base_db, output_prefix, threads, sketch_prefix + '.syldb'))
+    except extern.ExternCalledProcessError as e:
+        raise Exception(
+            "Adding the new genomes to the weebill database failed. If weebill reports that a genome file name "
+            "is already in the database, that genome was probably already added by an earlier supplement, and "
+            "should be removed from the new genomes. weebill output: {}".format(e))
+    grown = output_prefix + TWO_STAGE_DB_EXTENSION
+    if not os.path.exists(grown):
+        raise Exception("weebill db-add did not create the expected database {}".format(grown))
+    logging.info("Grown weebill database written to {}".format(grown))
+    return grown
+
+
 def generate_new_singlem_package(myargs):
     (working_directory, old_spkg, matched_transcript_path, sequence_to_genome, genome_to_taxonomy) = myargs
 
@@ -528,7 +622,8 @@ def gather_hmmsearch_results(num_threads, working_directory, old_metapackage, ne
 def generate_new_metapackage(num_threads, working_directory, old_metapackage, new_genome_fasta_files,
                              new_taxonomies_file, new_genome_transcripts_and_proteins, hmmsearch_evalue,
                              checkm2_quality_file, no_taxon_genome_lengths, new_taxonomy_database_name,
-                             new_taxonomy_database_version, output_matched_protein_sequences):
+                             new_taxonomy_database_version, output_matched_protein_sequences,
+                             weebill_extension=None):
 
     # Add the new genome data to each singlem package
     # For each package, the unaligned seqs are in the graftm package,
@@ -588,6 +683,9 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
         if any(char in g for char in bad_chars):
             raise ValueError("Because they are used as delimiters within SingleM, the '‡' characters cannot be used in genome names, or transcript names. The offending genome name is: {}".format(g))
 
+    # Genome names (as recorded in read names) of genomes contributing at least
+    # one sequence to the new spkgs
+    genome_names_with_sequences = set()
     for otu in new_genomes_otu_table_unassigned:
         for read_name in otu.data[6]:
             # Raise it there are >1 of any single bad char in the read name
@@ -595,6 +693,7 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                 if read_name.count(bad) > 1:
                     raise ValueError("Because they are used as delimiters within SingleM, the '‡' characters cannot be used in genome names, or transcript names. The offending read name is: {}".format(read_name))
             genome, _ = read_name.split('‡')
+            genome_names_with_sequences.add(genome)
             sequence_to_genome[read_name] = FastaNameToSampleName.fasta_to_name(genome)
 
             data2 = otu.data.copy()
@@ -638,6 +737,22 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
     else:
         calculate_average_num_genes_per_species = False
 
+    weebill_dbs = None
+    weebill_cs = None
+    if weebill_extension is not None:
+        # Only add genomes which have sequences in the new metapackage, since
+        # weebill coverage of any other genome could not be mapped to taxonomy.
+        weebill_genomes = [g for g in new_genome_fasta_files
+                           if remove_extension(os.path.basename(g)) in genome_names_with_sequences]
+        num_excluded = len(new_genome_fasta_files) - len(weebill_genomes)
+        if num_excluded > 0:
+            logging.info("Not adding {} genomes to the weebill database because they contributed no marker "
+                         "sequences to the metapackage".format(num_excluded))
+        if len(weebill_genomes) == 0:
+            raise Exception("No new genomes contributed marker sequences, so none can be added to the weebill database")
+        weebill_dbs = [extend_weebill_database(weebill_extension, weebill_genomes, working_directory, num_threads)]
+        weebill_cs = [weebill_extension.c]
+
     # Create a new metapackage from the singlem packages
     logging.info("Creating new metapackage ..")
     Metapackage.generate(singlem_packages=new_spkg_paths,
@@ -652,7 +767,9 @@ def generate_new_metapackage(num_threads, working_directory, old_metapackage, ne
                          diamond_prefilter_performance_parameters=old_metapackage.diamond_prefilter_performance_parameters(),
                          diamond_taxonomy_assignment_performance_parameters=old_metapackage.diamond_taxonomy_assignment_performance_parameters(),
                          makeidx_sensitivity_params=old_metapackage.makeidx_sensitivity_params(),
-                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species)
+                         calculate_average_num_genes_per_species=calculate_average_num_genes_per_species,
+                         weebill_db=weebill_dbs,
+                         weebill_c=weebill_cs)
     logging.info("New metapackage created at {}".format(new_metapackage_path))
 
     if not no_taxon_genome_lengths:
@@ -894,6 +1011,9 @@ class Supplementor:
         ignore_taxonomy_database_incompatibility = kwargs.pop('ignore_taxonomy_database_incompatibility')
         new_taxonomy_database_name = kwargs.pop('new_taxonomy_database_name')
         new_taxonomy_database_version = kwargs.pop('new_taxonomy_database_version')
+        no_weebill = kwargs.pop('no_weebill', False)
+        weebill_db_base = kwargs.pop('weebill_db_base', None)
+        weebill_c = kwargs.pop('weebill_c', None)
         if len(kwargs) > 0:
             raise Exception("Unexpected arguments detected: %s" % kwargs)
 
@@ -924,23 +1044,9 @@ class Supplementor:
                 old_metapackage.taxonomy_database_name(),
                 old_metapackage.taxonomy_database_version()))
 
-        if len(old_metapackage.weebill_databases()) > 0:
-            # weebill's two-stage database (.syl2db) cannot be rebuilt from what
-            # supplement has on hand: db-convert only reads the pre-two-stage
-            # .syldb that made it, which supplement does not have (only the old
-            # metapackage's .syl2db itself), and 'weebill sketch'/'db-convert'
-            # both refuse a .syl2db as genome input, so there is no way to fold the
-            # new genomes in. Carrying the stale database forward would silently
-            # make the joint SingleM + weebill profile blind to every species
-            # supplement adds, since condense's --joint pins species weebill did
-            # not report towards zero.
-            raise Exception(
-                "The input metapackage bundles a weebill database, but supplement mode cannot rebuild or extend it "
-                "with the new genomes (weebill has no way to add genomes to an existing .syl2db). Build a new weebill "
-                "database including the new genomes yourself with 'weebill sketch' + 'weebill db-convert', bundle it "
-                "into the output metapackage afterwards with 'singlem metapackage --weebill-db ... --weebill-c ...', "
-                "or drop the bundled database (e.g. by starting from a metapackage with none) and profile the "
-                "supplemented metapackage with marker-only condense.")
+        weebill_extension = self._weebill_extension(old_metapackage, no_weebill, weebill_db_base, weebill_c)
+        if weebill_extension is not None:
+            check_weebill_installed()
 
         if new_taxonomy_database_name is None:
             new_taxonomy_database_name = CUSTOM_TAXONOMY_DATABASE_NAME
@@ -1030,6 +1136,9 @@ class Supplementor:
                         raise Exception("Transcript and protein sequences not found for genome {} ".format(ng))
                 genome_transcripts_and_proteins = genome_transcripts_and_proteins1
 
+            if weebill_extension is not None:
+                warn_about_genome_key_clashes(old_metapackage, new_genome_fasta_files)
+
             # Run the genomes through pipe with genome fasta input to identify the new sequences
             logging.info("Generating new SingleM packages and metapackage ..")
             new_metapackage = generate_new_metapackage(threads, working_directory, old_metapackage,
@@ -1037,12 +1146,55 @@ class Supplementor:
                                                        genome_transcripts_and_proteins, hmmsearch_evalue,
                                                        checkm2_quality_file, no_taxon_genome_lengths,
                                                        new_taxonomy_database_name, new_taxonomy_database_version,
-                                                       output_matched_protein_sequences)
+                                                       output_matched_protein_sequences,
+                                                       weebill_extension=weebill_extension)
 
             if new_metapackage is not None:
                 logging.info("Copying generated metapackage to {}".format(output_metapackage))
                 shutil.copytree(new_metapackage, output_metapackage)
                 logging.info("Finished supplement.")
+
+    def _weebill_extension(self, old_metapackage, no_weebill, weebill_db_base, weebill_c):
+        '''Work out which weebill database (if any) the output metapackage gets
+        by growing it with the new genomes. Returns a WeebillExtension or None.'''
+        from .weebill import TWO_STAGE_DB_EXTENSION
+        bundled = old_metapackage.weebill_databases()
+        if no_weebill:
+            if weebill_db_base is not None or weebill_c is not None:
+                raise Exception("--no-weebill cannot be used with --weebill-db-base or --weebill-c")
+            if bundled:
+                logging.warning(
+                    "Not including a weebill database in the output metapackage, as --no-weebill was specified. "
+                    "'singlem pipe' and 'renew' on reads will then need --no-weebill with the output metapackage, "
+                    "or profile with markers alone.")
+            return None
+
+        if weebill_db_base is not None:
+            if bundled:
+                raise Exception("The input metapackage already bundles a weebill database ({}), so --weebill-db-base "
+                    "cannot be used. Supplement extends the bundled database by default.".format(
+                        ', '.join(db for db, _ in bundled)))
+            if weebill_c is None:
+                raise Exception("--weebill-db-base requires --weebill-c, the -c the database was built with")
+            if not weebill_db_base.endswith(TWO_STAGE_DB_EXTENSION):
+                raise Exception("--weebill-db-base must be a weebill two-stage database ({}), got {}".format(
+                    TWO_STAGE_DB_EXTENSION, weebill_db_base))
+            if not os.path.isfile(weebill_db_base):
+                raise Exception("--weebill-db-base {} does not exist".format(weebill_db_base))
+            logging.info("Will add the new genomes to weebill database {} (c={})".format(weebill_db_base, weebill_c))
+            return WeebillExtension(os.path.abspath(weebill_db_base), weebill_c)
+
+        if weebill_c is not None:
+            raise Exception("--weebill-c can only be used with --weebill-db-base")
+        if not bundled:
+            return None
+        if len(bundled) > 1:
+            raise Exception("The input metapackage bundles {} weebill databases ({}), but supplement can only "
+                "extend a metapackage bundling one. Pass --no-weebill to create a metapackage without "
+                "a weebill database.".format(len(bundled), ', '.join(db for db, _ in bundled)))
+        db, c = bundled[0]
+        logging.info("Will add the new genomes to the input metapackage's weebill database {} (c={})".format(db, c))
+        return WeebillExtension(db, c)
 
 # if __name__ == "__main__":
 #     import logging

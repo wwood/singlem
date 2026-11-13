@@ -4,7 +4,7 @@ import csv
 from collections import defaultdict
 
 from singlem.metapackage import Metapackage
-from singlem.weebill import WeebillProfiler
+from singlem.metapackage_read_name_store import genome_key_from_genome_file
 
 
 parser = argparse.ArgumentParser()
@@ -14,18 +14,16 @@ parser.add_argument("--sample", required=True)
 parser.add_argument("--output", required=True)
 args = parser.parse_args()
 
-profiler = WeebillProfiler()
 with open(args.profile) as handle:
     rows = list(csv.DictReader(handle, delimiter="\t"))
-accessions = {profiler._extract_accession(row["Genome_file"]) for row in rows}
-accessions.discard(None)
-taxonomy = Metapackage.acquire(args.metapackage).genome_accession_to_taxonomy(accessions)
+genome_keys = {genome_key_from_genome_file(row["Genome_file"]) for row in rows}
+taxonomy = Metapackage.acquire(args.metapackage).genome_key_to_taxonomy(genome_keys)
 
 coverage_by_taxonomy = defaultdict(float)
 for row in rows:
-    accession = profiler._extract_accession(row["Genome_file"])
-    if accession in taxonomy:
-        coverage_by_taxonomy[taxonomy[accession]] += float(row["Eff_cov"])
+    genome_key = genome_key_from_genome_file(row["Genome_file"])
+    if genome_key in taxonomy:
+        coverage_by_taxonomy[taxonomy[genome_key]] += float(row["Eff_cov"])
 
 if not coverage_by_taxonomy:
     raise SystemExit("No weebill genomes could be mapped to r207 taxonomy")

@@ -1,0 +1,14 @@
+output_dir: /scratch/microbiome/woodcrob/non_sensitive/scratch/globdb_weebill/build
+# Supplemented metapackage without a weebill database (a local copy, since the
+# original is on tape-backed storage).
+input_metapackage: /scratch/microbiome/woodcrob/non_sensitive/scratch/globdb_weebill/GlobDB_r232.metapackage_v4.smpkg
+output_metapackage_name: GlobDB_r232.metapackage_v4.weebill.smpkg
+# GTDB R232 two-stage database bundled with the default metapackage. It must be
+# from the same GTDB release that the supplemented metapackage was built on.
+base_weebill_db: /work/microbiome/db/singlem/S7.5.0.GTDB_r232.metapackage_20260805.smpkg/gtdb.syl2db
+# Must be the -c the base database was built at (S7.5.0: 100).
+weebill_c: 100
+weebill_db_name: gtdb_r232_plus_globdb_r232
+# One FASTA path per line, covering every genome given to 'singlem supplement'.
+genome_fasta_paths: /work/microbiome/ibis/public_genomes/globdb_r232/genome_fasta_paths_v4.tsv
+max_threads: 32

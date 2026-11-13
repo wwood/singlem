@@ -809,6 +809,12 @@ def main():
     supplement_rare_group.add_argument('--new-taxonomy-database-name', help='Name of the taxonomy database to record in the created metapackage [default: %s]' % CUSTOM_TAXONOMY_DATABASE_NAME, default=CUSTOM_TAXONOMY_DATABASE_NAME)
     supplement_rare_group.add_argument('--new-taxonomy-database-version', help='Version of the taxonomy database to use [default: None]')
 
+    # weebill
+    weebill_group = supplement_parser.add_argument_group('weebill database')
+    weebill_group.add_argument('--no-weebill', action='store_true', help="Do not include a weebill database in the output metapackage, even if the input metapackage bundles one. 'singlem pipe' on reads then needs --no-weebill too. [default: add the new genomes to the input metapackage's weebill database, if it bundles one]")
+    weebill_group.add_argument('--weebill-db-base', metavar='SYL2DB', help="When the input metapackage bundles no weebill database, add the new genomes to this weebill two-stage database (.syl2db) and bundle the result in the output metapackage. Must be built from the genomes of the input metapackage. Requires --weebill-c.")
+    weebill_group.add_argument('--weebill-c', type=int, metavar='C', help="The -c subsampling value --weebill-db-base was built with.")
+
     args = bird_argparser.parse_the_args()
     parse_genome_fasta_files(args)
 
@@ -1616,6 +1622,9 @@ def main():
             ignore_taxonomy_database_incompatibility=args.ignore_taxonomy_database_incompatibility,
             new_taxonomy_database_name=args.new_taxonomy_database_name,
             new_taxonomy_database_version=args.new_taxonomy_database_version,
+            no_weebill=args.no_weebill,
+            weebill_db_base=args.weebill_db_base,
+            weebill_c=args.weebill_c,
         )
 
     else:

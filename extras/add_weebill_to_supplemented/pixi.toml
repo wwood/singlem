@@ -1,0 +1,16 @@
+[workspace]
+authors = ["Ben Woodcroft <benjwoodcroft@gmail.com>"]
+channels = ["conda-forge", "bioconda"]
+name = "add_weebill_to_supplemented"
+platforms = ['linux-64']
+version = "0.1.0"
+
+[tasks]
+
+[dependencies]
+python = "*"
+snakemake = ">=9,<10"
+snakemake-executor-plugin-cluster-generic = "*"
+polars = "*"
+duckdb = "*"  # read-name stores of v7+ metapackages
+weebill = ">=0.4.0"  # db-add
