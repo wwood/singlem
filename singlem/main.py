@@ -153,7 +153,7 @@ def add_less_common_pipe_arguments(argument_group, extra_args=False):
     argument_group.add_argument('--singlem-packages', nargs='+', help='SingleM packages to use [default: use the set from the default metapackage]')
     argument_group.add_argument('--assignment-singlem-db', '--assignment_singlem_db', help='Use this SingleM DB when assigning taxonomy [default: not set, use the default]')
     argument_group.add_argument('--diamond-taxonomy-assignment-performance-parameters',
-                                help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: use setting defined in metapackage when set, otherwise use \'%s\']' % SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS,
+                                help='Performance-type arguments to use when calling \'diamond blastx\' during the taxonomy assignment step. [default: use setting defined in metapackage when set, otherwise use \'%s\', followed by \'%s\' in either case]' % (SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS, SearchPipe.DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS),
                                 default=None)
     argument_group.add_argument('--evalue',
                                 help='HMMSEARCH e-value cutoff to use for sequence gathering [default: %s]' % SearchPipe.DEFAULT_HMMSEARCH_EVALUE, default=SearchPipe.DEFAULT_HMMSEARCH_EVALUE)
