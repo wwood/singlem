@@ -1,0 +1,69 @@
+stage	version	sample	wall_min	rss_gb
+pipe (no taxonomy)	0.19.0	"DRR083195
+Illumina"	1.5469716666666666	1.23109375
+pipe (no taxonomy)	0.20.3	"DRR083195
+Illumina"	2.080495	1.25869140625
+pipe (no taxonomy)	dev (Apr 2026)	"DRR083195
+Illumina"	3.2437933333333335	1.3249609375
+pipe (no taxonomy)	dev (now)	"DRR083195
+Illumina"	1.1099999999999999	0.4108203125
+pipe (no taxonomy)	0.20.3	"ERR11563597
+nanopore"	370.0327833333333	5.66990234375
+pipe (no taxonomy)	dev (Apr 2026)	"ERR11563597
+nanopore"	156.23112833333334	4.01658203125
+pipe (no taxonomy)	dev (now)	"ERR11563597
+nanopore"	49.15233333333333	5.3412890625
+pipe (no taxonomy)	0.19.0	"SRR1926147
+Illumina"	26.122396666666667	2.968623046875
+pipe (no taxonomy)	0.20.3	"SRR1926147
+Illumina"	26.741918333333334	3.152109375
+pipe (no taxonomy)	dev (Apr 2026)	"SRR1926147
+Illumina"	23.918675	2.632705078125
+pipe (no taxonomy)	dev (now)	"SRR1926147
+Illumina"	5.6016666666666675	2.648935546875
+pipe (no taxonomy)	0.19.0	"SRR9224014
+Illumina"	14.404161666666665	3.781328125
+pipe (no taxonomy)	0.20.3	"SRR9224014
+Illumina"	13.03895	3.08857421875
+pipe (no taxonomy)	dev (Apr 2026)	"SRR9224014
+Illumina"	11.877956666666668	2.361806640625
+pipe (no taxonomy)	dev (now)	"SRR9224014
+Illumina"	2.469	2.7063671875
+pipe --genome-fasta	0.19.0	"Methanobacteria
+genomes"	1.2523033333333333	0.693427734375
+pipe --genome-fasta	0.20.3	"Methanobacteria
+genomes"	13.475791666666668	1.8414453125
+pipe --genome-fasta	dev (Apr 2026)	"Methanobacteria
+genomes"	1.24935	0.71837890625
+pipe --genome-fasta	dev (now)	"Methanobacteria
+genomes"	1.2163333333333335	0.817060546875
+renew	0.19.0	"DRR083195
+Illumina"	2.4519366666666667	0.31794921875
+renew	0.20.3	"DRR083195
+Illumina"	3.185713333333333	0.329677734375
+renew	dev (Apr 2026)	"DRR083195
+Illumina"	3.669696666666667	0.305380859375
+renew	dev (now)	"DRR083195
+Illumina"	1.2955	0.4848046875
+renew	0.20.3	"ERR11563597
+nanopore"	209.13096166666668	3.91466796875
+renew	dev (Apr 2026)	"ERR11563597
+nanopore"	572.9661883333333	3.8546484375
+renew	dev (now)	"ERR11563597
+nanopore"	241.55200000000002	28.85478515625
+renew	0.19.0	"SRR1926147
+Illumina"	17.308268333333334	0.5517578125
+renew	0.20.3	"SRR1926147
+Illumina"	20.948463333333333	0.576923828125
+renew	dev (Apr 2026)	"SRR1926147
+Illumina"	32.05096	0.656826171875
+renew	dev (now)	"SRR1926147
+Illumina"	5.016666666666667	1.914462890625
+renew	0.19.0	"SRR9224014
+Illumina"	5.291728333333333	0.50017578125
+renew	0.20.3	"SRR9224014
+Illumina"	5.841113333333333	0.44806640625
+renew	dev (Apr 2026)	"SRR9224014
+Illumina"	5.384761666666666	0.379453125
+renew	dev (now)	"SRR9224014
+Illumina"	2.3543333333333334	0.507578125
