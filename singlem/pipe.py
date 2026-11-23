@@ -748,6 +748,12 @@ class SearchPipe:
         otu_table_object = OtuTable()
         package_to_taxonomy_bihash = {}
 
+        # Replace the paths of the full query sequence files with the sequences
+        # themselves, read once here rather than once per package.
+        if diamond_forward_qseqs:
+            diamond_forward_qseqs, diamond_reverse_qseqs = self._read_needed_full_qseqs(
+                extracted_reads, analysing_pairs, diamond_forward_qseqs, diamond_reverse_qseqs)
+
         for readset in extracted_reads:
             self._process_taxonomically_assigned_reads(
                 # inputs
@@ -806,6 +812,61 @@ class SearchPipe:
         # Appended after the metapackage's parameters since diamond uses the
         # last --block-size given, and those embed --block-size 0.5.
         return "%s %s" % (params, SearchPipe.DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS)
+
+    @staticmethod
+    def _read_needed_full_qseqs(extracted_reads, analysing_pairs, diamond_forward_qseqs, diamond_reverse_qseqs):
+        '''Read the full query sequences of the reads that will be recorded in
+        the OTU table, reading each sample's file only once.
+
+        Each full query sequence file holds every read that hit in the DIAMOND
+        prefilter, which for long reads can be several GB, so it is read once
+        per sample rather than once per package, keeping only the reads that
+        some package needs.
+
+        Parameters
+        ----------
+        diamond_forward_qseqs, diamond_reverse_qseqs: dict
+            sample name to path of the forward (or reverse) full query sequences
+            file. diamond_reverse_qseqs is None unless analysing pairs.
+
+        Returns
+        -------
+        (dict, dict or None)
+            sample name to {read name: full sequence}, for forward and reverse
+            reads respectively, in the same shape as the inputs.
+        '''
+        # Read names in the readsets are e.g. 'name••2524614704', whereas the
+        # full sequences are named without the ••marker.
+        needed_forward = {}
+        needed_reverse = {}
+        for readset in extracted_reads:
+            if analysing_pairs:
+                sample_name = readset[0].sample_name
+                sides = [(readset[0], needed_forward), (readset[1], needed_reverse)]
+            else:
+                sample_name = readset.sample_name
+                sides = [(readset, needed_forward)]
+            for (side_readset, needed) in sides:
+                names = needed.setdefault(sample_name, set())
+                for s in side_readset.unknown_sequences:
+                    names.add(s.name.split('••')[0])
+
+        def read_needed(qseqs_paths, needed):
+            sample_to_seqs = {}
+            for (sample_name, names) in needed.items():
+                if len(names) == 0:
+                    continue
+                seqs = {}
+                with open(qseqs_paths[sample_name]) as f:
+                    for (name, seq, _) in SeqReader().readfq(f):
+                        if name in names:
+                            seqs[name] = seq
+                sample_to_seqs[sample_name] = seqs
+            return sample_to_seqs
+
+        forward = read_needed(diamond_forward_qseqs, needed_forward)
+        reverse = read_needed(diamond_reverse_qseqs, needed_reverse) if analysing_pairs else None
+        return forward, reverse
 
     def _process_taxonomically_assigned_reads(
             self,
@@ -926,9 +987,11 @@ class SearchPipe:
                     # The names here are e.g.
                     # 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704',
                     # whereas the full sequences are named without the ••marker.
-                    forward_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_forward_qseqs[sample_name])
+                    # Read in by _read_needed_full_qseqs. A sample has no entry
+                    # if none of its reads on that side need recording.
+                    forward_full_qseqs = diamond_forward_qseqs.get(sample_name, {})
                     if analysing_pairs:
-                        reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
+                        reverse_full_qseqs = diamond_reverse_qseqs.get(sample_name, {})
                         sides = [(readset[0], forward_full_qseqs), (readset[1], reverse_full_qseqs)]
                     else:
                         sides = [(readset, forward_full_qseqs)]
