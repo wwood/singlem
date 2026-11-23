@@ -976,7 +976,10 @@ class SearchPipe:
                  len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
-                if diamond_forward_qseqs:
+                # None when there was no DIAMOND prefilter. Otherwise the dict
+                # can be empty, e.g. when only reverse reads hit, and the
+                # reverse reads still need restoring.
+                if diamond_forward_qseqs is not None:
                     # Up to now each read's unaligned_sequence has been just the
                     # part of it that hit in the prefilter. The archive OTU table
                     # records the whole read (or with a context window, the region

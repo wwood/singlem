@@ -1713,6 +1713,29 @@ AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
             list([line.split("\t") for line in expected]),
             extern.run(cmd))
 
+    def test_paired_full_read_recorded_when_only_one_read_hits(self):
+        # The read is padded so that the prefilter hit covers only part of it,
+        # and the whole read should still be recorded whichever side it is on.
+        padded = os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg_inseqs2.padded.fna')
+        with open(padded) as f:
+            full_read = f.read().split('\n')[1]
+        for (forward, reverse) in [
+                (padded, os.path.join(path_to_data, 'random.fna')),
+                (os.path.join(path_to_data, 'random.fna'), padded)]:
+            cmd = '{} pipe --forward {} --reverse {} --otu-table /dev/stdout --output-extras --singlem-packages {} --assignment-singlem-db {} --assignment-method smafa_naive_then_diamond'.format(
+                path_to_script,
+                forward,
+                reverse,
+                os.path.join(path_to_data, '4.11.22seqs.gpkg.spkg'),
+                os.path.join(path_to_data, '4.11.22seqs.paired.manual.json.v5.smafa_naive.sdb'),
+            )
+            lines = extern.run(cmd).strip().split('\n')
+            header = lines[0].split('\t')
+            self.assertEqual(2, len(lines))
+            row = dict(zip(header, lines[1].split('\t')))
+            self.assertEqual('padded_read', row['read_names'])
+            self.assertEqual(full_read, row['read_unaligned_sequences'])
+
     def test_exclude_off_target_hits(self):
         without_exclude = "gene    sample  sequence        num_hits        coverage        taxonomy\n" \
                 "4.11.22seqs     4.11.22seqs.gpkg.spkg_inseqs    TTACGTTCACAATTACGTGAAGCTGGTGTTGAGTATAAAGTATACAAAAACACTATGGTA    1       2.44    Root; d__Bacteria; p__Firmicutes; c__Clostridia; o__Clostridiales; f__Lachnospiraceae; g__[Lachnospiraceae_bacterium_NK4A179]; s__Lachnospiraceae_bacterium_NK4A179\n"
