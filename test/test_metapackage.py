@@ -206,6 +206,29 @@ class Tests(unittest.TestCase):
         self.assertFalse(store.has_genome_taxonomy_table())
         self.assertEqual({}, store.get_taxonomy_by_genome_key(['GCA_000013625.1']))
 
+    def test_sqlite_store_taxonomy_of_reads_scan_matches_lookup(self):
+        # Above SQLITE_FULL_SCAN_THRESHOLD names a SQLite store is scanned
+        # instead of looked up through its index; both must agree.
+        import sqlite3
+        from singlem.metapackage_read_name_store import MetapackageReadNameStore
+        db = os.path.join(path_to_data, 'four_package.smpkg', 'read_taxonomies.sqlite3')
+        conn = sqlite3.connect(db)
+        names = [r[0] for r in conn.execute("SELECT read_name FROM read_name_taxonomy LIMIT 50")]
+        conn.close()
+        self.assertEqual(50, len(names))
+        store = MetapackageReadNameStore.acquire(db)
+        by_lookup = store.get_taxonomy_of_reads(set(names))
+        original = MetapackageReadNameStore.SQLITE_FULL_SCAN_THRESHOLD
+        try:
+            MetapackageReadNameStore.SQLITE_FULL_SCAN_THRESHOLD = 10
+            by_scan = store.get_taxonomy_of_reads(set(names))
+            with self.assertRaises(Exception):
+                store.get_taxonomy_of_reads(set(names + ['not_a_read_name']))
+        finally:
+            MetapackageReadNameStore.SQLITE_FULL_SCAN_THRESHOLD = original
+        self.assertEqual(by_lookup, by_scan)
+        self.assertEqual(set(names), set(by_scan.keys()))
+
     def test_metapackage_read_name_store(self):
         with tempfile.TemporaryDirectory(prefix='singlem') as f:
             cmd = "{} metapackage --singlem-packages test/data/4.11.22seqs.gpkg.spkg --nucleotide-sdb test/data/4.11.22seqs.gpkg.spkg.smpkg/22seqs.sdb --metapackage {}/a.smpkg --no-taxon-genome-lengths".format(

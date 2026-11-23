@@ -244,22 +244,38 @@ class MetapackageReadNameStore:
             raise
         con.close()
 
+    # Above this many read names, a SQLite store is scanned in full rather than
+    # looked up through its index. Each index lookup is a random read of the
+    # database file, which on a network filesystem (e.g. Lustre) with a cold
+    # page cache costs a few milliseconds even with the names sorted, whereas
+    # the scan reads the ~1 GB file sequentially in several seconds. For the
+    # S5.4 metapackage, looking up 32,735 names took 460 s unsorted, 97 s
+    # sorted, and 7 s by scan (3 s warm, against 0.2 s for lookups).
+    SQLITE_FULL_SCAN_THRESHOLD = 2000
+
     def get_taxonomy_of_reads(self, read_names):
         '''Return dict of read name to taxonomy string'''
         to_return = {}
-        conn = self._connect()
-        try:
-            for read_name_set in iterable_chunks(read_names, 900):
-                names = [r for r in read_name_set if r is not None]
-                if not names:
-                    continue
-                placeholders = ','.join(['?'] * len(names))
-                sql = "SELECT read_name, taxonomy FROM {} WHERE read_name IN ({})".format(
-                    READ_NAME_TAXONOMY_TABLE, placeholders)
-                for read_name, taxonomy in conn.execute(sql, names).fetchall():
+        # Sorted so that consecutive index lookups touch nearby pages.
+        names = sorted(set(r for r in read_names if r is not None))
+        if self._backend == 'sqlite' and len(names) > self.SQLITE_FULL_SCAN_THRESHOLD:
+            wanted = set(names)
+            for read_name, taxonomy in self._iterate(
+                    "SELECT read_name, taxonomy FROM {}".format(READ_NAME_TAXONOMY_TABLE)):
+                if read_name in wanted:
                     to_return[read_name] = [s.strip() for s in taxonomy.split(';')]
-        finally:
-            conn.close()
+        else:
+            conn = self._connect()
+            try:
+                for chunk in iterable_chunks(names, 900):
+                    chunk = list(chunk)
+                    placeholders = ','.join(['?'] * len(chunk))
+                    sql = "SELECT read_name, taxonomy FROM {} WHERE read_name IN ({})".format(
+                        READ_NAME_TAXONOMY_TABLE, placeholders)
+                    for read_name, taxonomy in conn.execute(sql, chunk).fetchall():
+                        to_return[read_name] = [s.strip() for s in taxonomy.split(';')]
+            finally:
+                conn.close()
         if len(to_return) != len(read_names):
             for r in read_names:
                 if r not in to_return:
