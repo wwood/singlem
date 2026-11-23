@@ -18,7 +18,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/aragorn-1.2.41-h7b50bb2_5.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/bedtools-2.31.1-h13024bc_3.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/cd-hit-4.8.1-h5ca1c30_13.tar.bz2
-      - conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.8-he361c42_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.9-he361c42_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/expressbetadiversity-1.0.10-hc52dbad_7.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/fastani-1.34-hb66fcc3_6.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/fasttree-2.2.0-h7b50bb2_1.conda
@@ -365,7 +365,7 @@ environments:
       - conda: https://conda.anaconda.org/bioconda/linux-64/aragorn-1.2.41-h7b50bb2_5.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/bedtools-2.31.1-h13024bc_3.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/cd-hit-4.8.1-h5ca1c30_13.tar.bz2
-      - conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.8-he361c42_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.9-he361c42_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/expressbetadiversity-1.0.10-hc52dbad_7.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/fastani-1.34-hb66fcc3_6.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/fasttree-2.2.0-h7b50bb2_1.conda
@@ -747,7 +747,7 @@ environments:
     - https://pypi.org/simple
     packages:
       linux-64:
-      - conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.8-he361c42_0.conda
+      - conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.9-he361c42_0.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/fasttree-2.2.0-h7b50bb2_1.conda
       - conda: https://conda.anaconda.org/bioconda/linux-64/hmmer-3.2.1-he1b5a44_2.tar.bz2
       - conda: https://conda.anaconda.org/bioconda/linux-64/mfqe-0.5.0-h54198d6_6.conda
@@ -976,22 +976,22 @@ packages:
     - cd-hit >=4.8.1,<5.0a0
   size: 185148
   timestamp: 1745532039886
-- conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.8-he361c42_0.conda
-  sha256: 2fc36bd54c6f3d0910c37dadcd4eb5b242d522ce1cf331f66a19942b18a70744
-  md5: 312008ad0c1e6e05c4e8b9cc6dbd1765
+- conda: https://conda.anaconda.org/bioconda/linux-64/diamond-2.2.9-he361c42_0.conda
+  sha256: 1f3479dd30d31a8f75567841eda0fd9773a86eda73b1fe7fb950d225bae1ba6d
+  md5: fbc60110d34c930130ca134d8bb08627
   depends:
   - __glibc >=2.17,<3.0.a0
   - libgcc >=14
-  - libsqlite >=3.53.4,<4.0a0
+  - libsqlite >=3.54.1,<4.0a0
   - libstdcxx >=14
   - libzlib >=1.3.2,<2.0a0
   license: GPL-3.0-or-later
   license_family: GPL3
   run_exports:
     weak:
-    - diamond >=2.2.8,<3.0a0
-  size: 3390953
-  timestamp: 1789907382970
+    - diamond >=2.2.9,<3.0a0
+  size: 3601374
+  timestamp: 1794767658611
 - conda: https://conda.anaconda.org/bioconda/linux-64/expressbetadiversity-1.0.10-hc52dbad_7.conda
   sha256: 20fde6448dc4317640a9c5f48973ad177468a4ff9c3117a71428dc637d650747
   md5: 1d63d216068d4d1b895f1c3cf4c9e93c
@@ -2980,7 +2980,7 @@ packages:
   license: Apache-2.0
   license_family: APACHE
   purls:
-  - pkg:pypi/grpcio?source=compressed-mapping
+  - pkg:pypi/grpcio?source=hash-mapping
   run_exports: {}
   size: 979007
   timestamp: 1793882319801
@@ -6261,7 +6261,7 @@ packages:
   license: BSD-3-Clause
   license_family: BSD
   purls:
-  - pkg:pypi/cached-property?source=hash-mapping
+  - pkg:pypi/cached-property?source=compressed-mapping
   run_exports: {}
   size: 16597
   timestamp: 1787678456483
@@ -7240,7 +7240,7 @@ packages:
   license: BSD-2-Clause
   license_family: BSD
   purls:
-  - pkg:pypi/pyasn1?source=compressed-mapping
+  - pkg:pypi/pyasn1?source=hash-mapping
   run_exports: {}
   size: 67126
   timestamp: 1793089118986
