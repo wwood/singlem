@@ -44,6 +44,15 @@ class SearchPipe:
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 72
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
+    # Appended to the taxonomy assignment performance parameters taken from the
+    # metapackage (or the default above), but not to those supplied by the
+    # user. A small block size rescues DIAMOND issue #1008
+    # (https://github.com/bbuchfink/diamond/issues/1008). Existing metapackages
+    # (S5.4, GlobDB r232, lyrebird) embed --block-size 0.5, so this must come
+    # after them, as diamond uses the last value given. The prefilter keeps
+    # --block-size 0.5: it runs multi-threaded, where merging larger blocks
+    # is faster.
+    DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS = "-b 0.02"
     DEFAULT_ASSIGNMENT_THREADS = 1
     DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
     DEFAULT_HMMSEARCH_EVALUE = 1e-5
@@ -668,9 +677,8 @@ class SearchPipe:
 
             #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
             if diamond_taxonomy_assignment_performance_parameters == None:
-                diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
-                if diamond_taxonomy_assignment_performance_parameters == None:
-                    diamond_taxonomy_assignment_performance_parameters = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
+                diamond_taxonomy_assignment_performance_parameters = SearchPipe.taxonomy_assignment_performance_parameters_from_metapackage(
+                    metapackage_object)
             
             #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
             otu_table_object = self.assign_taxonomy_and_process(
@@ -784,6 +792,20 @@ class SearchPipe:
 
         return extracted_reads
 
+
+    @staticmethod
+    def taxonomy_assignment_performance_parameters_from_metapackage(metapackage_object):
+        '''Return the DIAMOND taxonomy assignment performance parameters to
+        use when the user has not specified them: those of the metapackage
+        (v5 metapackages only) or else the default, followed by
+        DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS, which rescues DIAMOND
+        #1008.'''
+        params = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
+        if params == None:
+            params = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
+        # Appended after the metapackage's parameters since diamond uses the
+        # last --block-size given, and those embed --block-size 0.5.
+        return "%s %s" % (params, SearchPipe.DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS)
 
     def _process_taxonomically_assigned_reads(
             self,
