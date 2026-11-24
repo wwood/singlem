@@ -4,16 +4,38 @@ runs = {
 }
 # runs = {'illumina': ['DRR083195']} # debug
 run_to_type = {run: run_type for run_type, run_list in runs.items() for run in run_list}
-data_dir = 'snakedata'
+# GTDB R232 benchmark. The R226 (S5.4) benchmark is in Snakefile.r226, and its
+# outputs are in snakedata/. Reads are shared between the two: if they are
+# already downloaded, run with '--rerun-triggers mtime' so snakemake does not
+# redownload them just because the kingfisher rule's code differs.
+data_dir = 'snakedata_r232'
+reads_dir = 'snakedata/reads'
+done_dir = 'snakedata/done'
 singlems = ['0.19.0', '0.20.3', '0.21.4', 'dev']#,'singlem-hmmer-rs']
 singlems = [s.replace('.', '-') for s in singlems]
-metapackage = '/work/microbiome/db/singlem/S5.4.0.GTDB_r226.metapackage_20250331.smpkg.zb'
+# The released versions read metapackage format v6 at most (SQLite read name
+# store), so they get S6.5. dev gets S7.5.1 (v7, DuckDB store with the
+# genome_taxonomy table, bundled weebill database). Both are GTDB R232.
+old_metapackage = '/work/microbiome/db/singlem/S6.5.0.GTDB_r232.metapackage_20260319.smpkg.zb'
+dev_metapackage = '/work/microbiome/db/singlem/S7.5.1.GTDB_r232.metapackage_20260805.smpkg'
+def metapackage(wildcards):
+    return dev_metapackage if wildcards.singlem_version == 'dev' else old_metapackage
 lyrebird_metapackage = '/work/microbiome/db/singlem/lyrebird_v0.3.1_phrog_v4.1_metapackage_20250720.smpkg.zb'
 
 import glob as _glob
 genome_datasets = {
     'methanobacteria_genomes': sorted(_glob.glob('../../test/data/methanobacteria/genomes/*.fna'))
 }
+
+# Files on /work can be migrated to tape, and timing a tape recall (or reading
+# a file that is half recalled) has made benchmarks look slow before. So before
+# any job starts, recall everything the benchmarks read: metapackages, reads,
+# genomes and the pixi environments. Not run on a dry run.
+onstart:
+    recall_paths = [old_metapackage, dev_metapackage, lyrebird_metapackage, reads_dir,
+                    'old_singlem_pixis/.pixi/envs', '../../.pixi/envs'] + \
+        [f for fs in genome_datasets.values() for f in fs]
+    shell('python3 recall_from_tape.py --threads 16 ' + ' '.join("'{}'".format(p) for p in recall_paths))
 
 # restrict singlem_version wildcard to not contain backslashes
 wildcard_constraints:
@@ -70,7 +92,7 @@ rule all:
 
 rule kingfisher_download:
     output:
-        touch(data_dir+'/done/kingfisher-{run}.done')
+        touch(done_dir+'/kingfisher-{run}.done')
     log:
         data_dir+'/logs/kingfisher-{run}.log'
     resources:
@@ -78,8 +100,8 @@ rule kingfisher_download:
         runtime='2h'
     shell:
         """
-        mkdir -p {data_dir}/reads
-        pixi run --manifest-path old_singlem_pixis/pixi.toml -e kingfisher kingfisher get -r {wildcards.run} --output-dir {data_dir}/reads -f fastq.gz -m ena-ftp prefetch &> {log}
+        mkdir -p {reads_dir}
+        pixi run --manifest-path old_singlem_pixis/pixi.toml -e kingfisher kingfisher get -r {wildcards.run} --output-dir {reads_dir} -f fastq.gz -m ena-ftp prefetch &> {log}
         """
 
 def singlem_env(wildcards):
@@ -94,13 +116,14 @@ def singlem_env(wildcards):
 
 rule singlem:
     input:
-        data_dir+'/done/kingfisher-{run}.done'
+        done_dir+'/kingfisher-{run}.done'
     output:
         profile=data_dir+'/singlem-{singlem_version}/{run}.profile.tsv',
         otu_table=data_dir+'/singlem-{singlem_version}/{run}.otu_table.tsv'
     params:
         exe = lambda wildcards: singlem_env(wildcards),
-        read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+        metapackage = metapackage,
+        read_arg = lambda wildcards: f'-1 {reads_dir}/{wildcards.run}_1.fastq.gz -2 {reads_dir}/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {reads_dir}/{wildcards.run}.fastq.gz'
     threads:
         4
     resources:
@@ -118,18 +141,19 @@ rule singlem:
             --otu-table {output.otu_table} \
             --output-extras \
             -p {output.profile} \
-            --metapackage {metapackage} \
+            --metapackage {params.metapackage} \
             &> {log}
         """
 
 rule singlem_no_assign_taxonomy:
     input:
-        data_dir+'/done/kingfisher-{run}.done'
+        done_dir+'/kingfisher-{run}.done'
     output:
         otu_table=data_dir+'/singlem-no_taxonomy/{singlem_version}/{run}.json'
     params:
         exe = lambda wildcards: singlem_env(wildcards),
-        read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+        metapackage = metapackage,
+        read_arg = lambda wildcards: f'-1 {reads_dir}/{wildcards.run}_1.fastq.gz -2 {reads_dir}/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {reads_dir}/{wildcards.run}.fastq.gz'
     threads:
         4
     resources:
@@ -146,18 +170,18 @@ rule singlem_no_assign_taxonomy:
             --threads {threads} \
             --archive-otu-table {output.otu_table} \
             --no-assign-taxonomy \
-            --metapackage {metapackage} \
+            --metapackage {params.metapackage} \
             &> {log}
         """
 
 # rule singlem_no_assign_taxonomy_context_window:
 #     input:
-#         data_dir+'/done/kingfisher-{run}.done'
+#         done_dir+'/kingfisher-{run}.done'
 #     output:
 #         otu_table=data_dir+'/singlem-no_taxonomy_context/{singlem_version}/{run}.json'
 #     params:
 #         exe = lambda wildcards: singlem_env(wildcards),
-#         read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+#         read_arg = lambda wildcards: f'-1 {reads_dir}/{wildcards.run}_1.fastq.gz -2 {reads_dir}/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {reads_dir}/{wildcards.run}.fastq.gz'
 #     threads:
 #         4
 #     resources:
@@ -175,7 +199,7 @@ rule singlem_no_assign_taxonomy:
 #             --threads {threads} \
 #             --archive-otu-table {output.otu_table} \
 #             --no-assign-taxonomy \
-#             --metapackage {metapackage} \
+#             --metapackage {params.metapackage} \
 #             &> {log}
 #         """
 
@@ -210,6 +234,7 @@ rule singlem_renew:
         otu_table=data_dir+'/singlem-renew/{singlem_version}/{run}.otu_table.tsv'
     params:
         exe = lambda wildcards: singlem_env(wildcards),
+        metapackage = metapackage,
         # Only 0.19.0 and 0.20.3 need the separate DIAMOND; 0.21.4 requires diamond>=2.1.21 so uses its own
         diamond_path = lambda wildcards: 'PATH=old_singlem_pixis/.pixi/envs/diamond/bin:$PATH ' if wildcards.singlem_version in ['0-19-0', '0-20-3'] else '',
     threads:
@@ -230,18 +255,18 @@ rule singlem_renew:
             --otu-table {output.otu_table} \
             --output-extras \
             -p {output.profile} \
-            --metapackage {metapackage}' \
+            --metapackage {params.metapackage}' \
             &> {log}
         """
 
 rule lyrebird_no_assign_taxonomy:
     input:
-        data_dir+'/done/kingfisher-{run}.done'
+        done_dir+'/kingfisher-{run}.done'
     output:
         otu_table=data_dir+'/lyrebird-no_taxonomy/{singlem_version}/{run}.json'
     params:
         exe = lambda wildcards: singlem_env(wildcards),
-        read_arg = lambda wildcards: f'-1 {data_dir}/reads/{wildcards.run}_1.fastq.gz -2 {data_dir}/reads/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {data_dir}/reads/{wildcards.run}.fastq.gz'
+        read_arg = lambda wildcards: f'-1 {reads_dir}/{wildcards.run}_1.fastq.gz -2 {reads_dir}/{wildcards.run}_2.fastq.gz' if run_to_type[wildcards.run] == 'illumina' else f'-1 {reads_dir}/{wildcards.run}.fastq.gz'
     threads:
         4
     resources:
@@ -298,6 +323,7 @@ rule singlem_genome:
         otu_table=data_dir+'/singlem-genome/{singlem_version}/{genome_dataset}.otu_table.tsv'
     params:
         exe = lambda wildcards: singlem_env(wildcards),
+        metapackage = metapackage,
     threads:
         4
     resources:
@@ -314,7 +340,7 @@ rule singlem_genome:
             --threads {threads} \
             --otu-table {output.otu_table} \
             --output-extras \
-            --metapackage {metapackage} \
+            --metapackage {params.metapackage} \
             &> {log}
         """
 
