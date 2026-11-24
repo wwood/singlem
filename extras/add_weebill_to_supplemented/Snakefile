@@ -1,0 +1,148 @@
+"""
+Add a weebill two-stage database to a metapackage made by 'singlem supplement',
+without rebuilding the GTDB part of the database.
+
+The GTDB representative genomes are already sketched in the default
+metapackage's .syl2db. 'weebill db-add' (weebill >= 0.4.0) grows a copy of that
+database with exactly the genomes supplement added. Those genomes are read back
+from the supplemented metapackage's read-name store, then matched to their FASTA
+files. The grown database is bundled into a copy of the supplemented metapackage,
+which is upgraded to metapackage version 7.
+
+'singlem supplement' now extends the input metapackage's weebill database
+itself (or one given with --weebill-db-base), so this pipeline is only needed
+for metapackages supplemented by older versions of SingleM.
+
+Usage:
+
+pixi run snakemake --configfile config-GlobDB_r232.yaml --profile aqua
+
+Requires a SingleM that matches weebill genomes to the metapackage by genome
+file name when there is no versioned GCA_/GCF_ accession (genome_key_from_*
+in singlem/metapackage_read_name_store.py). Older versions drop weebill's hits
+to the supplemented genomes, and the default joint condense then zeroes those
+species.
+"""
+
+import os
+
+output_dir = config["output_dir"]
+logs_dir = output_dir + "/logs"
+benchmark_dir = output_dir + "/benchmarks"
+
+input_metapackage = config["input_metapackage"]
+base_weebill_db = config["base_weebill_db"]
+weebill_c = config["weebill_c"]
+db_name = config["weebill_db_name"]
+output_metapackage = os.path.join(output_dir, config["output_metapackage_name"])
+
+
+def get_mem_mb(wildcards, threads):
+    return 8 * 1000 * threads
+
+
+rule all:
+    input:
+        output_metapackage + "/.done",
+
+
+# Genome IDs supplement embedded in read names ('<marker>~<genome>‡<gene>'). The
+# GTDB genomes ('<marker>~GB_GCA_xxx.1') are already in the base database, so
+# they are not listed.
+rule supplemented_genome_ids:
+    input:
+        mpkg = input_metapackage,
+    output:
+        ids = output_dir + "/supplemented_genome_ids.txt",
+    threads: 1
+    resources:
+        mem_mb = 16 * 1024,
+        runtime = 4 * 60,
+    log:
+        logs_dir + "/supplemented_genome_ids.log"
+    benchmark:
+        benchmark_dir + "/supplemented_genome_ids.benchmark"
+    script:
+        "scripts/supplemented_genome_ids.py"
+
+
+# Map each genome ID to its FASTA file. supplement named genomes by their file
+# basename with the last extension removed, e.g. AMXMAG_0092.fa.gz -> AMXMAG_0092.fa.
+rule supplemented_genome_paths:
+    input:
+        ids = output_dir + "/supplemented_genome_ids.txt",
+        genome_fasta_paths = config["genome_fasta_paths"],
+    output:
+        paths = output_dir + "/supplemented_genome_paths.txt",
+    threads: 1
+    resources:
+        mem_mb = 8 * 1024,
+        runtime = 60,
+    log:
+        logs_dir + "/supplemented_genome_paths.log"
+    script:
+        "scripts/supplemented_genome_paths.py"
+
+
+# Sketch via a genome list rather than 'db-add -g': hundreds of thousands of
+# paths would exceed the command-line length limit.
+rule weebill_sketch_supplemented:
+    input:
+        paths = output_dir + "/supplemented_genome_paths.txt",
+    output:
+        syldb = output_dir + "/weebill/supplemented.syldb",
+    threads: config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 48 * 60,
+    params:
+        out_name = output_dir + "/weebill/supplemented",
+        c = weebill_c,
+    log:
+        logs_dir + "/weebill_sketch_supplemented.log"
+    benchmark:
+        benchmark_dir + "/weebill_sketch_supplemented.benchmark"
+    shell:
+        "(weebill --version && "
+        "weebill sketch -l {input.paths} -c {params.c} -t {threads} -o {params.out_name}) &> {log}"
+
+
+rule weebill_db_add:
+    input:
+        base = base_weebill_db,
+        syldb = output_dir + "/weebill/supplemented.syldb",
+    output:
+        syl2db = output_dir + "/weebill/" + db_name + ".syl2db",
+    threads: config["max_threads"]
+    resources:
+        mem_mb = get_mem_mb,
+        runtime = 24 * 60,
+    params:
+        out_name = output_dir + "/weebill/" + db_name,
+    log:
+        logs_dir + "/weebill_db_add.log"
+    benchmark:
+        benchmark_dir + "/weebill_db_add.benchmark"
+    shell:
+        "weebill db-add -D {input.base} -o {params.out_name} -t {threads} {input.syldb} &> {log}"
+
+
+rule assemble_metapackage:
+    input:
+        mpkg = input_metapackage,
+        syl2db = output_dir + "/weebill/" + db_name + ".syl2db",
+    output:
+        done = output_metapackage + "/.done",
+    threads: 1
+    resources:
+        mem_mb = 4 * 1024,
+        runtime = 12 * 60,
+    params:
+        output_metapackage = output_metapackage,
+        weebill_c = weebill_c,
+    log:
+        logs_dir + "/assemble_metapackage.log"
+    benchmark:
+        benchmark_dir + "/assemble_metapackage.benchmark"
+    script:
+        "scripts/add_weebill_db_to_metapackage.py"

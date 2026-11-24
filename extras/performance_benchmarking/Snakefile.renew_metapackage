@@ -1,0 +1,84 @@
+# Benchmark 'singlem renew' speed between two metapackages that differ only in
+# whether read_taxonomies.duckdb has the genome_taxonomy table (fast genome key
+# lookup, used when annotating a weebill profile). Renew is given a weebill
+# sketch so that lookup is exercised.
+#
+# Run with: pixi run snakemake -s Snakefile.renew_metapackage --profile aqua
+
+data_dir = 'snakedata/renew_metapackage'
+run = 'SRR1926147'  # largest of the illumina runs
+reads_dir = 'snakedata/reads'
+mpkg_dir = '/mnt/weka/scratch/microbiome/woodcrob/S7.5.0_postprocess'
+metapackages = {
+    'S7-5-0': mpkg_dir + '/S7.5.0.GTDB_r232.metapackage_20260805.smpkg',  # no genome_taxonomy table
+    'S7-5-1': mpkg_dir + '/S7.5.1.GTDB_r232.metapackage_20260805.smpkg',  # with genome_taxonomy table
+}
+replicates = ['1', '2']
+singlem = 'pixi run --manifest-path ../../pixi.toml singlem'
+threads_n = 8
+
+wildcard_constraints:
+    mpkg="[^/]+",
+    rep="[^/]+"
+
+rule all:
+    input:
+        expand(data_dir + '/renew/{mpkg}/rep{rep}.profile.tsv', mpkg=metapackages.keys(), rep=replicates)
+
+rule pipe_archive_and_sketch:
+    input:
+        r1=reads_dir + f'/{run}_1.fastq.gz',
+        r2=reads_dir + f'/{run}_2.fastq.gz',
+    output:
+        archive=data_dir + f'/pipe/{run}.json',
+        sketch=directory(data_dir + f'/pipe/{run}.weebill_sketch'),
+    threads: threads_n
+    resources:
+        mem_mb=64000,
+        runtime='12h'
+    benchmark:
+        data_dir + f'/benchmarks/pipe/{run}.txt'
+    log:
+        data_dir + f'/logs/pipe-{run}.log'
+    params:
+        mpkg=metapackages['S7-5-0']
+    shell:
+        """
+        {singlem} pipe -1 {input.r1} -2 {input.r2} \
+            --threads {threads} \
+            --no-assign-taxonomy \
+            --archive-otu-table {output.archive} \
+            --output-weebill-sketch {output.sketch} \
+            --metapackage {params.mpkg} \
+            &> {log}
+        """
+
+rule renew:
+    input:
+        archive=data_dir + f'/pipe/{run}.json',
+        sketch=data_dir + f'/pipe/{run}.weebill_sketch',
+    output:
+        profile=data_dir + '/renew/{mpkg}/rep{rep}.profile.tsv',
+        otu_table=data_dir + '/renew/{mpkg}/rep{rep}.otu_table.tsv',
+    threads: threads_n
+    resources:
+        mem_mb=64000,
+        runtime='12h'
+    benchmark:
+        data_dir + '/benchmarks/renew/{mpkg}/rep{rep}.txt'
+    log:
+        data_dir + '/logs/renew-{mpkg}-rep{rep}.log'
+    params:
+        mpkg=lambda wildcards: metapackages[wildcards.mpkg]
+    shell:
+        """
+        {singlem} renew \
+            --input-archive-otu-table {input.archive} \
+            --input-weebill-sketch {input.sketch} \
+            --threads {threads} \
+            --otu-table {output.otu_table} \
+            -p {output.profile} \
+            --metapackage {params.mpkg} \
+            --debug \
+            &> {log}
+        """

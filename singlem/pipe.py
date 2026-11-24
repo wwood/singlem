@@ -44,10 +44,28 @@ class SearchPipe:
     DEFAULT_FILTER_MINIMUM_NUCLEOTIDE = 72
     DEFAULT_PREFILTER_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
     DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS = "--block-size 0.5 --target-indexed -c1"
+    # Appended to the taxonomy assignment performance parameters taken from the
+    # metapackage (or the default above), but not to those supplied by the
+    # user. A small block size rescues DIAMOND issue #1008
+    # (https://github.com/bbuchfink/diamond/issues/1008). Existing metapackages
+    # (S5.4, GlobDB r232, lyrebird) embed --block-size 0.5, so this must come
+    # after them, as diamond uses the last value given. The prefilter keeps
+    # --block-size 0.5: it runs multi-threaded, where merging larger blocks
+    # is faster.
+    DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS = "-b 0.02"
     DEFAULT_ASSIGNMENT_THREADS = 1
     DEFAULT_TAXONOMY_ASSIGNMENT_METHOD = SMAFA_NAIVE_THEN_DIAMOND_ASSIGNMENT_METHOD
     DEFAULT_HMMSEARCH_EVALUE = 1e-5
     DEFAULT_MAX_SPECIES_DIVERGENCE = 2
+    # Mean length (bp) above which reads given as plain forward (unpaired) input
+    # are considered long reads, and so are searched with DIAMOND's frameshift
+    # mode.
+    LONG_READ_LENGTH_THRESHOLD = 500
+    # Whether DIAMOND is run in frameshift mode (--frameshift), as is needed for
+    # long reads from error-prone technologies but slows down short read
+    # processing. The prefilter and the taxonomy assignment must agree on this,
+    # otherwise some reads that pass the prefilter are assigned no taxonomy.
+    _frameshift = False
 
     def run(self, **kwargs):
         output_otu_table = kwargs.pop('otu_table', None)
@@ -250,6 +268,7 @@ class SearchPipe:
         assignment_singlem_db = kwargs.pop('assignment_singlem_db', None)
         max_species_divergence = kwargs.pop('max_species_divergence', SearchPipe.DEFAULT_MAX_SPECIES_DIVERGENCE)
         context_window = kwargs.pop('context_window', None)
+        long_reads = kwargs.pop('long_reads', False)
         repair_frameshifts = kwargs.pop('repair_frameshifts', True)
         max_frameshift_repair_divergence = kwargs.pop(
             'max_frameshift_repair_divergence', DEFAULT_MAX_FRAMESHIFT_REPAIR_DIVERGENCE)
@@ -269,6 +288,14 @@ class SearchPipe:
         self._filter_minimum_nucleotide = filter_minimum_nucleotide
         self._max_species_divergence = max_species_divergence
         self._context_window = context_window
+        # Genomes are run in frameshift mode too, as they always have been.
+        self._frameshift = bool(long_reads or genome_fasta_files)
+        if not self._frameshift:
+            # The frameshifts repaired are those DIAMOND reports in frameshift
+            # mode, so without it there is nothing to repair.
+            repair_frameshifts = False
+        logging.info("Running DIAMOND in {} mode".format(
+            "frameshift (long read)" if self._frameshift else "standard (short read)"))
 
         if metapackage_object:
             hmms = metapackage_object
@@ -370,12 +397,19 @@ class SearchPipe:
             forward_read_files = [transcripts_path.name]
 
         zstd_processes = []
-        forward_read_files, procs = prepare_zstd_fifos(forward_read_files, tempfile_directory, sleep_after_mkfifo)
+        # Decompress gzip input outside DIAMOND, which is much faster than letting
+        # DIAMOND do it. Not when chunking, which decompresses itself, nor
+        # without the prefilter, since then the input may be read more than once.
+        decompress_gzip = diamond_prefilter and read_chunk_size is None and \
+            all(p.is_protein_package() for p in hmms)
+        forward_read_files, procs = prepare_zstd_fifos(
+            forward_read_files, tempfile_directory, sleep_after_mkfifo, decompress_gzip=decompress_gzip)
         zstd_processes.extend(procs)
         if len(zstd_processes) > 0 and not diamond_prefilter:
             raise Exception("Zstandard compressed input files can only be used with DIAMOND prefiltering at present")
         if reverse_read_files:
-            reverse_read_files, procs = prepare_zstd_fifos(reverse_read_files, tempfile_directory, sleep_after_mkfifo)
+            reverse_read_files, procs = prepare_zstd_fifos(
+                reverse_read_files, tempfile_directory, sleep_after_mkfifo, decompress_gzip=decompress_gzip)
             zstd_processes.extend(procs)
 
         # Add chunking if required
@@ -392,7 +426,6 @@ class SearchPipe:
                 chunking_processes.extend(procs)
         if len(chunking_processes) > 0 and not diamond_prefilter:
             raise Exception("Chunked input files can only be used with DIAMOND prefiltering at present")
-        time.sleep(5)
 
         def return_cleanly():
             if using_temporary_working_directory and not working_directory_dev_shm:
@@ -515,11 +548,10 @@ class SearchPipe:
                     (diamond_forward_search_results, diamond_reverse_search_results) = DiamondSpkgSearcher(
                         self._num_threads, self._working_directory).run_diamond(
                         hmms, forward_read_files, reverse_read_files, diamond_prefilter_performance_parameters,
-                        hmms.prefilter_db_path(), min_orf_length, context_window, repair_frameshifts)
+                        hmms.prefilter_db_path(), min_orf_length, context_window, repair_frameshifts,
+                        frameshift=self._frameshift)
                 except extern.ExternCalledProcessError as e:
                     logging.error("Process (DIAMOND?) failed")
-                    terminate_processes(zstd_processes, "zstdcat")
-                    terminate_processes(chunking_processes, "chunking")
                     if input_sra_files:
                         finish_sra_extraction_processes(
                             sra_extraction_processes, sra_extraction_commands, sra_extraction_logfiles,
@@ -645,9 +677,8 @@ class SearchPipe:
 
             #### Extract diamond_taxonomy_assignment_performance_parameters from metapackage (v5 metapackages only)
             if diamond_taxonomy_assignment_performance_parameters == None:
-                diamond_taxonomy_assignment_performance_parameters = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
-                if diamond_taxonomy_assignment_performance_parameters == None:
-                    diamond_taxonomy_assignment_performance_parameters = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
+                diamond_taxonomy_assignment_performance_parameters = SearchPipe.taxonomy_assignment_performance_parameters_from_metapackage(
+                    metapackage_object)
             
             #### Taxonomic assignment onwards - the rest of the pipeline is shared with singlem renew
             otu_table_object = self.assign_taxonomy_and_process(
@@ -670,8 +701,14 @@ class SearchPipe:
             return_cleanly()
             return otu_table_object
 
+        except BaseException:
+            # Otherwise finish_processes() below can wait forever on streaming
+            # processes blocked writing to FIFOs that will now never be read.
+            terminate_processes(zstd_processes, "decompression")
+            terminate_processes(chunking_processes, "chunking")
+            raise
         finally:
-            finish_processes(zstd_processes, "zstdcat")
+            finish_processes(zstd_processes, "decompression")
             finish_processes(chunking_processes, "chunking")
 
     def assign_taxonomy_and_process(self, **kwargs):
@@ -710,6 +747,12 @@ class SearchPipe:
         #### Process taxonomically assigned reads
         otu_table_object = OtuTable()
         package_to_taxonomy_bihash = {}
+
+        # Replace the paths of the full query sequence files with the sequences
+        # themselves, read once here rather than once per package.
+        if diamond_forward_qseqs:
+            diamond_forward_qseqs, diamond_reverse_qseqs = self._read_needed_full_qseqs(
+                extracted_reads, analysing_pairs, diamond_forward_qseqs, diamond_reverse_qseqs)
 
         for readset in extracted_reads:
             self._process_taxonomically_assigned_reads(
@@ -755,6 +798,75 @@ class SearchPipe:
 
         return extracted_reads
 
+
+    @staticmethod
+    def taxonomy_assignment_performance_parameters_from_metapackage(metapackage_object):
+        '''Return the DIAMOND taxonomy assignment performance parameters to
+        use when the user has not specified them: those of the metapackage
+        (v5 metapackages only) or else the default, followed by
+        DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS, which rescues DIAMOND
+        #1008.'''
+        params = metapackage_object.diamond_taxonomy_assignment_performance_parameters()
+        if params == None:
+            params = SearchPipe.DEFAULT_DIAMOND_ASSIGN_TAXONOMY_PERFORMANCE_PARAMETERS
+        # Appended after the metapackage's parameters since diamond uses the
+        # last --block-size given, and those embed --block-size 0.5.
+        return "%s %s" % (params, SearchPipe.DIAMOND_ASSIGN_TAXONOMY_BLOCK_SIZE_PARAMETERS)
+
+    @staticmethod
+    def _read_needed_full_qseqs(extracted_reads, analysing_pairs, diamond_forward_qseqs, diamond_reverse_qseqs):
+        '''Read the full query sequences of the reads that will be recorded in
+        the OTU table, reading each sample's file only once.
+
+        Each full query sequence file holds every read that hit in the DIAMOND
+        prefilter, which for long reads can be several GB, so it is read once
+        per sample rather than once per package, keeping only the reads that
+        some package needs.
+
+        Parameters
+        ----------
+        diamond_forward_qseqs, diamond_reverse_qseqs: dict
+            sample name to path of the forward (or reverse) full query sequences
+            file. diamond_reverse_qseqs is None unless analysing pairs.
+
+        Returns
+        -------
+        (dict, dict or None)
+            sample name to {read name: full sequence}, for forward and reverse
+            reads respectively, in the same shape as the inputs.
+        '''
+        # Read names in the readsets are e.g. 'name••2524614704', whereas the
+        # full sequences are named without the ••marker.
+        needed_forward = {}
+        needed_reverse = {}
+        for readset in extracted_reads:
+            if analysing_pairs:
+                sample_name = readset[0].sample_name
+                sides = [(readset[0], needed_forward), (readset[1], needed_reverse)]
+            else:
+                sample_name = readset.sample_name
+                sides = [(readset, needed_forward)]
+            for (side_readset, needed) in sides:
+                names = needed.setdefault(sample_name, set())
+                for s in side_readset.unknown_sequences:
+                    names.add(s.name.split('••')[0])
+
+        def read_needed(qseqs_paths, needed):
+            sample_to_seqs = {}
+            for (sample_name, names) in needed.items():
+                if len(names) == 0:
+                    continue
+                seqs = {}
+                with open(qseqs_paths[sample_name]) as f:
+                    for (name, seq, _) in SeqReader().readfq(f):
+                        if name in names:
+                            seqs[name] = seq
+                sample_to_seqs[sample_name] = seqs
+            return sample_to_seqs
+
+        forward = read_needed(diamond_forward_qseqs, needed_forward)
+        reverse = read_needed(diamond_reverse_qseqs, needed_reverse) if analysing_pairs else None
+        return forward, reverse
 
     def _process_taxonomically_assigned_reads(
             self,
@@ -864,7 +976,10 @@ class SearchPipe:
                  len(readset[1].unknown_sequences) == 0:
                 return []
             else: # if any sequences were aligned (not just already known)
-                if diamond_forward_qseqs:
+                # None when there was no DIAMOND prefilter. Otherwise the dict
+                # can be empty, e.g. when only reverse reads hit, and the
+                # reverse reads still need restoring.
+                if diamond_forward_qseqs is not None:
                     # Up to now each read's unaligned_sequence has been just the
                     # part of it that hit in the prefilter. The archive OTU table
                     # records the whole read (or with a context window, the region
@@ -875,9 +990,11 @@ class SearchPipe:
                     # The names here are e.g.
                     # 'HWI-ST1243:156:D1K83ACXX:7:1106:18671:79482••2524614704',
                     # whereas the full sequences are named without the ••marker.
-                    forward_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_forward_qseqs[sample_name])
+                    # Read in by _read_needed_full_qseqs. A sample has no entry
+                    # if none of its reads on that side need recording.
+                    forward_full_qseqs = diamond_forward_qseqs.get(sample_name, {})
                     if analysing_pairs:
-                        reverse_full_qseqs = SeqReader().read_nucleotide_sequences(diamond_reverse_qseqs[sample_name])
+                        reverse_full_qseqs = diamond_reverse_qseqs.get(sample_name, {})
                         sides = [(readset[0], forward_full_qseqs), (readset[1], reverse_full_qseqs)]
                     else:
                         sides = [(readset, forward_full_qseqs)]
@@ -1615,9 +1732,11 @@ class SearchPipe:
                 "--evalue 0.01 " \
                 "--threads 1 " \
                 "--query-gencode %i " \
-                "--frameshift 15 " \
+                "--masking 0 " \
+                "%s" \
                 "%s " % (
                     self._translation_table,
+                    "--frameshift 15 " if self._frameshift else "",
                     diamond_taxonomy_assignment_performance_parameters)
 
             # Phase 1: Create ALL chunk files for ALL samples in ALL packages

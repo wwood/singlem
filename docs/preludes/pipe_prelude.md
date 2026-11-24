@@ -3,9 +3,14 @@
 singlem pipe -1 <fastq_or_fasta1> -2 <fastq_or_fasta2> \
    -p <output.profile.tsv>
 ```
-or, if you have long reads (or single-end short reads):
+or, if you have single-end short reads:
 ```
 singlem pipe -1 <fastq_or_fasta1> \
+   -p <output.profile.tsv>
+```
+or, if you have long reads:
+```
+singlem pipe --long-reads <fastq_or_fasta1> \
    -p <output.profile.tsv>
 ```
 Nanopore reads >= R10.4.1 or PacBio HiFi reads are recommended so reads covering marker gene windows are not missed due to sequencing error.

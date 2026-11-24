@@ -662,12 +662,15 @@ class Metapackage:
         except AttributeError:
             return []
 
-    def genome_accession_to_taxonomy(self, accessions=None):
-        '''Return a dict of genome accession (e.g. GCF_000744455.1) to GTDB
-        taxonomy string, derived from the read-name taxonomy store. If accessions
+    def genome_key_to_taxonomy(self, genome_keys=None):
+        '''Return a dict of genome key to taxonomy string, derived from the
+        read-name taxonomy store. A genome key is a versioned GCA_/GCF_ accession
+        (e.g. GCF_000744455.1), or for a genome added by 'singlem supplement',
+        its FASTA basename with the last extension removed (see
+        metapackage_read_name_store.genome_key_from_read_name). If genome_keys
         is given, only those are returned.'''
         store = MetapackageReadNameStore.acquire(self._sqlite_db_path)
-        return store.get_taxonomy_by_genome_accession(accessions)
+        return store.get_taxonomy_by_genome_key(genome_keys)
 
     def taxonomy_database_name(self):
         try:

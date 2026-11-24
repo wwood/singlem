@@ -25,7 +25,10 @@ weebill db-convert gtdb.syldb -o gtdb                     # -> gtdb.syl2db
 and passes the result to `singlem metapackage --weebill-db ... --weebill-c ...`.
 `weebill` comes from the `update-metapackage` pixi environment. Genome file names
 must contain their `GCA_`/`GCF_` accession (GTDB's do), since that is what maps
-weebill's genomes back to the metapackage's taxonomy.
+weebill's genomes back to the metapackage's taxonomy. (Genomes added by `singlem
+supplement` are instead matched by their FASTA basename.) Build with weebill's
+default `--min-spacing` (30): `singlem supplement` extends the bundled database
+with `weebill db-add`, sketching the new genomes at that spacing.
 
 To profile from the marker genes alone against a metapackage that bundles a weebill
 database, run `singlem pipe --no-weebill`.
